@@ -1,0 +1,39 @@
+diff --git a/node_modules/@react-native-community/cli-platform-android/build/commands/buildAndroid/index.js b/node_modules/@react-native-community/cli-platform-android/build/commands/buildAndroid/index.js
+index 3472f62..dfa2506 100644
+--- a/node_modules/@react-native-community/cli-platform-android/build/commands/buildAndroid/index.js
++++ b/node_modules/@react-native-community/cli-platform-android/build/commands/buildAndroid/index.js
+@@ -67,7 +67,7 @@ async function buildAndroid(_argv, config, args) {
+ }
+ function build(gradleArgs, sourceDir) {
+   process.chdir(sourceDir);
+-  const cmd = process.platform.startsWith('win') ? 'gradlew.bat' : './gradlew';
++  const cmd = process.platform.startsWith('win') ? sourceDir + '\\gradlew.bat' : './gradlew';
+   _cliTools().logger.info('Building the app...');
+   _cliTools().logger.debug(`Running command "${cmd} ${gradleArgs.join(' ')}"`);
+   try {
+diff --git a/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/index.js b/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/index.js
+index 9fe1625..dbfffe4 100644
+--- a/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/index.js
++++ b/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/index.js
+@@ -144,7 +144,7 @@ async function buildAndRun(args, androidProject) {
+     args.device = args.deviceId;
+   }
+   process.chdir(androidProject.sourceDir);
+-  const cmd = process.platform.startsWith('win') ? 'gradlew.bat' : './gradlew';
++  const cmd = process.platform.startsWith('win') ? androidProject.sourceDir + '\\gradlew.bat' : './gradlew';
+   const adbPath = (0, _getAdbPath.default)();
+   let selectedTask;
+   if (args.interactive) {
+diff --git a/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/listAndroidTasks.js b/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/listAndroidTasks.js
+index 568eca9..8ff2c52 100644
+--- a/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/listAndroidTasks.js
++++ b/node_modules/@react-native-community/cli-platform-android/build/commands/runAndroid/listAndroidTasks.js
+@@ -44,7 +44,7 @@ exports.parseTasksFromGradleFile = parseTasksFromGradleFile;
+ const getGradleTasks = (taskType, sourceDir) => {
+   const loader = (0, _cliTools().getLoader)();
+   loader.start('Searching for available Gradle tasks...');
+-  const cmd = process.platform.startsWith('win') ? 'gradlew.bat' : './gradlew';
++  const cmd = process.platform.startsWith('win') ? sourceDir + '\\gradlew.bat' : './gradlew';
+   try {
+     const out = _execa().default.sync(cmd, ['tasks', '--group', taskType], {
+       cwd: sourceDir

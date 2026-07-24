@@ -1,0 +1,41 @@
+buildscript {
+    ext {
+        buildToolsVersion = "36.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        // Matches react-native@0.86.0's own declared ndkVersion
+        // (node_modules/react-native/gradle/libs.versions.toml) — this is
+        // the exact NDK version RN's prebuilt AAR (libc++_shared.so) was
+        // built against, so it's the one most likely to be ABI-compatible.
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "2.1.20"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+// Several native modules (react-native-gesture-handler, react-native-screens,
+// react-native-svg) each build their own standalone CMake project and don't
+// explicitly link libc++_shared in their CMakeLists.txt (unlike others that do),
+// so with NDK 27's default `-Wl,--no-undefined` linking fails with
+// "undefined symbol: operator new" etc. Force the STL onto every native
+// module's link step, project-wide, without patching node_modules.
+subprojects { subproject ->
+    subproject.plugins.withId("com.android.library") {
+        subproject.android.defaultConfig.externalNativeBuild {
+            cmake {
+                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-lc++_shared"
+            }
+        }
+    }
+}

@@ -1,0 +1,48 @@
+// Route-name -> {title, web source} lookup for PlaceholderScreen. Kept
+// separate from navigation param types so placeholder metadata never has to
+// collide with a route's real future param shape (e.g. ProductDetail's
+// eventual `{ productId: string }`) — see plan's Screen Inventory tables.
+export const PLACEHOLDER_META: Record<string, { title: string; webSource?: string }> = {
+  Home: { title: 'Home', webSource: 'app/(root)/page.tsx' },
+  Categories: { title: 'Categories', webSource: 'app/category/[categoryId]/page.tsx' },
+  BulkPurchase: { title: 'Bulk Purchase', webSource: 'app/(root)/bulk-purchase/page.tsx' },
+  Nearby: { title: 'Nearby Offers', webSource: 'app/nearby/page.tsx' },
+  Orders: { title: 'My Orders', webSource: 'app/orders/page.tsx' },
+  ProductDetail: { title: 'Product Detail', webSource: 'app/product/[productId]/page.tsx' },
+  Cart: { title: 'Cart', webSource: 'components-main/CartDrawer.tsx' },
+  Checkout: { title: 'Checkout', webSource: 'app/checkout/page.tsx' },
+  PaymentStatus: { title: 'Payment Status', webSource: 'app/payment-status/page.tsx' },
+  Settings: { title: 'Settings', webSource: 'app/settings/page.tsx' },
+  About: { title: 'About Us', webSource: 'app/about/page.tsx' },
+  Services: { title: 'Our Services', webSource: 'app/services/page.tsx' },
+  Testimonials: { title: 'Testimonials', webSource: 'app/testimonials/page.tsx' },
+  StoreRegister: { title: 'Register Your Store', webSource: 'app/store/register/page.tsx' },
+
+  Overview: { title: 'Overview', webSource: 'app/store/dashboard/page.tsx (Overview tab)' },
+  Products: { title: 'Products', webSource: 'app/store/dashboard/page.tsx (Products tab)' },
+  StoreOwnerCategories: { title: 'Categories', webSource: 'app/store/dashboard/page.tsx (Categories tab)' },
+  StoreOwnerOrders: { title: 'Orders', webSource: 'app/store/dashboard/page.tsx (Orders tab)' },
+  Offers: { title: 'Offers', webSource: 'app/store/dashboard/page.tsx (Offers tab)' },
+  StoreSettings: { title: 'Store Settings', webSource: 'app/store/dashboard/page.tsx (Settings tab)' },
+  NewOffer: { title: 'New Offer', webSource: 'app/store/offers/new/page.tsx' },
+
+  AdminDashboard: { title: 'Dashboard', webSource: 'admin/dashboard/page.tsx' },
+  AdminHero: { title: 'Hero', webSource: 'admin/hero/page.tsx' },
+  AdminHotDrops: { title: 'Hot Drops', webSource: 'admin/hot-drops/page.tsx' },
+  AdminStudio: { title: 'Studio', webSource: 'admin/StudioAdminPage/page.tsx' },
+  AdminRalleyz: { title: 'Ralleyz Section', webSource: 'admin/RalleyzSection/page.tsx' },
+  AdminCharacters: { title: 'Characters', webSource: 'admin/characters/page.tsx' },
+  AdminBestSellers: { title: 'Top Picks', webSource: 'admin/best-sellers/page.tsx' },
+  AdminShopByAge: { title: 'Shop By Age', webSource: 'admin/shop-by-age/page.tsx' },
+  AdminShopByCategory: { title: 'Categories (Carousel)', webSource: 'admin/shop-by-category/page.tsx' },
+  AdminBentoGrid: { title: 'Best of WOW', webSource: 'admin/bento-grid/page.tsx' },
+  AdminReviews: { title: 'Reviews', webSource: 'admin/reviews/page.tsx' },
+  AdminServices: { title: 'Services/Products', webSource: 'admin/services/page.tsx' },
+  AdminContact: { title: 'Contact Form', webSource: 'admin/contact/page.tsx' },
+  AdminBlogLifestyle: { title: 'Blog & Lifestyle', webSource: 'admin/blog-lifestyle/page.tsx' },
+  AdminTestimonials: { title: 'Testimonials', webSource: 'admin/testimonials/page.tsx' },
+  AdminProduct: { title: 'Product', webSource: 'admin/product/page.tsx' },
+  AdminOrderHistory: { title: 'Order History', webSource: 'admin/order-history/page.tsx' },
+  AdminUsers: { title: 'User Management', webSource: 'admin/users/page.tsx' },
+  AdminDynamicContent: { title: 'Dynamic Content', webSource: 'admin/dynamic-content/page.tsx' },
+};
