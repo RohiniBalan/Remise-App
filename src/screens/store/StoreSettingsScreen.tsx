@@ -10,6 +10,9 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 // field set, and same UPI-ID-generates-QR flow the web app was just
 // switched to (services/store-service now validates the UPI ID and
 // auto-generates `qrCodeImage` server-side — no file upload anymore).
+//
+// UPDATE: added the "Monthly Revenue Target (₹)" field that web has and
+// this screen was missing — it feeds the TargetRevenueCard on Overview.
 const STORE_CATEGORIES = ['Food & Beverages', 'Grocery', 'Fashion', 'Electronics', 'Pharmacy', 'Toys', 'Home & Living', 'Beauty', 'Sports', 'Other'];
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
@@ -21,6 +24,7 @@ export default function StoreSettingsScreen() {
     name: store?.name || '', description: store?.description || '', phone: store?.phone || '', email: store?.email || '',
     category: store?.category || '', street: store?.address?.street || '', city: store?.address?.city || '',
     state: store?.address?.state || '', pinCode: store?.address?.pinCode || '',
+    targetRevenue: store?.targetRevenue ? String(store.targetRevenue) : '',
   });
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
   const [upiId, setUpiId] = useState(store?.upiId || '');
@@ -54,6 +58,7 @@ export default function StoreSettingsScreen() {
       fd.append('address[city]', form.city);
       fd.append('address[state]', form.state);
       fd.append('address[pinCode]', form.pinCode);
+      fd.append('targetRevenue', form.targetRevenue);
       fd.append('upiId', upiId.trim());
       await storeApi.update(store._id, fd);
       setSaved(true);
@@ -72,6 +77,13 @@ export default function StoreSettingsScreen() {
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <Field label="Store Name *" value={form.name} onChangeText={v => set('name', v)} />
+      <Field
+        label="Monthly Revenue Target (₹)"
+        value={form.targetRevenue}
+        onChangeText={v => set('targetRevenue', v)}
+        keyboardType="numeric"
+        placeholder="e.g. 100000"
+      />
       <Text style={styles.label}>Description</Text>
       <TextInput style={[styles.input, { height: 70 }]} multiline value={form.description} onChangeText={v => set('description', v)} />
       <Field label="Phone" value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" />

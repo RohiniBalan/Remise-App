@@ -14,5 +14,7 @@ export const storeApi = {
 
   getAll: () => gatewayClient.get('/api/stores'),
 
+  getByIds: (ids: string[]) => gatewayClient.get('/api/stores/by-ids', { params: { ids: ids.join(',') } }),
+
   syncRole: () => gatewayClient.post('/api/stores/me/sync-role'),
 };

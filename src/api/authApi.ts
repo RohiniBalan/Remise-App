@@ -4,12 +4,12 @@ import { GATEWAY_URL } from './endpoints';
 // Ported 1:1 from client/app/login/page.tsx (API_URL = NEXT_PUBLIC_API_URL/api
 // — the gateway) and client/app/settings/page.tsx SecurityTab (change-password).
 
-export interface RegisterPayload {
+interface RegisterPayload {
   fullname: string;
   email: string;
   mobilenumber: string;
   password: string;
-  role: 'user' | 'store_owner';
+  role: 'user' | 'store_owner' | 'whole_saler' | 'home_business';
 }
 
 export const authApi = {

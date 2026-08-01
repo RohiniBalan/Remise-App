@@ -19,11 +19,14 @@ export default function StoreProductFormScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const product = route.params?.product;
-  // `scanned` prefills fields from the "Scan Paper" flow (StoreProductsScreen's
-  // handleScanPress) — same shape as `product` but never has an `_id`, so this
-  // stays a new-product submission (isEdit below), not an edit.
-  const prefill = product || route.params?.scanned;
-  const isEdit = Boolean(product?._id);
+const initialTitle = route.params?.initialTitle;
+const initialCategory = route.params?.initialCategory;
+// `scanned` prefills from the "Scan Paper" flow; the initialTitle/initialCategory
+// branch prefills from "Manage Brands → Add Brand" (title+category locked to the
+// product type, brand/price/stock left blank). Neither sets `product`, so
+// `isEdit` stays false in both cases — same as web's ProductModal initialTitle prop.
+const prefill = product || route.params?.scanned || (initialTitle ? { title: initialTitle, category: initialCategory } : undefined);
+const isEdit = Boolean(product?._id);
   const { store, categories, refresh } = useStoreDashboard();
 
   const [form, setForm] = useState<ProductFormFields>(emptyProductForm(prefill));

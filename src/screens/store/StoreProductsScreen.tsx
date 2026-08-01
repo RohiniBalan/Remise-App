@@ -9,6 +9,7 @@ import { scanProductImage, scanBulkProducts, buildGeneratedImageUrl } from '../.
 import { emptyProductForm } from '../../utils/productForm';
 import { BulkProductRow } from './StoreBulkProductScanScreen';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { groupProductsByType } from '../../utils/groupProducts';
 
 // Ported from client/app/store/dashboard/page.tsx's ProductsTab — same
 // search + category filter, same grid card fields (discount %, featured
@@ -29,10 +30,12 @@ export default function StoreProductsScreen() {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const filtered = products.filter(p => {
-    const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase()) || (p.brand || '').toLowerCase().includes(search.toLowerCase());
-    const matchCat = !catFilter || p.category === catFilter;
-    return matchSearch && matchCat;
-  });
+  const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase()) || (p.brand || '').toLowerCase().includes(search.toLowerCase());
+  const matchCat = !catFilter || p.category === catFilter;
+  return matchSearch && matchCat;
+});
+
+const productTypes = groupProductsByType(filtered);
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete this product?', 'This cannot be undone.', [
@@ -194,53 +197,59 @@ export default function StoreProductsScreen() {
       </View>
 
       <FlatList
-        data={filtered}
-        keyExtractor={p => p._id}
-        numColumns={2}
-        columnWrapperStyle={{ gap: Spacing.sm }}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Package size={40} color="#E5E7EB" />
-            <Text style={styles.emptyTitle}>{products.length === 0 ? 'No products found' : 'No results'}</Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('ProductForm', {})}>
-              <Text style={styles.emptyBtnText}>Add First Product</Text>
-            </TouchableOpacity>
+  data={productTypes}
+  keyExtractor={pt => pt.typeKey}
+  numColumns={2}
+  columnWrapperStyle={{ gap: Spacing.sm }}
+  contentContainerStyle={styles.list}
+  ListEmptyComponent={
+    <View style={styles.empty}>
+      <Package size={40} color="#E5E7EB" />
+      <Text style={styles.emptyTitle}>{products.length === 0 ? 'No products found' : 'No results'}</Text>
+      <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('ProductForm', {})}>
+        <Text style={styles.emptyBtnText}>Add First Product</Text>
+      </TouchableOpacity>
+    </View>
+  }
+  renderItem={({ item: pt }) => {
+    const brandRows = pt.items
+      .map((p: any) => ({ brand: p.brand || 'Unbranded', stock: p.totalStock || 0 }))
+      .sort((a: any, b: any) => b.stock - a.stock);
+    const visibleBrands = brandRows.slice(0, 3);
+    const extraCount = brandRows.length - visibleBrands.length;
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.imageWrap}>
+          {pt.image ? <Image source={{ uri: pt.image }} style={styles.image} /> : <Package size={28} color="#E5E7EB" />}
+        </View>
+        <View style={styles.cardBody}>
+          <Text style={styles.category}>{pt.category || '—'}</Text>
+          <Text style={styles.title} numberOfLines={1}>{pt.title}</Text>
+          <Text style={styles.brandCountText}>{pt.brandCount} Brand{pt.brandCount !== 1 ? 's' : ''}</Text>
+          <Text style={styles.stock}>Total Stock: {pt.totalStock}</Text>
+
+          <View style={styles.brandList}>
+            {visibleBrands.map((b: any, i: number) => (
+              <View key={i} style={styles.brandRow}>
+                <Text style={styles.brandRowName} numberOfLines={1}>{b.brand}</Text>
+                <Text style={[styles.brandRowStock, b.stock < 5 && styles.stockLow]}>{b.stock}</Text>
+              </View>
+            ))}
+            {extraCount > 0 && <Text style={styles.moreText}>+{extraCount} more</Text>}
           </View>
-        }
-        renderItem={({ item: p }) => {
-          const img = p.imageUrl || p.images?.[0];
-          const discountPct = p.discountedPrice && p.price > 0 ? Math.round((1 - p.discountedPrice / p.price) * 100) : 0;
-          return (
-            <View style={styles.card}>
-              <View style={styles.imageWrap}>
-                <Image source={{ uri: img }} style={styles.image} />
-                {discountPct > 0 && <View style={styles.discountBadge}><Text style={styles.discountBadgeText}>{discountPct}% OFF</Text></View>}
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.category}>{p.category || '—'}</Text>
-                <Text style={styles.title} numberOfLines={1}>{p.title}</Text>
-                <View style={styles.priceRow}>
-                  <Text style={styles.price}>₹{p.discountedPrice || p.price}</Text>
-                  {p.discountedPrice ? <Text style={styles.originalPrice}>₹{p.price}</Text> : null}
-                </View>
-                <View style={styles.metaRow}>
-                  <Text style={styles.availability}>{p.availability}</Text>
-                  <Text style={[styles.stock, p.totalStock < 5 && styles.stockLow]}>{p.totalStock} in stock</Text>
-                </View>
-                <View style={styles.actionsRow}>
-                  <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ProductForm', { product: p })}>
-                    <Edit2 size={13} color={CustomerColors.teal700} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(p._id)} disabled={deleting === p._id}>
-                    <Trash2 size={13} color={CustomerColors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          );
-        }}
-      />
+
+          <TouchableOpacity
+            style={styles.manageBtn}
+            onPress={() => navigation.navigate('ManageBrands', { typeKey: pt.typeKey, title: pt.title, category: pt.category, items: pt.items, brandCount: pt.brandCount, totalStock: pt.totalStock })}
+          >
+            <Text style={styles.manageBtnText}>Manage Brands →</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }}
+/>
     </View>
   );
 }
@@ -275,4 +284,12 @@ const styles = StyleSheet.create({
   stockLow: { color: '#D97706', fontWeight: '700' },
   actionsRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5', paddingTop: Spacing.sm },
   actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 6, backgroundColor: CustomerColors.bg, borderRadius: BorderRadius.sm },
+  brandCountText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 4 },
+brandList: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5', gap: 2 },
+brandRow: { flexDirection: 'row', justifyContent: 'space-between' },
+brandRowName: { fontSize: 11, color: '#4B5563', flex: 1, paddingRight: 6 },
+brandRowStock: { fontSize: 11, fontWeight: '700', color: '#374151' },
+moreText: { fontSize: 11, color: CustomerColors.textSecondary },
+manageBtn: { marginTop: Spacing.sm, backgroundColor: CustomerColors.teal600, paddingVertical: 8, borderRadius: BorderRadius.sm, alignItems: 'center' },
+manageBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs },
 });

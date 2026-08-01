@@ -105,12 +105,15 @@ export default function StoreOffersScreen() {
               <View style={styles.imageWrap}>
                 <Image source={{ uri: imageUri }} style={styles.image} />
                 {offer.discountPercent > 0 && (
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountBadgeText}>
-                      {offer.discountPercent}% OFF
-                    </Text>
-                  </View>
-                )}
+  <View style={styles.discountBadge}>
+    <Text style={styles.discountBadgeText}>{offer.discountPercent}% OFF</Text>
+  </View>
+)}
+{offer.targetCustomerId && (
+  <View style={styles.privateBadge}>
+    <Text style={styles.privateBadgeText} numberOfLines={1}>Private · {offer.targetCustomerName}</Text>
+  </View>
+)}
                 {expired && (
                   <View style={styles.expiredOverlay}>
                     <Text style={styles.expiredText}>EXPIRED</Text>
@@ -284,4 +287,6 @@ const styles = StyleSheet.create({
     color: CustomerColors.textSecondary,
     marginRight: 6,
   },
+  privateBadge: { position: 'absolute', top: 6, right: 6, maxWidth: '70%', backgroundColor: '#7C3AED', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+privateBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
 });

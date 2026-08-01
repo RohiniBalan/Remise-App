@@ -1,14 +1,16 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BarChart2, Package, Layers, ShoppingBag, Tag, Settings as SettingsIcon, Bell, User as UserIcon } from 'lucide-react-native';
+import { BarChart2, TrendingUp, Package, Layers, ShoppingBag, Tag, Settings as SettingsIcon, Bell, User as UserIcon } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Store } from 'lucide-react-native';
 import { StoreDashboardProvider, useStoreDashboard } from '../context/StoreDashboardContext';
 import StoreOverviewScreen from '../screens/store/StoreOverviewScreen';
+import StoreAnalyticsScreen from '../screens/store/StoreAnalyticsScreen';
 import StoreProductsScreen from '../screens/store/StoreProductsScreen';
 import StoreProductFormScreen from '../screens/store/StoreProductFormScreen';
+import StoreManageBrandsScreen from '../screens/store/StoreManageBrandsScreen';
 import StoreBulkProductScanScreen, { BulkProductRow } from '../screens/store/StoreBulkProductScanScreen';
 import StoreCategoriesScreen from '../screens/store/StoreCategoriesScreen';
 import StoreOrdersScreen from '../screens/store/StoreOrdersScreen';
@@ -26,6 +28,13 @@ import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import SettingsScreen from '../screens/customer/SettingsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
+import StoreCustomersScreen from '../screens/store/StoreCustomersScreen';
+import StoreSuppliersScreen from '../screens/store/StoreSuppliersScreen';
+import StoreSupplierBrandsScreen from '../screens/store/StoreSupplierBrandsScreen';
+import StoreSupplierCompareScreen from '../screens/store/StoreSupplierCompareScreen';
+import StoreSupplierCartScreen from '../screens/store/StoreSupplierCartScreen';
+import { SupplierCartProvider } from '../context/SupplierCartContext';
+import { Truck, Users } from 'lucide-react-native';
 
 // Mirrors the 6 tabs of app/store/dashboard/page.tsx exactly (Overview,
 // Products, Categories, Orders, Offers, Settings) plus the stacked
@@ -33,20 +42,29 @@ import NotificationScreen from '../screens/customer/NotificationsScreen';
 // reproduces web's single loadData()/refresh() shared across every tab,
 // since each tab is a separate navigator screen here rather than a
 // conditionally-rendered panel in one page component.
+//
+// Analytics tab added alongside Overview: web keeps the charts/filters
+// inside the same OverviewTab component, but on mobile each tab is its own
+// screen, so it gets its own entry here — same StoreDashboardProvider data,
+// no separate loading.
 
 export type StoreOwnerTabParamList = {
   Overview: undefined;
+  Analytics: undefined;
   Products: undefined;
   StoreOwnerCategories: undefined;
   StoreOwnerOrders: undefined;
   Offers: undefined;
   StoreSettings: undefined;
+  Suppliers: undefined; 
+  StoreOwnerCustomers: undefined;
 };
 
 export type StoreOwnerStackParamList = {
   StoreOwnerTabs: undefined;
   NewOffer: undefined;
-  ProductForm: { product?: any; scanned?: any };
+  ProductForm: { product?: any; scanned?: any; initialTitle?: string; initialCategory?: string };
+  ManageBrands: { typeKey: string; title: string; category: string; items: any[]; brandCount: number; totalStock: number };
   BulkProductScan: { scanned: BulkProductRow[] };
   Cart: undefined;
   Checkout: undefined;
@@ -55,6 +73,9 @@ export type StoreOwnerStackParamList = {
   Settings: undefined;
   Profile: undefined;
   Notifications: undefined;
+  SupplierBrands: { titleGroup: any }; 
+  SupplierCompare: { group: any }; 
+  SupplierCart: undefined;
 };
 
 const Tab = createBottomTabNavigator<StoreOwnerTabParamList>();
@@ -116,8 +137,11 @@ function StoreOwnerTabs() {
         tabBarInactiveTintColor: CustomerColors.textSecondary,
       }}>
       <Tab.Screen name="Overview" component={StoreOverviewScreen} options={{ tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} /> }} />
-      <Tab.Screen name="Products" component={StoreProductsScreen} options={{ tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }} />
+      <Tab.Screen name="Analytics" component={StoreAnalyticsScreen} options={{ tabBarIcon: ({ color, size }) => <TrendingUp color={color} size={size} /> }} />
       <Tab.Screen name="StoreOwnerCategories" component={StoreCategoriesScreen} options={{ title: 'Categories', tabBarIcon: ({ color, size }) => <Layers color={color} size={size} /> }} />
+      <Tab.Screen name="Products" component={StoreProductsScreen} options={{ tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }} />
+      <Tab.Screen name="Suppliers" component={StoreSuppliersScreen} options={{ title: 'Order Stock', tabBarIcon: ({ color, size }) => <Truck color={color} size={size} /> }} />
+<Tab.Screen name="StoreOwnerCustomers" component={StoreCustomersScreen} options={{ title: 'Customers', tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
       <Tab.Screen name="StoreOwnerOrders" component={StoreOrdersScreen} options={{ title: 'Orders', tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} /> }} />
       <Tab.Screen name="Offers" component={StoreOffersScreen} options={{ tabBarIcon: ({ color, size }) => <Tag color={color} size={size} /> }} />
       <Tab.Screen name="StoreSettings" component={StoreSettingsScreen} options={{ title: 'Settings', tabBarIcon: ({ color, size }) => <SettingsIcon color={color} size={size} /> }} />
@@ -160,12 +184,14 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
 export default function StoreOwnerNavigator() {
   return (
     <StoreDashboardProvider>
+      <SupplierCartProvider>
       <DashboardGate>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="StoreOwnerTabs" component={StoreOwnerTabs} />
           <Stack.Screen name="NewOffer" component={NewOfferScreen} options={{ headerShown: true, title: 'New Offer' }} />
           <Stack.Screen name="ProductForm" component={StoreProductFormScreen} options={{ headerShown: true, title: 'Product' }} />
           <Stack.Screen name="BulkProductScan" component={StoreBulkProductScanScreen} options={{ headerShown: true, title: 'Scan Grocery List' }} />
+          <Stack.Screen name="ManageBrands" component={StoreManageBrandsScreen} options={{ headerShown: true, title: 'Manage Brands' }} />
           <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, title: 'Your Cart' }} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true }} />
           <Stack.Screen name="PhonePeWebView" component={PhonePeWebViewScreen} options={{ headerShown: true, title: 'PhonePe' }} />
@@ -175,6 +201,7 @@ export default function StoreOwnerNavigator() {
           <Stack.Screen name="Notifications" component={NotificationScreen} options={{ headerShown: true, title: 'Notifications' }} />
         </Stack.Navigator>
       </DashboardGate>
+      </SupplierCartProvider>
     </StoreDashboardProvider>
   );
 }
@@ -194,4 +221,3 @@ const styles = StyleSheet.create({
   headerIconBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: CustomerColors.primary, borderRadius: 8, minWidth: 14, height: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   headerIconBadgeText: { color: '#fff', fontSize: 8, fontWeight: '800' },
 });
-

@@ -26,6 +26,7 @@ function normalizeSmartOrder(o: any) {
     customerName: [addr.firstName, addr.lastName].filter(Boolean).join(' ') || o.contactEmail,
     customerPhone: addr.phone,
     customerEmail: o.contactEmail,
+    customerId: o.userId || null,
     deliveryAddress: [addr.address, addr.city, addr.state, addr.pinCode].filter(Boolean).join(', '),
     notes: null,
     totalAmount: o.totalAmount,
@@ -34,6 +35,8 @@ function normalizeSmartOrder(o: any) {
     deliveryMethod: o.deliveryMethod,
     paymentMethod: o.paymentMethod,
     paymentStatus: o.paymentStatus,
+    deliveryStatus: o.deliveryStatus,
+    rawItems: items,
     _source: 'smartOrder' as const,
   };
 }

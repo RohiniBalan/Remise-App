@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useRoute } from '@react-navigation/native';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIndicator, PermissionsAndroid, Platform, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
@@ -22,6 +23,7 @@ async function requestLocationPermission(): Promise<boolean> {
 }
 
 export default function NewOfferScreen() {
+  const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { refresh } = useStoreDashboard();
   const [store, setStore] = useState<any>(null);
@@ -36,6 +38,9 @@ export default function NewOfferScreen() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [locSource, setLocSource] = useState<'store' | 'gps' | 'manual'>('store');
+
+  const targetCustomerId = route.params?.customerId;
+const targetCustomerName = route.params?.customerName;
 
   useEffect(() => {
     storeApi
@@ -107,7 +112,11 @@ export default function NewOfferScreen() {
       fd.append('latitude', latitude);
       fd.append('longitude', longitude);
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      await offersApi.create(fd);
+if (targetCustomerId) {
+  fd.append('targetCustomerId', targetCustomerId);
+  fd.append('targetCustomerName', targetCustomerName || '');
+}
+await offersApi.create(fd);
       refresh();
       Alert.alert('Offer published!', 'Customers near you will be notified.');
       navigation.goBack();
@@ -130,6 +139,14 @@ export default function NewOfferScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.lg, paddingBottom: Spacing.xxl }}>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+{targetCustomerId ? (
+  <View style={styles.privateBanner}>
+    <Text style={styles.privateBannerText}>
+      Creating a private offer — only <Text style={{ fontWeight: '800' }}>{targetCustomerName}</Text> will see it.
+    </Text>
+  </View>
+) : null}
 
       <Text style={styles.label}>Offer Image *</Text>
       <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
@@ -207,4 +224,6 @@ const styles = StyleSheet.create({
   sourceBadgeText: { fontSize: 10, color: CustomerColors.textSecondary, fontWeight: '600' },
   submitBtn: { backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center', marginTop: Spacing.lg },
   submitBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
+  privateBanner: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.md },
+privateBannerText: { fontSize: FontSizes.xs, color: '#92400E' },
 });

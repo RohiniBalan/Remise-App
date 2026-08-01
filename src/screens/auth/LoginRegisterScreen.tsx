@@ -18,19 +18,20 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { normalizeAuthErrorMessage, validateLoginForm, validateSignupForm } from '../../utils/authValidation';
 
 // Ported from client/app/login/page.tsx — single screen, login/register
-// toggle, same field set and validation rules as web.
+// toggle, same field set, validation rules, and role options as web.
+
+type RegisterRole = 'user' | 'store_owner' | 'whole_saler' | 'home_business';
 
 export default function LoginRegisterScreen() {
   const navigation = useNavigation<any>();
   const { login } = useAuth();
 
   const [isLogin, setIsLogin] = useState(true);
-  const [registerAs, setRegisterAs] = useState<'user' | 'store_owner'>('user');
+  const [registerAs, setRegisterAs] = useState<RegisterRole>('user');
   const [fullname, setFullname] = useState('');
   const [mobilenumber, setMobilenumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -39,27 +40,33 @@ export default function LoginRegisterScreen() {
   const toggleMode = () => {
     setIsLogin(prev => !prev);
     setError('');
+    // Match web's toggleMode: clear signup-only fields and state so
+    // switching tabs doesn't carry over a half-filled form.
+    setFullname('');
+    setMobilenumber('');
+    setPassword('');
+    setShowPassword(false);
+    setFieldErrors({});
+    setRegisterAs('user');
   };
 
-  const validate = (): string | null => {
+  // Mirrors web's validateForm: actually applies field errors and returns
+  // a boolean, instead of the old version which computed errors and threw
+  // them away by always returning null.
+  const validate = (): boolean => {
     const errors = isLogin
       ? validateLoginForm({ email, password })
-      : validateSignupForm({
-          fullname,
-          email,
-          mobilenumber,
-          password,
+      : validateSignupForm({ fullname, email, mobilenumber, password });
 
-    })
-    return null;
+    setFieldErrors(errors);
+    setError('');
+
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (!validate()) return;
+
     setError('');
     setSubmitting(true);
     try {
@@ -99,7 +106,7 @@ export default function LoginRegisterScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {!isLogin && (
-          <View style={styles.roleRow}>
+          <View style={styles.roleGrid}>
             <TouchableOpacity
               style={[styles.rolePill, registerAs === 'user' && styles.rolePillActive]}
               onPress={() => setRegisterAs('user')}>
@@ -109,6 +116,16 @@ export default function LoginRegisterScreen() {
               style={[styles.rolePill, registerAs === 'store_owner' && styles.rolePillActive]}
               onPress={() => setRegisterAs('store_owner')}>
               <Text style={[styles.rolePillText, registerAs === 'store_owner' && styles.rolePillTextActive]}>🏪 Store Owner</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.rolePill, registerAs === 'whole_saler' && styles.rolePillActive]}
+              onPress={() => setRegisterAs('whole_saler')}>
+              <Text style={[styles.rolePillText, registerAs === 'whole_saler' && styles.rolePillTextActive]}>📦 Wholesaler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.rolePill, registerAs === 'home_business' && styles.rolePillActive]}
+              onPress={() => setRegisterAs('home_business')}>
+              <Text style={[styles.rolePillText, registerAs === 'home_business' && styles.rolePillTextActive]}>🏠 Home Business</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -210,8 +227,10 @@ const styles = StyleSheet.create({
   heading: { fontSize: FontSizes.md, fontWeight: '600', color: CustomerColors.black, textAlign: 'center', marginBottom: Spacing.lg },
   error: { color: CustomerColors.danger, backgroundColor: CustomerColors.dangerBg, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md, fontSize: FontSizes.sm },
   fieldError: { color: CustomerColors.danger, fontSize: FontSizes.xs, marginTop: Spacing.xs, marginBottom: Spacing.sm },
-  roleRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  rolePill: { flex: 1, paddingVertical: Spacing.md, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: CustomerColors.steelBorder, alignItems: 'center' },
+  // 2x2 grid (was a single row) to fit all four role options, matching
+  // web's `grid grid-cols-2 gap-2` layout.
+  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
+  rolePill: { width: '48%', paddingVertical: Spacing.md, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: CustomerColors.steelBorder, alignItems: 'center' },
   rolePillActive: { backgroundColor: CustomerColors.mint, borderColor: CustomerColors.teal600 },
   rolePillText: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, fontWeight: '600' },
   rolePillTextActive: { color: CustomerColors.teal700 },

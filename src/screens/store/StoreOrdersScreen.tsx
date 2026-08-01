@@ -19,6 +19,9 @@ export default function StoreOrdersScreen() {
   const [filter, setFilter] = useState('all');
   const [updating, setUpdating] = useState<string | null>(null);
 
+const counts: Record<string, number> = { all: orders.length };
+ORDER_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.status === s).length; });
+
   const filtered = orders.filter(o => {
     const matchFilter = filter === 'all' || o.status === filter;
     const matchSearch = !search || o.customerName?.toLowerCase().includes(search.toLowerCase()) || o.offerTitle?.toLowerCase().includes(search.toLowerCase());
@@ -48,12 +51,14 @@ export default function StoreOrdersScreen() {
         <TextInput style={styles.searchInput} value={search} onChangeText={setSearch} placeholder="Search by customer or offer…" />
       </View>
       <View style={styles.filterRow}>
-        {['all', ...ORDER_STATUSES].map(s => (
-          <TouchableOpacity key={s} style={[styles.filterChip, filter === s && styles.filterChipActive]} onPress={() => setFilter(s)}>
-            <Text style={[styles.filterChipText, filter === s && styles.filterChipTextActive]}>{s === 'all' ? 'All' : s}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+  {['all', ...ORDER_STATUSES].map(s => (
+    <TouchableOpacity key={s} style={[styles.filterChip, filter === s && styles.filterChipActive]} onPress={() => setFilter(s)}>
+      <Text style={[styles.filterChipText, filter === s && styles.filterChipTextActive]}>
+        {s === 'all' ? `All (${counts.all})` : `${s} (${counts[s] || 0})`}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
 
       <FlatList
         data={filtered}
@@ -68,8 +73,13 @@ export default function StoreOrdersScreen() {
         renderItem={({ item: o }) => (
           <View style={styles.card}>
             <Text style={styles.orderTitle} numberOfLines={1}>{o.offerTitle}</Text>
-            <Text style={styles.orderCustomer}>{o.customerName}{o.customerPhone ? ` · ${o.customerPhone}` : ''}</Text>
-            <Text style={styles.orderAddress} numberOfLines={1}>{o.deliveryAddress}</Text>
+<Text style={styles.orderCustomer}>
+  {o.customerName}
+  {o.customerPhone ? ` · ${o.customerPhone}` : ''}
+  {(o.customerId || o.userId || o.userID) ? ` · Customer ID: ${o.customerId || o.userId || o.userID}` : ''}
+</Text>
+<Text style={styles.orderAddress} numberOfLines={1}>{o.deliveryAddress}</Text>
+{o.notes ? <Text style={styles.orderNotes}>"{o.notes}"</Text> : null}
             {o._source === 'smartOrder' && o.deliveryMethod && (
               <View style={styles.chipRow}>
                 <View style={styles.metaChip}>
@@ -82,8 +92,15 @@ export default function StoreOrdersScreen() {
                 </View>
               </View>
             )}
-            <View style={styles.footerRow}>
-              <Text style={styles.orderAmount}>₹{o.totalAmount}</Text>
+            <Text style={styles.orderDate}>
+  {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+</Text>
+<View style={styles.footerRow}>
+  <View style={styles.footerTop}>
+    <Text style={styles.orderId}>#{o._id.slice(-6).toUpperCase()}</Text>
+    {updating === o._id && <ActivityIndicator size="small" color={CustomerColors.teal700} style={{ marginLeft: 6 }} />}
+  </View>
+  <Text style={styles.orderAmount}>₹{o.totalAmount}</Text>
               {o._source === 'smartOrder' ? (
                 <View style={styles.statusBadge}><Text style={styles.statusBadgeText}>{o.status}</Text></View>
               ) : (
@@ -132,4 +149,8 @@ const styles = StyleSheet.create({
   statusOptionActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
   statusOptionText: { fontSize: 9, color: CustomerColors.textSecondary, fontWeight: '600' },
   statusOptionTextActive: { color: '#fff' },
+  orderNotes: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, fontStyle: 'italic', marginTop: 2 },
+orderDate: { fontSize: 10, color: '#9CA3AF', marginTop: 4 },
+footerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+orderId: { fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace' },
 });

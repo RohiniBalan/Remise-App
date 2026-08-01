@@ -7,12 +7,22 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 
 // Ported from client/app/store/dashboard/page.tsx's CategoriesTab — same
 // add-form + list-with-delete, same detailed error messages for the three
-// failure modes (service unreachable / 403 role issue / generic).
+// failure modes (service unreachable / 403 role issue / generic), and same
+// per-category product-count badge as the web version.
 export default function StoreCategoriesScreen() {
-  const { categories, loading, refresh } = useStoreDashboard();
+  const { categories, products, loading, refresh } = useStoreDashboard();
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Same reduce as web's countByCategory
+  const countByCategory: Record<string, number> = (products || []).reduce(
+    (acc: Record<string, number>, p: any) => {
+      if (p.category) acc[p.category] = (acc[p.category] || 0) + 1;
+      return acc;
+    },
+    {},
+  );
 
   const handleAdd = async () => {
     if (!name.trim()) return;
@@ -58,18 +68,28 @@ export default function StoreCategoriesScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </View>
 
+      <Text style={styles.listHeader}>ALL CATEGORIES ({categories.length})</Text>
+
       <FlatList
         data={categories}
         keyExtractor={c => c._id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.emptyText}>No categories yet. Add one above.</Text>}
-        renderItem={({ item: c }) => (
-          <View style={styles.row}>
-            <View style={styles.rowIcon}><Layers size={14} color={CustomerColors.teal600} /></View>
-            <Text style={styles.rowName}>{c.name}</Text>
-            <TouchableOpacity onPress={() => handleDelete(c._id, c.name)}><Trash2 size={14} color={CustomerColors.primary} /></TouchableOpacity>
-          </View>
-        )}
+        renderItem={({ item: c }) => {
+          const count = countByCategory[c.name] || 0;
+          return (
+            <View style={styles.row}>
+              <View style={styles.rowIcon}><Layers size={14} color={CustomerColors.teal600} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowName}>{c.name}</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{count} product{count !== 1 ? 's' : ''}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => handleDelete(c._id, c.name)}><Trash2 size={14} color={CustomerColors.primary} /></TouchableOpacity>
+            </View>
+          );
+        }}
       />
     </View>
   );
@@ -84,9 +104,12 @@ const styles = StyleSheet.create({
   input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm },
   addBtn: { width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, borderRadius: BorderRadius.md },
   errorText: { color: CustomerColors.primary, fontSize: FontSizes.xs, marginTop: Spacing.sm },
+  listHeader: { fontSize: FontSizes.xs, fontWeight: '800', color: CustomerColors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginHorizontal: Spacing.md, marginBottom: Spacing.xs },
   list: { paddingHorizontal: Spacing.md },
   emptyText: { textAlign: 'center', color: CustomerColors.textSecondary, paddingVertical: Spacing.xl },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: '#F5F5F5', padding: Spacing.md, marginBottom: Spacing.xs },
   rowIcon: { width: 28, height: 28, borderRadius: BorderRadius.sm, backgroundColor: CustomerColors.mint, alignItems: 'center', justifyContent: 'center' },
-  rowName: { flex: 1, fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.black },
+  rowName: { fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.black },
+  countBadge: { alignSelf: 'flex-start', backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1, marginTop: 2 },
+  countBadgeText: { fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 },
 });
