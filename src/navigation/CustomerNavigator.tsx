@@ -21,6 +21,8 @@ import AboutScreen from '../screens/customer/AboutScreen';
 import ServicesScreen from '../screens/customer/ServicesScreen';
 import TestimonialsScreen from '../screens/customer/TestimonialsScreen';
 import StoreRegisterScreen from '../screens/customer/StoreRegisterScreen';
+import SuppliersScreen from '../screens/customer/SuppliersScreen';
+import MyOffersScreen from '../screens/customer/MyOffersScreen';
 import { SmartOrderCartItem } from '../api/smartOrderApi';
 import { CustomerColors } from '../styles/theme';
 
@@ -56,6 +58,8 @@ export type CustomerStackParamList = {
   StoreRegister: undefined;
   CompareStores: { items: SmartOrderCartItem[] };
   Notifications: undefined;
+  Suppliers: undefined;
+  MyOffers: undefined;
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -95,6 +99,8 @@ export default function CustomerNavigator() {
       <Stack.Screen name="StoreRegister" component={StoreRegisterScreen} options={{ headerShown: true, title: 'Register Your Store' }} />
       <Stack.Screen name="CompareStores" component={CompareStoresScreen} options={{ headerShown: false, presentation: 'transparentModal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true }} />
+      <Stack.Screen name="Suppliers" component={SuppliersScreen} options={{ headerShown: true, title: 'Suppliers' }} />
+<Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: 'My Offers' }} />
     </Stack.Navigator>
   );
 }

@@ -21,7 +21,7 @@ export interface StoredUser {
   name?: string;
   email: string;
   mobilenumber?: string;
-  role: 'user' | 'store_owner' | 'admin';
+  role: 'user' | 'store_owner' | 'admin' | 'whole_saler' | 'home_business';
   isEmailVerified?: boolean;
   avatar?: string;
   dob?: string;

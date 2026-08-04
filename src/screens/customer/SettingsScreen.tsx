@@ -20,6 +20,7 @@ import {
   EyeOff,
   LogOut,
 } from 'lucide-react-native';
+import { useRoute } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/authApi';
 import {
@@ -66,7 +67,8 @@ const TABS: {
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('account');
+  const route = useRoute<any>();
+  const [activeTab, setActiveTab] = useState<Tab>(route.params?.initialTab || 'account');
 
   const handleSignOut = async () => {
     await logout();

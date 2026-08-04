@@ -34,7 +34,7 @@ export interface ScannedProduct {
 // array differently (image+prompt vs. text-only prompt) on top of this.
 async function callGemini(parts: any[]): Promise<string> {
   if (!GOOGLE_AI_API_KEY) {
-    throw new Error("Scanning isn't set up yet — add a GOOGLE_AI_API_KEY in src/api/endpoints.ts.");
+    throw new Error("Scanning isn't set up yet — add GOOGLE_AI_API_KEY=<your key> to a .env file at the project root (see endpoints.ts for details), then rebuild the app.");
   }
 
   const body = JSON.stringify({ contents: [{ parts }] });

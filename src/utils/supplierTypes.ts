@@ -16,7 +16,7 @@ export interface ProductGroup {
   image: string | null;
   lowestPrice: number;
   supplierCount: number;
-  suppliers: GroupedSupplier[]; // pre-sorted ascending by price
+  suppliers: GroupedSupplier[];
 }
 
 export interface TitleGroup {
@@ -25,10 +25,11 @@ export interface TitleGroup {
   image: string | null;
   brandCount: number;
   lowestPrice: number;
-  brands: ProductGroup[]; // sorted by lowestPrice ascending
+  brands: ProductGroup[];
 }
 
-// Exact port of SupplierCompareDrawer.tsx's tierFor
+// Best matching bulk-price tier for a given quantity — ported 1:1 from
+// SupplierCompareDrawer.tsx (web).
 export function tierFor(supplier: GroupedSupplier, qty: number) {
   if (!supplier.bulkPricing?.length) return { price: supplier.price, label: null as string | null };
   const sorted = [...supplier.bulkPricing].sort((a, b) => b.minQty - a.minQty);
@@ -37,16 +38,15 @@ export function tierFor(supplier: GroupedSupplier, qty: number) {
   return { price: match.price, label: `${match.minQty}+ units @ ₹${match.price}` };
 }
 
-// Exact port of SupplierBrandListDrawer.tsx's groupByTitle
+// Client-side rollup by title (ignoring brand) — ported 1:1 from
+// SupplierBrandListDrawer.tsx (web).
 export function groupByTitle(groups: ProductGroup[]): TitleGroup[] {
   const byTitle: Record<string, { title: string; image: string | null; brands: ProductGroup[] }> = {};
-
   for (const g of groups) {
     const key = (g.title || '').toLowerCase().trim().replace(/\s+/g, ' ');
     if (!byTitle[key]) byTitle[key] = { title: g.title, image: g.image, brands: [] };
     byTitle[key].brands.push(g);
   }
-
   return Object.entries(byTitle).map(([titleKey, v]) => {
     const sortedBrands = [...v.brands].sort((a, b) => a.lowestPrice - b.lowestPrice);
     return {
@@ -58,4 +58,16 @@ export function groupByTitle(groups: ProductGroup[]): TitleGroup[] {
       brands: sortedBrands,
     };
   });
+}
+
+export interface CartLine {
+  productId: string;
+  storeId: string;
+  storeName: string;
+  title: string;
+  image: string | null;
+  price: number;
+  qty: number;
+  moq: number;
+  tierLabel: string | null;
 }

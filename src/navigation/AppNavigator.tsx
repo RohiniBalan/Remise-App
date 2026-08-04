@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import AuthNavigator from './AuthNavigator';
 import CustomerNavigator from './CustomerNavigator';
 import StoreOwnerNavigator from './StoreOwnerNavigator';
+import SellerNavigator from './SellerNavigator';
 import AdminNavigator from './AdminNavigator';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import VerifyEmailTokenScreen from '../screens/auth/VerifyEmailTokenScreen';
@@ -34,6 +35,7 @@ function RoleGate() {
   if (!isAuthed) return <AuthNavigator />;
   if (user?.role === 'admin') return <AdminNavigator />;
   if (user?.role === 'store_owner') return <StoreOwnerNavigator />;
+  if (user?.role === 'whole_saler' || user?.role === 'home_business') return <SellerNavigator />;
   return <CustomerNavigator />;
 }
 

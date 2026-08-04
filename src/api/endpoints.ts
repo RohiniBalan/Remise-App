@@ -11,7 +11,7 @@ import Config from 'react-native-config';
 // it must be substituted with the special 10.0.2.2 alias. iOS simulators
 // can use localhost directly.
 // const devHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const devHost = '192.168.0.5';
+const devHost = '192.168.0.18';
 
 // api-gateway (microservices: auth/user/product/order/payment/content/
 // store/offers/notification) — analog of web's NEXT_PUBLIC_API_URL.ii
@@ -42,5 +42,12 @@ export const LEGACY_PRODUCT_URL = 'https://wow-lifebackend.onrender.com/api';
 // API key restrictions → Android apps, restrict by this app's package name
 // `com.remiseapp` + signing certificate SHA-1) and NOT the same key used by
 // the web server, so a leak here can't be used to exhaust the web app's quota.
-// Get a key at https://aistudio.google.com/apikey — fill it in below.
-const GOOGLE_API_KEY = Config.GOOGLE_API_KEY;
+// Get a key at https://aistudio.google.com/apikey, then add it to a `.env`
+// file at the project root (same folder as package.json, NOT committed to
+// git) as a single line: GOOGLE_AI_API_KEY=your-key-here
+//
+// NOTE: this used to be named GOOGLE_API_KEY here (and never exported) while
+// geminiScanApi.ts imported GOOGLE_AI_API_KEY — the mismatched name meant
+// this always resolved to undefined even after adding a real key. Renamed to
+// match on both sides.
+export const GOOGLE_AI_API_KEY = Config.GOOGLE_AI_API_KEY;
