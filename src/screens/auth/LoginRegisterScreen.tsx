@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   rolePillText: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, fontWeight: '600' },
   rolePillTextActive: { color: CustomerColors.teal700 },
   label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.xs, marginTop: Spacing.sm },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.base },
+  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.base, color: CustomerColors.black },
   passwordRow: { flexDirection: 'row', alignItems: 'center' },
   passwordInput: { flex: 1, paddingRight: Spacing.xxl },
   eyeBtn: { position: 'absolute', right: Spacing.md },

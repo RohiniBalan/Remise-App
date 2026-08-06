@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, LayoutGrid, ClipboardList, MapPin, Package } from 'lucide-react-native';
 import PlaceholderScreen from '../screens/common/PlaceholderScreen';
+import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
 import CategoryScreen from '../screens/customer/CategoryScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
@@ -60,6 +61,7 @@ export type CustomerStackParamList = {
   Notifications: undefined;
   Suppliers: undefined;
   MyOffers: undefined;
+  LoginRegister: undefined; 
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -101,6 +103,11 @@ export default function CustomerNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Suppliers" component={SuppliersScreen} options={{ headerShown: true, title: 'Suppliers' }} />
 <Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: 'My Offers' }} />
+<Stack.Screen
+  name="LoginRegister"
+  component={LoginRegisterScreen}
+  options={{ headerShown: false }}
+/>
     </Stack.Navigator>
   );
 }

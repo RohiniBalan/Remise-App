@@ -1,23 +1,20 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { QrCode, Save, CheckCircle, RefreshCw, LogOut } from 'lucide-react-native';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { View, Text, TextInput, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, FlatList } from 'react-native';
+import { QrCode, Save, CheckCircle, RefreshCw, LogOut, ChevronDown, X } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useAuth } from '../../context/AuthContext';
 import { storeApi } from '../../api/storeApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { indianStates, getCities } from '../../utils/indiaLocation';
+import { mergeCategories } from '../../utils/storeCategories';
 
-// Ported from client/app/store/dashboard/page.tsx's SettingsTab — same
-// field set, and same UPI-ID-generates-QR flow the web app was just
-// switched to (services/store-service now validates the UPI ID and
-// auto-generates `qrCodeImage` server-side — no file upload anymore).
-//
-// UPDATE: added the "Monthly Revenue Target (₹)" field that web has and
-// this screen was missing — it feeds the TargetRevenueCard on Overview.
 const STORE_CATEGORIES = ['Food & Beverages', 'Grocery', 'Fashion', 'Electronics', 'Pharmacy', 'Toys', 'Home & Living', 'Beauty', 'Sports', 'Other'];
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
+const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
 export default function StoreSettingsScreen() {
-  const { store, loading, refresh } = useStoreDashboard();
+  const { store, loading, refresh, categories } = useStoreDashboard();
   const { logout } = useAuth();
 
   const [form, setForm] = useState({
@@ -33,6 +30,54 @@ export default function StoreSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [fssai, setFssai] = useState(store?.fssai || '');
+
+  
+  const categoryOptions = useMemo(
+  () =>
+    mergeCategories(categories || []).map(c => ({
+      key: c.name,
+      label: c.name,
+    })),
+  [categories]
+);
+
+  // ── State/City dropdown support ──
+  const [cities, setCities] = useState<any[]>([]);
+
+  const findState = useCallback((value: string) => {
+    const v = normalize(value);
+    if (!v) return undefined;
+    return indianStates.find(s => normalize(s.name) === v || normalize(s.isoCode) === v);
+  }, []);
+
+  useEffect(() => {
+    if (!form.state) { setCities([]); return; }
+    const state = findState(form.state);
+    setCities(state ? getCities(state.isoCode) : []);
+  }, [form.state, findState]);
+
+  const stateOptions = indianStates.map(s => ({ key: s.isoCode, label: s.name }));
+  const cityOptions = cities.map((c: any) => ({ key: c.name, label: c.name }));
+
+  const handleStateSelect = (isoCode: string, label: string) => {
+    setForm(f => ({ ...f, state: label, city: '', pinCode: '' }));
+    setCities(getCities(isoCode));
+  };
+
+  const handleCitySelect = async (cityName: string) => {
+    set('city', cityName);
+    if (!cityName) return;
+    try {
+      const res = await fetch(`https://api.postalpincode.in/postoffice/${encodeURIComponent(cityName)}`);
+      const data = await res.json();
+      if (data[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
+        set('pinCode', data[0].PostOffice[0].Pincode);
+      }
+    } catch {
+      // pincode lookup is best-effort — leave existing value on failure
+    }
+  };
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={CustomerColors.teal700} /></View>;
@@ -40,7 +85,6 @@ export default function StoreSettingsScreen() {
 
   const handleSignOut = async () => {
     await logout();
-    // AppNavigator's RoleGate switches to AuthNavigator automatically.
   };
 
   const handleSave = async () => {
@@ -60,6 +104,7 @@ export default function StoreSettingsScreen() {
       fd.append('address[pinCode]', form.pinCode);
       fd.append('targetRevenue', form.targetRevenue);
       fd.append('upiId', upiId.trim());
+      fd.append('fssai', form.category === 'Food & Beverages' ? fssai.trim() : '');
       await storeApi.update(store._id, fd);
       setSaved(true);
       refresh();
@@ -89,19 +134,44 @@ export default function StoreSettingsScreen() {
       <Field label="Phone" value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" />
       <Field label="Email" value={form.email} onChangeText={v => set('email', v)} keyboardType="email-address" />
 
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.chipRow}>
-        {STORE_CATEGORIES.map(c => (
-          <TouchableOpacity key={c} style={[styles.chip, form.category === c && styles.chipActive]} onPress={() => set('category', c)}>
-            <Text style={[styles.chipText, form.category === c && styles.chipTextActive]}>{c}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <SelectField
+  label="Category"
+  value={form.category}
+  placeholder="Select Category"
+  options={categoryOptions}
+  onSelect={(key) => set('category', key)}
+/>
 
-      <Field label="Pin Code" value={form.pinCode} onChangeText={v => set('pinCode', v)} />
+      {form.category === 'Food & Beverages' && (
+  <Field
+    label="FSSAI License Number"
+    value={fssai}
+    onChangeText={setFssai}
+    keyboardType="number-pad"
+    maxLength={14}
+    placeholder="14-digit FSSAI number"
+  />
+)}
+
       <Field label="Street" value={form.street} onChangeText={v => set('street', v)} />
-      <Field label="City" value={form.city} onChangeText={v => set('city', v)} />
-      <Field label="State" value={form.state} onChangeText={v => set('state', v)} />
+
+      <SelectField
+        label="State"
+        value={form.state}
+        placeholder="Select State"
+        options={stateOptions}
+        onSelect={handleStateSelect}
+      />
+      <SelectField
+        label="City"
+        value={form.city}
+        placeholder={form.state ? 'Select City' : 'Select a state first'}
+        options={cityOptions}
+        disabled={!form.state}
+        onSelect={handleCitySelect}
+      />
+
+      <Field label="Pin Code" value={form.pinCode} onChangeText={v => set('pinCode', v)} keyboardType="numeric" />
 
       <View style={styles.qrSection}>
         <Text style={styles.qrTitle}>UPI Payment QR Code</Text>
@@ -148,6 +218,64 @@ function Field({ label, ...props }: { label: string } & React.ComponentProps<typ
   );
 }
 
+// Modal-based dropdown since RN has no native <select>.
+function SelectField({
+  label, value, placeholder, options, disabled, onSelect,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: { key: string; label: string }[];
+  disabled?: boolean;
+  onSelect: (key: string, label: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginBottom: Spacing.md }}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.input, styles.selectInput, disabled && styles.selectDisabled]}
+        onPress={() => !disabled && setOpen(true)}
+        disabled={disabled}
+      >
+        <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        <ChevronDown size={16} color={CustomerColors.textSecondary} />
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{label}</Text>
+              <TouchableOpacity onPress={() => setOpen(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={options}
+              keyExtractor={item => item.key}
+              style={{ maxHeight: 400 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => { onSelect(item.key, item.label); setOpen(false); }}
+                >
+                  <Text style={[styles.modalItemText, item.label === value && styles.modalItemTextActive]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={styles.modalEmpty}>No options found</Text>}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CustomerColors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
@@ -176,4 +304,18 @@ const styles = StyleSheet.create({
   pendingText: { flex: 1, fontSize: FontSizes.xs, color: '#92400E' },
   signOutBtn: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', marginTop: Spacing.xl, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, backgroundColor: CustomerColors.dangerBg },
   signOutText: { color: CustomerColors.primary, fontWeight: '700', fontSize: FontSizes.sm },
+
+  // ── SelectField / modal ──
+  selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  selectDisabled: { opacity: 0.5 },
+  selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },
+  selectPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF', flex: 1 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, maxHeight: '70%', paddingBottom: Spacing.lg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
+  modalItem: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
+  modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '700' },
+  modalEmpty: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
 });

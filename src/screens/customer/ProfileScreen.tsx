@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,9 @@ import {
   EyeOff,
   Plus,
   Trash2,
+  Calendar,
 } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/authApi';
 import {
@@ -36,6 +38,14 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
+import { indianStates, getCities } from '../../utils/indiaLocation';
+import {
+  LocationSelectField,
+  normalizeLoc,
+  lookupPincode,
+} from '../../components/common/LocationSelectField';
+import { mergeCategories } from '../../utils/storeCategories';
+import { storeProductApi } from '../../api/storeProductApi';
 
 type TabKey = 'overview' | 'addresses' | 'security' | 'store';
 
@@ -64,6 +74,8 @@ interface BusinessDetails {
   gst: string;
   license: string;
   taxDetails: string;
+  pan: string;
+  fssai: string;
 }
 
 interface ProfileData {
@@ -85,10 +97,26 @@ interface ProfileData {
   [key: string]: any;
 }
 
+const GENDER_OPTIONS = [
+  { key: 'male', label: 'Male' },
+  { key: 'female', label: 'Female' },
+  { key: 'other', label: 'Other' },
+  { key: 'prefer_not_to_say', label: 'Prefer not to say' },
+];
+
+// dob is stored as 'YYYY-MM-DD'; this just formats it for display
+const formatDob = (iso: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso; // fall back to raw string for legacy values
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 export default function ProfileScreen() {
   const { user, updateUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
   const [form, setForm] = useState<{
     fullname: string;
     email: string;
@@ -130,11 +158,36 @@ export default function ProfileScreen() {
         gst: '',
         license: '',
         taxDetails: '',
+        pan: '',
+        fssai: '',
       },
 
       ...(user?.profileData || {}),
     },
   });
+
+  useEffect(() => {
+  const loadCategories = async () => {
+    try {
+      const res = await storeProductApi.getCategories();
+      setCategories(res.data.data || []);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  loadCategories();
+}, []);
+
+  const categoryOptions = useMemo(
+  () =>
+    mergeCategories(categories || []).map(c => ({
+      key: c.name,
+      label: c.name,
+    })),
+  [categories]
+);
+
   const [security, setSecurity] = useState({
     currentPassword: '',
     newPassword: '',
@@ -157,6 +210,47 @@ export default function ProfileScreen() {
     isDefault: true,
   });
   const [addressEditorOpen, setAddressEditorOpen] = useState(false);
+  const [showDobPicker, setShowDobPicker] = useState(false);
+
+  const [draftCities, setDraftCities] = useState<any[]>([]);
+
+  const findState = useCallback((value: string) => {
+    const v = normalizeLoc(value);
+    if (!v) return undefined;
+    return indianStates.find(
+      s => normalizeLoc(s.name) === v || normalizeLoc(s.isoCode) === v,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!addressDraft.state) {
+      setDraftCities([]);
+      return;
+    }
+    const state = findState(addressDraft.state);
+    setDraftCities(state ? getCities(state.isoCode) : []);
+  }, [addressDraft.state, findState]);
+
+  const stateOptions = indianStates.map(s => ({
+    key: s.isoCode,
+    label: s.name,
+  }));
+  const draftCityOptions = draftCities.map((c: any) => ({
+    key: c.name,
+    label: c.name,
+  }));
+
+  const handleDraftStateSelect = (isoCode: string, label: string) => {
+    setAddressDraft(prev => ({ ...prev, state: label, city: '', pinCode: '' }));
+    setDraftCities(getCities(isoCode));
+  };
+
+  const handleDraftCitySelect = async (cityName: string) => {
+    setAddressDraft(prev => ({ ...prev, city: cityName }));
+    if (!cityName) return;
+    const pin = await lookupPincode(cityName);
+    if (pin) setAddressDraft(prev => ({ ...prev, pinCode: pin }));
+  };
 
   const tabs = useMemo<{ id: TabKey; label: string }[]>(() => {
     const base: { id: TabKey; label: string }[] = [
@@ -164,7 +258,7 @@ export default function ProfileScreen() {
       { id: 'addresses', label: 'Addresses' },
       { id: 'security', label: 'Security' },
     ];
-    if (user?.role === 'store_owner') {
+    if (['store_owner', 'whole_saler', 'home_business'].includes(user?.role || '')) {
       base.push({ id: 'store', label: 'Store' });
     }
     return base;
@@ -297,7 +391,6 @@ export default function ProfileScreen() {
               style={styles.input}
               value={form.email}
               placeholder="Email"
-
               keyboardType="email-address"
               onChangeText={value =>
                 setForm(prev => ({ ...prev, email: value }))
@@ -307,27 +400,49 @@ export default function ProfileScreen() {
               style={styles.input}
               value={form.mobilenumber}
               placeholder="Mobile number"
-
               keyboardType="phone-pad"
               onChangeText={value =>
                 setForm(prev => ({ ...prev, mobilenumber: value }))
               }
             />
-            <TextInput
-              style={styles.input}
-              value={form.dob}
-              placeholder="Date of birth"
-              placeholderTextColor="#9CA3AF"
-              onChangeText={value => setForm(prev => ({ ...prev, dob: value }))}
-            />
-            <TextInput
-              style={styles.input}
-              value={form.gender}
-              placeholder="Gender"
-              placeholderTextColor="#9CA3AF"
-              onChangeText={value =>
-                setForm(prev => ({ ...prev, gender: value }))
-              }
+
+            {/* Date of birth — calendar picker */}
+            <TouchableOpacity
+              style={[styles.input, styles.dobInput]}
+              onPress={() => setShowDobPicker(true)}
+            >
+              <Text style={form.dob ? styles.dobValue : styles.dobPlaceholder}>
+                {form.dob ? formatDob(form.dob) : 'Date of birth'}
+              </Text>
+              <Calendar size={16} color={CustomerColors.textSecondary} />
+            </TouchableOpacity>
+            {showDobPicker && (
+              <DateTimePicker
+                value={
+                  form.dob && !isNaN(new Date(form.dob).getTime())
+                    ? new Date(form.dob)
+                    : new Date(2000, 0, 1)
+                }
+                mode="date"
+                display="default"
+                maximumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowDobPicker(false);
+                  if (event.type === 'set' && selectedDate) {
+                    const iso = selectedDate.toISOString().slice(0, 10); // YYYY-MM-DD
+                    setForm(prev => ({ ...prev, dob: iso }));
+                  }
+                }}
+              />
+            )}
+
+            {/* Gender — dropdown */}
+            <LocationSelectField
+              label="Gender"
+              value={GENDER_OPTIONS.find(g => g.key === form.gender)?.label || form.gender}
+              placeholder="Select Gender"
+              options={GENDER_OPTIONS}
+              onSelect={key => setForm(prev => ({ ...prev, gender: key }))}
             />
           </View>
         )}
@@ -395,23 +510,22 @@ export default function ProfileScreen() {
                     setAddressDraft(prev => ({ ...prev, street: value }))
                   }
                 />
-                <TextInput
-                  style={styles.input}
-                  value={addressDraft.city}
-                  placeholder="City"
-                  placeholderTextColor="#9CA3AF"
-                  onChangeText={value =>
-                    setAddressDraft(prev => ({ ...prev, city: value }))
-                  }
-                />
-                <TextInput
-                  style={styles.input}
+                <LocationSelectField
+                  label="State"
                   value={addressDraft.state}
-                  placeholder="State"
-                  placeholderTextColor="#9CA3AF"
-                  onChangeText={value =>
-                    setAddressDraft(prev => ({ ...prev, state: value }))
+                  placeholder="Select State"
+                  options={stateOptions}
+                  onSelect={handleDraftStateSelect}
+                />
+                <LocationSelectField
+                  label="City"
+                  value={addressDraft.city}
+                  placeholder={
+                    addressDraft.state ? 'Select City' : 'Select a state first'
                   }
+                  options={draftCityOptions}
+                  disabled={!addressDraft.state}
+                  onSelect={handleDraftCitySelect}
                 />
                 <TextInput
                   style={styles.input}
@@ -635,24 +749,51 @@ export default function ProfileScreen() {
                 }))
               }
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Category"
-              placeholderTextColor="#9CA3AF"
-              value={form.profileData.storeProfile?.category || ''}
-              onChangeText={value =>
-                setForm(prev => ({
-                  ...prev,
-                  profileData: {
-                    ...prev.profileData,
-                    storeProfile: {
-                      ...(prev.profileData.storeProfile || {}),
-                      category: value,
-                    },
-                  },
-                }))
-              }
-            />
+
+            {/* Category — dropdown */}
+<LocationSelectField
+  label="Category"
+  value={form.profileData.storeProfile?.category || ''}
+  placeholder="Select Category"
+  options={categoryOptions}
+  onSelect={key =>
+    setForm(prev => ({
+      ...prev,
+      profileData: {
+        ...prev.profileData,
+        storeProfile: {
+          ...(prev.profileData.storeProfile || {}),
+          category: key,
+        },
+      },
+    }))
+  }
+/>
+
+            {/* FSSAI — only for Food & Beverages */}
+{form.profileData.storeProfile?.category === 'Food & Beverages' && (
+  <TextInput
+    style={styles.input}
+    placeholder="FSSAI License Number"
+    placeholderTextColor="#9CA3AF"
+    keyboardType="number-pad"
+    maxLength={14}
+    value={form.profileData.businessDetails?.fssai || ''}
+    onChangeText={value =>
+      setForm(prev => ({
+        ...prev,
+        profileData: {
+          ...prev.profileData,
+          businessDetails: {
+            ...(prev.profileData.businessDetails || {}),
+            fssai: value,
+          },
+        },
+      }))
+    }
+  />
+)}
+
             <TextInput
               style={styles.input}
               placeholder="Address"
@@ -755,6 +896,29 @@ export default function ProfileScreen() {
                 }))
               }
             />
+
+            {/* PAN Card Number */}
+            <TextInput
+              style={styles.input}
+              placeholder="PAN Card Number"
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="characters"
+              maxLength={10}
+              value={form.profileData.businessDetails?.pan || ''}
+              onChangeText={value =>
+                setForm(prev => ({
+                  ...prev,
+                  profileData: {
+                    ...prev.profileData,
+                    businessDetails: {
+                      ...(prev.profileData.businessDetails || {}),
+                      pan: value.toUpperCase(),
+                    },
+                  },
+                }))
+              }
+            />
+
             <TextInput
               style={styles.input}
               placeholder="License"
@@ -969,4 +1133,11 @@ const styles = StyleSheet.create({
   },
   passwordRow: { flexDirection: 'row', alignItems: 'center' },
   eyeBtn: { marginLeft: Spacing.sm, padding: Spacing.xs },
+  dobInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dobValue: { fontSize: FontSizes.sm, color: CustomerColors.black },
+  dobPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF' },
 });

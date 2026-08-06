@@ -60,9 +60,15 @@ export default function CartScreen() {
         <Text style={styles.emptyTitle}>Your cart is empty</Text>
         <TouchableOpacity
           style={styles.shopBtn}
-          onPress={() =>
-            navigation.navigate('CustomerTabs', { screen: 'Categories' })
-          }
+          onPress={() => {
+            if (user?.role === 'store_owner') {
+              navigation.navigate('Suppliers');
+            } else {
+              navigation.navigate('CustomerTabs', {
+                screen: 'Home',
+              });
+            }
+          }}
         >
           <Text style={styles.shopBtnText}>Start Shopping</Text>
         </TouchableOpacity>

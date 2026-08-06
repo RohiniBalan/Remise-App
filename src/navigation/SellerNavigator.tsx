@@ -4,12 +4,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   BarChart2, Package, ShoppingBag, Settings as SettingsIcon, Bell, User as UserIcon, Truck,
   Store, SlidersHorizontal, LogOut, CheckCircle, AlertCircle,
+  Layers,
 } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SellerDashboardProvider, useSellerDashboard } from '../context/SellerDashboardContext';
 import { useAuth } from '../context/AuthContext';
 import SellerOverviewScreen from '../screens/seller/SellerOverviewScreen';
+import SellerCategoriesScreen from '../screens/seller/SellerCategoriesScreen';
 import SellerProductsScreen from '../screens/seller/SellerProductsScreen';
 import SellerManageBrandsScreen from '../screens/seller/SellerManageBrandsScreen';
 import SellerProductFormScreen from '../screens/seller/SellerProductFormScreen';
@@ -31,6 +33,7 @@ import { CustomerColors } from '../styles/theme';
 
 export type SellerTabParamList = {
   SellerOverview: undefined;
+  SellerCategories: undefined;
   SellerProducts: undefined;
   SellerOrders: undefined;
   SellerSettings: undefined;
@@ -38,6 +41,7 @@ export type SellerTabParamList = {
 
 export type SellerStackParamList = {
   SellerTabs: undefined;
+  SellerCategories: undefined;
   SellerProductForm: { product?: any; initialTitle?: string; initialCategory?: string };
   SellerManageBrands: { typeKey: string; title: string; category: string; items: any[]; brandCount: number; totalStock: number };
   SellerScanUpload: undefined;
@@ -172,6 +176,7 @@ function SellerTabs() {
       }}
     >
       <Tab.Screen name="SellerOverview" component={SellerOverviewScreen} options={{ title: 'Overview', tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} /> }} />
+      <Tab.Screen name='SellerCategories' component={SellerCategoriesScreen} options={{ title: 'Categories', tabBarIcon: ({ color, size }) => <Layers color={color} size={size} /> }} />
       <Tab.Screen name="SellerProducts" component={SellerProductsScreen} options={{ title: 'Products', tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }} />
       <Tab.Screen name="SellerOrders" component={SellerOrdersScreen} options={{ title: 'Incoming Orders', tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} /> }} />
       <Tab.Screen name="SellerSettings" component={SellerSettingsScreen} options={{ title: 'Settings', tabBarIcon: ({ color, size }) => <SettingsIcon color={color} size={size} /> }} />
@@ -205,6 +210,7 @@ export default function SellerNavigator() {
       <DashboardGate>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="SellerTabs" component={SellerTabs} />
+          <Stack.Screen name="SellerCategories" component={SellerCategoriesScreen} options={{ headerShown: true, title: 'Categories'}} />
           <Stack.Screen name="SellerProductForm" component={SellerProductFormScreen} options={{ headerShown: true, title: 'Product' }} />
           <Stack.Screen name="SellerManageBrands" component={SellerManageBrandsScreen} options={{ headerShown: true, title: 'Manage Brands' }} />
           <Stack.Screen name="SellerScanUpload" component={SellerScanUploadScreen} options={{ headerShown: true, title: 'Scan Paper & Add Product' }} />

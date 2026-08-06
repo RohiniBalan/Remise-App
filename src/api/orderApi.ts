@@ -1,4 +1,4 @@
-import { legacyMonolithClient } from './client';
+import { legacyMonolithClient, gatewayClient } from './client';
 
 // Ported from client/app/orders/page.tsx — same LEGACY_MONOLITH_URL
 // endpoint and query-param shape (userId + email, both pulled from the
@@ -52,17 +52,27 @@ export interface WholesaleContactInfo {
 }
 
 export const orderApi = {
+  // Legacy monolith's simple orders route (routes/orders.js) — only exposes
+  // /my-orders, so this one stays on legacyMonolithClient.
   getMyOrders: (userId: string, email: string) =>
     legacyMonolithClient.get(`/api/orders/my-orders?userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}`),
 
-  // Store-owner's own wholesale/supplier orders — orders THIS store placed
-  // as a buyer from other suppliers, not orders customers placed with this
-  // store (that's offersApi/smartOrderApi, handled elsewhere).
+  // FIX: /wholesale and /buyer/:buyerId live on the order MICROSERVICE
+  // behind the gateway (GATEWAY_URL) — a separate router (with
+  // controllers/authMiddleware, protect+authorize) from the legacy
+  // monolith's routes/orders.js above, which has no wholesale route at
+  // all. Was pointed at legacyMonolithClient + a `/wholesale/mine/:id`
+  // path that doesn't exist anywhere on the backend — the real route is
+  // GET /api/orders/buyer/:buyerId. `ownerId` here should be the signed-in
+  // user's own id (matches the route's `authorize('user','store_owner')`
+  // check on the buyer's own account), same value store.ownerId already
+  // holds.
   getMyWholesaleOrders: (ownerId: string) =>
-    legacyMonolithClient.get(`/api/orders/wholesale/mine/${encodeURIComponent(ownerId)}`),
+    gatewayClient.get(`/api/orders/buyer/${encodeURIComponent(ownerId)}`),
 
-  // Places one order per supplier group in a single call — backend should
-  // create len(orderGroups) separate Order documents server-side.
+  // Already pointed at the right path (/api/orders/wholesale matches the
+  // router's POST /wholesale) — just needed to move to gatewayClient along
+  // with the read above, since it's the same backend service.
   placeWholesaleOrders: (orderGroups: WholesaleOrderGroup[], contact: WholesaleContactInfo) =>
-    legacyMonolithClient.post('/api/orders/wholesale', { orderGroups, contact }),
+    gatewayClient.post('/api/orders/wholesale', { orderGroups, contact }),
 };

@@ -30,12 +30,27 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 // store/register/page.tsx calling ctx.login({...user, role:'store_owner'}, newToken).
 function RoleGate() {
   const { user, token } = useAuth();
-  const isAuthed = Boolean(token && user);
 
-  if (!isAuthed) return <AuthNavigator />;
-  if (user?.role === 'admin') return <AdminNavigator />;
-  if (user?.role === 'store_owner') return <StoreOwnerNavigator />;
-  if (user?.role === 'whole_saler' || user?.role === 'home_business') return <SellerNavigator />;
+  // Guest users should be able to browse the app
+  if (!token || !user) {
+    return <CustomerNavigator />;
+  }
+
+  if (user.role === 'admin') {
+    return <AdminNavigator />;
+  }
+
+  if (user.role === 'store_owner') {
+    return <StoreOwnerNavigator />;
+  }
+
+  if (
+    user.role === 'whole_saler' ||
+    user.role === 'home_business'
+  ) {
+    return <SellerNavigator />;
+  }
+
   return <CustomerNavigator />;
 }
 

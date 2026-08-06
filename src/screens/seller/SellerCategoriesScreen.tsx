@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Layers, Plus, Trash2 } from 'lucide-react-native';
-import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { mergeCategories } from '../../utils/storeCategories';
 
-export default function StoreCategoriesScreen() {
-  const { categories, products, loading, refresh } = useStoreDashboard();
+export default function SellerCategoriesScreen() {
+  const { categories, products, loading, refresh } = useSellerDashboard();
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

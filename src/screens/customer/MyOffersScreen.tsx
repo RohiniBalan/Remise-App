@@ -283,56 +283,59 @@ export default function MyOffersScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {offers.map(offer => (
-            <View key={offer._id} style={styles.card}>
-              <View style={styles.imageWrap}>
-                <Image
-                  source={{
-                    uri: offer.image?.startsWith('http')
-                      ? offer.image
-                      : `${GATEWAY_URL}${offer.image}`,
-                  }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-                {offer.discountPercent > 0 && (
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountBadgeText}>
-                      {offer.discountPercent}% OFF
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.justForYouBadge}>
-                  <Tag size={10} color="#fff" />
-                  <Text style={styles.justForYouText}>Just for you</Text>
-                </View>
-              </View>
-
-              <View style={styles.cardBody}>
-                <Text style={styles.storeName}>{offer.storeName}</Text>
-                <Text style={styles.offerTitle} numberOfLines={1}>
-                  {offer.title}
-                </Text>
-                {!!offer.description && (
-                  <Text style={styles.offerDesc} numberOfLines={2}>
-                    {offer.description}
-                  </Text>
-                )}
-
-                <View style={styles.priceTimeRow}>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'baseline',
-                      gap: 8,
+          <View style={styles.grid}>
+            {offers.map(offer => (
+              <View key={offer._id} style={styles.card}>
+                <View style={styles.imageWrap}>
+                  <Image
+                    source={{
+                      uri: offer.image?.startsWith('http')
+                        ? offer.image
+                        : `${GATEWAY_URL}${offer.image}`,
                     }}
-                  >
-                    <Text style={styles.offerPrice}>₹{offer.offerPrice}</Text>
-                    {offer.originalPrice !== offer.offerPrice && (
-                      <Text style={styles.offerPriceStrike}>
-                        ₹{offer.originalPrice}
+                    style={styles.image}
+                    resizeMode="cover"
+                  />
+                  {offer.discountPercent > 0 && (
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountBadgeText}>
+                        {offer.discountPercent}% OFF
                       </Text>
-                    )}
+                    </View>
+                  )}
+                  <View style={styles.justForYouBadge}>
+                    <Tag size={9} color="#fff" />
+                    <Text style={styles.justForYouText}>Just for you</Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardBody}>
+                  <Text style={styles.storeName} numberOfLines={1}>{offer.storeName}</Text>
+                  <Text style={styles.offerTitle} numberOfLines={1}>
+                    {offer.title}
+                  </Text>
+                  {!!offer.description && (
+                    <Text style={styles.offerDesc} numberOfLines={2}>
+                      {offer.description}
+                    </Text>
+                  )}
+
+                  <View style={styles.priceTimeRow}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'baseline',
+                        gap: 6,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <Text style={styles.offerPrice}>₹{offer.offerPrice}</Text>
+                      {offer.originalPrice !== offer.offerPrice && (
+                        <Text style={styles.offerPriceStrike}>
+                          ₹{offer.originalPrice}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                   <View style={styles.timeChip}>
                     <Clock size={10} color={CustomerColors.textSecondary} />
@@ -340,21 +343,21 @@ export default function MyOffersScreen() {
                       {hoursLeftLabel(offer.validUntil)}
                     </Text>
                   </View>
-                </View>
 
-                <TouchableOpacity
-                  style={styles.orderNowBtn}
-                  onPress={() => {
-                    setSelectedOffer(offer);
-                    setOrderSuccess(false);
-                  }}
-                >
-                  <ShoppingBag size={14} color="#fff" />
-                  <Text style={styles.orderNowText}>Order Now</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.orderNowBtn}
+                    onPress={() => {
+                      setSelectedOffer(offer);
+                      setOrderSuccess(false);
+                    }}
+                  >
+                    <ShoppingBag size={13} color="#fff" />
+                    <Text style={styles.orderNowText}>Order Now</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
+          </View>
         </ScrollView>
       )}
 
@@ -420,7 +423,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // 2-cards-per-row grid — cards are ~48% wide with `space-between` on the
+  // row so a small gap sits between the pair without needing a `gap` prop
+  // (kept for RN versions where flexbox `gap` on a wrapping row is
+  // inconsistent). `card` no longer needs its own marginBottom collapsed
+  // against the grid, so it gets one here instead.
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
   card: {
+    width: '48%',
     backgroundColor: CustomerColors.white,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
@@ -431,74 +445,76 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: 4 / 3,
     backgroundColor: CustomerColors.bg,
   },
   image: { width: '100%', height: '100%' },
   discountBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
     backgroundColor: CustomerColors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderRadius: BorderRadius.sm,
   },
   discountBadgeText: {
     color: '#fff',
-    fontSize: FontSizes.xs,
+    fontSize: 9,
     fontWeight: '800',
   },
   justForYouBadge: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
+    bottom: 6,
+    left: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderRadius: BorderRadius.pill,
   },
-  justForYouText: { color: '#fff', fontSize: FontSizes.xs },
-  cardBody: { padding: Spacing.md },
+  justForYouText: { color: '#fff', fontSize: 9 },
+  cardBody: { padding: Spacing.sm },
   storeName: {
-    fontSize: FontSizes.xs,
+    fontSize: 10,
     fontWeight: '700',
     color: CustomerColors.teal600,
     marginBottom: 2,
   },
   offerTitle: {
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.sm,
     fontWeight: '700',
     color: CustomerColors.black,
   },
   offerDesc: {
-    fontSize: FontSizes.xs,
+    fontSize: 10,
     color: CustomerColors.textSecondary,
     marginTop: 2,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   priceTimeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginTop: 4,
+    marginBottom: Spacing.xs,
   },
   offerPrice: {
-    fontSize: FontSizes.lg,
+    fontSize: FontSizes.base,
     fontWeight: '800',
     color: CustomerColors.teal700,
   },
   offerPriceStrike: {
-    fontSize: FontSizes.sm,
+    fontSize: 10,
     color: CustomerColors.textSecondary,
     textDecorationLine: 'line-through',
   },
   timeChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: 4,
     backgroundColor: CustomerColors.bg,
     borderWidth: 1,
@@ -506,22 +522,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
     borderRadius: BorderRadius.pill,
+    marginBottom: Spacing.sm,
   },
   timeChipText: {
-    fontSize: FontSizes.xs,
+    fontSize: 9,
     color: CustomerColors.textSecondary,
     fontWeight: '600',
   },
   orderNowBtn: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: CustomerColors.teal600,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.md,
   },
-  orderNowText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+  orderNowText: { color: '#fff', fontWeight: '700', fontSize: 11 },
 
   modalOverlay: {
     flex: 1,

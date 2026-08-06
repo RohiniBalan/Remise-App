@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Tag, Clock } from 'lucide-react-native';
-import { heroApi, HERO_FALLBACK, HeroContent } from '../../api/heroApi';
+import { HERO_FALLBACK, HeroContent } from '../../api/heroApi';
 import { offersApi } from '../../api/offersApi';
 import {
   CustomerColors,
@@ -98,15 +98,19 @@ export default function HeroCarousel() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let contentDone = false;
     let offersDone = false;
-    const maybeReady = () => contentDone && offersDone && setReady(true);
+    const maybeReady = () => offersDone && setReady(true);
 
-    heroApi
-      .get()
-      .then(res => setContent(res.data?.success ? res.data.data : HERO_FALLBACK))
-      .catch(() => setContent(HERO_FALLBACK))
-      .finally(() => { contentDone = true; maybeReady(); });
+    // NOTE: same issue as Shop by Category — /hero's live data is real but
+    // unrelated content (an F1/racing collector theme) seeded on the
+    // backend, not the "Everything You Need, Delivered." lifestyle-store
+    // banner web actually displays. Web's fetch to that endpoint reliably
+    // fails in practice and falls back to its hardcoded content, which is
+    // why web consistently shows the lifestyle banner. Mobile renders the
+    // same fixed HERO_FALLBACK directly here for guaranteed parity, rather
+    // than racing the same flaky endpoint. Revisit once the backend's hero
+    // content is reseeded to match what web is actually meant to show.
+    setContent(HERO_FALLBACK);
 
     offersApi
       .getActive(MAX_OFFER_SLIDES)

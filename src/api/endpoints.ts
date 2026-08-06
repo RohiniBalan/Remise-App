@@ -11,7 +11,7 @@ import Config from 'react-native-config';
 // it must be substituted with the special 10.0.2.2 alias. iOS simulators
 // can use localhost directly.
 // const devHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const devHost = '192.168.0.18';
+const devHost = '192.168.1.35';
 
 // api-gateway (microservices: auth/user/product/order/payment/content/
 // store/offers/notification) — analog of web's NEXT_PUBLIC_API_URL.ii

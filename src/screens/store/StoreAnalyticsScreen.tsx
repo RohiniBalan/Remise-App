@@ -9,9 +9,11 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
-import { TrendingUp } from 'lucide-react-native';
+import { TrendingUp, ChevronDown, X } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import {
   CustomerColors,
@@ -27,6 +29,7 @@ import {
   getDateRange,
   DateRangeKey,
 } from './analytics';
+import { mergeCategories } from '../../utils/storeCategories';
 
 // Ported from client/app/store/dashboard/page.tsx's OverviewTab — everything
 // BELOW the 6 stat tiles / Recent Orders / Product Stock, which already live
@@ -74,6 +77,73 @@ const GRANULARITY_OPTIONS: {
   { key: 'monthly', label: 'Monthly' },
 ];
 
+// Modal-based dropdown since RN has no native <select>. Same pattern as
+// the one used on the Store Settings screen (State/City pickers).
+function SelectField({
+  label,
+  value,
+  placeholder,
+  options,
+  disabled,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: { key: string; label: string }[];
+  disabled?: boolean;
+  onSelect: (key: string, label: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.filterLabel}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.selectInput, disabled && styles.selectDisabled]}
+        onPress={() => !disabled && setOpen(true)}
+        disabled={disabled}
+      >
+        <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        <ChevronDown size={16} color={CustomerColors.textSecondary} />
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{label}</Text>
+              <TouchableOpacity onPress={() => setOpen(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={options}
+              keyExtractor={item => item.key}
+              style={{ maxHeight: 400 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    onSelect(item.key, item.label);
+                    setOpen(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemText, item.label === value && styles.modalItemTextActive]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={styles.modalEmpty}>No options found</Text>}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
 export default function StoreAnalyticsScreen() {
   const {
     orders,
@@ -90,6 +160,25 @@ export default function StoreAnalyticsScreen() {
   const [granularity, setGranularity] = useState<
     'daily' | 'weekly' | 'monthly'
   >('daily');
+
+  // "All" + real options for the two dropdowns. mergeCategories combines the
+  // store's default categories with any it has added itself — same helper
+  // the Categories screen uses — so the filter isn't limited to added-only.
+  const mergedCategories = useMemo(() => mergeCategories(categories || []), [categories]);
+  const categoryOptions = useMemo(
+    () => [
+      { key: '', label: 'All' },
+      ...mergedCategories.map((c: any) => ({ key: c.name, label: c.name })),
+    ],
+    [mergedCategories],
+  );
+  const productOptions = useMemo(
+    () => [
+      { key: '', label: 'All' },
+      ...products.map((p: any) => ({ key: p.title, label: p.title })),
+    ],
+    [products],
+  );
 
   const analytics = useMemo(() => {
     // Guard: a half-typed custom range would throw inside getDateRange.
@@ -207,70 +296,22 @@ export default function StoreAnalyticsScreen() {
           </View>
         )}
 
-        <Text style={[styles.filterLabel, { marginTop: Spacing.sm }]}>
-          Category
-        </Text>
-        <View style={styles.pillRow}>
-          <TouchableOpacity
-            onPress={() => setCategory('')}
-            style={[styles.pill, !category && styles.pillActive]}
-          >
-            <Text style={[styles.pillText, !category && styles.pillTextActive]}>
-              All
-            </Text>
-          </TouchableOpacity>
-          {categories.map((c: any) => (
-            <TouchableOpacity
-              key={c._id}
-              onPress={() => setCategory(c.name)}
-              style={[styles.pill, category === c.name && styles.pillActive]}
-            >
-              <Text
-                style={[
-                  styles.pillText,
-                  category === c.name && styles.pillTextActive,
-                ]}
-              >
-                {c.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={[styles.filterLabel, { marginTop: Spacing.sm }]}>
-          Product
-        </Text>
-        <View style={styles.pillRow}>
-          <TouchableOpacity
-            onPress={() => setProductFilter('')}
-            style={[styles.pill, !productFilter && styles.pillActive]}
-          >
-            <Text
-              style={[styles.pillText, !productFilter && styles.pillTextActive]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-          {products.map((p: any) => (
-            <TouchableOpacity
-              key={p._id}
-              onPress={() => setProductFilter(p.title)}
-              style={[
-                styles.pill,
-                productFilter === p.title && styles.pillActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.pillText,
-                  productFilter === p.title && styles.pillTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {p.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {/* Category / Product — dropdowns instead of pill rows */}
+        <View style={styles.dropdownRow}>
+          <SelectField
+            label="Category"
+            value={category}
+            placeholder="All"
+            options={categoryOptions}
+            onSelect={key => setCategory(key)}
+          />
+          <SelectField
+            label="Product"
+            value={productFilter}
+            placeholder="All"
+            options={productOptions}
+            onSelect={key => setProductFilter(key)}
+          />
         </View>
       </View>
 
@@ -377,19 +418,19 @@ export default function StoreAnalyticsScreen() {
               <Text style={styles.emptyText}>No data</Text>
             ) : (
               <BarChart
-  data={brandBarData}
-  horizontal
-  width={HBAR_CHART_WIDTH}
-  height={Math.max(180, brandBarData.length * 36)}
-  frontColor="#0d9488"
-  barBorderRadius={4}
-  yAxisTextStyle={{ fontSize: 10, color: CustomerColors.textSecondary }}
-  xAxisLabelTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
-  yAxisLabelWidth={CATEGORY_LABEL_WIDTH}
-  initialSpacing={8}
-  spacing={20}
-  barWidth={22}
-/>
+                data={brandBarData}
+                horizontal
+                width={HBAR_CHART_WIDTH}
+                height={Math.max(180, brandBarData.length * 36)}
+                frontColor="#0d9488"
+                barBorderRadius={4}
+                yAxisTextStyle={{ fontSize: 10, color: CustomerColors.textSecondary }}
+                xAxisLabelTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
+                yAxisLabelWidth={CATEGORY_LABEL_WIDTH}
+                initialSpacing={8}
+                spacing={20}
+                barWidth={22}
+              />
             )}
           </View>
 
@@ -428,17 +469,17 @@ export default function StoreAnalyticsScreen() {
               <Text style={styles.emptyText}>No data</Text>
             ) : (
               <BarChart
-  data={monthBarData}
-  width={CHART_WIDTH}
-  height={180}
-  frontColor="#0d9488"
-  barBorderRadius={4}
-  xAxisLabelTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
-  yAxisTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
-  yAxisLabelWidth={Y_AXIS_LABEL_WIDTH}
-  initialSpacing={8}
-  endSpacing={8}
-/>
+                data={monthBarData}
+                width={CHART_WIDTH}
+                height={180}
+                frontColor="#0d9488"
+                barBorderRadius={4}
+                xAxisLabelTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
+                yAxisTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
+                yAxisLabelWidth={Y_AXIS_LABEL_WIDTH}
+                initialSpacing={8}
+                endSpacing={8}
+              />
             )}
           </View>
 
@@ -532,6 +573,54 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
   },
 
+  // ── Category / Product dropdown row ──
+  dropdownRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  selectInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: CustomerColors.bg,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 10,
+  },
+  selectDisabled: { opacity: 0.5 },
+  selectValue: { fontSize: FontSizes.xs, color: CustomerColors.black, flex: 1 },
+  selectPlaceholder: { fontSize: FontSizes.xs, color: '#9CA3AF', flex: 1 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: BorderRadius.lg,
+    borderTopRightRadius: BorderRadius.lg,
+    maxHeight: '70%',
+    paddingBottom: Spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
+  modalItem: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
+  modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '700' },
+  modalEmpty: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
+
   statCard: {
     backgroundColor: CustomerColors.white,
     borderRadius: BorderRadius.md,
@@ -554,15 +643,15 @@ const styles = StyleSheet.create({
   },
 
   section: {
-  backgroundColor: CustomerColors.white,
-  borderRadius: BorderRadius.md,
-  borderWidth: 1,
-  borderColor: CustomerColors.steelBorder,
-  padding: Spacing.md,
-  marginBottom: Spacing.md,
-  overflow: 'hidden',
-  ...Shadows.card,
-},
+    backgroundColor: CustomerColors.white,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+    ...Shadows.card,
+  },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -119,14 +119,33 @@ export default function HomeScreen() {
   const [nearbyOffers, setNearbyOffers] = useState<NearbyOffer[]>([]);
 
   useEffect(() => {
-    homeSectionsApi
-      .getShopByCategory()
-      .then(res => setCategories(res.data?.success && res.data.data?.length > 0 ? res.data.data : CATEGORY_FALLBACK))
-      .catch(() => setCategories(CATEGORY_FALLBACK));
+    // NOTE: /shopbycategory's live data is a real but unrelated toy-store
+    // taxonomy (Vehicles & Tracksets, Collectors Edition, etc.) seeded on
+    // the backend — not the marketplace categories (Groceries & Fresh,
+    // Beauty & Cosmetics, ...) web actually displays. Web's fetch() to that
+    // endpoint reliably fails in practice (cold-start/timeout) and falls
+    // back to its hardcoded FALLBACK, which is why web consistently shows
+    // the marketplace set. Rather than race the same flaky endpoint and
+    // risk mobile showing the mismatched live data on days it responds in
+    // time, mobile renders the same fixed content directly for guaranteed
+    // parity. Revisit this once the backend's category data is reseeded to
+    // match what web is actually meant to show.
+    setCategories(CATEGORY_FALLBACK);
 
     homeSectionsApi
       .getBestSellers()
-      .then(res => setBestSellers(res.data?.success && res.data.data?.length > 0 ? res.data.data : BEST_SELLER_FALLBACK))
+      .then(res => {
+        const data = res.data?.data;
+        // The live endpoint sometimes returns thin placeholder records
+        // (id/name/img/color only — no price/rating) rather than full
+        // product data. `success && length > 0` alone doesn't catch that,
+        // so also require every item to carry a usable price before
+        // trusting the response — otherwise fall back to the same
+        // complete data web shows in that situation.
+        const isComplete = res.data?.success && Array.isArray(data) && data.length > 0
+          && data.every((item: BestSellerItem) => typeof item.price === 'number');
+        setBestSellers(isComplete ? data : BEST_SELLER_FALLBACK);
+      })
       .catch(() => setBestSellers(BEST_SELLER_FALLBACK));
   }, []);
 
@@ -210,11 +229,21 @@ export default function HomeScreen() {
               </View>
             )}
           </TouchableOpacity>
-          {user && (
-            <TouchableOpacity style={styles.avatar} onPress={() => setMenuOpen(true)}>
-              <Text style={styles.avatarText}>{initial}</Text>
-            </TouchableOpacity>
-          )}
+          {user ? (
+  <TouchableOpacity
+    style={styles.avatar}
+    onPress={() => setMenuOpen(true)}
+  >
+    <Text style={styles.avatarText}>{initial}</Text>
+  </TouchableOpacity>
+) : (
+  <TouchableOpacity
+    style={styles.loginBtn}
+    onPress={() => navigation.navigate('LoginRegister')}
+  >
+    <Text style={styles.loginBtnText}>Login</Text>
+  </TouchableOpacity>
+)}
         </View>
       </View>
 
@@ -357,7 +386,7 @@ export default function HomeScreen() {
               return (
                 <TouchableOpacity key={cat.id} style={styles.categoryCard} onPress={() => navigation.navigate('Categories')}>
                   <View style={styles.categoryImageWrap}>
-                    <Image source={{ uri: cat.img }} style={styles.categoryImage} />
+                    <Image source={{ uri: resolveImage(cat.img) }} style={styles.categoryImage} />
                     <View style={styles.categoryOverlay} />
                     <View style={styles.categoryBadge}>
                       <Text style={styles.categoryBadgeText}>{cat.badge}</Text>
@@ -397,7 +426,7 @@ export default function HomeScreen() {
               return (
                 <TouchableOpacity style={styles.sellerCard} onPress={() => navigation.navigate('ProductDetail', { productId: String(item.id) })}>
                   <View style={styles.sellerImageWrap}>
-                    <Image source={{ uri: item.img }} style={styles.sellerImage} />
+                    <Image source={{ uri: resolveImage(item.img) }} style={styles.sellerImage} />
                     {item.badge && (
                       <View style={styles.sellerBadge}><Text style={styles.sellerBadgeText}>{item.badge}</Text></View>
                     )}
@@ -499,7 +528,7 @@ const styles = StyleSheet.create({
 
   infoStrip: {
     flexDirection: 'row', flexWrap: 'wrap', backgroundColor: CustomerColors.white,
-    paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, borderBottomWidth: 1, borderBottomColor: CustomerColors.border,
+    marginTop: Spacing.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, borderBottomWidth: 1, borderBottomColor: CustomerColors.border,
   },
   infoItem: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '50%', paddingVertical: Spacing.xs, paddingHorizontal: Spacing.xs },
   infoTextWrap: {},
@@ -581,4 +610,16 @@ const styles = StyleSheet.create({
   sellerOriginal: { fontSize: 9, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
   sellerCartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: BorderRadius.sm, paddingVertical: 6, marginTop: Spacing.xs },
   sellerCartText: { fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 },
+  loginBtn: {
+  backgroundColor: CustomerColors.primary,
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  borderRadius: 8,
+},
+
+loginBtnText: {
+  color: '#fff',
+  fontWeight: '700',
+  fontSize: FontSizes.sm,
+},
 });
