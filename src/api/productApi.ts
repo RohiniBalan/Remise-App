@@ -42,10 +42,10 @@ export interface Product {
 }
 
 export const productApi = {
-  getAll: (params?: Record<string, string | number>) => legacyProductClient.get('/products', { params }),
+  getAll: (params?: Record<string, string | number>) => legacyProductClient.get('/admin/products', { params }),
   getById: (id: string) => legacyProductClient.get(`/products/${id}`),
   getByStore: (storeId: string, params?: Record<string, string | number>) => legacyProductClient.get(`/products/store/${storeId}`, { params }),
-  getCategories: () => legacyProductClient.get('/categories'),
+  getCategories: () => legacyProductClient.get('/admin/categories'),
 
   // FIX: web's client/app/api-services/productApi.ts uses NEXT_PUBLIC_API_URL
   // (the gateway) for this call, not the legacy render.com product host — same

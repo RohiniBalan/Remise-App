@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { Filter, X } from 'lucide-react-native';
 import { productApi, Product, productId } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
@@ -49,6 +50,7 @@ const SORT_OPTIONS = [
 
 export default function CategoryScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<{ CategoryProducts: { category?: string } }, 'CategoryProducts'>>();
   const { user, token } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
 
@@ -56,7 +58,7 @@ export default function CategoryScreen() {
   const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(route.params?.category ?? null);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedAvailabilities, setSelectedAvailabilities] = useState<
     string[]
@@ -80,6 +82,10 @@ export default function CategoryScreen() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    setActiveCategory(route.params?.category ?? null);
+  }, [route.params?.category]);
+  
   const getUnique = (key: keyof Product) =>
     Array.from(new Set(products.map(p => p[key]).filter(Boolean))) as string[];
   const categories = useMemo(() => getUnique('category'), [products]);

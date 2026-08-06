@@ -6,6 +6,7 @@ import PlaceholderScreen from '../screens/common/PlaceholderScreen';
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
 import CategoryScreen from '../screens/customer/CategoryScreen';
+import CategoryGridScreen from '../screens/customer/CategoryGridScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
@@ -62,6 +63,7 @@ export type CustomerStackParamList = {
   Suppliers: undefined;
   MyOffers: undefined;
   LoginRegister: undefined; 
+  CategoryProducts: { category?: string} | undefined;
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -76,7 +78,7 @@ function CustomerTabs() {
         tabBarInactiveTintColor: CustomerColors.textSecondary,
       }}>
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
-      <Tab.Screen name="Categories" component={CategoryScreen} options={{ tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} /> }} />
+      <Tab.Screen name="Categories" component={CategoryGridScreen} options={{ tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} /> }} />
       <Tab.Screen name="BulkPurchase" component={BulkPurchaseScreen} options={{ title: 'Bulk Purchase', tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} /> }} />
       <Tab.Screen name="Nearby" component={NearbyOffersScreen} options={{ title: 'Nearby', tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} /> }} />
       <Tab.Screen name="Orders" component={OrdersScreen} options={{ tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }} />
@@ -89,6 +91,7 @@ export default function CustomerNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: true, title: 'Product' }} />
+      <Stack.Screen name="CategoryProducts" component={CategoryScreen} options={({ route }) => ({ headerShown: true, title: route.params?.category || 'Products' })} />
       <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, title: 'Your Cart' }} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true }} />
       <Stack.Screen name="PhonePeWebView" component={PhonePeWebViewScreen} options={{ headerShown: true, title: 'PhonePe' }} />
