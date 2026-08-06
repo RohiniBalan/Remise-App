@@ -10,7 +10,6 @@ import {
   Image,
   Platform,
   PermissionsAndroid,
-  useColorScheme,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -76,8 +75,7 @@ function normalizeCategory(raw: any): NormalizedCategory | null {
 
 export default function CategoryGridScreen() {
   const navigation = useNavigation<any>();
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
+  const isDark = false;
 
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<NormalizedCategory[]>([]);
