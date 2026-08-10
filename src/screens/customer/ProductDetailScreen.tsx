@@ -38,6 +38,9 @@ import { requireAuthForPurchase } from '../../utils/authGuard';
 
 const TABS = ['About', 'Specs', 'Ideal For', 'Shipping'] as const;
 
+// Roles that see store-owner pricing instead of the direct-customer price
+const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
+
 export default function ProductDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -113,11 +116,23 @@ export default function ProductDetailScreen() {
     );
   }
 
+  const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
+  // Store-owner buyers see storePrice/storeDiscountedPrice (falling back to
+  // the regular customer price if the seller didn't set a store price).
+  const displayProduct: Product = isStoreOwner
+    ? {
+        ...product,
+        price: product.storePrice ?? product.price,
+        discountedPrice: product.storeDiscountedPrice ?? product.discountedPrice,
+      }
+    : product;
+
   const isOutOfStock = product.totalStock <= 0;
   const discount =
-    product.originalPrice && product.originalPrice > product.price
+    displayProduct.originalPrice && displayProduct.originalPrice > displayProduct.price
       ? Math.round(
-          ((product.originalPrice - product.price) / product.originalPrice) *
+          ((displayProduct.originalPrice - displayProduct.price) /
+            displayProduct.originalPrice) *
             100,
         )
       : 0;
@@ -135,7 +150,7 @@ export default function ProductDetailScreen() {
     addToCart({
       id: product._id || product.id!,
       title: product.title,
-      price: product.price,
+      price: displayProduct.price,
       quantity,
       image: activeImage,
       totalStock: product.totalStock,
@@ -155,7 +170,7 @@ export default function ProductDetailScreen() {
     setBuyNowItem({
       id: product._id || product.id!,
       title: product.title,
-      price: product.price,
+      price: displayProduct.price,
       quantity,
       image: activeImage,
       totalStock: product.totalStock,
@@ -223,12 +238,12 @@ export default function ProductDetailScreen() {
         <Text style={styles.title}>{product.title}</Text>
 
         <View style={styles.priceRow}>
-          <Text style={styles.price}>₹{product.price?.toLocaleString()}</Text>
-          {product.originalPrice &&
-            product.originalPrice > product.price &&
+          <Text style={styles.price}>₹{displayProduct.price?.toLocaleString()}</Text>
+          {displayProduct.originalPrice &&
+            displayProduct.originalPrice > displayProduct.price &&
             !isOutOfStock && (
               <Text style={styles.originalPrice}>
-                ₹{product.originalPrice.toLocaleString()}
+                ₹{displayProduct.originalPrice.toLocaleString()}
               </Text>
             )}
         </View>

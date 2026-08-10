@@ -25,14 +25,15 @@ type Tier = { minQty: string; price: string };
 export default function SellerScanUploadScreen() {
   const navigation = useNavigation<any>();
   const { store, categories, refresh } = useSellerDashboard();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isHomeBusiness = user?.role === 'home_business';
 
   const [asset, setAsset] = useState<Asset | null>(null);
   const [step, setStep] = useState<Step>('idle');
   const [errMsg, setErrMsg] = useState('');
   const [engine, setEngine] = useState('');
   const [form, setForm] = useState({
-    title: '', category: '', price: '', discountedPrice: '', description: '',
+    title: '', category: '', price: '', discountedPrice: '', storePrice: '', storeDiscountedPrice: '', description: '',
     brand: '', imageUrl: '', totalStock: '', availability: 'In Stock', tags: '', moq: '1',
   });
   const [tiers, setTiers] = useState<Tier[]>([]);
@@ -46,7 +47,7 @@ export default function SellerScanUploadScreen() {
     setStep('idle');
     setErrMsg('');
     setEngine('');
-    setForm({ title: '', category: '', price: '', discountedPrice: '', description: '', brand: '', imageUrl: '', totalStock: '', availability: 'In Stock', tags: '', moq: '1' });
+    setForm({ title: '', category: '', price: '', discountedPrice: '', storePrice: '', storeDiscountedPrice: '', description: '', brand: '', imageUrl: '', totalStock: '', availability: 'In Stock', tags: '', moq: '1' });
     setTiers([]);
   };
 
@@ -77,6 +78,7 @@ export default function SellerScanUploadScreen() {
       setForm({
         title: x.productName || '', category: x.category || '',
         price: String(x.price || ''), discountedPrice: String(x.discountedPrice || x.price || ''),
+        storePrice: String(x.storePrice || ''), storeDiscountedPrice: String(x.storeDiscountedPrice || ''),
         description: x.description || '', brand: x.brand || '', imageUrl: x.imageUrl || '',
         totalStock: '', availability: 'In Stock', tags: '', moq: '1',
       });
@@ -102,6 +104,8 @@ export default function SellerScanUploadScreen() {
       fd.append('category', form.category);
       fd.append('price', form.price);
       fd.append('discountedPrice', String(Number(form.discountedPrice) || Number(form.price)));
+      if (form.storePrice) fd.append('storePrice', String(Number(form.storePrice)));
+      if (form.storeDiscountedPrice) fd.append('storeDiscountedPrice', String(Number(form.storeDiscountedPrice)));
       fd.append('description', form.description);
       fd.append('brand', form.brand);
       fd.append('storeId', store._id);
@@ -173,6 +177,12 @@ export default function SellerScanUploadScreen() {
             <Field style={{ flex: 1 }} label="Price (₹) *" value={form.price} onChangeText={(t: string) => set('price', t)} keyboardType="numeric" />
             <Field style={{ flex: 1 }} label="Discounted Price (₹)" value={form.discountedPrice} onChangeText={(t: string) => set('discountedPrice', t)} keyboardType="numeric" />
           </View>
+          {isHomeBusiness && (
+            <View style={styles.row2}>
+              <Field style={{ flex: 1 }} label="Store Owner Price (₹)" value={form.storePrice} onChangeText={(t: string) => set('storePrice', t)} keyboardType="numeric" placeholder="Leave blank to use Price" />
+              <Field style={{ flex: 1 }} label="Store Owner Discounted Price (₹)" value={form.storeDiscountedPrice} onChangeText={(t: string) => set('storeDiscountedPrice', t)} keyboardType="numeric" placeholder="Leave blank to use Discounted Price" />
+            </View>
+          )}
           <View style={styles.row2}>
             <Field style={{ flex: 1 }} label="Category" value={form.category} onChangeText={(t: string) => set('category', t)} />
             <Field style={{ flex: 1 }} label="Brand" value={form.brand} onChangeText={(t: string) => set('brand', t)} />

@@ -28,6 +28,9 @@ export interface Product {
   type?: string;
   price: number;
   originalPrice?: number;
+  discountedPrice?: number;
+  storePrice?: number;
+  storeDiscountedPrice?: number;
   badge?: string;
   images?: string[];
   imageUrl?: string;

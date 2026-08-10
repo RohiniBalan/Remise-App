@@ -34,13 +34,16 @@ export default function SellerProductFormScreen() {
   const isEdit = !!product;
 
   const { store, categories, refresh } = useSellerDashboard();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isHomeBusiness = user?.role === 'home_business';
 
   const [form, setForm] = useState({
     title: product?.title || initialTitle || '',
     description: product?.description || '',
     price: product?.price ? String(product.price) : '',
     discountedPrice: product?.discountedPrice ? String(product.discountedPrice) : '',
+    storePrice: product?.storePrice ? String(product.storePrice) : '',
+    storeDiscountedPrice: product?.storeDiscountedPrice ? String(product.storeDiscountedPrice) : '',
     category: product?.category || initialCategory || '',
     brand: product?.brand || '',
     totalStock: product?.totalStock ? String(product.totalStock) : '',
@@ -199,6 +202,12 @@ export default function SellerProductFormScreen() {
         <Field style={{ flex: 1 }} label="Price (₹) *" value={form.price} onChangeText={(t: string) => set('price', t)} keyboardType="numeric" />
         <Field style={{ flex: 1 }} label="Discounted Price (₹)" value={form.discountedPrice} onChangeText={(t: string) => set('discountedPrice', t)} keyboardType="numeric" />
       </View>
+      {isHomeBusiness && (
+        <View style={styles.row2}>
+          <Field style={{ flex: 1 }} label="Store Owner Price (₹)" value={form.storePrice} onChangeText={(t: string) => set('storePrice', t)} keyboardType="numeric" placeholder="Leave blank to use Price" />
+          <Field style={{ flex: 1 }} label="Store Owner Discounted Price (₹)" value={form.storeDiscountedPrice} onChangeText={(t: string) => set('storeDiscountedPrice', t)} keyboardType="numeric" placeholder="Leave blank to use Discounted Price" />
+        </View>
+      )}
       <Field label="Category" value={form.category} onChangeText={(t: string) => set('category', t)} placeholder={categories.map((c: any) => c.name).join(', ') || 'e.g. Groceries'} />
       <Field label="Brand" value={form.brand} onChangeText={(t: string) => set('brand', t)} />
       <View style={styles.row2}>

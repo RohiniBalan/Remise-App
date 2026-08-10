@@ -48,6 +48,9 @@ const SORT_OPTIONS = [
   'Price: High to Low',
 ] as const;
 
+// Roles that see store-owner pricing instead of the direct-customer price
+const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
+
 export default function CategoryScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ CategoryProducts: { category?: string } }, 'CategoryProducts'>>();
@@ -86,11 +89,25 @@ export default function CategoryScreen() {
     setActiveCategory(route.params?.category ?? null);
   }, [route.params?.category]);
   
+  const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
+  // Store-owner buyers see storePrice/storeDiscountedPrice (falling back to
+  // the regular customer price if the seller didn't set a store price).
+  // Recomputes whenever isStoreOwner changes (e.g. AuthContext finishes
+  // loading the user from storage after this screen's initial render).
+  const displayProducts = useMemo(() => {
+    if (!isStoreOwner) return products;
+    return products.map(p => ({
+      ...p,
+      price: p.storePrice ?? p.price,
+      discountedPrice: p.storeDiscountedPrice ?? p.discountedPrice,
+    }));
+  }, [products, isStoreOwner]);
+
   const getUnique = (key: keyof Product) =>
-    Array.from(new Set(products.map(p => p[key]).filter(Boolean))) as string[];
-  const categories = useMemo(() => getUnique('category'), [products]);
-  const brands = useMemo(() => getUnique('brand'), [products]);
-  const availabilities = useMemo(() => getUnique('availability'), [products]);
+    Array.from(new Set(displayProducts.map(p => p[key]).filter(Boolean))) as string[];
+  const categories = useMemo(() => getUnique('category'), [displayProducts]);
+  const brands = useMemo(() => getUnique('brand'), [displayProducts]);
+  const availabilities = useMemo(() => getUnique('availability'), [displayProducts]);
 
   const toggle = (
     list: string[],
@@ -102,7 +119,7 @@ export default function CategoryScreen() {
     );
 
   const filtered = useMemo(() => {
-    return products
+    return displayProducts
       .filter(p => {
         if (activeCategory && p.category !== activeCategory) return false;
         if (p.price < pricePreset.min || p.price > pricePreset.max)
@@ -122,7 +139,7 @@ export default function CategoryScreen() {
         return 0;
       });
   }, [
-    products,
+    displayProducts,
     activeCategory,
     pricePreset,
     selectedBrands,

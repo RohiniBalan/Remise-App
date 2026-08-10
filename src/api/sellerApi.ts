@@ -60,6 +60,8 @@ export interface ExtractedProductFields {
   category?: string;
   price?: number;
   discountedPrice?: number;
+  storePrice?: number;
+  storeDiscountedPrice?: number;
   description?: string;
   brand?: string;
   totalStock?: number;
