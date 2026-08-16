@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Image,
   ActivityIndicator, Alert,
 } from 'react-native';
+import { Save, Trash2, Plus, Mic, MicOff, RefreshCw, ImageIcon, AlertCircle, ChevronDown, Check } from 'lucide-react-native';
+import { Modal, FlatList } from 'react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { Save, Trash2, Plus, Mic, MicOff, RefreshCw, ImageIcon, AlertCircle } from 'lucide-react-native';
-import { useSellerDashboard } from '../../context/SellerDashboardContext';
+import { useNavigation, useRoute } from '@react-navigation/native';import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { useAuth } from '../../context/AuthContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { sellerAiApi } from '../../api/sellerApi';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { mergeCategories } from '../../utils/storeCategories';
 
 // Ported from client/app/store/seller/page.tsx's SellerProductModal.
 // Web renders this as a centered modal overlay; here it's a pushed stack
@@ -61,6 +62,7 @@ export default function SellerProductFormScreen() {
   const [voiceLang, setVoiceLang] = useState<VoiceLanguageOption>(VOICE_LANGUAGES[0]);
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceError, setVoiceError] = useState('');
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
 
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
   const addTier = () => setBulkTiers(t => [...t, { minQty: '', price: '' }]);
@@ -68,6 +70,10 @@ export default function SellerProductFormScreen() {
   const setTier = (i: number, k: keyof BulkTier, v: string) =>
     setBulkTiers(t => t.map((row, idx) => (idx === i ? { ...row, [k]: v } : row)));
 
+  const categoryOptions = useMemo(
+  () => mergeCategories(categories || []),
+  [categories],
+);
   const handleVoiceResult = async (text: string) => {
     setVoiceParsing(true);
     setVoiceError('');
@@ -208,7 +214,38 @@ export default function SellerProductFormScreen() {
           <Field style={{ flex: 1 }} label="Store Owner Discounted Price (₹)" value={form.storeDiscountedPrice} onChangeText={(t: string) => set('storeDiscountedPrice', t)} keyboardType="numeric" placeholder="Leave blank to use Discounted Price" />
         </View>
       )}
-      <Field label="Category" value={form.category} onChangeText={(t: string) => set('category', t)} placeholder={categories.map((c: any) => c.name).join(', ') || 'e.g. Groceries'} />
+      <Text style={styles.label}>Category</Text>
+<TouchableOpacity style={styles.dropdownInput} onPress={() => setCategoryModalVisible(true)}>
+  <Text style={[styles.dropdownText, !form.category && styles.dropdownPlaceholder]}>
+    {form.category || 'Select category'}
+  </Text>
+  <ChevronDown size={16} color="#6B7280" />
+</TouchableOpacity>
+
+<Modal visible={categoryModalVisible} transparent animationType="fade" onRequestClose={() => setCategoryModalVisible(false)}>
+  <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCategoryModalVisible(false)}>
+    <View style={styles.modalSheet}>
+      <Text style={styles.modalTitle}>Select Category</Text>
+      <FlatList
+  data={categoryOptions}
+  keyExtractor={(item: any) => item._id || item.name}
+  renderItem={({ item }: any) => (
+    <TouchableOpacity
+      style={styles.modalOption}
+      onPress={() => {
+        set('category', item.name);
+        setCategoryModalVisible(false);
+      }}
+    >
+      <Text style={styles.modalOptionText}>{item.name}</Text>
+      {form.category === item.name && <Check size={16} color={CustomerColors.teal600} />}
+    </TouchableOpacity>
+  )}
+  ItemSeparatorComponent={() => <View style={styles.modalSeparator} />}
+/>
+    </View>
+  </TouchableOpacity>
+</Modal>
       <Field label="Brand" value={form.brand} onChangeText={(t: string) => set('brand', t)} />
       <View style={styles.row2}>
         <Field style={{ flex: 1 }} label="Stock Quantity" value={form.totalStock} onChangeText={(t: string) => set('totalStock', t)} keyboardType="numeric" />
@@ -284,4 +321,24 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
   cancelBtn: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder },
   cancelBtnText: { color: '#374151', fontWeight: '700', fontSize: FontSizes.sm },
+  dropdownInput: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  backgroundColor: '#fff',
+  borderWidth: 1,
+  borderColor: CustomerColors.steelBorder,
+  borderRadius: BorderRadius.md,
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+  marginBottom: Spacing.sm,
+},
+dropdownText: { fontSize: FontSizes.sm, color: CustomerColors.black },
+dropdownPlaceholder: { color: '#9CA3AF' },
+modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '60%', padding: Spacing.md },
+modalTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', marginBottom: Spacing.sm },
+modalOption: { paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+modalOptionText: { fontSize: FontSizes.base, color: CustomerColors.black },
+modalSeparator: { height: 1, backgroundColor: '#F3F4F6' },
 });

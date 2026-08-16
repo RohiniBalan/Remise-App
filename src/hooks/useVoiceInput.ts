@@ -113,7 +113,18 @@ export function useVoiceInput(onFinalResult?: (transcript: string) => void): Use
     }
     try {
       setListening(true);
-      await Voice.start(lang.code);
+      // Force Google's cloud speech-recognition engine instead of letting
+      // the OS pick whatever recognizer is set as system default. Web's
+      // multilingual support "just works" because Chrome/Edge's Web Speech
+      // API always talks to Google's server-side recognizer, which honors
+      // `recognition.lang` for every code in VOICE_LANGUAGES. On Android,
+      // `SpeechRecognizer.createSpeechRecognizer()` (no engine specified)
+      // can bind to an on-device recognizer that only has an English model
+      // installed — it silently transcribes everything as English instead
+      // of erroring, regardless of the `locale` we pass. Explicitly
+      // requesting Google's recognizer (same engine web relies on) makes
+      // the locale actually take effect for ta-IN/te-IN/kn-IN/ml-IN.
+      await Voice.start(lang.code, { RECOGNIZER_ENGINE: 'GOOGLE' });
     } catch (err: any) {
       setError(err?.message || 'Could not start listening.');
       setListening(false);

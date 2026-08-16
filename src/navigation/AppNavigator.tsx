@@ -2,19 +2,33 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+
 import { useAuth } from '../context/AuthContext';
-import AuthNavigator from './AuthNavigator';
+
 import CustomerNavigator from './CustomerNavigator';
 import StoreOwnerNavigator from './StoreOwnerNavigator';
 import SellerNavigator from './SellerNavigator';
 import AdminNavigator from './AdminNavigator';
+
+import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
+import GoogleAuthWebViewScreen from '../screens/auth/GoogleAuthWebViewScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
+
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import VerifyEmailTokenScreen from '../screens/auth/VerifyEmailTokenScreen';
 import StoreRegisterScreen from '../screens/customer/StoreRegisterScreen';
+
 import { CustomerColors } from '../styles/theme';
 
 export type RootStackParamList = {
   RoleGate: undefined;
+
+  LoginRegister: undefined;
+  GoogleAuthWebView: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { token?: string } | undefined;
+
   VerifyEmail: undefined;
   VerifyEmailToken: { token?: string } | undefined;
   StoreRegister: undefined;
@@ -22,36 +36,48 @@ export type RootStackParamList = {
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-// Picks one of four top-level navigators based on auth state — the mobile
-// equivalent of web's client-side (not server-side) per-page route guards.
-// A role can move between stacks at runtime (e.g. Customer -> StoreOwner
-// right after store registration succeeds and AuthContext.login() is called
-// again with the upgraded role/token), exactly like web's
-// store/register/page.tsx calling ctx.login({...user, role:'store_owner'}, newToken).
 function RoleGate() {
   const { user, token } = useAuth();
 
-  // Guest users should be able to browse the app
+  // const navigatorKey = token
+  //   ? `${user?.role ?? 'unknown'}-${token}`
+  //   : 'guest';
+
+  const navigatorKey = token
+  ? `${user?.role ?? 'unknown'}-authenticated`
+  : 'guest';
+
+  console.log('ROLE GATE USER:', user);
+  console.log('ROLE GATE ROLE:', user?.role);
+  console.log('ROLE GATE TOKEN EXISTS:', !!token);
+  console.log('ROLE GATE NAVIGATOR KEY:', navigatorKey);
+
+  // Guest = Customer browsing mode
   if (!token || !user) {
-    return <CustomerNavigator />;
+    console.log('ROLE GATE -> CUSTOMER GUEST');
+
+    return <CustomerNavigator key={navigatorKey} />;
   }
 
-  if (user.role === 'admin') {
-    return <AdminNavigator />;
-  }
+  switch (user.role) {
+    case 'admin':
+      console.log('ROLE GATE -> ADMIN');
+      return <AdminNavigator key={navigatorKey} />;
 
-  if (user.role === 'store_owner') {
-    return <StoreOwnerNavigator />;
-  }
+    case 'store_owner':
+      console.log('ROLE GATE -> STORE OWNER');
+      return <StoreOwnerNavigator key={navigatorKey} />;
 
-  if (
-    user.role === 'whole_saler' ||
-    user.role === 'home_business'
-  ) {
-    return <SellerNavigator />;
-  }
+    case 'whole_saler':
+    case 'home_business':
+      console.log('ROLE GATE -> SELLER');
+      return <SellerNavigator key={navigatorKey} />;
 
-  return <CustomerNavigator />;
+    case 'user':
+    default:
+      console.log('ROLE GATE -> CUSTOMER');
+      return <CustomerNavigator key={navigatorKey} />;
+  }
 }
 
 export default function AppNavigator() {
@@ -60,27 +86,94 @@ export default function AppNavigator() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={CustomerColors.primary} />
+        <ActivityIndicator
+          size="large"
+          color={CustomerColors.primary}
+        />
       </View>
     );
   }
 
   return (
     <NavigationContainer>
-      {/* VerifyEmail/VerifyEmailToken live above the role gate, not inside
-          AuthNavigator, because web's register flow logs the user in (token
-          stored) BEFORE routing to /verify-email — by that point AppNavigator
-          has already switched away from the pre-login stack, same as here. */}
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        <RootStack.Screen name="RoleGate" component={RoleGate} />
-        <RootStack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ headerShown: true, title: 'Verify Email', presentation: 'modal' }} />
-        <RootStack.Screen name="VerifyEmailToken" component={VerifyEmailTokenScreen} options={{ headerShown: true, title: 'Verify Email', presentation: 'modal' }} />
-        <RootStack.Screen name="StoreRegister" component={StoreRegisterScreen} options={{ headerShown: true, title: 'RegisterStore' }} />
+      <RootStack.Navigator
+        initialRouteName="RoleGate"
+        screenOptions={{ headerShown: false }}
+      >
+        {/* ALWAYS-AVAILABLE HOME / ROLE NAVIGATOR */}
+        <RootStack.Screen
+          name="RoleGate"
+          component={RoleGate}
+        />
+
+        {/* AUTH SCREENS */}
+        <RootStack.Screen
+          name="LoginRegister"
+          component={LoginRegisterScreen}
+        />
+
+        <RootStack.Screen
+          name="GoogleAuthWebView"
+          component={GoogleAuthWebViewScreen}
+        />
+
+        <RootStack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
+          options={{
+            headerShown: true,
+            title: 'Forgot Password',
+          }}
+        />
+
+        <RootStack.Screen
+          name="ResetPassword"
+          component={ResetPasswordScreen}
+          options={{
+            headerShown: true,
+            title: 'Reset Password',
+          }}
+        />
+
+        {/* OTHER ROOT SCREENS */}
+        <RootStack.Screen
+          name="VerifyEmail"
+          component={VerifyEmailScreen}
+          options={{
+            headerShown: true,
+            title: 'Verify Email',
+            presentation: 'modal',
+          }}
+        />
+
+        <RootStack.Screen
+          name="VerifyEmailToken"
+          component={VerifyEmailTokenScreen}
+          options={{
+            headerShown: true,
+            title: 'Verify Email',
+            presentation: 'modal',
+          }}
+        />
+
+        <RootStack.Screen
+          name="StoreRegister"
+          component={StoreRegisterScreen}
+          options={{
+            headerShown: true,
+            title: 'Register Store',
+          }}
+        />
       </RootStack.Navigator>
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CustomerColors.bg,
+  },
 });

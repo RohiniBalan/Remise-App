@@ -56,6 +56,7 @@ import { useCart } from '../../context/CartContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import CustomerHeader from '../../components/home/CustomerHeader';
 
 // The actual Home screen — previously this file was an accidental duplicate
 // of components/home/HeroCarousel.tsx (the carousel only). Rebuilt to match
@@ -101,6 +102,8 @@ const ICON_MAP: Record<string, any> = {
 const CATEGORY_TINTS = ['#10B981', '#EC4899', '#F97316', '#8B5CF6', '#0FA3B1', '#3B82F6'];
 
 export default function HomeScreen() {
+  console.log('HOME SCREEN MOUNTED');
+  
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
   const { cartCount } = useCart();
@@ -210,42 +213,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.logo}>REmise</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
-            <Bell size={20} color={CustomerColors.black} />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Cart')}>
-            <ShoppingCart size={20} color={CustomerColors.black} />
-            {cartCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          {user ? (
-  <TouchableOpacity
-    style={styles.avatar}
-    onPress={() => setMenuOpen(true)}
-  >
-    <Text style={styles.avatarText}>{initial}</Text>
-  </TouchableOpacity>
-) : (
-  <TouchableOpacity
-    style={styles.loginBtn}
-    onPress={() => navigation.navigate('LoginRegister')}
-  >
-    <Text style={styles.loginBtnText}>Login</Text>
-  </TouchableOpacity>
-)}
-        </View>
-      </View>
+      <CustomerHeader />
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>

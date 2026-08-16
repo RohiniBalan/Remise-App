@@ -1,9 +1,9 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, LayoutGrid, ClipboardList, MapPin, Package } from 'lucide-react-native';
+import { Home, LayoutGrid, ClipboardList, MapPin, Package, Truck } from 'lucide-react-native';
 import PlaceholderScreen from '../screens/common/PlaceholderScreen';
-import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
+// import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
 import CategoryScreen from '../screens/customer/CategoryScreen';
 import CategoryGridScreen from '../screens/customer/CategoryGridScreen';
@@ -27,20 +27,13 @@ import SuppliersScreen from '../screens/customer/SuppliersScreen';
 import MyOffersScreen from '../screens/customer/MyOffersScreen';
 import { SmartOrderCartItem } from '../api/smartOrderApi';
 import { CustomerColors } from '../styles/theme';
-
-// Bottom tabs mirror the web's primary customer nav destinations (Home,
-// category browsing, Bulk-Purchase/Compare-Stores, Nearby Offers, Orders —
-// see NavbarHome.tsx's nav links + orders/page.tsx). Detail/flow screens
-// (ProductDetail, Cart, Checkout, PaymentStatus, Settings, About, Services,
-// Testimonials, StoreRegister) are pushed on top of the tabs via the
-// enclosing stack, same as web pushing a new route over the persistent navbar.
-// Titles/web-source notes for the still-placeholder screens live in
-// screens/common/placeholderMeta.ts, keyed by these same route names.
+import { useAuth } from '../context/AuthContext'; // adjust path if different
 
 export type CustomerTabParamList = {
   Home: undefined;
   Categories: undefined;
   BulkPurchase: undefined;
+  Suppliers: undefined;
   Nearby: undefined;
   Orders: undefined;
 };
@@ -62,14 +55,22 @@ export type CustomerStackParamList = {
   Notifications: undefined;
   Suppliers: undefined;
   MyOffers: undefined;
-  LoginRegister: undefined; 
-  CategoryProducts: { category?: string} | undefined;
+  // LoginRegister: undefined;
+  CategoryProducts: { category?: string } | undefined;
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
 const Stack = createNativeStackNavigator<CustomerStackParamList>();
 
 function CustomerTabs() {
+  console.log('CUSTOMER TABS MOUNTED');
+
+  const { user } = useAuth();
+
+  console.log('CUSTOMER TABS USER:', user);
+  console.log('CUSTOMER TABS ROLE:', user?.role);
+  const isCustomer = user?.role === 'user';
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -80,6 +81,9 @@ function CustomerTabs() {
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
       <Tab.Screen name="Categories" component={CategoryGridScreen} options={{ tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} /> }} />
       <Tab.Screen name="BulkPurchase" component={BulkPurchaseScreen} options={{ title: 'Bulk Purchase', tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} /> }} />
+      {isCustomer && (
+        <Tab.Screen name="Suppliers" component={SuppliersScreen} options={{ title: 'Suppliers', tabBarIcon: ({ color, size }) => <Truck color={color} size={size} /> }} />
+      )}
       <Tab.Screen name="Nearby" component={NearbyOffersScreen} options={{ title: 'Nearby', tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} /> }} />
       <Tab.Screen name="Orders" component={OrdersScreen} options={{ tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }} />
     </Tab.Navigator>
@@ -105,12 +109,12 @@ export default function CustomerNavigator() {
       <Stack.Screen name="CompareStores" component={CompareStoresScreen} options={{ headerShown: false, presentation: 'transparentModal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Suppliers" component={SuppliersScreen} options={{ headerShown: true, title: 'Suppliers' }} />
-<Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: 'My Offers' }} />
-<Stack.Screen
-  name="LoginRegister"
-  component={LoginRegisterScreen}
-  options={{ headerShown: false }}
-/>
+      <Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: 'My Offers' }} />
+      {/* <Stack.Screen
+        name="LoginRegister"
+        component={LoginRegisterScreen}
+        options={{ headerShown: false }}
+      /> */}
     </Stack.Navigator>
   );
 }

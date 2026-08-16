@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Modal,
   FlatList,
   Image,
   ScrollView,
@@ -17,6 +18,8 @@ import {
   ShoppingBag,
   AlertCircle,
   CheckCircle,
+  ChevronDown,
+  X,
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { productApi } from '../../api/productApi';
@@ -40,6 +43,8 @@ import {
   Shadows,
 } from '../../styles/theme';
 import { requireAuthForPurchase } from '../../utils/authGuard';
+import { mergeCategories } from '../../utils/storeCategories';
+import CustomerHeader from '../../components/home/CustomerHeader';
 
 const API_BASE = 'YOUR_API_BASE_URL';
 
@@ -51,7 +56,7 @@ export default function SuppliersScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [allCategories, setAllCategories] = useState<any[]>([]);
+  const [customCategories, setCustomCategories] = useState<{ _id: string; name: string }[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [error, setError] = useState('');
   const [placedMsg, setPlacedMsg] = useState('');
@@ -64,11 +69,17 @@ export default function SuppliersScreen() {
   const [showCheckout, setShowCheckout] = useState(false);
 
   useEffect(() => {
-    productApi
-      .getCategories()
-      .then(res => setAllCategories(res.data.data || []))
-      .catch(() => {});
-  }, []);
+  productApi
+    .getGroupedSuppliers('home_business', {})
+    .then(res => {
+      const data = res.data.data || [];
+      const names = Array.from(
+        new Set(data.map((g: any) => g.category).filter(Boolean)),
+      ) as string[];
+      setCustomCategories(names.map(name => ({ _id: `cat-${name}`, name })));
+    })
+    .catch(() => {});
+}, []);
 
   const loadGroups = useCallback(async () => {
     if (!categoryFilter) {
@@ -80,6 +91,8 @@ export default function SuppliersScreen() {
     setLoading(true);
     setError('');
     try {
+      // Customer-facing screen only ever shows home-business suppliers —
+      // unlike the store owner's version there's no wholesaler toggle.
       const res = await productApi.getGroupedSuppliers('home_business', {
         search: search || undefined,
         category: categoryFilter,
@@ -135,9 +148,22 @@ export default function SuppliersScreen() {
     if (view === 'orders') loadMyOrders();
   }, [view, loadMyOrders]);
 
-  const supplierCategories: string[] = Array.from(
-    new Set(allCategories.map((c: any) => c.name).filter(Boolean)),
-  );
+  // Same merge (defaults + added) the store owner's dropdown uses, plus
+  // any category actually present in the currently loaded groups —
+  // matches StoreSuppliersScreen's supplierCategories derivation.
+  const supplierCategories = Array.from(
+  new Set(
+    [
+      ...mergeCategories(customCategories).map((c: any) => c.name),
+      ...groups.map(g => g.category),
+    ].filter(Boolean),
+  ),
+);
+  const categoryOptions = supplierCategories.map(category => ({
+    key: category,
+    label: category,
+  }));
+
   const titleGroups = groupByTitle(groups);
   const cartLines = Object.values(cart);
   const cartTotal = cartLines.reduce((sum, i) => sum + i.price * i.qty, 0);
@@ -187,6 +213,7 @@ export default function SuppliersScreen() {
 
   return (
     <View style={styles.container}>
+      <CustomerHeader />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Buy from Suppliers</Text>
         <Text style={styles.headerSubtitle}>
@@ -239,38 +266,24 @@ export default function SuppliersScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoryRow}
-            contentContainerStyle={{ paddingHorizontal: Spacing.md }}
+          <View
+            style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}
           >
-            {supplierCategories.map(c => (
-              <TouchableOpacity
-                key={c}
-                style={[
-                  styles.categoryChip,
-                  categoryFilter === c && styles.categoryChipActive,
-                ]}
-                onPress={() => setCategoryFilter(categoryFilter === c ? '' : c)}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    categoryFilter === c && styles.categoryChipTextActive,
-                  ]}
-                >
-                  {c}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+            <SelectField
+              label="Category"
+              value={categoryFilter}
+              placeholder="Select Category"
+              options={categoryOptions}
+              onSelect={key => setCategoryFilter(key)}
+            />
+          </View>
 
           <View style={styles.searchRow}>
             <Search size={15} color={CustomerColors.textSecondary} />
             <TextInput
               value={search}
               onChangeText={setSearch}
+              onSubmitEditing={loadGroups}
               placeholder="Search products…"
               placeholderTextColor={CustomerColors.textSecondary}
               style={styles.searchInput}
@@ -353,8 +366,8 @@ export default function SuppliersScreen() {
               <Text style={styles.helperText}>No supplier orders yet.</Text>
             </View>
           ) : (
-            myOrders.map((o: any) => (
-              <View key={o._id} style={styles.orderCard}>
+            myOrders.map((o: any, idx: number) => (
+  <View key={`${o._id}-${o.storeId ?? idx}`} style={styles.orderCard}>
                 <View style={styles.orderTopRow}>
                   <View>
                     <Text style={styles.orderStore}>
@@ -449,6 +462,93 @@ export default function SuppliersScreen() {
   );
 }
 
+// Same modal-dropdown pattern as StoreSuppliersScreen's SelectField.
+function SelectField({
+  label,
+  value,
+  placeholder,
+  options,
+  disabled,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: { key: string; label: string }[];
+  disabled?: boolean;
+  onSelect: (key: string, label: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <View>
+      <Text style={styles.selectLabel}>{label}</Text>
+
+      <TouchableOpacity
+        style={[styles.selectInput, disabled && styles.selectDisabled]}
+        disabled={disabled}
+        onPress={() => setOpen(true)}
+      >
+        <Text
+          style={value ? styles.selectValue : styles.selectPlaceholder}
+          numberOfLines={1}
+        >
+          {value || placeholder}
+        </Text>
+        <ChevronDown size={16} color={CustomerColors.textSecondary} />
+      </TouchableOpacity>
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        >
+          <View
+            style={styles.modalSheet}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{label}</Text>
+              <TouchableOpacity onPress={() => setOpen(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={options}
+              keyExtractor={item => item.key}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    onSelect(item.key, item.label);
+                    setOpen(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      item.key === value && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CustomerColors.bg },
   header: { padding: Spacing.lg, paddingTop: Spacing.xl },
@@ -516,26 +616,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     flex: 1,
   },
-  categoryRow: { marginBottom: Spacing.sm },
-  categoryChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.pill,
-    backgroundColor: CustomerColors.white,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    marginRight: Spacing.xs,
-  },
-  categoryChipActive: {
-    backgroundColor: CustomerColors.teal600,
-    borderColor: CustomerColors.teal600,
-  },
-  categoryChipText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-    color: CustomerColors.textSecondary,
-  },
-  categoryChipTextActive: { color: '#fff' },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -688,4 +768,59 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   placeOrderText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+  selectLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  selectInput: {
+    backgroundColor: CustomerColors.white,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectDisabled: { opacity: 0.5 },
+  selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },
+  selectPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF', flex: 1 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: BorderRadius.lg,
+    borderTopRightRadius: BorderRadius.lg,
+    maxHeight: '70%',
+    paddingBottom: Spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  modalTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  modalItem: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
+  modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '700' },
 });

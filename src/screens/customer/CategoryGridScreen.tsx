@@ -34,6 +34,7 @@ import {
 import Voice from '@dev-amirzubair/react-native-voice';
 import { productApi, Product, productImage } from '../../api/productApi';
 import { GoldColors, CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import CustomerHeader from '../../components/home/CustomerHeader';
 
 // Landing/grid screen for the "Categories" tab. Previously this tab went
 // straight to the filter+product-list screen (now moved to the
@@ -212,6 +213,7 @@ export default function CategoryGridScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <CustomerHeader />
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Shop by Category</Text>
         <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>

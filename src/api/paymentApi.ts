@@ -49,9 +49,17 @@ export interface InitiatePaymentPayload {
   paymentMethod: 'phonepe' | 'cod';
 }
 
+// export const paymentApi = {
+//   initiate: (payload: InitiatePaymentPayload) => legacyMonolithClient.post('/api/payment/initiate', payload),
+//   getStatus: (orderId: string) => legacyMonolithClient.get(`/api/payment/status/${orderId}`),
+// };
+
 export const paymentApi = {
-  initiate: (payload: InitiatePaymentPayload) => legacyMonolithClient.post('/api/payment/initiate', payload),
-  getStatus: (orderId: string) => legacyMonolithClient.get(`/api/payment/status/${orderId}`),
+  initiate: (payload: InitiatePaymentPayload) =>
+    legacyMonolithClient.post('/payment/initiate', payload),
+
+  getStatus: (orderId: string) =>
+    legacyMonolithClient.get(`/payment/status/${orderId}`),
 };
 
 export function extractOrderId(url: string): string {

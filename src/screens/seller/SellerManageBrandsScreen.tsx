@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Plus, Edit2, Trash2, Package } from 'lucide-react-native';
+import { GATEWAY_URL } from '../../api/endpoints';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { useAuth } from '../../context/AuthContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 
-const API = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
 function resolveImageUri(url?: string) {
   if (!url) return undefined;
   return url.startsWith('http') ? url : `${API}${url}`;

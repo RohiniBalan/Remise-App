@@ -35,11 +35,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // const login = useCallback(async (userData: StoredUser, authToken: string) => {
+  //   await Promise.all([storage.setUser(userData), storage.setToken(authToken)]);
+  //   setUser(userData);
+  //   setToken(authToken);
+  // }, []);
+
   const login = useCallback(async (userData: StoredUser, authToken: string) => {
-    await Promise.all([storage.setUser(userData), storage.setToken(authToken)]);
-    setUser(userData);
-    setToken(authToken);
-  }, []);
+  console.log('AUTH LOGIN USER:', userData);
+  console.log('AUTH LOGIN ROLE:', userData.role);
+  console.log('AUTH LOGIN TOKEN EXISTS:', !!authToken);
+
+  await Promise.all([
+    storage.setUser(userData),
+    storage.setToken(authToken),
+  ]);
+
+  console.log('AUTH STORAGE SAVED');
+
+  setUser(userData);
+  setToken(authToken);
+}, []);
 
   const logout = useCallback(async () => {
     await Promise.all([storage.removeUser(), storage.removeToken()]);

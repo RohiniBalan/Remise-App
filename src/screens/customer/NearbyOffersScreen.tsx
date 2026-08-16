@@ -26,6 +26,7 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
+import CustomerHeader from '../../components/home/CustomerHeader';
 
 // Ported from client/app/nearby/page.tsx — same geolocation-driven nearby
 // search, same radius presets, same offer-card fields (discount badge,
@@ -152,6 +153,7 @@ export default function NearbyOffersScreen() {
 
   return (
     <View style={styles.container}>
+      <CustomerHeader />
       {!location ? (
         <View style={styles.center}>
           {locLoading ? (

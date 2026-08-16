@@ -2,7 +2,7 @@
 // React/Next dependencies, so the logic is unchanged; only the SellerOrder
 // type import changed (now shared with api-services/sellerApi.ts instead
 // of being redefined here).
-import { SellerOrder } from '../api-services/sellerApi';
+import { SellerOrder } from '../api/sellerApi';
 
 export type SellerLineItem = {
   productTitle: string;

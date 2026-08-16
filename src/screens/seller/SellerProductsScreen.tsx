@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Search, Plus, ScanLine, ListChecks, Package } from 'lucide-react-native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { GATEWAY_URL } from '../../api/endpoints';
 
 // Ported from client/app/store/seller/page.tsx's groupSellerProductsByType +
 // the default grid view of SellerProductsTab. The "brand management" inline
@@ -11,19 +12,70 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../..
 // a local state swap, matching how StoreManageBrandsScreen already works
 // for the store-owner side.
 
-const API = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
+
 function resolveImageUri(url?: string) {
   if (!url) return undefined;
-  return url.startsWith('http') ? url : `${API}${url}`;
+
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://')
+  ) {
+    return url;
+  }
+
+  const base = API.replace(/\/api\/?$/, '');
+
+  return url.startsWith('/')
+    ? `${base}${url}`
+    : `${base}/${url}`;
+}
+
+function getProductImage(p: any): string {
+  return (
+    p?.imageUrl ||
+    p?.image ||
+    p?.productImage ||
+    p?.images?.[0] ||
+    ''
+  );
 }
 
 function groupByType(products: any[]) {
-  const byTitle: Record<string, { title: string; image: string; category: string; items: any[] }> = {};
+  const byTitle: Record<
+    string,
+    {
+      title: string;
+      image: string;
+      category: string;
+      items: any[];
+    }
+  > = {};
+
   for (const p of products) {
-    const key = (p.title || '').toLowerCase().trim().replace(/\s+/g, ' ');
-    if (!byTitle[key]) byTitle[key] = { title: p.title, image: p.imageUrl || p.images?.[0] || '', category: p.category || '', items: [] };
+    const key = (p.title || '')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ');
+
+    if (!byTitle[key]) {
+      byTitle[key] = {
+        title: p.title,
+        image: getProductImage(p),
+        category: p.category || '',
+        items: [],
+      };
+    }
+
     byTitle[key].items.push(p);
+
+    // If the first product had no image, use the first
+    // available image from another brand/product.
+    if (!byTitle[key].image) {
+      byTitle[key].image = getProductImage(p);
+    }
   }
+
   return Object.values(byTitle).map(v => ({
     typeKey: v.title.toLowerCase().trim().replace(/\s+/g, ' '),
     title: v.title,
@@ -31,7 +83,10 @@ function groupByType(products: any[]) {
     category: v.category,
     items: v.items,
     brandCount: v.items.length,
-    totalStock: v.items.reduce((s, p) => s + (p.totalStock || 0), 0),
+    totalStock: v.items.reduce(
+      (s, p) => s + (p.totalStock || 0),
+      0
+    ),
   }));
 }
 
@@ -94,6 +149,13 @@ export default function SellerProductsScreen() {
         }
         renderItem={({ item: pt }) => {
           const img = resolveImageUri(pt.image);
+
+  console.log('PRODUCT IMAGE DEBUG:', {
+    title: pt.title,
+    image: pt.image,
+    resolved: img,
+    items: pt.items,
+  });
           return (
             <TouchableOpacity
               style={styles.card}

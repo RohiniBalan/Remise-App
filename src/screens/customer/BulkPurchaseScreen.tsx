@@ -6,6 +6,7 @@ import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, 
 import { scanBulkList, parseVoiceList } from '../../api/geminiScanApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
+import CustomerHeader from '../../components/home/CustomerHeader';
 
 // Ported from client/app/(root)/bulk-purchase/page.tsx — same manual
 // list-building model (name/quantity/checked per row, add/edit/delete/
@@ -130,6 +131,7 @@ export default function BulkPurchaseScreen() {
 
   return (
     <View style={styles.container}>
+      <CustomerHeader />
       <View style={styles.hero}>
         <View style={styles.heroIcon}><ListChecks size={24} color={CustomerColors.teal600} /></View>
         <Text style={styles.heroTitle}>Monthly / Bulk Purchase</Text>

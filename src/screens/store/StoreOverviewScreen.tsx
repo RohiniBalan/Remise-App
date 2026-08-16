@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { GATEWAY_URL } from '../../api/endpoints';
 import { Package, Tag, ShoppingBag, IndianRupee, Clock, AlertCircle, TrendingUp, Target } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
@@ -24,7 +25,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../..
 // TODO: point this at whatever your app already uses for the API base URL
 // (e.g. an existing config/env file) — this mirrors the web app's
 // NEXT_PUBLIC_API_URL fallback so relative image paths resolve correctly.
-const API = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
 
 function resolveImageUri(url?: string) {
   if (!url) return undefined;

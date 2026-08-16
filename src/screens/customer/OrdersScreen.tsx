@@ -20,6 +20,7 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
+import CustomerHeader from '../../components/home/CustomerHeader';
 
 // Ported from client/app/orders/page.tsx — same flatten-items-per-order
 // display model, same "Order Date + 5 days" estimated delivery, same
@@ -195,6 +196,7 @@ export default function OrdersScreen() {
 
   return (
     <View style={styles.container}>
+      <CustomerHeader />
       {loadError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{loadError}</Text>

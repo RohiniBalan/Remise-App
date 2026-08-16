@@ -64,7 +64,26 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
       sellerOrderApi.getStoreOrders(s._id),
     ]);
 
-    if (prodRes.status === 'fulfilled') setProducts(prodRes.value.data.data || []);
+    if (prodRes.status === 'fulfilled') {
+  const loadedProducts = prodRes.value.data.data || [];
+
+  console.log(
+    'SELLER PRODUCTS:',
+    JSON.stringify(
+      loadedProducts.map((p: any) => ({
+        id: p._id,
+        title: p.title,
+        imageUrl: p.imageUrl,
+        image: p.image,
+        images: p.images,
+      })),
+      null,
+      2,
+    ),
+  );
+
+  setProducts(loadedProducts);
+}
     if (catRes.status === 'fulfilled') setCategories(catRes.value.data.data || []);
 
     let loadedOrders: SellerOrder[] = [];

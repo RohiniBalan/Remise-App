@@ -71,12 +71,18 @@ export default function LoginRegisterScreen() {
     setSubmitting(true);
     try {
       if (isLogin) {
-        const res = await authApi.login(email.trim(), password);
-        await login(res.data.data, res.data.data.token);
-        // AppNavigator's RoleGate re-renders automatically once auth state
-        // changes — no explicit navigation needed here, same as web relying
-        // on the next render's redirectDestination(role).
-      } else {
+  const res = await authApi.login(email.trim(), password);
+
+  await login(
+    res.data.data,
+    res.data.data.token
+  );
+
+  navigation.reset({
+    index: 0,
+    routes: [{ name: 'RoleGate' }],
+  });
+} else {
         const res = await authApi.register({
           fullname: fullname.trim(),
           email: email.trim(),
