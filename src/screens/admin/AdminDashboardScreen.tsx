@@ -1,29 +1,30 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { IndianRupee, Package, Users, Gamepad2, TrendingUp, TrendingDown } from 'lucide-react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { 
+  IndianRupee, 
+  Package, 
+  Users, 
+  Gamepad2, 
+  TrendingUp, 
+  TrendingDown, 
+  Store, 
+  Truck, 
+  Home, 
+  UserCheck, 
+  ExternalLink, 
+  RefreshCw,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  ChevronRight
+} from 'lucide-react-native';
+import { adminStatsApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
-// Ported from client/app/admin/dashboard/page.tsx — this page has NO API
-// calls on web either (100% hardcoded mock data) — ported as-is rather
-// than "fixed" into real data, matching the plan's explicit instruction
-// not to deviate from the web app's actual (mock) behavior here. The
-// custom animated SVG revenue chart has no direct RN equivalent without a
-// charting library; reproduced as a simple bar list instead (same
-// revenueData values, different widget — a legitimate "redesign the UI"
-// substitution since no interactivity/business-logic is lost).
-const STATS = [
-  { label: 'Total Revenue', value: '₹24,56,890', change: '+15.3%', up: true, icon: IndianRupee, color: '#16A34A', bg: '#F0FDF4' },
-  { label: 'Total Orders', value: '1,284', change: '+8.2%', up: true, icon: Package, color: '#2563EB', bg: '#EFF6FF' },
-  { label: 'Active Customers', value: '8,439', change: '-2.4%', up: false, icon: Users, color: '#9333EA', bg: '#FAF5FF' },
-  { label: 'Products in Catalog', value: '452', change: 'New: 12', up: null, icon: Gamepad2, color: '#CA8A04', bg: '#FEFCE8' },
-];
-
-const RECENT_ORDERS = [
-  { id: '#ORD-7031', product: 'Ferrari F1 Ultimate Collector', customer: 'Rahul Sharma', amount: '₹12,499', status: 'Delivered', date: 'Today, 10:42 AM' },
-  { id: '#ORD-7032', product: 'Robotic Coding Kit Pro', customer: 'Priya Patel', amount: '₹11,999', status: 'Processing', date: 'Today, 09:15 AM' },
-  { id: '#ORD-7033', product: 'Magic Artist Studio Pro', customer: 'Amit Kumar', amount: '₹5,499', status: 'Shipped', date: 'Yesterday, 04:30 PM' },
-  { id: '#ORD-7034', product: 'Premium LEGO Architecture', customer: 'Sneha Reddy', amount: '₹9,999', status: 'Delivered', date: 'Yesterday, 02:10 PM' },
-  { id: '#ORD-7035', product: 'Interactive Globe Explorer', customer: 'Vikram Singh', amount: '₹6,499', status: 'Processing', date: 'Yesterday, 11:20 AM' },
+const REVENUE_DATA = [
+  { label: 'Mon', value: 12500 }, { label: 'Tue', value: 18200 }, { label: 'Wed', value: 15400 },
+  { label: 'Thu', value: 24600 }, { label: 'Fri', value: 21800 }, { label: 'Sat', value: 35500 }, { label: 'Sun', value: 28900 },
 ];
 
 const TOP_PRODUCTS = [
@@ -32,30 +33,159 @@ const TOP_PRODUCTS = [
   { name: 'LEGO Architecture', category: 'Building Blocks', sales: 256, revenue: '₹25,59,744', trend: '-3%' },
 ];
 
-const REVENUE_DATA = [
-  { label: 'Mon', value: 12500 }, { label: 'Tue', value: 18200 }, { label: 'Wed', value: 15400 },
-  { label: 'Thu', value: 24600 }, { label: 'Fri', value: 21800 }, { label: 'Sat', value: 35500 }, { label: 'Sun', value: 28900 },
-];
-
-const STATUS_COLOR: Record<string, string> = { Delivered: '#16A34A', Processing: '#CA8A04', Shipped: '#2563EB' };
+const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
+  Delivered: { bg: '#DCFCE7', text: '#15803D' },
+  Processing: { bg: '#FEF9C3', text: '#A16207' },
+  Shipped: { bg: '#DBEAFE', text: '#1D4ED8' },
+  Cancelled: { bg: '#FEE2E2', text: '#B91C1C' },
+};
 
 export default function AdminDashboardScreen() {
+  const navigation = useNavigation<any>();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    activeCustomers: 0,
+    totalProducts: 0,
+    totalStoreOwners: 0,
+    totalWholesalers: 0,
+    totalHomeBusinesses: 0,
+    totalUsers: 0,
+  });
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await adminStatsApi.getDashboardStats();
+      const data = res.data?.data || res.data;
+      if (data) {
+        setStats({
+          totalRevenue: data.totalRevenue ?? 0,
+          totalOrders: data.totalOrders ?? 0,
+          activeCustomers: data.activeCustomers ?? 0,
+          totalProducts: data.totalProducts ?? 0,
+          totalStoreOwners: data.totalStoreOwners ?? 0,
+          totalWholesalers: data.totalWholesalers ?? 0,
+          totalHomeBusinesses: data.totalHomeBusinesses ?? 0,
+          totalUsers: data.totalUsers ?? 0,
+        });
+        if (data.recentOrders && Array.isArray(data.recentOrders)) {
+          setRecentOrders(data.recentOrders);
+        }
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStats();
+  };
+
   const maxRevenue = Math.max(...REVENUE_DATA.map(d => d.value));
 
+  const statCards = [
+    {
+      label: 'Total Revenue',
+      value: `₹${(stats.totalRevenue || 0).toLocaleString('en-IN')}`,
+      tag: 'Live Sales',
+      icon: IndianRupee,
+      color: '#16A34A',
+      bg: '#F0FDF4',
+    },
+    {
+      label: 'Total Orders',
+      value: (stats.totalOrders || 0).toLocaleString('en-IN'),
+      tag: 'All Time',
+      icon: Package,
+      color: '#2563EB',
+      bg: '#EFF6FF',
+    },
+    {
+      label: 'Active Customers',
+      value: (stats.activeCustomers || 0).toLocaleString('en-IN'),
+      tag: 'Retail Buyers',
+      icon: Users,
+      color: '#9333EA',
+      bg: '#FAF5FF',
+    },
+    {
+      label: 'Products in Catalog',
+      value: (stats.totalProducts || 0).toLocaleString('en-IN'),
+      tag: 'Active Catalog',
+      icon: Gamepad2,
+      color: '#CA8A04',
+      bg: '#FEFCE8',
+    },
+    {
+      label: 'Total Store Owners',
+      value: (stats.totalStoreOwners || 0).toLocaleString('en-IN'),
+      tag: 'Retailers',
+      icon: Store,
+      color: '#4F46E5',
+      bg: '#EEF2FF',
+    },
+    {
+      label: 'Total Wholesalers',
+      value: (stats.totalWholesalers || 0).toLocaleString('en-IN'),
+      tag: 'B2B Suppliers',
+      icon: Truck,
+      color: '#D97706',
+      bg: '#FFFBEB',
+    },
+    {
+      label: 'Home Businesses',
+      value: (stats.totalHomeBusinesses || 0).toLocaleString('en-IN'),
+      tag: 'Local Producers',
+      icon: Home,
+      color: '#0D9488',
+      bg: '#F0FDFA',
+    },
+    {
+      label: 'Total Users',
+      value: (stats.totalUsers || 0).toLocaleString('en-IN'),
+      tag: 'Registered',
+      icon: UserCheck,
+      color: '#0284C7',
+      bg: '#F0F9FF',
+    },
+  ];
+
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={AdminColors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
+      {/* 8 Stats Grid */}
       <View style={styles.statsGrid}>
-        {STATS.map(s => (
+        {statCards.map(s => (
           <View key={s.label} style={styles.statCard}>
             <View style={styles.statHeader}>
-              <View style={[styles.statIcon, { backgroundColor: s.bg }]}><s.icon size={18} color={s.color} /></View>
-              {s.up !== null && (
-                <View style={[styles.trendPill, { backgroundColor: s.up ? '#F0FDF4' : '#FEF2F2' }]}>
-                  {s.up ? <TrendingUp size={11} color="#16A34A" /> : <TrendingDown size={11} color="#DC2626" />}
-                  <Text style={[styles.trendText, { color: s.up ? '#16A34A' : '#DC2626' }]}>{s.change}</Text>
-                </View>
-              )}
-              {s.up === null && <View style={styles.trendPillNeutral}><Text style={styles.trendTextNeutral}>{s.change}</Text></View>}
+              <View style={[styles.statIcon, { backgroundColor: s.bg }]}>
+                <s.icon size={18} color={s.color} />
+              </View>
+              <View style={styles.tagBadge}>
+                <Text style={styles.tagText}>{s.tag}</Text>
+              </View>
             </View>
             <Text style={styles.statLabel}>{s.label}</Text>
             <Text style={styles.statValue}>{s.value}</Text>
@@ -63,8 +193,9 @@ export default function AdminDashboardScreen() {
         ))}
       </View>
 
+      {/* Weekly Revenue Bar Chart */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Weekly Revenue</Text>
+        <Text style={styles.sectionTitle}>Weekly Revenue Trend</Text>
         <View style={styles.barChart}>
           {REVENUE_DATA.map(d => (
             <View key={d.label} style={styles.barCol}>
@@ -75,8 +206,18 @@ export default function AdminDashboardScreen() {
         </View>
       </View>
 
+      {/* Top Selling Products */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Top Selling Toys</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Top Selling Products</Text>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => navigation.navigate('AdminProduct')}
+          >
+            <Text style={styles.linkText}>View Catalog</Text>
+            <ExternalLink size={12} color={AdminColors.primary} />
+          </TouchableOpacity>
+        </View>
         {TOP_PRODUCTS.map(p => (
           <View key={p.name} style={styles.row}>
             <View style={{ flex: 1 }}>
@@ -85,26 +226,69 @@ export default function AdminDashboardScreen() {
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.rowAmount}>{p.revenue}</Text>
-              <Text style={[styles.rowTrend, { color: p.trend.startsWith('-') ? '#DC2626' : '#16A34A' }]}>{p.trend}</Text>
+              <Text style={[styles.rowTrend, { color: p.trend.startsWith('-') ? '#DC2626' : '#16A34A' }]}>
+                {p.trend}
+              </Text>
             </View>
           </View>
         ))}
       </View>
 
+      {/* Recent Orders Table */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Orders</Text>
-        {RECENT_ORDERS.map(o => (
-          <View key={o.id} style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle} numberOfLines={1}>{o.product}</Text>
-              <Text style={styles.rowSub}>{o.customer} · {o.id}</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.rowAmount}>{o.amount}</Text>
-              <Text style={[styles.rowStatus, { color: STATUS_COLOR[o.status] || '#6B7280' }]}>{o.status}</Text>
-            </View>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Recent Orders</Text>
+            <Text style={styles.sectionSub}>Latest transactions from database</Text>
           </View>
-        ))}
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => navigation.navigate('AdminOrderHistory')}
+          >
+            <Text style={styles.linkText}>View All</Text>
+            <ExternalLink size={12} color={AdminColors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {recentOrders.length === 0 ? (
+          <View style={styles.emptyRecent}>
+            <Package size={32} color="#D1D5DB" />
+            <Text style={styles.emptyRecentText}>No orders recorded yet</Text>
+          </View>
+        ) : (
+          recentOrders.map((o: any, i: number) => {
+            const st = STATUS_COLOR[o.status] || { bg: '#F3F4F6', text: '#4B5563' };
+            return (
+              <TouchableOpacity
+                key={o.id || o._id || i}
+                style={styles.orderCard}
+                onPress={() => navigation.navigate('AdminOrderHistory')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.orderTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orderIdText}>{o.id || `#ORD-${String(i + 1).padStart(4, '0')}`}</Text>
+                    <Text style={styles.orderProductText} numberOfLines={1}>
+                      {o.product || 'Order Item'}
+                      {o.itemCount > 1 ? ` (+${o.itemCount - 1} more)` : ''}
+                    </Text>
+                    <Text style={styles.orderCustomerText}>
+                      {o.customer || 'Customer'} {o.email ? `· ${o.email}` : ''}
+                    </Text>
+                    <Text style={styles.orderDateText}>{o.date || 'Recent'}</Text>
+                  </View>
+
+                  <View style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                    <Text style={styles.orderAmountText}>{o.amount || `₹${o.rawAmount || 0}`}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+                      <Text style={[styles.statusBadgeText, { color: st.text }]}>{o.status || 'Pending'}</Text>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );
@@ -112,19 +296,22 @@ export default function AdminDashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AdminColors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: AdminColors.bg },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
   statCard: { width: '48%', backgroundColor: '#fff', borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: '#F3F4F6', padding: Spacing.md, ...Shadows.card },
   statHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   statIcon: { width: 36, height: 36, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  trendPill: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
-  trendText: { fontSize: 9, fontWeight: '700' },
-  trendPillNeutral: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
-  trendTextNeutral: { fontSize: 9, color: '#6B7280', fontWeight: '700' },
-  statLabel: { fontSize: 11, color: '#6B7280' },
-  statValue: { fontSize: FontSizes.lg, fontWeight: '800', color: '#111827', marginTop: 2 },
+  tagBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
+  tagText: { fontSize: 9, color: '#4B5563', fontWeight: '700' },
+  statLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
+  statValue: { fontSize: FontSizes.base, fontWeight: '800', color: '#111827', marginTop: 2 },
   section: { backgroundColor: '#fff', borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: '#F3F4F6', padding: Spacing.md, marginBottom: Spacing.md },
-  sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#111827', marginBottom: Spacing.md },
-  barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 110 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#111827' },
+  sectionSub: { fontSize: 10, color: '#9CA3AF', marginTop: 1 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  linkText: { fontSize: 11, fontWeight: '700', color: AdminColors.primary },
+  barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 110, marginTop: Spacing.sm },
   barCol: { alignItems: 'center', gap: 4 },
   bar: { width: 18, backgroundColor: AdminColors.primary, borderRadius: 4 },
   barLabel: { fontSize: 9, color: '#9CA3AF' },
@@ -133,5 +320,16 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 11, color: '#6B7280', marginTop: 2 },
   rowAmount: { fontSize: FontSizes.sm, fontWeight: '700', color: '#111827' },
   rowTrend: { fontSize: 11, fontWeight: '700', marginTop: 2 },
-  rowStatus: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  emptyRecent: { paddingVertical: Spacing.lg, alignItems: 'center', gap: 6 },
+  emptyRecentText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+  orderCard: { paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  orderTop: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
+  orderIdText: { fontSize: 11, fontFamily: 'monospace', fontWeight: '800', color: '#111827' },
+  orderProductText: { fontSize: 12, fontWeight: '700', color: '#374151', marginTop: 2 },
+  orderCustomerText: { fontSize: 11, color: '#6B7280', marginTop: 1 },
+  orderDateText: { fontSize: 10, color: '#9CA3AF', marginTop: 2 },
+  orderAmountText: { fontSize: 12, fontWeight: '800', color: '#111827' },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 4 },
+  statusBadgeText: { fontSize: 9, fontWeight: '700' },
 });
+

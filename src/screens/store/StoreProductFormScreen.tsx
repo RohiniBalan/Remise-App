@@ -1,8 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { launchImageLibrary } from 'react-native-image-picker';
-import { ImageIcon, Save, Mic, MicOff, AlertCircle } from 'lucide-react-native';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { ImageIcon, Save, Mic, MicOff, AlertCircle, Camera } from 'lucide-react-native';
+
 import { storeProductApi } from '../../api/storeProductApi';
 import { parseVoiceProduct, buildGeneratedImageUrl } from '../../api/geminiScanApi';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -75,11 +77,28 @@ const isEdit = Boolean(product?._id);
 
   const voice = useVoiceInput(handleVoiceResult);
 
-  const pickImage = async () => {
-    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
-    const uri = res.assets?.[0]?.uri;
-    if (uri) setImageUri(uri);
+  const pickImage = () => {
+    Alert.alert('Product Photo', 'Take a photo of the product with your camera, or choose from gallery.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          const res = await launchCamera({ mediaType: 'photo', quality: 0.8 });
+          const uri = res.assets?.[0]?.uri;
+          if (uri) setImageUri(uri);
+        },
+      },
+      {
+        text: 'Choose from Gallery',
+        onPress: async () => {
+          const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+          const uri = res.assets?.[0]?.uri;
+          if (uri) setImageUri(uri);
+        },
+      },
+    ]);
   };
+
 
   const handleSubmit = async () => {
     if (!form.title.trim() || !form.price.trim()) {

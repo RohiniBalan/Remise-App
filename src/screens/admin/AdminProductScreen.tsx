@@ -3,26 +3,19 @@ import { View, Text, TextInput, Image, FlatList, TouchableOpacity, StyleSheet, A
 import { Search, Plus, Edit2, Trash2, Package } from 'lucide-react-native';
 import { adminProductApi, adminCategoryApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import PaginationControl from '../../components/common/PaginationControl';
 
-// Ported from client/app/admin/product/page.tsx (the largest admin page,
-// full catalog CRUD). The AI "Smart Scan" modal (POST /api/smart-product-upload)
-// has no mobile-reachable route — same caveat as every other AI-scan
-// feature in this app. Everything else (list, search, add/edit form
-// covering every field: title/brand/price/originalPrice/badge/type/
-// category/images/description/aboutFeatures/aboutDescription/
-// specifications/idealFor/totalStock/deliveryTime/availability) is fully
-// implemented, with the three repeatable array fields (aboutFeatures,
-// specifications, idealFor) represented as line-separated text areas
-// instead of web's dynamic add/remove-row UI — same data, more compact
-// mobile input widget.
 export default function AdminProductScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [editing, setEditing] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+
+  const ITEMS_PER_PAGE = 30;
 
   const load = () => {
     Promise.all([adminProductApi.getAll(), adminCategoryApi.getAll()])
@@ -36,11 +29,20 @@ export default function AdminProductScreen() {
   };
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     if (!q) return products;
     return products.filter((p: any) => p.title?.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q));
   }, [products, search]);
+
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filtered, currentPage]
+  );
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete this product?', 'This cannot be undone.', [
@@ -76,12 +78,20 @@ export default function AdminProductScreen() {
       </View>
 
       <FlatList
-        data={filtered}
+        data={paginated}
         keyExtractor={(p: any, i) => p._id || p.id || String(i)}
         numColumns={2}
         columnWrapperStyle={{ gap: Spacing.sm }}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<View style={styles.empty}><Package size={40} color="#E5E7EB" /><Text style={styles.emptyText}>No products found</Text></View>}
+        ListFooterComponent={
+          <PaginationControl
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
+        }
         renderItem={({ item: p }) => (
           <View style={styles.card}>
             <Image source={{ uri: p.images?.[0] }} style={styles.image} />
@@ -99,6 +109,7 @@ export default function AdminProductScreen() {
     </View>
   );
 }
+
 
 function AdminProductForm({ product, categories, onDone, onCancel }: { product: any; categories: any[]; onDone: () => void; onCancel: () => void }) {
   const isEdit = Boolean(product);

@@ -18,9 +18,12 @@ export interface OrderData {
   paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
+  deliveryStatus?: string;
+  deliveryMode?: string;
   createdAt: string;
   items: OrderItem[];
 }
+
 
 // Shape sent when placing a wholesale (supplier) order — one entry per
 // supplier store in the cart, mirroring StoreSupplierCartScreen's
@@ -70,9 +73,14 @@ export const orderApi = {
   getMyWholesaleOrders: (ownerId: string) =>
     gatewayClient.get(`/api/orders/buyer/${encodeURIComponent(ownerId)}`),
 
-  // Already pointed at the right path (/api/orders/wholesale matches the
-  // router's POST /wholesale) — just needed to move to gatewayClient along
-  // with the read above, since it's the same backend service.
   placeWholesaleOrders: (orderGroups: WholesaleOrderGroup[], contact: WholesaleContactInfo) =>
     gatewayClient.post('/api/orders/wholesale', { orderGroups, contact }),
+
+  getInvoice: (orderId: string) =>
+    gatewayClient.get(`/api/orders/${orderId}/invoice`),
+
+  getInvoicePdfUrl: (orderId: string) => {
+    const base = gatewayClient.defaults.baseURL || 'https://ecom.porulontech.com';
+    return `${base}/api/orders/${orderId}/invoice/pdf`;
+  },
 };

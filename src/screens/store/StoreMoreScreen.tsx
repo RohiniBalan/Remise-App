@@ -22,11 +22,13 @@ type MoreItem = {
 };
 
 const ITEMS: MoreItem[] = [
+  { key: 'deliveries', label: 'Deliveries Log', subtitle: 'See who delivered products to whom', icon: Truck, route: 'StoreDeliveries' },
   { key: 'categories', label: 'Categories', subtitle: 'Manage product categories', icon: Layers, route: 'StoreOwnerCategories' },
   { key: 'suppliers', label: 'Order Stock', subtitle: 'Browse suppliers & place stock orders', icon: Truck, route: 'Suppliers' },
   { key: 'customers', label: 'Customers', subtitle: 'View your customer list', icon: Users, route: 'StoreOwnerCustomers' },
   { key: 'settings', label: 'Settings', subtitle: 'Store details, target revenue & more', icon: SettingsIcon, route: 'StoreSettings' },
 ];
+
 
 export default function StoreMoreScreen() {
   const navigation = useNavigation<any>();

@@ -1,26 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
-import { Search, Shield } from 'lucide-react-native';
+import { Search, Shield, Users } from 'lucide-react-native';
 import { adminUserApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import PaginationControl from '../../components/common/PaginationControl';
 
-// Ported from client/app/admin/users/page.tsx — read-only directory, same
-// search (name/email/phone), same avatar-initials fallback, same role
-// badge (admin = purple + shield, user = gray) and Google-auth badge.
 export default function AdminUsersScreen() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const ITEMS_PER_PAGE = 30;
 
   useEffect(() => {
     adminUserApi.getAll().then(res => setUsers(res.data.data || res.data || [])).catch(() => {}).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     if (!q) return users;
     return users.filter(u => u.fullname?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.mobilenumber?.includes(q));
   }, [users, search]);
+
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filtered, currentPage]
+  );
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={AdminColors.primary} /></View>;
 
@@ -31,9 +41,23 @@ export default function AdminUsersScreen() {
         <TextInput style={styles.searchInput} value={search} onChangeText={setSearch} placeholder="Search name, email, phone…" />
       </View>
       <FlatList
-        data={filtered}
+        data={paginated}
         keyExtractor={u => u._id}
         contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Users size={36} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No users found</Text>
+          </View>
+        }
+        ListFooterComponent={
+          <PaginationControl
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
+        }
         renderItem={({ item: u }) => {
           const initials = (u.fullname || u.email || 'U').split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2);
           const isAdmin = u.role === 'admin';
@@ -56,6 +80,7 @@ export default function AdminUsersScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AdminColors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: AdminColors.bg },
@@ -71,4 +96,7 @@ const styles = StyleSheet.create({
   roleBadgeAdmin: { backgroundColor: '#F5F3FF' },
   roleBadgeText: { fontSize: 10, fontWeight: '700', color: '#6B7280', textTransform: 'capitalize' },
   roleBadgeTextAdmin: { color: '#7C3AED' },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
+  emptyText: { fontSize: FontSizes.sm, color: AdminColors.textSecondary, fontWeight: '600' },
 });
+

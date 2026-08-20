@@ -10,8 +10,9 @@ interface RegisterPayload {
   email: string;
   mobilenumber: string;
   password: string;
-  role: 'user' | 'store_owner' | 'whole_saler' | 'home_business';
+  role: 'user' | 'customer' | 'store_owner' | 'wholesaler' | 'whole_saler' | 'home_business';
 }
+
 
 export const authApi = {
   // login: (email: string, password: string) =>
@@ -55,8 +56,13 @@ export const authApi = {
 
   // Full-page redirect target on web; on mobile this is the URL loaded
   // inside the GoogleAuthWebViewScreen (see plan's Google OAuth section).
-  googleAuthUrl: `${AUTH_SERVICE_URL}/api/auth/google`,
+  getGoogleAuthUrl: (role?: string) => {
+    const base = `${GATEWAY_URL}/api/auth/google`;
+    return role ? `${base}?role=${encodeURIComponent(role)}` : base;
+  },
+  googleAuthUrl: `${GATEWAY_URL}/api/auth/google`,
 };
+
 
 // Same role -> destination mapping as web's redirectDestination() in
 // login/page.tsx and the inline mapping in verify-email/[token]/page.tsx.

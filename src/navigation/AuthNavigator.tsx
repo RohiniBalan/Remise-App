@@ -1,30 +1,33 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
+import BusinessLoginScreen from '../screens/auth/BusinessLoginScreen';
+import BusinessSignupScreen from '../screens/auth/BusinessSignupScreen';
+import AdminLoginScreen from '../screens/auth/AdminLoginScreen';
 import GoogleAuthWebViewScreen from '../screens/auth/GoogleAuthWebViewScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 
 export type AuthStackParamList = {
   LoginRegister: undefined;
-  GoogleAuthWebView: undefined;
+  BusinessLogin: undefined;
+  BusinessSignup: undefined;
+  AdminLogin: undefined;
+  GoogleAuthWebView: { role?: string } | undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;
 };
 
+
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
-// Mirrors web's pre-login screens: app/login/page.tsx (single login/register
-// toggle screen) and app/auth/google-success/page.tsx (WebView-interception
-// variant, see plan). VerifyEmail/VerifyEmailToken are NOT here — on web,
-// registering already logs the user in (token stored) before routing to
-// /verify-email, so those screens live above the role-based navigators in
-// AppNavigator's root stack instead, reachable while already authenticated
-// (see AppNavigator.tsx).
 export default function AuthNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="LoginRegister" component={LoginRegisterScreen} />
+      <Stack.Screen name="BusinessLogin" component={BusinessLoginScreen} />
+      <Stack.Screen name="BusinessSignup" component={BusinessSignupScreen} />
+      <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
       <Stack.Screen
         name="ForgotPassword"
         component={ForgotPasswordScreen}
@@ -43,3 +46,4 @@ export default function AuthNavigator() {
     </Stack.Navigator>
   );
 }
+

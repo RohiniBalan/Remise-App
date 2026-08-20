@@ -51,7 +51,8 @@ export type CustomerStackParamList = {
   Services: undefined;
   Testimonials: undefined;
   StoreRegister: undefined;
-  CompareStores: { items: SmartOrderCartItem[] };
+  CompareStores: { items: SmartOrderCartItem[]; onSuccess?: () => void };
+
   Notifications: undefined;
   Suppliers: undefined;
   MyOffers: undefined;

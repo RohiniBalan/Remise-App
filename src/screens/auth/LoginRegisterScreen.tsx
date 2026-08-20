@@ -211,9 +211,17 @@ export default function LoginRegisterScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.googleButton} onPress={() => navigation.navigate('GoogleAuthWebView')}>
+        <TouchableOpacity
+          style={styles.googleButton}
+          onPress={() =>
+            navigation.navigate('GoogleAuthWebView', {
+              role: isLogin ? undefined : 'customer',
+            })
+          }
+        >
           <Text style={styles.googleButtonText}>Continue with Google</Text>
         </TouchableOpacity>
+
 
         <TouchableOpacity onPress={toggleMode} style={styles.toggleLink}>
           <Text style={styles.toggleLinkText}>
@@ -221,6 +229,26 @@ export default function LoginRegisterScreen() {
             <Text style={styles.toggleLinkAccent}>{isLogin ? 'Register' : 'Log In'}</Text>
           </Text>
         </TouchableOpacity>
+
+        {/* Business Portal Link Card */}
+        <View style={styles.businessSection}>
+          <TouchableOpacity
+            style={styles.businessCard}
+            onPress={() => navigation.navigate('BusinessLogin')}
+          >
+            <Text style={styles.businessCardTitle}>💼 Are you a Business or Seller?</Text>
+            <Text style={styles.businessCardSubtitle}>
+              Store Owner · Wholesaler · Home Business Login →
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.adminLink}
+            onPress={() => navigation.navigate('AdminLogin')}
+          >
+            <Text style={styles.adminLinkText}>Admin Portal Console →</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -233,8 +261,6 @@ const styles = StyleSheet.create({
   heading: { fontSize: FontSizes.md, fontWeight: '600', color: CustomerColors.black, textAlign: 'center', marginBottom: Spacing.lg },
   error: { color: CustomerColors.danger, backgroundColor: CustomerColors.dangerBg, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md, fontSize: FontSizes.sm },
   fieldError: { color: CustomerColors.danger, fontSize: FontSizes.xs, marginTop: Spacing.xs, marginBottom: Spacing.sm },
-  // 2x2 grid (was a single row) to fit all four role options, matching
-  // web's `grid grid-cols-2 gap-2` layout.
   roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
   rolePill: { width: '48%', paddingVertical: Spacing.md, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: CustomerColors.steelBorder, alignItems: 'center' },
   rolePillActive: { backgroundColor: CustomerColors.mint, borderColor: CustomerColors.teal600 },
@@ -251,7 +277,40 @@ const styles = StyleSheet.create({
   submitButtonText: { color: CustomerColors.white, fontWeight: '700', fontSize: FontSizes.base },
   googleButton: { borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, backgroundColor: CustomerColors.white },
   googleButtonText: { color: CustomerColors.black, fontWeight: '600', fontSize: FontSizes.base },
-  toggleLink: { marginTop: Spacing.xl, alignItems: 'center' },
+  toggleLink: { marginTop: Spacing.lg, alignItems: 'center' },
   toggleLinkText: { color: CustomerColors.textSecondary, fontSize: FontSizes.sm },
   toggleLinkAccent: { color: CustomerColors.teal700, fontWeight: '700' },
+  businessSection: {
+    marginTop: Spacing.xl,
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: CustomerColors.border,
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  businessCard: {
+    width: '100%',
+    backgroundColor: '#0F172A',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    alignItems: 'center',
+  },
+  businessCardTitle: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: FontSizes.sm,
+  },
+  businessCardSubtitle: {
+    color: '#94A3B8',
+    fontSize: FontSizes.xs,
+    marginTop: 2,
+  },
+  adminLink: {
+    paddingVertical: Spacing.xs,
+  },
+  adminLinkText: {
+    color: CustomerColors.textSecondary,
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  },
 });

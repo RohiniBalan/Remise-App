@@ -10,10 +10,13 @@ import {
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
+  Linking,
+  Alert,
 } from 'react-native';
+
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import {
   MapPin,
   Store,
@@ -25,6 +28,8 @@ import {
   PackageCheck,
   PackageX,
   X,
+  FileText,
+  Download,
 } from 'lucide-react-native';
 import {
   smartOrderApi,
@@ -33,6 +38,7 @@ import {
 } from '../../api/smartOrderApi';
 import { storeApi } from '../../api/storeApi';
 import { useAuth } from '../../context/AuthContext';
+import InvoiceModal from '../../components/common/InvoiceModal';
 import {
   CustomerColors,
   Spacing,
@@ -40,6 +46,7 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { requireAuthForPurchase } from '../../utils/authGuard';
+
 
 // Ported from client/app/(root)/bulk-purchase/CompareModal.tsx — same step
 // machine (radius -> searching -> results -> confirming -> delivery ->
@@ -101,6 +108,8 @@ export default function CompareStoresScreen() {
   const [qrLoading, setQrLoading] = useState(false);
   const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
   const [orderId, setOrderId] = useState('');
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+
 
   const [form, setForm] = useState<AddressForm>({
     firstName: user?.fullname?.split(' ')[0] || '',
@@ -277,11 +286,28 @@ export default function CompareStoresScreen() {
     setStep('delivery');
   };
 
-  const pickScreenshot = async () => {
-    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
-    const uri = res.assets?.[0]?.uri;
-    if (uri) setScreenshotUri(uri);
+  const pickScreenshot = () => {
+    Alert.alert('Payment Proof', 'Take a photo of your payment or choose from gallery.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          const res = await launchCamera({ mediaType: 'photo', quality: 0.8 });
+          const uri = res.assets?.[0]?.uri;
+          if (uri) setScreenshotUri(uri);
+        },
+      },
+      {
+        text: 'Choose from Gallery',
+        onPress: async () => {
+          const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+          const uri = res.assets?.[0]?.uri;
+          if (uri) setScreenshotUri(uri);
+        },
+      },
+    ]);
   };
+
 
   const handlePlaceOrder = async () => {
     if (
@@ -327,6 +353,7 @@ export default function CompareStoresScreen() {
       }
 
       setStep('success');
+      route.params?.onSuccess?.();
     } catch (err: any) {
       setErrorMsg(
         err.response?.data?.message ||
@@ -336,6 +363,7 @@ export default function CompareStoresScreen() {
       setStep('payment');
     }
   };
+
 
   return (
     <View style={styles.overlay}>
@@ -783,32 +811,105 @@ export default function CompareStoresScreen() {
           )}
 
           {step === 'success' && chosen && (
-            <View style={styles.center}>
-              <CheckCircle2 size={48} color={CustomerColors.success} />
-              <Text style={styles.successTitle}>Order Placed!</Text>
-              <Text style={styles.successText}>
-                Your order from{' '}
-                <Text style={{ fontWeight: '700' }}>{chosen.storeName}</Text> is
-                confirmed —{' '}
-                {deliveryMethod === 'pickup'
-                  ? 'ready for self pickup'
-                  : 'out for home delivery'}
-                , paying via {paymentMethod === 'qr' ? 'QR code' : 'cash'}. You
-                and the store have been notified.
-              </Text>
-              <TouchableOpacity
-                style={styles.doneBtn}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={styles.doneBtnText}>Done</Text>
-              </TouchableOpacity>
+            <View style={[styles.center, { gap: Spacing.md }]}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: CustomerColors.successBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#BBF7D0' }}>
+                <CheckCircle2 size={38} color={CustomerColors.success} />
+              </View>
+
+              <View style={{ alignItems: 'center' }}>
+                <Text style={styles.successTitle}>Order & Payment Confirmed!</Text>
+                <Text style={styles.successText}>
+                  Your order from <Text style={{ fontWeight: '700' }}>{chosen.storeName}</Text> has been
+                  placed via {paymentMethod === 'qr' ? 'UPI / QR Code' : 'Cash on Delivery'} (
+                  {deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}).
+                </Text>
+              </View>
+
+              {/* Verified Bill Card */}
+              <View style={styles.billCard}>
+                <View style={styles.billHeader}>
+                  <View>
+                    <Text style={styles.billBadge}>VERIFIED BILL</Text>
+                    <Text style={styles.billStoreName}>{chosen.storeName}</Text>
+                  </View>
+                  <View style={styles.paidBadge}>
+                    <Text style={styles.paidBadgeText}>● PAID</Text>
+                    {orderId ? <Text style={styles.billOrderId}>#{orderId}</Text> : null}
+                  </View>
+                </View>
+
+                <View style={styles.billRow}>
+                  <Text style={styles.billLabel}>Customer:</Text>
+                  <Text style={styles.billValue}>
+                    {[form.firstName, form.lastName].filter(Boolean).join(' ') || 'Customer'}
+                  </Text>
+                </View>
+
+                <View style={styles.billRow}>
+                  <Text style={styles.billLabel}>Payment Mode:</Text>
+                  <Text style={[styles.billValue, { color: CustomerColors.teal700 }]}>
+                    {paymentMethod === 'qr' ? 'UPI / QR Payment' : 'Cash on Delivery'}
+                  </Text>
+                </View>
+
+                <View style={[styles.billRow, { borderTopWidth: 1, borderTopColor: CustomerColors.steelBorder, paddingTop: 6, marginTop: 4 }]}>
+                  <Text style={styles.billLabel}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
+                  <Text style={styles.billTotal}>Total: ₹{chosen.totalAmount.toFixed(0)}</Text>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={{ width: '100%', gap: Spacing.sm, marginTop: Spacing.xs }}>
+                {orderId ? (
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.viewInvoiceBtn]}
+                      onPress={() => setShowInvoiceModal(true)}
+                    >
+                      <FileText size={15} color={CustomerColors.teal700} />
+                      <Text style={styles.viewInvoiceBtnText}>View Invoice</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.downloadBillBtn]}
+                      onPress={async () => {
+                        const pdfUrl = smartOrderApi.getInvoicePdfUrl(orderId);
+                        try {
+                          await Linking.openURL(pdfUrl);
+                        } catch {
+                          Alert.alert('Download', 'Opening invoice...');
+                        }
+                      }}
+                    >
+                      <Download size={15} color="#FFFFFF" />
+                      <Text style={styles.downloadBillBtnText}>Download PDF Bill</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  style={styles.doneBtn}
+                  onPress={() => navigation.goBack()}
+                >
+                  <Text style={styles.doneBtnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </ScrollView>
       </View>
+
+      {orderId ? (
+        <InvoiceModal
+          orderId={orderId}
+          visible={showInvoiceModal}
+          onClose={() => setShowInvoiceModal(false)}
+        />
+      ) : null}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   overlay: {
@@ -1072,11 +1173,103 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   doneBtn: {
-    backgroundColor: CustomerColors.teal600,
+    backgroundColor: '#F3F4F6',
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
+    alignItems: 'center',
+    width: '100%',
   },
-  doneBtnText: { color: '#fff', fontWeight: '700' },
+  doneBtnText: { color: '#374151', fontWeight: '700', fontSize: FontSizes.xs },
+  billCard: {
+    width: '100%',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    gap: 6,
+  },
+  billHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: CustomerColors.steelBorder,
+    paddingBottom: 6,
+    marginBottom: 4,
+  },
+  billBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: CustomerColors.teal700,
+    letterSpacing: 0.5,
+  },
+  billStoreName: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+    marginTop: 1,
+  },
+  paidBadge: {
+    alignItems: 'flex-end',
+  },
+  paidBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: CustomerColors.success,
+  },
+  billOrderId: {
+    fontSize: 9,
+    color: CustomerColors.textSecondary,
+    marginTop: 1,
+  },
+  billRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  billLabel: {
+    fontSize: 11,
+    color: CustomerColors.textSecondary,
+  },
+  billValue: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: CustomerColors.black,
+  },
+  billTotal: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  viewInvoiceBtn: {
+    backgroundColor: CustomerColors.mint,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+  },
+  viewInvoiceBtnText: {
+    color: CustomerColors.teal700,
+    fontWeight: '800',
+    fontSize: FontSizes.xs,
+  },
+  downloadBillBtn: {
+    backgroundColor: CustomerColors.primary,
+  },
+  downloadBillBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: FontSizes.xs,
+  },
 });
+

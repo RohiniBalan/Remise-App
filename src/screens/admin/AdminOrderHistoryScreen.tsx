@@ -1,30 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, Modal, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { Search, X } from 'lucide-react-native';
+import { Search, X, Package } from 'lucide-react-native';
 import { adminOrderApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import PaginationControl from '../../components/common/PaginationControl';
 
-// Ported from client/app/admin/order-history/page.tsx — same search (order
-// ID/email/name), same status dropdown (now a chip picker) both inline and
-// in a detail modal, same GET /admin/orders + PUT /admin/orders/:id/status.
 const STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 export default function AdminOrderHistoryScreen() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<any>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+
+  const ITEMS_PER_PAGE = 30;
 
   const load = () => {
     adminOrderApi.getAll().then(res => setOrders(res.data.data || res.data || [])).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   const filtered = orders.filter(o => {
     const q = search.toLowerCase();
-    return !q || o.orderId?.toLowerCase().includes(q) || o.contactEmail?.toLowerCase().includes(q) || o.shippingAddress?.firstName?.toLowerCase().includes(q);
+    const customerName = o.userId?.fullname || `${o.shippingAddress?.firstName || ''} ${o.shippingAddress?.lastName || ''}`;
+    return !q || o.orderId?.toLowerCase().includes(q) || o.contactEmail?.toLowerCase().includes(q) || customerName.toLowerCase().includes(q);
   });
+
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleStatus = async (orderId: string, status: string) => {
     setUpdating(orderId);
@@ -49,26 +57,44 @@ export default function AdminOrderHistoryScreen() {
       </View>
 
       <FlatList
-        data={filtered}
+        data={paginated}
         keyExtractor={o => o._id || o.orderId}
         contentContainerStyle={styles.list}
-        renderItem={({ item: o }) => (
-          <TouchableOpacity style={styles.card} onPress={() => setSelected(o)}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.orderId}>{o.orderId}</Text>
-              <Text style={styles.orderMeta}>{o.shippingAddress?.firstName} {o.shippingAddress?.lastName} · {o.contactEmail}</Text>
-              <Text style={styles.orderAmount}>₹{o.totalAmount}</Text>
-            </View>
-            <View style={styles.statusChipRow}>
-              {STATUSES.map(s => (
-                <TouchableOpacity key={s} style={[styles.statusChip, o.orderStatus === s && styles.statusChipActive]} onPress={() => handleStatus(o.orderId, s)} disabled={updating === o.orderId}>
-                  <Text style={[styles.statusChipText, o.orderStatus === s && styles.statusChipTextActive]}>{s}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        )}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Package size={36} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No orders found</Text>
+          </View>
+        }
+        ListFooterComponent={
+          <PaginationControl
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
+        }
+        renderItem={({ item: o }) => {
+          const customerName = o.userId?.fullname || `${o.shippingAddress?.firstName || ''} ${o.shippingAddress?.lastName || ''}`.trim() || 'Customer';
+          return (
+            <TouchableOpacity style={styles.card} onPress={() => setSelected(o)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.orderId}>{o.orderId}</Text>
+                <Text style={styles.orderMeta}>{customerName} · {o.contactEmail}</Text>
+                <Text style={styles.orderAmount}>₹{o.totalAmount}</Text>
+              </View>
+              <View style={styles.statusChipRow}>
+                {STATUSES.map(s => (
+                  <TouchableOpacity key={s} style={[styles.statusChip, o.orderStatus === s && styles.statusChipActive]} onPress={() => handleStatus(o.orderId, s)} disabled={updating === o.orderId}>
+                    <Text style={[styles.statusChipText, o.orderStatus === s && styles.statusChipTextActive]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
+
 
       <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
         {selected && (
@@ -117,4 +143,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: AdminColors.textPrimary },
   modalLabel: { fontSize: 10, fontWeight: '700', color: AdminColors.textMuted, textTransform: 'uppercase', marginTop: Spacing.sm },
   modalValue: { fontSize: FontSizes.sm, color: AdminColors.textPrimary, marginTop: 2 },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
+  emptyText: { fontSize: FontSizes.sm, color: AdminColors.textSecondary, fontWeight: '600' },
 });
+

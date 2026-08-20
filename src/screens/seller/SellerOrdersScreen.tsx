@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { ShoppingBag, RefreshCw } from 'lucide-react-native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { sellerOrderApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import PaginationControl from '../../components/common/PaginationControl';
 
 const ORDER_STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'] as const;
 const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
@@ -16,11 +17,23 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
 export default function SellerOrdersScreen() {
   const { orders, refresh, loading } = useSellerDashboard();
   const [filter, setFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [updating, setUpdating] = useState<string | null>(null);
+
+  const ITEMS_PER_PAGE = 30;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   const counts: Record<string, number> = { all: orders.length };
   ORDER_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.orderStatus === s).length; });
   const filtered = useMemo(() => orders.filter(o => filter === 'all' || o.orderStatus === filter), [orders, filter]);
+
+  const paginatedOrders = useMemo(
+    () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filtered, currentPage]
+  );
 
   const handleStatus = async (id: string, status: string) => {
     setUpdating(id);
@@ -51,7 +64,7 @@ export default function SellerOrdersScreen() {
       </View>
 
       <FlatList
-        data={filtered}
+        data={paginatedOrders}
         keyExtractor={o => o._id}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
         contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl, gap: Spacing.sm }}
@@ -62,7 +75,16 @@ export default function SellerOrdersScreen() {
             <Text style={styles.emptySub}>Orders placed by store owners will show up here.</Text>
           </View>
         }
+        ListFooterComponent={
+          <PaginationControl
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
+        }
         renderItem={({ item: o }) => {
+
           const st = STATUS_STYLE[o.orderStatus] || { bg: '#F3F4F6', fg: '#4B5563' };
           return (
             <View style={styles.card}>

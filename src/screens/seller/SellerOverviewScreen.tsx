@@ -9,6 +9,8 @@ import {
 import { MiniLineChart, MiniBarChart } from './MiniCharts';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
+import { useAuth } from '../../context/AuthContext';
+
 const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   PENDING: { bg: '#FFFBEB', fg: '#B45309' },
   PAID: { bg: '#F0FDF4', fg: '#15803D' },
@@ -17,8 +19,12 @@ const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
 
 export default function SellerOverviewScreen() {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const { store, orders, products, storeNameByOwnerId, loading, refresh } = useSellerDashboard();
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+
+  const isWholesaler = user?.role === 'whole_saler' || user?.role === 'wholesaler';
+  const roleLabel = isWholesaler ? 'Wholesale Business' : 'Home Business';
 
   const lineItems = useMemo(() => extractSellerLineItems(orders, products), [orders, products]);
   const analytics = useMemo(() => computeSellerAnalytics(lineItems), [lineItems]);
@@ -55,6 +61,18 @@ export default function SellerOverviewScreen() {
       contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
       refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}
     >
+      {/* Role Banner */}
+      <View style={styles.roleBanner}>
+        <Text style={styles.roleBannerText}>
+          {isWholesaler ? '📦 Wholesale Merchant Console' : '🏠 Home Business Console'}
+        </Text>
+        <Text style={styles.roleBannerSub}>
+          {isWholesaler
+            ? 'Track B2B volume, retailer orders, and bulk stock performance.'
+            : 'Track artisan production, custom orders, and direct sales.'}
+        </Text>
+      </View>
+
       {/* Target revenue */}
       <View style={styles.targetCard}>
         <View style={styles.targetHeader}>
@@ -213,7 +231,27 @@ export default function SellerOverviewScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CustomerColors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
+  roleBanner: {
+    backgroundColor: '#fff',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    ...Shadows.card,
+  },
+  roleBannerText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  roleBannerSub: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
+    marginTop: 3,
+  },
   targetCard: { backgroundColor: '#fff', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.md, ...Shadows.card },
+
   targetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   targetTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
   targetAmounts: { fontSize: FontSizes.md, fontWeight: '800', color: CustomerColors.teal700, marginTop: 6 },

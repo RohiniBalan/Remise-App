@@ -72,10 +72,36 @@ export const smartOrderApi = {
     }),
 
   confirmQrPayment: (orderId: string, screenshotUri?: string | null) => {
-  const fd = new FormData();
-  if (screenshotUri) {
-    fd.append('screenshot', { uri: screenshotUri, name: 'payment-screenshot.jpg', type: 'image/jpeg' } as any);
-  }
-  return gatewayClient.patch(`/api/orders/${orderId}/confirm-payment`, fd);
-},
+    const fd = new FormData();
+    if (screenshotUri) {
+      fd.append('screenshot', { uri: screenshotUri, name: 'payment-screenshot.jpg', type: 'image/jpeg' } as any);
+    }
+    return gatewayClient.patch(`/api/orders/${orderId}/confirm-payment`, fd);
+  },
+
+  getInvoice: (orderId: string) =>
+    gatewayClient.get(`/api/orders/${orderId}/invoice`),
+
+  getInvoicePdfUrl: (orderId: string) => {
+    const base = gatewayClient.defaults.baseURL || 'https://ecom.porulontech.com';
+    return `${base}/api/orders/${orderId}/invoice/pdf`;
+  },
+
+  // Store Owner: Generate unique delivery link for an order
+  generateDeliveryLink: (orderId: string, payload: { deliveryPersonName?: string; deliveryPersonPhone?: string; notes?: string }) =>
+    gatewayClient.post(`/api/orders/${orderId}/delivery-link`, payload),
+
+  // Store Owner: Set delivery mode (own_delivery, portal_delivery, self_arrange)
+  setDeliveryMode: (orderId: string, payload: { mode: 'own_delivery' | 'portal_delivery' | 'self_arrange'; notes?: string }) =>
+    gatewayClient.patch(`/api/orders/${orderId}/delivery-mode`, payload),
+
+  // Store Owner: Direct delivery status update
+  updateDeliveryStatusDirect: (orderId: string, payload: { status: string; notes?: string }) =>
+    gatewayClient.patch(`/api/orders/${orderId}/delivery-status`, payload),
+
+  // Store Owner: Enroll / Update Remise Delivery Portal Network
+  enrollDeliveryPortal: (payload: { enabled?: boolean; hasOwnDelivery?: boolean }) =>
+    gatewayClient.patch('/api/stores/delivery-portal/enroll', payload),
 };
+
+

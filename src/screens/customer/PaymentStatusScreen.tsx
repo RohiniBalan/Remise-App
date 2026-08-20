@@ -1,15 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { CheckCircle, XCircle, RefreshCw, ShoppingBag } from 'lucide-react-native';
+import { CheckCircle, XCircle, RefreshCw, ShoppingBag, Download, FileText } from 'lucide-react-native';
 import { paymentApi } from '../../api/paymentApi';
+import { smartOrderApi } from '../../api/smartOrderApi';
 import { useCart } from '../../context/CartContext';
+import InvoiceModal from '../../components/common/InvoiceModal';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 
-// Ported from client/app/payment-status/page.tsx — same 4 states
-// (LOADING/SUCCESS/FAILED/PENDING), same GET /api/payment/status/:orderId
-// call, same "clear buyNowItem on SUCCESS, cart is NOT cleared here either"
-// behavior (web's cart-clear line is commented out; matched exactly).
 type Status = 'LOADING' | 'SUCCESS' | 'FAILED' | 'PENDING';
 
 export default function PaymentStatusScreen() {
@@ -20,6 +18,7 @@ export default function PaymentStatusScreen() {
 
   const [status, setStatus] = useState<Status>('LOADING');
   const [errorMessage, setErrorMessage] = useState('');
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   const checkStatus = useCallback(async () => {
     if (!orderId) {
@@ -55,6 +54,16 @@ export default function PaymentStatusScreen() {
     checkStatus();
   }, [checkStatus]);
 
+  const handleDownloadPdf = async () => {
+    if (!orderId) return;
+    const pdfUrl = smartOrderApi.getInvoicePdfUrl(orderId);
+    try {
+      await Linking.openURL(pdfUrl);
+    } catch {
+      Alert.alert('Download', 'Could not open download link.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -71,12 +80,29 @@ export default function PaymentStatusScreen() {
             <View style={[styles.iconCircle, styles.iconCircleSuccess]}><CheckCircle size={40} color={CustomerColors.success} /></View>
             <Text style={styles.title}>Order Placed Successfully!</Text>
             <Text style={styles.subtitle}>Thank you for your purchase. Your payment was successful and your order {orderId} has been confirmed.</Text>
+            
+            {/* Bill Actions */}
+            {orderId ? (
+              <View style={styles.billActions}>
+                <TouchableOpacity style={styles.downloadBillBtn} onPress={handleDownloadPdf}>
+                  <Download size={16} color="#FFFFFF" />
+                  <Text style={styles.downloadBillBtnText}>Download PDF Bill</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.viewInvoiceBtn} onPress={() => setShowInvoiceModal(true)}>
+                  <FileText size={16} color={CustomerColors.teal700} />
+                  <Text style={styles.viewInvoiceBtnText}>View Invoice Details</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('CustomerTabs', { screen: 'Categories' })}>
               <ShoppingBag size={18} color="#000" />
               <Text style={styles.primaryBtnText}>Continue Shopping</Text>
             </TouchableOpacity>
           </View>
         )}
+
 
         {status === 'FAILED' && (
           <View style={styles.center}>
@@ -111,6 +137,14 @@ export default function PaymentStatusScreen() {
           </View>
         )}
       </View>
+
+      {orderId ? (
+        <InvoiceModal
+          orderId={orderId}
+          visible={showInvoiceModal}
+          onClose={() => setShowInvoiceModal(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -130,4 +164,10 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: '#000', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
   secondaryBtn: { flex: 1, flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
   secondaryBtnText: { color: '#1F2937', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
+  billActions: { width: '100%', gap: Spacing.sm, marginBottom: Spacing.lg },
+  downloadBillBtn: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
+  downloadBillBtnText: { color: '#FFFFFF', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
+  viewInvoiceBtn: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
+  viewInvoiceBtnText: { color: CustomerColors.teal700, fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
 });
+

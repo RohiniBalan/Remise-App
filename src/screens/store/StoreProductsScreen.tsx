@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Image, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Image, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { Search, Plus, Edit2, Trash2, Package, ScanLine, ListChecks } from 'lucide-react-native';
+import { Search, Plus, Edit2, Trash2, Package, ScanLine, ListChecks, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { scanProductImage, scanBulkProducts, buildGeneratedImageUrl } from '../../api/geminiScanApi';
@@ -11,15 +11,6 @@ import { BulkProductRow } from './StoreBulkProductScanScreen';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { groupProductsByType } from '../../utils/groupProducts';
 
-// Ported from client/app/store/dashboard/page.tsx's ProductsTab — same
-// search + category filter, same grid card fields (discount %, featured
-// badge, availability/stock chips), same edit/delete actions. "Scan Paper"
-// (SmartUploadModal, POST /api/smart-product-upload on web) calls Gemini
-// directly from this app instead (see geminiScanApi.ts + endpoints.ts's
-// GOOGLE_AI_API_KEY comment) since there's no mobile-reachable backend
-// route for it. Scan result prefills StoreProductFormScreen the same way
-// editing an existing product does — the store owner still reviews/edits
-// before saving, same as web's review step.
 export default function StoreProductsScreen() {
   const navigation = useNavigation<any>();
   const { products, categories, loading, refresh } = useStoreDashboard();
@@ -27,7 +18,9 @@ export default function StoreProductsScreen() {
   const [catFilter, setCatFilter] = useState('');
   const [scanning, setScanning] = useState(false);
   const [bulkScanning, setBulkScanning] = useState(false);
+  const [scanModalType, setScanModalType] = useState<'single' | 'bulk' | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+
 
   const filtered = products.filter(p => {
   const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase()) || (p.brand || '').toLowerCase().includes(search.toLowerCase());
@@ -80,94 +73,64 @@ const productTypes = groupProductsByType(filtered);
     }
   };
 
-  const handleScanPress = () => {
-    Alert.alert('Scan Paper', 'Take a photo of the product label, or choose one from your gallery.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Choose from Gallery',
-        onPress: async () => {
-          const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8 });
-          const asset = res.assets?.[0];
-          if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
-        },
-      },
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
-          const asset = res.assets?.[0];
-          if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
-          else if (res.errorMessage) Alert.alert('Camera unavailable', res.errorMessage);
-        },
-      },
-    ]);
+  const runBulkScan = async (base64: string, mimeType: string) => {
+    setBulkScanning(true);
+    try {
+      const extracted = await scanBulkProducts(base64, mimeType);
+      if (extracted.length === 0) {
+        Alert.alert('No products found', 'Could not read any product names from that image.');
+        return;
+      }
+      const scanned: BulkProductRow[] = [];
+      for (let i = 0; i < extracted.length; i++) {
+        const p = extracted[i];
+        const url = buildGeneratedImageUrl(p.productName, p.category, i);
+        await new Promise<void>(resolve => {
+          Image.prefetch(url).then(() => resolve()).catch(() => resolve());
+        });
+        scanned.push({
+          id: `${Date.now()}-${i}`,
+          ...emptyProductForm({
+            title: p.productName,
+            description: p.description,
+            price: p.price || '',
+            discountedPrice: p.discountedPrice || '',
+            category: p.category,
+            brand: p.brand,
+          }),
+          imageUrl: url,
+        });
+      }
+      navigation.navigate('BulkProductScan', { scanned });
+    } catch (err: any) {
+      Alert.alert('Scan failed', err?.message || 'Could not read products from that photo. Try Add Product to enter them manually.');
+    } finally {
+      setBulkScanning(false);
+    }
   };
 
-  // New, separate entry point from the single-photo scan above — reuses the
-  // same gallery/camera picking pattern but calls scanBulkProducts (one
-  // Gemini vision call returning an array of products) and hands the
-  // resulting rows to the new StoreBulkProductScanScreen for review, instead
-  // of prefilling the single ProductForm.
-  const runBulkScan = async (base64: string, mimeType: string) => {
-  setBulkScanning(true);
-  try {
-    const extracted = await scanBulkProducts(base64, mimeType);
-    if (extracted.length === 0) {
-      Alert.alert('No products found', 'Could not read any product names from that image.');
-      return;
+  const handleCameraScan = async () => {
+    const isSingle = scanModalType === 'single';
+    setScanModalType(null);
+    const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
+    const asset = res.assets?.[0];
+    if (asset?.base64) {
+      if (isSingle) runScan(asset.base64, asset.type || 'image/jpeg');
+      else runBulkScan(asset.base64, asset.type || 'image/jpeg');
+    } else if (res.errorMessage) {
+      Alert.alert('Camera unavailable', res.errorMessage);
     }
-    const scanned: BulkProductRow[] = [];
-    for (let i = 0; i < extracted.length; i++) {
-      const p = extracted[i];
-      const url = buildGeneratedImageUrl(p.productName, p.category, i);
-      // Wait for THIS image to actually finish loading before starting the next one —
-      // mirrors web's sequential `for...await` loop in smart-bulk-product-scan/route.ts,
-      // avoiding a burst of simultaneous requests to Pollinations.
-      await new Promise<void>(resolve => {
-        Image.prefetch(url).then(() => resolve()).catch(() => resolve());
-      });
-      scanned.push({
-        id: `${Date.now()}-${i}`,
-        ...emptyProductForm({
-          title: p.productName,
-          description: p.description,
-          price: p.price || '',
-          discountedPrice: p.discountedPrice || '',
-          category: p.category,
-          brand: p.brand,
-        }),
-        imageUrl: url,
-      });
-    }
-    navigation.navigate('BulkProductScan', { scanned });
-  } catch (err: any) {
-    Alert.alert('Scan failed', err?.message || 'Could not read products from that photo. Try Add Product to enter them manually.');
-  } finally {
-    setBulkScanning(false);
-  }
-};
+  };
 
-  const handleBulkScanPress = () => {
-    Alert.alert('Scan Product List', 'Take a photo of the grocery list, invoice, or handwritten list, or choose one from your gallery.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Choose from Gallery',
-        onPress: async () => {
-          const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8 });
-          const asset = res.assets?.[0];
-          if (asset?.base64) runBulkScan(asset.base64, asset.type || 'image/jpeg');
-        },
-      },
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
-          const asset = res.assets?.[0];
-          if (asset?.base64) runBulkScan(asset.base64, asset.type || 'image/jpeg');
-          else if (res.errorMessage) Alert.alert('Camera unavailable', res.errorMessage);
-        },
-      },
-    ]);
+  const handleGalleryScan = async () => {
+    const isSingle = scanModalType === 'single';
+    setScanModalType(null);
+    const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8 });
+    const asset = res.assets?.[0];
+    if (asset?.base64) {
+      if (isSingle) runScan(asset.base64, asset.type || 'image/jpeg');
+      else runBulkScan(asset.base64, asset.type || 'image/jpeg');
+    }
   };
 
   if (loading) {
@@ -185,16 +148,17 @@ const productTypes = groupProductsByType(filtered);
           <Search size={14} color={CustomerColors.textSecondary} />
           <TextInput style={styles.searchInput} value={search} onChangeText={setSearch} placeholder="Search products…" />
         </View>
-        <TouchableOpacity style={styles.scanBtn} onPress={handleScanPress} disabled={scanning}>
+        <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalType('single')} disabled={scanning}>
           {scanning ? <ActivityIndicator size="small" color="#fff" /> : <ScanLine size={16} color="#fff" />}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.scanBtn} onPress={handleBulkScanPress} disabled={bulkScanning}>
+        <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalType('bulk')} disabled={bulkScanning}>
           {bulkScanning ? <ActivityIndicator size="small" color="#fff" /> : <ListChecks size={16} color="#fff" />}
         </TouchableOpacity>
         <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('ProductForm', {})}>
           <Plus size={16} color="#fff" />
         </TouchableOpacity>
       </View>
+
 
       <FlatList
   data={productTypes}
@@ -250,6 +214,51 @@ const productTypes = groupProductsByType(filtered);
     );
   }}
 />
+
+      {/* Camera & Scan Modal */}
+      <Modal visible={Boolean(scanModalType)} transparent animationType="fade" onRequestClose={() => setScanModalType(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                {scanModalType === 'bulk' ? (
+                  <ListChecks size={20} color={CustomerColors.teal600} />
+                ) : (
+                  <ScanLine size={20} color={CustomerColors.teal600} />
+                )}
+                <Text style={styles.modalTitle}>
+                  {scanModalType === 'bulk' ? 'Scan Product List' : 'Scan Paper Label'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setScanModalType(null)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSub}>
+              {scanModalType === 'bulk'
+                ? 'Take a photo of the grocery list, invoice, or handwritten list, or choose from gallery.'
+                : 'Take a clear photo of the product label or choose from gallery.'}
+            </Text>
+
+            <TouchableOpacity style={styles.cameraActionBtn} onPress={handleCameraScan}>
+              <Camera size={18} color="#fff" />
+              <Text style={styles.cameraActionBtnText}>Take Photo with Camera</Text>
+            </TouchableOpacity>
+
+            <View style={styles.orDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.orText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity style={styles.galleryActionBtn} onPress={handleGalleryScan}>
+              <ImageIcon size={18} color={CustomerColors.teal700} />
+              <Text style={styles.galleryActionBtnText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -285,11 +294,23 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5', paddingTop: Spacing.sm },
   actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 6, backgroundColor: CustomerColors.bg, borderRadius: BorderRadius.sm },
   brandCountText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 4 },
-brandList: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5', gap: 2 },
-brandRow: { flexDirection: 'row', justifyContent: 'space-between' },
-brandRowName: { fontSize: 11, color: '#4B5563', flex: 1, paddingRight: 6 },
-brandRowStock: { fontSize: 11, fontWeight: '700', color: '#374151' },
-moreText: { fontSize: 11, color: CustomerColors.textSecondary },
-manageBtn: { marginTop: Spacing.sm, backgroundColor: CustomerColors.teal600, paddingVertical: 8, borderRadius: BorderRadius.sm, alignItems: 'center' },
-manageBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs },
+  brandList: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5', gap: 2 },
+  brandRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  brandRowName: { fontSize: 11, color: '#4B5563', flex: 1, paddingRight: 6 },
+  brandRowStock: { fontSize: 11, fontWeight: '700', color: '#374151' },
+  moreText: { fontSize: 11, color: CustomerColors.textSecondary },
+  manageBtn: { marginTop: Spacing.sm, backgroundColor: CustomerColors.teal600, paddingVertical: 8, borderRadius: BorderRadius.sm, alignItems: 'center' },
+  manageBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
+  modalCard: { width: '100%', maxWidth: 360, backgroundColor: '#fff', borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.md },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
+  modalSub: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
+  cameraActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.teal600, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  cameraActionBtnText: { color: '#fff', fontSize: FontSizes.sm, fontWeight: '700' },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  dividerLine: { flex: 1, height: 1, backgroundColor: CustomerColors.steelBorder },
+  orText: { fontSize: 11, color: CustomerColors.textSecondary, fontWeight: '600' },
+  galleryActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  galleryActionBtnText: { color: CustomerColors.teal700, fontSize: FontSizes.sm, fontWeight: '700' },
 });

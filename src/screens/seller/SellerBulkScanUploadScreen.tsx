@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, ListChecks } from 'lucide-react-native';
+import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, ListChecks, Camera } from 'lucide-react-native';
+
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { useAuth } from '../../context/AuthContext';
 import { storeProductApi } from '../../api/storeProductApi';
@@ -144,9 +145,16 @@ export default function SellerBulkScanUploadScreen() {
             )}
           </View>
           <View style={styles.pickRow}>
-            <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(true)}><Text style={styles.pickBtnText}>Take Photo</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(false)}><Text style={styles.pickBtnText}>Choose from Gallery</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(true)}>
+              <Camera size={15} color={CustomerColors.teal700} />
+              <Text style={styles.pickBtnText}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(false)}>
+              <ImageIcon size={15} color={CustomerColors.teal700} />
+              <Text style={styles.pickBtnText}>Choose from Gallery</Text>
+            </TouchableOpacity>
           </View>
+
           {step === 'scanning' && (
             <View style={styles.infoBanner}><RefreshCw size={16} color={CustomerColors.teal700} /><Text style={styles.infoBannerText}>Reading your list…</Text></View>
           )}
@@ -242,7 +250,8 @@ const styles = StyleSheet.create({
   dropImage: { width: '100%', height: 160, borderRadius: BorderRadius.md },
   dropTitle: { fontSize: FontSizes.sm, fontWeight: '600', color: '#374151', textAlign: 'center' },
   pickRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  pickBtn: { flex: 1, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingVertical: 10, alignItems: 'center' },
+  pickBtn: { flex: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingVertical: 10, alignItems: 'center' },
+
   pickBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: '#374151' },
   infoBanner: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#F0FDFA', borderWidth: 1, borderColor: '#99F6E4', borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.sm },
   infoBannerText: { color: CustomerColors.teal700, fontWeight: '700', fontSize: FontSizes.sm },

@@ -90,10 +90,15 @@ function groupByType(products: any[]) {
   }));
 }
 
+import { useAuth } from '../../context/AuthContext';
+
 export default function SellerProductsScreen() {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const { products, refresh, loading } = useSellerDashboard();
   const [search, setSearch] = useState('');
+
+  const isWholesaler = user?.role === 'whole_saler' || user?.role === 'wholesaler';
 
   const filtered = useMemo(
     () => products.filter((p: any) => !search || p.title.toLowerCase().includes(search.toLowerCase()) || (p.brand || '').toLowerCase().includes(search.toLowerCase())),
@@ -109,7 +114,7 @@ export default function SellerProductsScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search products…"
+            placeholder={isWholesaler ? 'Search wholesale catalog…' : 'Search artisan products…'}
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
           />
@@ -128,8 +133,11 @@ export default function SellerProductsScreen() {
       </View>
       <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('SellerProductForm', {})}>
         <Plus size={15} color="#fff" />
-        <Text style={styles.addBtnText}>Add Product</Text>
+        <Text style={styles.addBtnText}>
+          {isWholesaler ? 'Add Wholesale Product' : 'Add Home Product'}
+        </Text>
       </TouchableOpacity>
+
 
       <FlatList
         data={productTypes}

@@ -47,7 +47,9 @@ import StoreOrdersScreen from '../screens/store/StoreOrdersScreen';
 import StoreOffersScreen from '../screens/store/StoreOffersScreen';
 import StoreSettingsScreen from '../screens/store/StoreSettingsScreen';
 import StoreMoreScreen from '../screens/store/StoreMoreScreen';
+import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
 import NewOfferScreen from '../screens/store/NewOfferScreen';
+
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
 import PhonePeWebViewScreen from '../screens/customer/PhonePeWebViewScreen';
@@ -92,11 +94,13 @@ export type StoreOwnerTabParamList = {
 
 export type StoreOwnerStackParamList = {
   StoreOwnerTabs: undefined;
+  StoreDeliveries: undefined;
   StoreOwnerCategories: undefined;
   Suppliers: { initialView?: 'browse' | 'orders' } | undefined;
   StoreOwnerCustomers: undefined;
   StoreSettings: undefined;
   NewOffer: undefined;
+
   ProductForm: {
     product?: any;
     scanned?: any;
@@ -465,6 +469,11 @@ export default function StoreOwnerNavigator() {
         <DashboardGate>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="StoreOwnerTabs" component={StoreOwnerTabs} />
+            <Stack.Screen
+              name="StoreDeliveries"
+              component={StoreDeliveriesScreen}
+              options={{ headerShown: true, title: 'Deliveries Log' }}
+            />
             {/* Moved off the bottom bar into the "More" tab — same screens,
               now reached one level deeper with their own header + back
               button instead of competing for space on the tab bar. */}
@@ -473,6 +482,7 @@ export default function StoreOwnerNavigator() {
               component={StoreCategoriesScreen}
               options={{ headerShown: true, title: 'Categories' }}
             />
+
             <Stack.Screen
               name="Suppliers"
               component={StoreSuppliersScreen}

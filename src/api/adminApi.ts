@@ -24,3 +24,8 @@ export const adminProductApi = {
   update: (id: string, formData: FormData) => legacyProductClient.put(`/admin/products/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   delete: (id: string) => legacyProductClient.delete(`/admin/products/${id}`),
 };
+
+export const adminStatsApi = {
+  getDashboardStats: () => legacyProductClient.get(`/admin/stats?t=${Date.now()}`),
+};
+

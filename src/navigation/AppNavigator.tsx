@@ -7,10 +7,16 @@ import { useAuth } from '../context/AuthContext';
 
 import CustomerNavigator from './CustomerNavigator';
 import StoreOwnerNavigator from './StoreOwnerNavigator';
+import WholesalerNavigator from './WholesalerNavigator';
+import HomeBusinessNavigator from './HomeBusinessNavigator';
 import SellerNavigator from './SellerNavigator';
 import AdminNavigator from './AdminNavigator';
 
+
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
+import BusinessLoginScreen from '../screens/auth/BusinessLoginScreen';
+import BusinessSignupScreen from '../screens/auth/BusinessSignupScreen';
+import AdminLoginScreen from '../screens/auth/AdminLoginScreen';
 import GoogleAuthWebViewScreen from '../screens/auth/GoogleAuthWebViewScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
@@ -25,14 +31,19 @@ export type RootStackParamList = {
   RoleGate: undefined;
 
   LoginRegister: undefined;
-  GoogleAuthWebView: undefined;
+  BusinessLogin: undefined;
+  BusinessSignup: undefined;
+  AdminLogin: undefined;
+  GoogleAuthWebView: { role?: string } | undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;
+
 
   VerifyEmail: undefined;
   VerifyEmailToken: { token?: string } | undefined;
   StoreRegister: undefined;
 };
+
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -69,15 +80,20 @@ function RoleGate() {
       return <StoreOwnerNavigator key={navigatorKey} />;
 
     case 'whole_saler':
+    case 'wholesaler':
+      console.log('ROLE GATE -> WHOLESALER');
+      return <WholesalerNavigator key={navigatorKey} />;
+
     case 'home_business':
-      console.log('ROLE GATE -> SELLER');
-      return <SellerNavigator key={navigatorKey} />;
+      console.log('ROLE GATE -> HOME BUSINESS');
+      return <HomeBusinessNavigator key={navigatorKey} />;
 
     case 'user':
     default:
       console.log('ROLE GATE -> CUSTOMER');
       return <CustomerNavigator key={navigatorKey} />;
   }
+
 }
 
 export default function AppNavigator() {
@@ -113,9 +129,25 @@ export default function AppNavigator() {
         />
 
         <RootStack.Screen
+          name="BusinessLogin"
+          component={BusinessLoginScreen}
+        />
+
+        <RootStack.Screen
+          name="BusinessSignup"
+          component={BusinessSignupScreen}
+        />
+
+        <RootStack.Screen
+          name="AdminLogin"
+          component={AdminLoginScreen}
+        />
+
+        <RootStack.Screen
           name="GoogleAuthWebView"
           component={GoogleAuthWebViewScreen}
         />
+
 
         <RootStack.Screen
           name="ForgotPassword"

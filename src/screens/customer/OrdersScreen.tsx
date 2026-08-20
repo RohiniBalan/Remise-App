@@ -9,11 +9,15 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
-import { Search, PackageX, Star } from 'lucide-react-native';
+
+import { Search, PackageX, Star, FileText, Download } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { orderApi, OrderData } from '../../api/orderApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
+import InvoiceModal from '../../components/common/InvoiceModal';
 import {
   CustomerColors,
   Spacing,
@@ -22,13 +26,6 @@ import {
 } from '../../styles/theme';
 import CustomerHeader from '../../components/home/CustomerHeader';
 
-// Ported from client/app/orders/page.tsx — same flatten-items-per-order
-// display model, same "Order Date + 5 days" estimated delivery, same
-// status → UI mapping (getStatusUI), same search-by-title filter and
-// status checkbox filters (reproduced as filter chips on mobile instead of
-// a sidebar). "Order Time" filters on web are present in the UI but never
-// actually wired to any filtering logic — not reproduced here since there's
-// nothing to port (decorative dead code on web).
 const STATUS_FILTERS = [
   'On the way',
   'Delivered',
@@ -38,6 +35,10 @@ const STATUS_FILTERS = [
 
 interface DisplayItem {
   key: string;
+  orderId: string;
+  paymentStatus: string;
+  paymentMethod?: string;
+  deliveryStatus?: string;
   title: string;
   price: number;
   quantity: number;
@@ -47,18 +48,36 @@ interface DisplayItem {
   deliveryDate: string;
 }
 
-function getStatusUI(status: string, orderDate: string, deliveryDate: string) {
-  if (status === 'Delivered')
+function getStatusUI(status: string, orderDate: string, deliveryDate: string, deliveryStatus?: string) {
+  if (status === 'Delivered' || deliveryStatus === 'Delivered')
     return {
       color: CustomerColors.success,
       text: `Delivered on ${deliveryDate}`,
       subText: 'Your item has been delivered.',
     };
-  if (status === 'Cancelled')
+  if (status === 'Cancelled' || deliveryStatus === 'Cancelled')
     return {
       color: CustomerColors.danger,
       text: `Cancelled on ${orderDate}`,
       subText: 'Your order was cancelled.',
+    };
+  if (deliveryStatus === 'Out for Delivery')
+    return {
+      color: '#4F46E5',
+      text: 'Out for Delivery',
+      subText: 'Delivery partner is on the way to your location.',
+    };
+  if (deliveryStatus === 'Picked Up')
+    return {
+      color: '#2563EB',
+      text: 'Picked Up from Store',
+      subText: 'Item collected, arriving soon.',
+    };
+  if (deliveryStatus === 'Accepted' || deliveryStatus === 'Assigned')
+    return {
+      color: CustomerColors.teal700,
+      text: 'Delivery Partner Assigned',
+      subText: 'A delivery partner is preparing your order pickup.',
     };
   if (status === 'Shipped')
     return {
@@ -73,6 +92,7 @@ function getStatusUI(status: string, orderDate: string, deliveryDate: string) {
   };
 }
 
+
 export default function OrdersScreen() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<OrderData[]>([]);
@@ -80,6 +100,7 @@ export default function OrdersScreen() {
   const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -148,6 +169,10 @@ export default function OrdersScreen() {
           });
         return {
           key: `${order.orderId}-${idx}`,
+          orderId: order.orderId,
+          paymentStatus: order.paymentStatus || 'PENDING',
+          paymentMethod: order.paymentMethod,
+          deliveryStatus: order.deliveryStatus,
           title: item.title,
           price: item.price,
           quantity: item.quantity,
@@ -156,9 +181,12 @@ export default function OrdersScreen() {
           orderDate: fmt(orderDateObj),
           deliveryDate: fmt(deliveryDateObj),
         };
+
+
       }),
     );
   }, [orders]);
+
 
   const toggleStatus = (status: string) =>
     setStatusFilters(prev =>
@@ -253,7 +281,9 @@ export default function OrdersScreen() {
             item.displayStatus,
             item.orderDate,
             item.deliveryDate,
+            item.deliveryStatus,
           );
+
           return (
             <View style={styles.orderCard}>
               <Image source={{ uri: item.image }} style={styles.orderImage} />
@@ -274,26 +304,66 @@ export default function OrdersScreen() {
                   <Text style={styles.statusText}>{statusUI.text}</Text>
                 </View>
                 <Text style={styles.statusSub}>{statusUI.subText}</Text>
-                {item.displayStatus === 'Delivered' && (
-                  <TouchableOpacity style={styles.reviewBtn}>
-                    <Star
-                      size={14}
-                      color={CustomerColors.teal700}
-                      fill={CustomerColors.teal700}
-                    />
-                    <Text style={styles.reviewBtnText}>
-                      Rate & Review Product
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                
+                <View style={styles.actionRow}>
+                  {(item.paymentStatus === 'SUCCESS' || item.paymentMethod === 'cod' || item.paymentMethod === 'cash') && (
+                    <View style={styles.invoiceRow}>
+                      <TouchableOpacity
+                        style={styles.invoiceBtn}
+                        onPress={() => setSelectedInvoiceOrderId(item.orderId)}
+                      >
+                        <FileText size={12} color={CustomerColors.teal700} />
+                        <Text style={styles.invoiceBtnText}>View Bill</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.pdfBtn}
+                        onPress={async () => {
+                          const url = smartOrderApi.getInvoicePdfUrl(item.orderId);
+                          try {
+                            await Linking.openURL(url);
+                          } catch {
+                            Alert.alert('Download', 'Could not open invoice download.');
+                          }
+                        }}
+                      >
+                        <Download size={11} color="#FFFFFF" />
+                        <Text style={styles.pdfBtnText}>PDF</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+
+                  {item.displayStatus === 'Delivered' && (
+                    <TouchableOpacity style={styles.reviewBtn}>
+                      <Star
+                        size={14}
+                        color={CustomerColors.teal700}
+                        fill={CustomerColors.teal700}
+                      />
+                      <Text style={styles.reviewBtnText}>
+                        Rate & Review Product
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
           );
         }}
       />
+
+      {selectedInvoiceOrderId ? (
+        <InvoiceModal
+          orderId={selectedInvoiceOrderId}
+          visible={!!selectedInvoiceOrderId}
+          onClose={() => setSelectedInvoiceOrderId(null)}
+        />
+      ) : null}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F3F6' },
@@ -407,4 +477,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: CustomerColors.teal700,
   },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  invoiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  invoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: CustomerColors.mint,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  invoiceBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: CustomerColors.teal700,
+  },
+  pdfBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: CustomerColors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  pdfBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
 });
+

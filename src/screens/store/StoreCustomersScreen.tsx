@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Search, Star, Users, Tag } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { buildCustomerInsights } from '../../utils/customerInsights';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import PaginationControl from '../../components/common/PaginationControl';
 
 // Ported from client/app/store/dashboard/page.tsx's CustomersTab — same
 // search (name/phone/email), same "Recurring only" toggle + count, same
@@ -15,6 +16,13 @@ export default function StoreCustomersScreen() {
   const { orders } = useStoreDashboard();
   const [search, setSearch] = useState('');
   const [onlyRecurring, setOnlyRecurring] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const ITEMS_PER_PAGE = 30;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, onlyRecurring]);
 
   const customers = useMemo(() => buildCustomerInsights(orders), [orders]);
   const recurringCount = customers.filter((c: any) => c.isRecurring).length;
@@ -25,6 +33,11 @@ export default function StoreCustomersScreen() {
     const matchRecurring = !onlyRecurring || c.isRecurring;
     return matchSearch && matchRecurring;
   });
+
+  const paginatedCustomers = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -45,7 +58,7 @@ export default function StoreCustomersScreen() {
       </TouchableOpacity>
 
       <FlatList
-        data={filtered}
+        data={paginatedCustomers}
         keyExtractor={c => c.key}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
@@ -54,7 +67,16 @@ export default function StoreCustomersScreen() {
             <Text style={styles.emptyTitle}>No customers found</Text>
           </View>
         }
+        ListFooterComponent={
+          <PaginationControl
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={setCurrentPage}
+          />
+        }
         renderItem={({ item: c }) => (
+
           <View style={styles.card}>
             <View style={styles.cardTop}>
               <View style={{ flex: 1 }}>

@@ -21,13 +21,14 @@ export interface StoredUser {
   name?: string;
   email: string;
   mobilenumber?: string;
-  role: 'user' | 'store_owner' | 'admin' | 'whole_saler' | 'home_business';
+  role: 'user' | 'customer' | 'store_owner' | 'admin' | 'whole_saler' | 'wholesaler' | 'home_business';
   isEmailVerified?: boolean;
   avatar?: string;
   dob?: string;
   gender?: string;
   profileData?: Record<string, unknown>;
 }
+
 
 async function getItem<T>(key: string): Promise<T | null> {
   const raw = await AsyncStorage.getItem(key);

@@ -1,25 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Share, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, HelpCircle, AlertCircle } from 'lucide-react-native';
+import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, HelpCircle, AlertCircle, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { scanBulkList, parseVoiceList } from '../../api/geminiScanApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
 import CustomerHeader from '../../components/home/CustomerHeader';
 
-// Ported from client/app/(root)/bulk-purchase/page.tsx — same manual
-// list-building model (name/quantity/checked per row, add/edit/delete/
-// check-off, clear all). Two web features differ from web:
-//   - "Scan Paper List" (web's POST /api/smart-bulk-scan) calls Gemini
-//     directly from this app instead (see geminiScanApi.ts's scanBulkList +
-//     endpoints.ts's GOOGLE_AI_API_KEY comment) since that route is a
-//     Next.js-only server endpoint with no mobile-reachable equivalent.
-//     The Tanglish/Tamil auto-translate-on-blur (POST /api/tanglish-translate)
-//     is still not ported — a much smaller, purely-cosmetic input assist.
-//   - Web's "Copy" (clipboard) + "Print" (browser print dialog) become one
-//     "Share List" button using RN's built-in Share API — a device share
-//     sheet covers both use cases without adding a new native dependency.
 let idCounter = 0;
 const uid = () => `item-${++idCounter}-${Date.now()}`;
 
@@ -28,9 +16,6 @@ interface BulkItem {
   name: string;
   quantity: string;
   checked: boolean;
-  // Set when a voice-parsed item's name/quantity was ambiguous — flagged
-  // for the customer to confirm/edit inline instead of silently dropping it
-  // or failing the whole request.
   needsClarification?: boolean;
 }
 
@@ -38,6 +23,7 @@ export default function BulkPurchaseScreen() {
   const navigation = useNavigation<any>();
   const [items, setItems] = useState<BulkItem[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const [voiceLang, setVoiceLang] = useState<VoiceLanguageOption>(VOICE_LANGUAGES[0]);
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceError, setVoiceError] = useState('');
@@ -55,7 +41,7 @@ export default function BulkPurchaseScreen() {
     try {
       await Share.share({ message: `Monthly / Bulk Purchase List\n\n${text}` });
     } catch {
-      // user cancelled the share sheet — nothing to do
+      // user cancelled
     }
   };
 
@@ -75,11 +61,6 @@ export default function BulkPurchaseScreen() {
     }
   };
 
-  // Speak-your-list: transcript → geminiScanApi.parseVoiceList (Gemini
-  // translates non-English speech and splits it into items in one call) →
-  // appended into the SAME `items` list `runScan` already feeds, so
-  // navigation into CompareStores/matchCart below is untouched. Ambiguous
-  // items are still added, just flagged for the customer to confirm.
   const handleVoiceResult = useCallback(async (text: string) => {
     setVoiceParsing(true);
     setVoiceError('');
@@ -99,33 +80,30 @@ export default function BulkPurchaseScreen() {
 
   const voice = useVoiceInput(handleVoiceResult);
 
-  const handleScanPress = () => {
-    Alert.alert('Scan Paper List', 'Take a photo of your shopping list, or choose one from your gallery.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Choose from Gallery',
-        onPress: async () => {
-          const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8 });
-          const asset = res.assets?.[0];
-          if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
-        },
-      },
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
-          const asset = res.assets?.[0];
-          if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
-          else if (res.errorMessage) Alert.alert('Camera unavailable', res.errorMessage);
-        },
-      },
-    ]);
+  const handleCameraScan = async () => {
+    setShowScanModal(false);
+    const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
+    const asset = res.assets?.[0];
+    if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
+    else if (res.errorMessage) Alert.alert('Camera unavailable', res.errorMessage);
   };
+
+  const handleGalleryScan = async () => {
+    setShowScanModal(false);
+    const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8 });
+    const asset = res.assets?.[0];
+    if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
+  };
+
 
   const handleCompare = () => {
     if (items.length === 0) return;
-    navigation.navigate('CompareStores', { items: items.map(it => ({ name: it.name, quantity: it.quantity })) });
+    navigation.navigate('CompareStores', {
+      items: items.map(it => ({ name: it.name, quantity: it.quantity })),
+      onSuccess: () => setItems([]),
+    });
   };
+
 
   const checkedCount = items.filter(i => i.checked).length;
 
@@ -136,10 +114,11 @@ export default function BulkPurchaseScreen() {
         <View style={styles.heroIcon}><ListChecks size={24} color={CustomerColors.teal600} /></View>
         <Text style={styles.heroTitle}>Monthly / Bulk Purchase</Text>
         <Text style={styles.heroSubtitle}>Build a shopping list, then compare nearby stores and place a smart order.</Text>
-        <TouchableOpacity style={styles.scanBtn} onPress={handleScanPress} disabled={scanning}>
+        <TouchableOpacity style={styles.scanBtn} onPress={() => setShowScanModal(true)} disabled={scanning}>
           {scanning ? <ActivityIndicator size="small" color="#fff" /> : <ScanLine size={15} color="#fff" />}
           <Text style={styles.scanBtnText}>{scanning ? 'Scanning…' : 'Scan Paper List'}</Text>
         </TouchableOpacity>
+
       </View>
 
       <View style={styles.voiceBox}>
@@ -237,6 +216,43 @@ export default function BulkPurchaseScreen() {
           </View>
         </>
       )}
+
+      {/* Camera & Scan Modal */}
+      <Modal visible={showScanModal} transparent animationType="fade" onRequestClose={() => setShowScanModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                <ScanLine size={20} color={CustomerColors.teal600} />
+                <Text style={styles.modalTitle}>Scan Purchase List</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowScanModal(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSub}>
+              Take a clear photo of your paper list or upload an existing photo.
+            </Text>
+
+            <TouchableOpacity style={styles.cameraActionBtn} onPress={handleCameraScan}>
+              <Camera size={18} color="#fff" />
+              <Text style={styles.cameraActionBtnText}>Take Photo with Camera</Text>
+            </TouchableOpacity>
+
+            <View style={styles.orDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.orText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity style={styles.galleryActionBtn} onPress={handleGalleryScan}>
+              <ImageIcon size={18} color={CustomerColors.teal700} />
+              <Text style={styles.galleryActionBtnText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -281,4 +297,17 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.md, backgroundColor: CustomerColors.bg, borderTopWidth: 1, borderTopColor: CustomerColors.steelBorder },
   compareBtn: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
   compareBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
+  modalCard: { width: '100%', maxWidth: 360, backgroundColor: '#fff', borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.md },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
+  modalSub: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
+  cameraActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.teal600, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  cameraActionBtnText: { color: '#fff', fontSize: FontSizes.sm, fontWeight: '700' },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  dividerLine: { flex: 1, height: 1, backgroundColor: CustomerColors.steelBorder },
+  orText: { fontSize: 11, color: CustomerColors.textSecondary, fontWeight: '600' },
+  galleryActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
+  galleryActionBtnText: { color: CustomerColors.teal700, fontSize: FontSizes.sm, fontWeight: '700' },
 });
+
