@@ -80,7 +80,7 @@ export const orderApi = {
     gatewayClient.get(`/api/orders/${orderId}/invoice`),
 
   getInvoicePdfUrl: (orderId: string) => {
-    const base = gatewayClient.defaults.baseURL || 'https://ecom.porulontech.com';
+    const base = gatewayClient.defaults.baseURL || 'https://remise.digital';
     return `${base}/api/orders/${orderId}/invoice/pdf`;
   },
 };

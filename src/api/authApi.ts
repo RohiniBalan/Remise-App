@@ -3,7 +3,7 @@ import { GATEWAY_URL } from './endpoints';
 
 // Ported 1:1 from client/app/login/page.tsx (API_URL = NEXT_PUBLIC_API_URL/api
 // — the gateway) and client/app/settings/page.tsx SecurityTab (change-password).
-const AUTH_SERVICE_URL = 'https://ecom.porulontech.com';
+const AUTH_SERVICE_URL = 'https://remise.digital';
 
 interface RegisterPayload {
   fullname: string;
@@ -19,18 +19,18 @@ export const authApi = {
   //   gatewayClient.post('/api/auth/login', { email, password }),
 
   login: async (email: string, password: string) => {
-  console.log('LOGIN URL:', `${GATEWAY_URL}/api/auth/login`);
-  console.log('LOGIN EMAIL:', email);
+    console.log('LOGIN URL:', `${GATEWAY_URL}/api/auth/login`);
+    console.log('LOGIN EMAIL:', email);
 
-  const response = await gatewayClient.post('/api/auth/login', {
-    email,
-    password,
-  });
+    const response = await gatewayClient.post('/api/auth/login', {
+      email,
+      password,
+    });
 
-  console.log('LOGIN RESPONSE:', response.status, response.data);
+    console.log('LOGIN RESPONSE:', response.status, response.data);
 
-  return response;
-},
+    return response;
+  },
 
   register: (payload: RegisterPayload) =>
     gatewayClient.post('/api/auth/register', payload),
