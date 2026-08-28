@@ -53,6 +53,7 @@ import NewOfferScreen from '../screens/store/NewOfferScreen';
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
 import PhonePeWebViewScreen from '../screens/customer/PhonePeWebViewScreen';
+import RazorpayWebViewScreen from '../screens/customer/RazorpayWebViewScreen';
 import PaymentStatusScreen from '../screens/customer/PaymentStatusScreen';
 import { CustomerColors } from '../styles/theme';
 import { useCart } from '../context/CartContext';
@@ -119,7 +120,8 @@ export type StoreOwnerStackParamList = {
   Cart: undefined;
   Checkout: undefined;
   PhonePeWebView: { payUrl: string };
-  PaymentStatus: { orderId: string };
+  RazorpayWebView: { options: any; orderId: string };
+  PaymentStatus: { orderId: string; status?: string };
   Settings: undefined;
   Profile: undefined;
   Notifications: undefined;
@@ -532,6 +534,11 @@ export default function StoreOwnerNavigator() {
               name="PhonePeWebView"
               component={PhonePeWebViewScreen}
               options={{ headerShown: true, title: 'PhonePe' }}
+            />
+            <Stack.Screen
+              name="RazorpayWebView"
+              component={RazorpayWebViewScreen}
+              options={{ headerShown: true, title: 'Razorpay Checkout', headerStyle: { backgroundColor: '#0a0a0a' }, headerTintColor: '#D4AF37' }}
             />
             <Stack.Screen
               name="PaymentStatus"

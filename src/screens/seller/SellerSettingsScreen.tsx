@@ -50,11 +50,17 @@ export default function SellerSettingsScreen() {
     state: store?.address?.state || '',
     pinCode: store?.address?.pinCode || '',
     targetRevenue: store?.targetRevenue ? String(store.targetRevenue) : '',
+    pan: store?.pan || store?.businessDetails?.pan || '',
+    gstin: store?.gstin || store?.businessDetails?.gstin || '',
+    legalBusinessName: store?.businessDetails?.legalBusinessName || '',
+    bankAccountNumber: store?.businessDetails?.bankAccount?.accountNumber || '',
+    bankIfsc: store?.businessDetails?.bankAccount?.ifscCode || '',
   });
   const [upiId, setUpiId] = useState(store?.upiId || '');
   const [fssai, setFssai] = useState(store?.fssai || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [onboardingRoute, setOnboardingRoute] = useState(false);
   const [error, setError] = useState('');
 
   const set = (k: keyof typeof form, v: string) =>
@@ -131,6 +137,8 @@ export default function SellerSettingsScreen() {
       fd.append('address[state]', form.state);
       fd.append('address[pinCode]', form.pinCode);
       fd.append('targetRevenue', form.targetRevenue);
+      fd.append('pan', form.pan.trim().toUpperCase());
+      fd.append('gstin', form.gstin.trim().toUpperCase());
       fd.append('upiId', upiId.trim());
       fd.append(
         'fssai',
@@ -144,6 +152,34 @@ export default function SellerSettingsScreen() {
       setError(err?.response?.data?.message || 'Failed to save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRazorpayOnboard = async () => {
+    setOnboardingRoute(true);
+    setError('');
+    try {
+      const res = await storeApi.onboardRazorpay({
+        legalBusinessName: form.legalBusinessName || store?.businessDetails?.legalBusinessName || form.name,
+        businessType: 'individual',
+        bankAccount: {
+          accountNumber: form.bankAccountNumber || store?.businessDetails?.bankAccount?.accountNumber,
+          ifscCode: form.bankIfsc || store?.businessDetails?.bankAccount?.ifscCode,
+          beneficiaryName: form.name,
+        },
+      });
+
+      if (res.data?.success) {
+        await refresh();
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        setError(res.data?.message || 'Failed to configure Razorpay Route account.');
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to connect Razorpay Route.');
+    } finally {
+      setOnboardingRoute(false);
     }
   };
 
@@ -221,6 +257,23 @@ export default function SellerSettingsScreen() {
         )}
 
         <Field
+          label="PAN Number * (Mandatory)"
+          value={form.pan}
+          onChangeText={(v: string) => set('pan', v.toUpperCase())}
+          placeholder="e.g. ABCDE1234F"
+          maxLength={10}
+          autoCapitalize="characters"
+        />
+        <Field
+          label="GSTIN Number (Optional)"
+          value={form.gstin}
+          onChangeText={(v: string) => set('gstin', v.toUpperCase())}
+          placeholder="e.g. 22AAAAA0000A1Z5"
+          maxLength={15}
+          autoCapitalize="characters"
+        />
+
+        <Field
           label="Street"
           value={form.street}
           onChangeText={(t: string) => set('street', t)}
@@ -286,6 +339,81 @@ export default function SellerSettingsScreen() {
             </Text>
           </View>
         </View>
+
+        <View style={styles.divider} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
+          <Text style={styles.sectionLabel}>Razorpay Route Payments</Text>
+          <View style={[
+            styles.routeBadge,
+            store?.razorpayAccountId
+              ? store?.razorpayRouteStatus === 'active'
+                ? styles.routeBadgeActive
+                : styles.routeBadgePending
+              : styles.routeBadgeNone
+          ]}>
+            <Text style={[
+              styles.routeBadgeText,
+              store?.razorpayAccountId
+                ? store?.razorpayRouteStatus === 'active'
+                  ? styles.routeBadgeTextActive
+                  : styles.routeBadgeTextPending
+                : styles.routeBadgeTextNone
+            ]}>
+              {store?.razorpayAccountId
+                ? `ROUTE: ${store?.razorpayRouteStatus?.toUpperCase() || 'CONNECTED'}`
+                : 'ROUTE: NOT CONNECTED'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.sectionHint}>
+          Connect your Razorpay Linked Account to automatically receive customer payments directly into your bank account.
+        </Text>
+
+        {store?.razorpayAccountId ? (
+          <View style={styles.routeInfoBox}>
+            <Text style={styles.routeInfoText}>
+              <Text style={{ fontWeight: '700' }}>Account ID: </Text>{store.razorpayAccountId}
+            </Text>
+            <Text style={styles.routeInfoText}>
+              <Text style={{ fontWeight: '700' }}>Platform Commission: </Text>{store.commissionPercentage ?? 10}%
+            </Text>
+          </View>
+        ) : null}
+
+        <Field
+          label="Legal Business / Entity Name"
+          value={form.legalBusinessName}
+          onChangeText={(t: string) => set('legalBusinessName', t)}
+          placeholder="e.g. John Doe Enterprises"
+        />
+        <Field
+          label="Bank Account Number"
+          value={form.bankAccountNumber}
+          onChangeText={(t: string) => set('bankAccountNumber', t)}
+          placeholder="Account Number"
+          keyboardType="numeric"
+        />
+        <Field
+          label="Bank IFSC Code"
+          value={form.bankIfsc}
+          onChangeText={(t: string) => set('bankIfsc', t.toUpperCase())}
+          placeholder="e.g. HDFC0001234"
+          autoCapitalize="characters"
+        />
+
+        <TouchableOpacity
+          style={styles.routeBtn}
+          disabled={onboardingRoute}
+          onPress={handleRazorpayOnboard}
+        >
+          {onboardingRoute ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.routeBtnText}>
+              {store?.razorpayAccountId ? 'Sync / Update Razorpay Account' : 'Connect with Razorpay Route'}
+            </Text>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.saveRow}>
           <TouchableOpacity
@@ -558,10 +686,69 @@ modalItemTextActive: {
   color: CustomerColors.teal700,
   fontWeight: '700',
 },
-modalEmpty: {
-  textAlign: 'center',
-  color: '#9CA3AF',
-  fontSize: FontSizes.sm,
-  paddingVertical: Spacing.lg,
-},
+  modalEmpty: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: FontSizes.sm,
+    paddingVertical: Spacing.lg,
+  },
+  routeBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+  },
+  routeBadgeActive: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  routeBadgePending: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  routeBadgeNone: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  routeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  routeBadgeTextActive: {
+    color: '#15803D',
+  },
+  routeBadgeTextPending: {
+    color: '#B45309',
+  },
+  routeBadgeTextNone: {
+    color: '#6B7280',
+  },
+  routeInfoBox: {
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    gap: 2,
+  },
+  routeInfoText: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.teal700,
+  },
+  routeBtn: {
+    backgroundColor: CustomerColors.teal700,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  routeBtnText: {
+    color: '#fff',
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+  },
 });

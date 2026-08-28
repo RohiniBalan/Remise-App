@@ -12,6 +12,7 @@ import { storeProductApi } from '../../api/storeProductApi';
 import { sellerAiApi } from '../../api/sellerApi';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { requestCameraPermission } from '../../utils/permissions';
 import { mergeCategories } from '../../utils/storeCategories';
 
 // Ported from client/app/store/seller/page.tsx's SellerProductModal.
@@ -102,6 +103,10 @@ export default function SellerProductFormScreen() {
   const voice = useVoiceInput(handleVoiceResult);
 
   const pickImage = async (fromCamera: boolean) => {
+    if (fromCamera) {
+      const granted = await requestCameraPermission();
+      if (!granted) return;
+    }
     const res = fromCamera
       ? await launchCamera({ mediaType: 'photo', quality: 0.8 })
       : await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });

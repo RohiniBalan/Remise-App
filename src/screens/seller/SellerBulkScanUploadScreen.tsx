@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { sellerAiApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { requestCameraPermission } from '../../utils/permissions';
 
 // Ported from client/app/store/seller/page.tsx's SellerBulkSmartUploadModal
 // + its shared createOneSellerProduct helper (reimplemented as
@@ -57,6 +58,10 @@ export default function SellerBulkScanUploadScreen() {
   };
 
   const pickImage = async (fromCamera: boolean) => {
+    if (fromCamera) {
+      const granted = await requestCameraPermission();
+      if (!granted) return;
+    }
     const res = fromCamera
       ? await launchCamera({ mediaType: 'photo', quality: 0.8 })
       : await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });

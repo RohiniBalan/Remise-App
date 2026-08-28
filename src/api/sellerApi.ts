@@ -26,9 +26,21 @@ export interface SellerOrder {
   buyerRole?: string;
   contactEmail?: string;
   totalAmount: number;
-  paymentStatus: string; // "PENDING" | "PAID" | "FAILED"
+  paymentMethod?: string;
+  paymentStatus: string; // "PENDING" | "PAID" | "SUCCESS" | "FAILED"
   orderStatus: string; // "Processing" | "Shipped" | "Delivered" | "Cancelled"
   createdAt: string;
+  vendorTransfers?: {
+    storeId: string;
+    storeName?: string;
+    razorpayAccountId?: string;
+    grossAmount: number;
+    commissionAmount: number;
+    vendorAmount: number;
+    transferStatus: string;
+    processedAt?: string;
+    failureReason?: string;
+  }[];
   items: {
     productId: string;
     title: string;

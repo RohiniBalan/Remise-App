@@ -11,6 +11,7 @@ import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
 import PhonePeWebViewScreen from '../screens/customer/PhonePeWebViewScreen';
+import RazorpayWebViewScreen from '../screens/customer/RazorpayWebViewScreen';
 import PaymentStatusScreen from '../screens/customer/PaymentStatusScreen';
 import OrdersScreen from '../screens/customer/OrdersScreen';
 import SettingsScreen from '../screens/customer/SettingsScreen';
@@ -44,14 +45,15 @@ export type CustomerStackParamList = {
   Cart: undefined;
   Checkout: undefined;
   PhonePeWebView: { payUrl: string };
-  PaymentStatus: { orderId: string };
+  RazorpayWebView: { options: any; orderId: string };
+  PaymentStatus: { orderId: string; status?: string };
   Settings: undefined;
   Profile: undefined;
   About: undefined;
   Services: undefined;
   Testimonials: undefined;
   StoreRegister: undefined;
-  CompareStores: { items: SmartOrderCartItem[]; onSuccess?: () => void };
+  CompareStores: { items: SmartOrderCartItem[]; purchaseType?: 'bulk' | 'home_seller'; onSuccess?: () => void };
 
   Notifications: undefined;
   Suppliers: undefined;
@@ -100,6 +102,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, title: 'Your Cart' }} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true }} />
       <Stack.Screen name="PhonePeWebView" component={PhonePeWebViewScreen} options={{ headerShown: true, title: 'PhonePe' }} />
+      <Stack.Screen name="RazorpayWebView" component={RazorpayWebViewScreen} options={{ headerShown: true, title: 'Razorpay Checkout', headerStyle: { backgroundColor: '#0a0a0a' }, headerTintColor: '#D4AF37' }} />
       <Stack.Screen name="PaymentStatus" component={PaymentStatusScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />

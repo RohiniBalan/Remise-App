@@ -35,8 +35,8 @@ export interface StoreResult {
 }
 
 export const smartOrderApi = {
-  getNearbyStores: (lat: number, lng: number, radius = 10) =>
-    gatewayClient.get('/api/stores/nearby', { params: { lat, lng, radius } }),
+  getNearbyStores: (lat: number, lng: number, radius = 10, storeType?: string) =>
+    gatewayClient.get('/api/stores/nearby', { params: { lat, lng, radius, storeType } }),
 
   // Orders placed against a store via Smart Order Comparison (order-service),
   // for StoreDashboardContext to merge alongside OfferOrder-based orders.
@@ -59,7 +59,7 @@ export const smartOrderApi = {
     storeId: string;
     storeName: string;
     deliveryMethod: 'pickup' | 'delivery';
-    paymentMethod: 'cod' | 'qr';
+    paymentMethod: 'cod' | 'qr' | 'razorpay';
   }) =>
     gatewayClient.post('/api/payment/initiate', {
       ...payload,
@@ -71,10 +71,13 @@ export const smartOrderApi = {
       redirectUrl: 'https://payment-return.remise-app.internal/my-orders',
     }),
 
-  confirmQrPayment: (orderId: string, screenshotUri?: string | null) => {
+  confirmQrPayment: (orderId: string, screenshotUri?: string | null, utr?: string | null) => {
     const fd = new FormData();
     if (screenshotUri) {
       fd.append('screenshot', { uri: screenshotUri, name: 'payment-screenshot.jpg', type: 'image/jpeg' } as any);
+    }
+    if (utr) {
+      fd.append('utr', utr);
     }
     return gatewayClient.patch(`/api/orders/${orderId}/confirm-payment`, fd);
   },

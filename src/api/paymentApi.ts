@@ -1,19 +1,5 @@
-import { legacyMonolithClient } from './client';
+import { gatewayClient } from './client';
 
-// Ported from client/app/checkout/page.tsx and client/app/payment-status/page.tsx
-// — both hardcode LEGACY_MONOLITH_URL (http://localhost:5000) rather than
-// using NEXT_PUBLIC_API_URL, mirrored here rather than "fixed" per the
-// plan's backend-mapping rule.
-//
-// Web's `redirectUrl` is `${window.location.origin}/payment-status` — the
-// PhonePe-hosted checkout page redirects the *browser* back there after
-// payment. Mobile has no "origin" of its own for PhonePe to redirect a
-// WebView to, so it sends a sentinel URL instead
-// (PAYMENT_RETURN_SENTINEL) and PhonePeWebViewScreen watches WebView
-// navigation for that sentinel — same zero-backend-change interception
-// pattern as GoogleAuthWebViewScreen. For 'cod' the backend never actually
-// redirects anywhere (it returns `${redirectUrl}?orderId=...` directly,
-// already carrying the order id), so no WebView is needed for that path.
 export const PAYMENT_RETURN_HOST = 'payment-return.remise-app.internal';
 export const PAYMENT_RETURN_SENTINEL = `https://${PAYMENT_RETURN_HOST}/return`;
 
@@ -36,6 +22,7 @@ export interface CheckoutCartItem {
   quantity: number;
   image?: string | null;
   totalStock?: number;
+  storeId?: string | null;
 }
 
 export interface InitiatePaymentPayload {
@@ -46,23 +33,39 @@ export interface InitiatePaymentPayload {
   contactEmail: string;
   shippingAddress: AddressData;
   billingAddress: AddressData;
-  paymentMethod: 'phonepe' | 'cod';
+  paymentMethod: 'cashfree' | 'razorpay' | 'cod' | 'phonepe' | 'qr' | 'online';
 }
 
-// export const paymentApi = {
-//   initiate: (payload: InitiatePaymentPayload) => legacyMonolithClient.post('/api/payment/initiate', payload),
-//   getStatus: (orderId: string) => legacyMonolithClient.get(`/api/payment/status/${orderId}`),
-// };
+export interface VerifyPaymentPayload {
+  orderId: string;
+  paymentSessionId?: string;
+  cashfree_order_id?: string;
+  cf_payment_id?: string;
+  razorpay_payment_id?: string;
+  razorpay_order_id?: string;
+  razorpay_signature?: string;
+}
 
 export const paymentApi = {
+  createOrder: (payload: InitiatePaymentPayload) =>
+    gatewayClient.post('/api/payment/create-order', payload),
+
   initiate: (payload: InitiatePaymentPayload) =>
-    legacyMonolithClient.post('/payment/initiate', payload),
+    gatewayClient.post('/api/payment/create-order', payload),
+
+  verify: (payload: VerifyPaymentPayload) =>
+    gatewayClient.post('/api/payment/verify', payload),
 
   getStatus: (orderId: string) =>
-    legacyMonolithClient.get(`/payment/status/${orderId}`),
+    gatewayClient.get(`/api/payment/status/${orderId}`),
+
+  cancel: (orderId: string, reason?: string) =>
+    gatewayClient.post('/api/payment/cancel', { orderId, reason }),
 };
+
 
 export function extractOrderId(url: string): string {
   const match = url.match(/orderId=([^&]+)/);
   return match ? match[1] : '';
 }
+

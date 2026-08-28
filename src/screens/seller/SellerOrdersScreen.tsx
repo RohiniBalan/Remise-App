@@ -95,6 +95,46 @@ export default function SellerOrdersScreen() {
                     <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
                       <Text style={[styles.statusBadgeText, { color: st.fg }]}>{o.orderStatus}</Text>
                     </View>
+                    <View style={[
+                      styles.statusBadge,
+                      o.paymentStatus === 'SUCCESS'
+                        ? { backgroundColor: '#F0FDF4' }
+                        : o.paymentStatus === 'FAILED'
+                          ? { backgroundColor: '#FEF2F2' }
+                          : { backgroundColor: '#FFFBEB' }
+                    ]}>
+                      <Text style={[
+                        styles.statusBadgeText,
+                        o.paymentStatus === 'SUCCESS'
+                          ? { color: '#15803D' }
+                          : o.paymentStatus === 'FAILED'
+                            ? { color: '#DC2626' }
+                            : { color: '#B45309' }
+                      ]}>
+                        Payment: {o.paymentStatus || 'PENDING'}
+                      </Text>
+                    </View>
+                    {o.vendorTransfers?.[0] ? (
+                      <View style={[
+                        styles.statusBadge,
+                        o.vendorTransfers[0].transferStatus === 'processed'
+                          ? { backgroundColor: '#F0FDFA' }
+                          : o.vendorTransfers[0].transferStatus === 'failed'
+                            ? { backgroundColor: '#FEF2F2' }
+                            : { backgroundColor: '#EFF6FF' }
+                      ]}>
+                        <Text style={[
+                          styles.statusBadgeText,
+                          o.vendorTransfers[0].transferStatus === 'processed'
+                            ? { color: '#0F766E' }
+                            : o.vendorTransfers[0].transferStatus === 'failed'
+                              ? { color: '#DC2626' }
+                              : { color: '#1D4ED8' }
+                        ]}>
+                          Route: {o.vendorTransfers[0].transferStatus.toUpperCase()}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                   {o.contactEmail ? <Text style={styles.email}>{o.contactEmail}</Text> : null}
                   {o.items?.map((it, i) => (
@@ -102,6 +142,14 @@ export default function SellerOrdersScreen() {
                       {it.quantity}× {it.title} {it.tierLabel ? `(${it.tierLabel})` : ''} — ₹{it.price}/unit
                     </Text>
                   ))}
+                  {o.vendorTransfers?.[0] ? (
+                    <View style={styles.settlementBox}>
+                      <Text style={styles.settlementText}>
+                        Settlement: <Text style={{ fontWeight: '800', color: CustomerColors.teal700 }}>₹{o.vendorTransfers[0].vendorAmount}</Text>
+                        <Text style={{ color: '#9CA3AF' }}> (Gross ₹{o.vendorTransfers[0].grossAmount} − Fee ₹{o.vendorTransfers[0].commissionAmount})</Text>
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text style={styles.date}>
                     {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -158,4 +206,6 @@ const styles = StyleSheet.create({
   statusPicker: { flexDirection: 'row', gap: 4, flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' },
   statusOption: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: '#F5F5F5' },
   statusOptionText: { fontSize: 10, fontWeight: '700', color: '#4B5563' },
+  settlementBox: { backgroundColor: '#F0FDFA', borderWidth: 1, borderColor: '#CCFBF1', borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 4, marginTop: 4, alignSelf: 'flex-start' },
+  settlementText: { fontSize: 10, color: CustomerColors.teal700 },
 });

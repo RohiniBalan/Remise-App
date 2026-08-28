@@ -71,7 +71,7 @@ export default function PaymentStatusScreen() {
           <View style={styles.center}>
             <ActivityIndicator size="large" color={GoldColors.gold} />
             <Text style={styles.title}>Verifying Payment</Text>
-            <Text style={styles.subtitle}>Please wait while we securely confirm your transaction with PhonePe.</Text>
+            <Text style={styles.subtitle}>Please wait while we securely confirm your transaction.</Text>
           </View>
         )}
 

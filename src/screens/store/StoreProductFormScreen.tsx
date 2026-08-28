@@ -12,6 +12,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { buildProductFormData, emptyProductForm, ProductFormFields } from '../../utils/productForm';
 import ProductFieldsForm from '../../components/store/ProductFieldsForm';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
+import { requestCameraPermission } from '../../utils/permissions';
 
 // Ported from client/app/store/dashboard/page.tsx's ProductModal — same
 // field set (title*/description/price*/discountedPrice/category/brand/
@@ -83,6 +84,8 @@ const isEdit = Boolean(product?._id);
       {
         text: 'Take Photo',
         onPress: async () => {
+          const granted = await requestCameraPermission();
+          if (!granted) return;
           const res = await launchCamera({ mediaType: 'photo', quality: 0.8 });
           const uri = res.assets?.[0]?.uri;
           if (uri) setImageUri(uri);

@@ -72,6 +72,8 @@ export default function StoreRegisterScreen() {
     phone: '',
     email: user?.email || '',
     category: 'Other',
+    pan: '',
+    gstin: '',
     street: '',
     city: '',
     state: '',
@@ -129,6 +131,22 @@ export default function StoreRegisterScreen() {
       setError('Please fill in all required fields.');
       return;
     }
+    if (!form.pan.trim()) {
+      setError('PAN number is mandatory.');
+      return;
+    }
+    const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!PAN_REGEX.test(form.pan.trim().toUpperCase())) {
+      setError('Please enter a valid 10-character PAN number (e.g. ABCDE1234F).');
+      return;
+    }
+    if (form.gstin.trim()) {
+      const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!GSTIN_REGEX.test(form.gstin.trim().toUpperCase())) {
+        setError('Please enter a valid 15-character GSTIN (e.g. 22AAAAA0000A1Z5).');
+        return;
+      }
+    }
     if (!form.latitude || !form.longitude) {
       setError('Store location is required.');
       return;
@@ -151,6 +169,10 @@ export default function StoreRegisterScreen() {
       fd.append('phone', form.phone);
       fd.append('email', form.email);
       fd.append('category', form.category);
+      fd.append('pan', form.pan.trim().toUpperCase());
+      if (form.gstin.trim()) {
+        fd.append('gstin', form.gstin.trim().toUpperCase());
+      }
       fd.append('latitude', form.latitude);
       fd.append('longitude', form.longitude);
       fd.append(
@@ -268,6 +290,29 @@ export default function StoreRegisterScreen() {
           value={form.description}
           onChangeText={v => set('description', v)}
           placeholder="Tell customers what you sell…"
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Tax & Business Verification</Text>
+        <Text style={styles.logoHint}>
+          Required for marketplace compliance and payouts.
+        </Text>
+        <Field
+          label="PAN Number * (Mandatory)"
+          value={form.pan}
+          onChangeText={v => set('pan', v.toUpperCase())}
+          placeholder="e.g. ABCDE1234F"
+          maxLength={10}
+          autoCapitalize="characters"
+        />
+        <Field
+          label="GSTIN Number (Optional)"
+          value={form.gstin}
+          onChangeText={v => set('gstin', v.toUpperCase())}
+          placeholder="e.g. 22AAAAA0000A1Z5"
+          maxLength={15}
+          autoCapitalize="characters"
         />
       </View>
 

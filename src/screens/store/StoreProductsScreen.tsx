@@ -7,6 +7,7 @@ import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { scanProductImage, scanBulkProducts, buildGeneratedImageUrl } from '../../api/geminiScanApi';
 import { emptyProductForm } from '../../utils/productForm';
+import { requestCameraPermission } from '../../utils/permissions';
 import { BulkProductRow } from './StoreBulkProductScanScreen';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { groupProductsByType } from '../../utils/groupProducts';
@@ -112,6 +113,8 @@ const productTypes = groupProductsByType(filtered);
   const handleCameraScan = async () => {
     const isSingle = scanModalType === 'single';
     setScanModalType(null);
+    const granted = await requestCameraPermission();
+    if (!granted) return;
     const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
     const asset = res.assets?.[0];
     if (asset?.base64) {

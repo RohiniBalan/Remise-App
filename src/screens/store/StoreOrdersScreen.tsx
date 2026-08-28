@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
-import { Search, Store, Truck, QrCode, Wallet, ShoppingBag, AlertCircle, FileText } from 'lucide-react-native';
+import { Search, Store, Truck, QrCode, Wallet, ShoppingBag, AlertCircle, FileText, CreditCard } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -136,9 +136,16 @@ export default function StoreOrdersScreen() {
                   <Text style={styles.metaChipText}>{o.deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}</Text>
                 </View>
                 <View style={styles.metaChip}>
-                  {o.paymentMethod === 'qr' ? <QrCode size={10} color="#6B7280" /> : <Wallet size={10} color="#6B7280" />}
-                  <Text style={styles.metaChipText}>{o.paymentMethod === 'qr' ? 'QR' : 'Cash'} · {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'}</Text>
+                  {o.paymentMethod === 'razorpay' ? <CreditCard size={10} color="#6B7280" /> : o.paymentMethod === 'qr' ? <QrCode size={10} color="#6B7280" /> : <Wallet size={10} color="#6B7280" />}
+                  <Text style={styles.metaChipText}>{o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR' : 'Cash'} · {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'}</Text>
                 </View>
+                {o.vendorTransfers?.[0] ? (
+                  <View style={[styles.metaChip, { backgroundColor: '#F0FDFA' }]}>
+                    <Text style={[styles.metaChipText, { color: CustomerColors.teal700, fontWeight: '700' }]}>
+                      Route: {o.vendorTransfers[0].transferStatus?.toUpperCase()} (Net ₹{o.vendorTransfers[0].vendorAmount})
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             )}
             <Text style={styles.orderDate}>

@@ -36,6 +36,7 @@ function normalizeSmartOrder(o: any) {
     paymentMethod: o.paymentMethod,
     paymentStatus: o.paymentStatus,
     deliveryStatus: o.deliveryStatus,
+    vendorTransfers: o.vendorTransfers || [],
     rawItems: items,
     _source: 'smartOrder' as const,
   };

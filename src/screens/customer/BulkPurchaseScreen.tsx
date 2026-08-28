@@ -6,6 +6,7 @@ import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, 
 import { scanBulkList, parseVoiceList } from '../../api/geminiScanApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
+import { requestCameraPermission } from '../../utils/permissions';
 import CustomerHeader from '../../components/home/CustomerHeader';
 
 let idCounter = 0;
@@ -82,6 +83,8 @@ export default function BulkPurchaseScreen() {
 
   const handleCameraScan = async () => {
     setShowScanModal(false);
+    const granted = await requestCameraPermission();
+    if (!granted) return;
     const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
     const asset = res.assets?.[0];
     if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
@@ -100,6 +103,7 @@ export default function BulkPurchaseScreen() {
     if (items.length === 0) return;
     navigation.navigate('CompareStores', {
       items: items.map(it => ({ name: it.name, quantity: it.quantity })),
+      purchaseType: 'bulk',
       onSuccess: () => setItems([]),
     });
   };
