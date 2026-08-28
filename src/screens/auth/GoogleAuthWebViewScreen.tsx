@@ -8,8 +8,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import {
-  WebView,
+import WebView, {
   WebViewNavigation,
 } from 'react-native-webview';
 
@@ -23,7 +22,7 @@ const USER_AGENT =
     : 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 
 /** Timeout in ms — if auth hasn't completed after this, show a retry UI. */
-const AUTH_TIMEOUT_MS = 30_000;
+const AUTH_TIMEOUT_MS = 120_000;
 
 /**
  * JavaScript injected into every page the WebView loads.
@@ -117,7 +116,7 @@ export default function GoogleAuthWebViewScreen() {
   const authUrl = authApi.getGoogleAuthUrl(role);
 
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [processingAuth, setProcessingAuth] = useState(false);
   const handledRef = useRef(false);
   const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,7 +128,7 @@ export default function GoogleAuthWebViewScreen() {
     timeoutRef.current = setTimeout(() => {
       if (!handledRef.current) {
         console.warn('[GoogleAuth] Timeout — auth did not complete in time.');
-        setLoading(false);
+        setProcessingAuth(false);
         setError(
           'Google sign-in is taking too long. Please check your internet connection and try again.',
         );
@@ -151,7 +150,7 @@ export default function GoogleAuthWebViewScreen() {
         handledRef.current = true;
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setError('Google authentication was cancelled or failed. Please try again.');
-        setLoading(false);
+        setProcessingAuth(false);
         return;
       }
 
@@ -164,7 +163,7 @@ export default function GoogleAuthWebViewScreen() {
       console.log('[GoogleAuth] Success URL detected:', url.substring(0, 120) + '…');
       handledRef.current = true;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setLoading(true);
+      setProcessingAuth(true);
 
       // Stop the WebView from continuing to load the (slow) frontend page
       if (webViewRef.current) {
@@ -186,7 +185,7 @@ export default function GoogleAuthWebViewScreen() {
         console.error('[GoogleAuth] Error storing login session:', err);
         handledRef.current = false;
         setError('Could not complete Google sign-in. Please try again.');
-        setLoading(false);
+        setProcessingAuth(false);
       }
     },
     [login, navigation],
@@ -256,7 +255,7 @@ export default function GoogleAuthWebViewScreen() {
       if (handledRef.current) return;
 
       console.error('[GoogleAuth] WebView error:', event.nativeEvent);
-      setLoading(false);
+      setProcessingAuth(false);
       setError(
         'Unable to connect to Google sign-in. Please check your internet connection and try again.',
       );
@@ -284,31 +283,22 @@ export default function GoogleAuthWebViewScreen() {
   );
 
   // ── Loading state handlers ──────────────────────────────────────────────
-  // Once handledRef.current is true (auth completed), we never let onLoadEnd
-  // set loading=false — that would briefly flash the WebView content before
-  // the navigation.reset() executes.
-  const handleLoadStart = useCallback(() => {
-    if (!handledRef.current) {
-      setLoading(true);
-    }
-  }, []);
-
-  const handleLoadEnd = useCallback(() => {
-    if (!handledRef.current) {
-      setLoading(false);
-    }
-  }, []);
+  // No-op: the WebView's own `startInLoadingState` + `renderLoading` handles
+  // showing a spinner during the very first page load. We deliberately do NOT
+  // show a full-screen overlay during Google's interactive auth flow — that
+  // was the bug (it blocked the password field). The `processingAuth` overlay
+  // only appears after we've intercepted the callback URL.
 
   // ── Retry handler ───────────────────────────────────────────────────────
   const handleRetry = useCallback(() => {
     handledRef.current = false;
     setError('');
-    setLoading(true);
+    setProcessingAuth(false);
     // Reset the timeout
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       if (!handledRef.current) {
-        setLoading(false);
+        setProcessingAuth(false);
         setError(
           'Google sign-in is taking too long. Please check your internet connection and try again.',
         );
@@ -342,8 +332,6 @@ export default function GoogleAuthWebViewScreen() {
         onNavigationStateChange={handleNavigationStateChange}
         onError={handleWebViewError}
         onHttpError={handleHttpError}
-        onLoadStart={handleLoadStart}
-        onLoadEnd={handleLoadEnd}
         startInLoadingState
         javaScriptEnabled
         domStorageEnabled
@@ -359,7 +347,7 @@ export default function GoogleAuthWebViewScreen() {
         )}
       />
 
-      {loading && (
+      {processingAuth && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={CustomerColors.primary} />
           <Text style={styles.loadingText}>Completing Google Sign-In...</Text>
