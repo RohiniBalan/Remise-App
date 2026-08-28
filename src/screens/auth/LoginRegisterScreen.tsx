@@ -18,16 +18,21 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { normalizeAuthErrorMessage, validateLoginForm, validateSignupForm } from '../../utils/authValidation';
 
 // Ported from client/app/login/page.tsx — single screen, login/register
-// toggle, same field set, validation rules, and role options as web.
-
-type RegisterRole = 'user' | 'store_owner' | 'whole_saler' | 'home_business';
+// toggle, same field set and validation rules as web.
+//
+// NOTE: visual design is unchanged from the original app screen (same
+// styles object, same light theme, same toggle/business section for both
+// login and register). The only functional change is on register: the
+// role picker (Customer/Store Owner/Wholesaler/Home Business) has been
+// removed and registration always sends role: 'user', matching web's
+// register page (which has no role picker and always registers as
+// customer).
 
 export default function LoginRegisterScreen() {
   const navigation = useNavigation<any>();
   const { login } = useAuth();
 
   const [isLogin, setIsLogin] = useState(true);
-  const [registerAs, setRegisterAs] = useState<RegisterRole>('user');
   const [fullname, setFullname] = useState('');
   const [mobilenumber, setMobilenumber] = useState('');
   const [email, setEmail] = useState('');
@@ -47,7 +52,6 @@ export default function LoginRegisterScreen() {
     setPassword('');
     setShowPassword(false);
     setFieldErrors({});
-    setRegisterAs('user');
   };
 
   // Mirrors web's validateForm: actually applies field errors and returns
@@ -71,24 +75,24 @@ export default function LoginRegisterScreen() {
     setSubmitting(true);
     try {
       if (isLogin) {
-  const res = await authApi.login(email.trim(), password);
+        const res = await authApi.login(email.trim(), password);
 
-  await login(
-    res.data.data,
-    res.data.data.token
-  );
+        await login(
+          res.data.data,
+          res.data.data.token
+        );
 
-  navigation.reset({
-    index: 0,
-    routes: [{ name: 'RoleGate' }],
-  });
-} else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'RoleGate' }],
+        });
+      } else {
         const res = await authApi.register({
           fullname: fullname.trim(),
           email: email.trim(),
           mobilenumber: mobilenumber.replace(/\D/g, ''),
           password,
-          role: registerAs,
+          role: 'user',
         });
         // Web logs the user in immediately on register success, then routes
         // to /verify-email — same order here (see AppNavigator's RootStack
@@ -110,31 +114,6 @@ export default function LoginRegisterScreen() {
         <Text style={styles.heading}>{isLogin ? 'Welcome back' : 'Create your account'}</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {!isLogin && (
-          <View style={styles.roleGrid}>
-            <TouchableOpacity
-              style={[styles.rolePill, registerAs === 'user' && styles.rolePillActive]}
-              onPress={() => setRegisterAs('user')}>
-              <Text style={[styles.rolePillText, registerAs === 'user' && styles.rolePillTextActive]}>🛍️ Customer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.rolePill, registerAs === 'store_owner' && styles.rolePillActive]}
-              onPress={() => setRegisterAs('store_owner')}>
-              <Text style={[styles.rolePillText, registerAs === 'store_owner' && styles.rolePillTextActive]}>🏪 Store Owner</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.rolePill, registerAs === 'whole_saler' && styles.rolePillActive]}
-              onPress={() => setRegisterAs('whole_saler')}>
-              <Text style={[styles.rolePillText, registerAs === 'whole_saler' && styles.rolePillTextActive]}>📦 Wholesaler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.rolePill, registerAs === 'home_business' && styles.rolePillActive]}
-              onPress={() => setRegisterAs('home_business')}>
-              <Text style={[styles.rolePillText, registerAs === 'home_business' && styles.rolePillTextActive]}>🏠 Home Business</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {!isLogin && (
           <>
@@ -215,13 +194,12 @@ export default function LoginRegisterScreen() {
           style={styles.googleButton}
           onPress={() =>
             navigation.navigate('GoogleAuthWebView', {
-              role: isLogin ? undefined : 'customer',
+              role: isLogin ? undefined : 'user',
             })
           }
         >
           <Text style={styles.googleButtonText}>Continue with Google</Text>
         </TouchableOpacity>
-
 
         <TouchableOpacity onPress={toggleMode} style={styles.toggleLink}>
           <Text style={styles.toggleLinkText}>
@@ -242,12 +220,12 @@ export default function LoginRegisterScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.adminLink}
             onPress={() => navigation.navigate('AdminLogin')}
           >
             <Text style={styles.adminLinkText}>Admin Portal Console →</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -261,11 +239,6 @@ const styles = StyleSheet.create({
   heading: { fontSize: FontSizes.md, fontWeight: '600', color: CustomerColors.black, textAlign: 'center', marginBottom: Spacing.lg },
   error: { color: CustomerColors.danger, backgroundColor: CustomerColors.dangerBg, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md, fontSize: FontSizes.sm },
   fieldError: { color: CustomerColors.danger, fontSize: FontSizes.xs, marginTop: Spacing.xs, marginBottom: Spacing.sm },
-  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  rolePill: { width: '48%', paddingVertical: Spacing.md, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: CustomerColors.steelBorder, alignItems: 'center' },
-  rolePillActive: { backgroundColor: CustomerColors.mint, borderColor: CustomerColors.teal600 },
-  rolePillText: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, fontWeight: '600' },
-  rolePillTextActive: { color: CustomerColors.teal700 },
   label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.xs, marginTop: Spacing.sm },
   input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.base, color: CustomerColors.black },
   passwordRow: { flexDirection: 'row', alignItems: 'center' },

@@ -53,7 +53,7 @@ export default function BusinessLoginScreen() {
     } catch (err: any) {
       setError(
         normalizeAuthErrorMessage(err.response?.data?.message || err.message) ||
-          'Authentication failed. Please check your credentials.',
+        'Authentication failed. Please check your credentials.',
       );
     } finally {
       setSubmitting(false);
@@ -88,7 +88,7 @@ export default function BusinessLoginScreen() {
             <TextInput
               style={[styles.input, !!fieldErrors.email && styles.inputError]}
               placeholder="e.g. store@company.com"
-              placeholderTextColor="#6B7280"
+              placeholderTextColor={CustomerColors.textSecondary}
               value={email}
               onChangeText={text => {
                 setEmail(text);
@@ -118,7 +118,7 @@ export default function BusinessLoginScreen() {
                   !!fieldErrors.password && styles.inputError,
                 ]}
                 placeholder="Enter your password"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={CustomerColors.textSecondary}
                 value={password}
                 onChangeText={text => {
                   setPassword(text);
@@ -131,9 +131,9 @@ export default function BusinessLoginScreen() {
                 onPress={() => setShowPassword(prev => !prev)}
               >
                 {showPassword ? (
-                  <EyeOff size={18} color="#9CA3AF" />
+                  <EyeOff size={18} color={CustomerColors.textSecondary} />
                 ) : (
-                  <Eye size={18} color="#9CA3AF" />
+                  <Eye size={18} color={CustomerColors.textSecondary} />
                 )}
               </TouchableOpacity>
             </View>
@@ -189,13 +189,13 @@ export default function BusinessLoginScreen() {
           </TouchableOpacity>
 
           {/* Admin Login link */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.adminLinkBtn}
             onPress={() => navigation.navigate('AdminLogin')}
           >
-            <ShieldCheck size={14} color="#6B7280" />
+            <ShieldCheck size={14} color={CustomerColors.textSecondary} />
             <Text style={styles.adminLinkText}>Admin Portal →</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -205,7 +205,7 @@ export default function BusinessLoginScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: CustomerColors.bg,
   },
   container: {
     paddingHorizontal: Spacing.xl,
@@ -223,34 +223,34 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+    backgroundColor: 'rgba(255, 0, 0, 0.08)',
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255, 0, 0, 0.25)',
+    borderColor: 'rgba(255, 0, 0, 0.2)',
   },
   badgeText: {
     fontSize: FontSizes.xs,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#FF4D4D',
+    color: CustomerColors.primary,
   },
   heading: {
     fontSize: FontSizes.xxl,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: CustomerColors.black,
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
   subheading: {
     fontSize: FontSizes.sm,
-    color: '#94A3B8',
+    color: CustomerColors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     marginBottom: Spacing.xl,
   },
   errorText: {
-    color: '#F87171',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    color: CustomerColors.danger,
+    backgroundColor: CustomerColors.dangerBg,
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
@@ -274,32 +274,32 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: '#CBD5E1',
+    color: CustomerColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: Spacing.xs,
   },
   forgotText: {
     fontSize: FontSizes.xs,
-    color: '#FF4D4D',
+    color: CustomerColors.primary,
     fontWeight: '600',
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: CustomerColors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     fontSize: FontSizes.base,
-    color: '#FFFFFF',
+    color: CustomerColors.black,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: CustomerColors.danger,
   },
   fieldErrorText: {
     fontSize: FontSizes.xs,
-    color: '#F87171',
+    color: CustomerColors.danger,
     marginTop: 4,
     marginLeft: 4,
   },
@@ -338,9 +338,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   googleBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: CustomerColors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.lg,
     paddingVertical: 13,
     alignItems: 'center',
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   googleBtnText: {
-    color: '#FFFFFF',
+    color: CustomerColors.black,
     fontSize: FontSizes.base,
     fontWeight: '600',
   },
@@ -360,11 +360,11 @@ const styles = StyleSheet.create({
   },
 
   registerPrompt: {
-    color: '#94A3B8',
+    color: CustomerColors.textSecondary,
     fontSize: FontSizes.sm,
   },
   registerLink: {
-    color: '#FF4D4D',
+    color: CustomerColors.primary,
     fontSize: FontSizes.sm,
     fontWeight: '700',
   },
@@ -376,10 +376,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: CustomerColors.border,
   },
   dividerText: {
-    color: '#64748B',
+    color: CustomerColors.textSecondary,
     fontSize: FontSizes.xs,
     fontWeight: '700',
     marginHorizontal: Spacing.md,
@@ -392,12 +392,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: CustomerColors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: CustomerColors.steelBorder,
   },
   switchPortalText: {
-    color: '#E2E8F0',
+    color: CustomerColors.black,
     fontSize: FontSizes.xs + 1,
     fontWeight: '600',
   },
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   adminLinkText: {
-    color: '#64748B',
+    color: CustomerColors.textSecondary,
     fontSize: FontSizes.xs,
     fontWeight: '600',
   },

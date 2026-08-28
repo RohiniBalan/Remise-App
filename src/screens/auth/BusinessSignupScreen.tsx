@@ -93,7 +93,7 @@ export default function BusinessSignupScreen() {
     } catch (err: any) {
       setError(
         normalizeAuthErrorMessage(err.response?.data?.message || err.message) ||
-          'Registration failed. Please check your details.',
+        'Registration failed. Please check your details.',
       );
     } finally {
       setSubmitting(false);
@@ -109,7 +109,7 @@ export default function BusinessSignupScreen() {
         {/* Top Header Badge */}
         <View style={styles.badgeContainer}>
           <View style={styles.badge}>
-            <Briefcase size={16} color="#FF0000" />
+            <Briefcase size={16} color="#DC2626" />
             <Text style={styles.badgeText}>PARTNER ON REMISE</Text>
           </View>
         </View>
@@ -135,7 +135,7 @@ export default function BusinessSignupScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.roleIconBox, isSelected && styles.roleIconBoxActive]}>
-                  <Icon size={20} color={isSelected ? '#FF0000' : '#94A3B8'} />
+                  <Icon size={20} color={isSelected ? '#DC2626' : '#94A3B8'} />
                 </View>
                 <View style={styles.roleContent}>
                   <Text style={[styles.roleTitle, isSelected && styles.roleTitleActive]}>
@@ -145,7 +145,7 @@ export default function BusinessSignupScreen() {
                 </View>
                 {isSelected && (
                   <View style={styles.checkCircle}>
-                    <CheckCircle2 size={16} color="#FF0000" />
+                    <CheckCircle2 size={16} color="#DC2626" />
                   </View>
                 )}
               </TouchableOpacity>
@@ -161,7 +161,7 @@ export default function BusinessSignupScreen() {
             <TextInput
               style={[styles.input, !!fieldErrors.fullname && styles.inputError]}
               placeholder="e.g. John Doe / Green Supermarket"
-              placeholderTextColor="#6B7280"
+              placeholderTextColor="#9CA3AF"
               value={fullname}
               onChangeText={text => {
                 setFullname(text);
@@ -179,7 +179,7 @@ export default function BusinessSignupScreen() {
             <TextInput
               style={[styles.input, !!fieldErrors.email && styles.inputError]}
               placeholder="e.g. contact@business.com"
-              placeholderTextColor="#6B7280"
+              placeholderTextColor="#9CA3AF"
               value={email}
               onChangeText={text => {
                 setEmail(text);
@@ -199,7 +199,7 @@ export default function BusinessSignupScreen() {
             <TextInput
               style={[styles.input, !!fieldErrors.mobilenumber && styles.inputError]}
               placeholder="e.g. 9876543210"
-              placeholderTextColor="#6B7280"
+              placeholderTextColor="#9CA3AF"
               value={mobilenumber}
               onChangeText={text => {
                 setMobilenumber(text);
@@ -225,7 +225,7 @@ export default function BusinessSignupScreen() {
                   !!fieldErrors.password && styles.inputError,
                 ]}
                 placeholder="Create a strong password"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={text => {
                   setPassword(text);
@@ -238,9 +238,9 @@ export default function BusinessSignupScreen() {
                 onPress={() => setShowPassword(prev => !prev)}
               >
                 {showPassword ? (
-                  <EyeOff size={18} color="#9CA3AF" />
+                  <EyeOff size={18} color="#6B7280" />
                 ) : (
-                  <Eye size={18} color="#9CA3AF" />
+                  <Eye size={18} color="#6B7280" />
                 )}
               </TouchableOpacity>
             </View>
@@ -284,7 +284,7 @@ export default function BusinessSignupScreen() {
             style={styles.switchPortalBtn}
             onPress={() => navigation.navigate('LoginRegister')}
           >
-            <ShoppingBag size={16} color="#FF0000" />
+            <ShoppingBag size={16} color="#DC2626" />
             <Text style={styles.switchPortalText}>Want to shop instead? Customer Registration</Text>
           </TouchableOpacity>
         </View>
@@ -296,7 +296,7 @@ export default function BusinessSignupScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#F8FAFC',
   },
   container: {
     paddingHorizontal: Spacing.xl,
@@ -313,46 +313,46 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+    backgroundColor: 'rgba(220, 38, 38, 0.08)',
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255, 0, 0, 0.25)',
+    borderColor: 'rgba(220, 38, 38, 0.25)',
   },
   badgeText: {
     fontSize: FontSizes.xs,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#FF4D4D',
+    color: '#DC2626',
   },
   heading: {
     fontSize: FontSizes.xl + 2,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#0F172A',
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
   subheading: {
     fontSize: FontSizes.xs + 1,
-    color: '#94A3B8',
+    color: '#64748B',
     textAlign: 'center',
     marginTop: 4,
     marginBottom: Spacing.lg,
   },
   errorText: {
-    color: '#F87171',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    color: '#B91C1C',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
     textAlign: 'center',
     fontSize: FontSizes.sm,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
   },
   sectionLabel: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#64748B',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: Spacing.sm,
@@ -364,27 +364,28 @@ const styles = StyleSheet.create({
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#E2E8F0',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
   },
   roleCardActive: {
-    backgroundColor: 'rgba(255, 0, 0, 0.08)',
-    borderColor: '#FF0000',
+    backgroundColor: 'rgba(220, 38, 38, 0.05)',
+    borderColor: '#DC2626',
+    borderWidth: 1.5,
   },
   roleIconBox: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
   },
   roleIconBoxActive: {
-    backgroundColor: 'rgba(255, 0, 0, 0.15)',
+    backgroundColor: 'rgba(220, 38, 38, 0.12)',
   },
   roleContent: {
     flex: 1,
@@ -392,14 +393,14 @@ const styles = StyleSheet.create({
   roleTitle: {
     fontSize: FontSizes.base,
     fontWeight: '700',
-    color: '#E2E8F0',
+    color: '#334155',
   },
   roleTitleActive: {
-    color: '#FFFFFF',
+    color: '#0F172A',
   },
   roleDesc: {
     fontSize: FontSizes.xs,
-    color: '#94A3B8',
+    color: '#64748B',
     marginTop: 2,
   },
   checkCircle: {
@@ -414,27 +415,27 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: '#CBD5E1',
+    color: '#475569',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: Spacing.xs,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: '#CBD5E1',
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     fontSize: FontSizes.base,
-    color: '#FFFFFF',
+    color: '#0F172A',
   },
   inputError: {
     borderColor: '#EF4444',
   },
   fieldErrorText: {
     fontSize: FontSizes.xs,
-    color: '#F87171',
+    color: '#DC2626',
     marginTop: 4,
     marginLeft: 4,
   },
@@ -451,15 +452,15 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   submitBtn: {
-    backgroundColor: '#FF0000',
+    backgroundColor: '#DC2626',
     borderRadius: BorderRadius.lg,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.sm,
-    shadowColor: '#FF0000',
+    shadowColor: '#DC2626',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -473,9 +474,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   googleBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: '#CBD5E1',
     borderRadius: BorderRadius.lg,
     paddingVertical: 13,
     alignItems: 'center',
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   googleBtnText: {
-    color: '#FFFFFF',
+    color: '#0F172A',
     fontSize: FontSizes.base,
     fontWeight: '600',
   },
@@ -495,11 +496,11 @@ const styles = StyleSheet.create({
   },
 
   loginPrompt: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: FontSizes.sm,
   },
   loginLink: {
-    color: '#FF4D4D',
+    color: '#DC2626',
     fontSize: FontSizes.sm,
     fontWeight: '700',
   },
@@ -511,13 +512,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#E2E8F0',
     marginTop: Spacing.sm,
   },
   switchPortalText: {
-    color: '#E2E8F0',
+    color: '#334155',
     fontSize: FontSizes.xs + 1,
     fontWeight: '600',
   },
