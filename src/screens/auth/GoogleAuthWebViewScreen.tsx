@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import WebView, {
+import {
+  WebView,
   WebViewNavigation,
 } from 'react-native-webview';
 
@@ -118,7 +119,7 @@ export default function GoogleAuthWebViewScreen() {
   const [error, setError] = useState('');
   const [processingAuth, setProcessingAuth] = useState(false);
   const handledRef = useRef(false);
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<any>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Timeout safety net ──────────────────────────────────────────────────

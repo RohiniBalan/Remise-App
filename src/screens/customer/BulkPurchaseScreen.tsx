@@ -4,10 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, HelpCircle, AlertCircle, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { scanBulkList, parseVoiceList } from '../../api/geminiScanApi';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
 import { requestCameraPermission } from '../../utils/permissions';
-import CustomerHeader from '../../components/home/CustomerHeader';
+import BrandHeader from '../../components/common/BrandHeader';
 
 let idCounter = 0;
 const uid = () => `item-${++idCounter}-${Date.now()}`;
@@ -15,12 +16,14 @@ const uid = () => `item-${++idCounter}-${Date.now()}`;
 interface BulkItem {
   id: string;
   name: string;
+  brand: string;
   quantity: string;
   checked: boolean;
   needsClarification?: boolean;
 }
 
 export default function BulkPurchaseScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [items, setItems] = useState<BulkItem[]>([]);
   const [scanning, setScanning] = useState(false);
@@ -29,15 +32,15 @@ export default function BulkPurchaseScreen() {
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceError, setVoiceError] = useState('');
 
-  const addBlank = () => setItems(prev => [...prev, { id: uid(), name: '', quantity: '', checked: false }]);
-  const update = (id: string, field: 'name' | 'quantity', value: string) =>
+  const addBlank = () => setItems(prev => [...prev, { id: uid(), name: '', brand: '', quantity: '', checked: false }]);
+  const update = (id: string, field: 'name' | 'brand' | 'quantity', value: string) =>
     setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value, needsClarification: false } : i)));
   const toggleCheck = (id: string) => setItems(prev => prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i)));
   const remove = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
   const clearAll = () => setItems([]);
 
   const handleShare = async () => {
-    const text = items.map((it, i) => `${i + 1}. ${it.name}${it.quantity ? ` — ${it.quantity}` : ''}`).join('\n');
+    const text = items.map((it, i) => `${i + 1}. ${it.name}${it.brand ? ` (${it.brand})` : ''}${it.quantity ? ` — ${it.quantity}` : ''}`).join('\n');
     if (!text) return;
     try {
       await Share.share({ message: `Monthly / Bulk Purchase List\n\n${text}` });
@@ -54,7 +57,7 @@ export default function BulkPurchaseScreen() {
         Alert.alert('No items found', "Couldn't read any list items from that photo. Try a clearer photo or add items manually.");
         return;
       }
-      setItems(prev => [...prev, ...scanned.map(it => ({ id: uid(), name: it.name, quantity: it.quantity, checked: false }))]);
+      setItems(prev => [...prev, ...scanned.map(it => ({ id: uid(), name: it.name, brand: '', quantity: it.quantity, checked: false }))]);
     } catch (err: any) {
       Alert.alert('Scan failed', err?.message || 'Could not read the list from that photo. Try Add Item to enter it manually.');
     } finally {
@@ -71,7 +74,7 @@ export default function BulkPurchaseScreen() {
         Alert.alert('No items found', "Couldn't make out any items in that — try again or add items manually.");
         return;
       }
-      setItems(prev => [...prev, ...parsed.map(it => ({ id: uid(), name: it.name, quantity: it.quantity, checked: false, needsClarification: it.needsClarification }))]);
+      setItems(prev => [...prev, ...parsed.map(it => ({ id: uid(), name: it.name, brand: '', quantity: it.quantity, checked: false, needsClarification: it.needsClarification }))]);
     } catch (err: any) {
       setVoiceError(err?.message || 'Could not understand that.');
     } finally {
@@ -102,7 +105,7 @@ export default function BulkPurchaseScreen() {
   const handleCompare = () => {
     if (items.length === 0) return;
     navigation.navigate('CompareStores', {
-      items: items.map(it => ({ name: it.name, quantity: it.quantity })),
+      items: items.map(it => ({ name: it.name, brand: it.brand, quantity: it.quantity })),
       purchaseType: 'bulk',
       onSuccess: () => setItems([]),
     });
@@ -113,7 +116,7 @@ export default function BulkPurchaseScreen() {
 
   return (
     <View style={styles.container}>
-      <CustomerHeader />
+      <BrandHeader />
       <View style={styles.hero}>
         <View style={styles.heroIcon}><ListChecks size={24} color={CustomerColors.teal600} /></View>
         <Text style={styles.heroTitle}>Monthly / Bulk Purchase</Text>
@@ -189,24 +192,45 @@ export default function BulkPurchaseScreen() {
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
               <View style={[styles.row, item.checked && styles.rowChecked, item.needsClarification && styles.rowFlagged]}>
+                {/* Checkbox */}
                 <TouchableOpacity style={[styles.checkbox, item.checked && styles.checkboxChecked]} onPress={() => toggleCheck(item.id)}>
                   {item.checked && <Check size={11} color="#fff" strokeWidth={3} />}
                 </TouchableOpacity>
                 {item.needsClarification && <HelpCircle size={13} color="#D97706" />}
-                <TextInput
-                  style={styles.nameInput}
-                  value={item.name}
-                  onChangeText={v => update(item.id, 'name', v)}
-                  placeholder="Item name"
-                  placeholderTextColor="#D1D5DB"
-                />
-                <TextInput
-                  style={styles.qtyInput}
-                  value={item.quantity}
-                  onChangeText={v => update(item.id, 'quantity', v)}
-                  placeholder="e.g. 2 kg"
-                  placeholderTextColor="#D1D5DB"
-                />
+
+                {/* Fields column */}
+                <View style={styles.fieldsCol}>
+                  {/* Row 1: [Name + Brand column] + [Qty column] */}
+                  <View style={styles.nameQtyRow}>
+                    {/* Left: name on top, brand below */}
+                    <View style={styles.nameBrandCol}>
+                      <TextInput
+                        style={styles.nameInput}
+                        value={item.name}
+                        onChangeText={v => update(item.id, 'name', v)}
+                        placeholder="Item name"
+                        placeholderTextColor="#D1D5DB"
+                      />
+                      <TextInput
+                        style={styles.brandInput}
+                        value={item.brand}
+                        onChangeText={v => update(item.id, 'brand', v)}
+                        placeholder="Brand (optional)"
+                        placeholderTextColor="#D1D5DB"
+                      />
+                    </View>
+                    {/* Right: Qty */}
+                    <TextInput
+                      style={styles.qtyInput}
+                      value={item.quantity}
+                      onChangeText={v => update(item.id, 'quantity', v)}
+                      placeholder="Qty"
+                      placeholderTextColor="#D1D5DB"
+                    />
+                  </View>
+                </View>
+
+                {/* Delete */}
                 <TouchableOpacity onPress={() => remove(item.id)}><Trash2 size={15} color="#D1D5DB" /></TouchableOpacity>
               </View>
             )}
@@ -294,10 +318,14 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.sm, marginBottom: Spacing.xs },
   rowChecked: { opacity: 0.5 },
   rowFlagged: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
-  checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+  checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkboxChecked: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
+  fieldsCol: { flex: 1, gap: 4 },
+  nameQtyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xs },
+  nameBrandCol: { flex: 1, gap: 2 },
   nameInput: { flex: 1, fontSize: FontSizes.sm, fontWeight: '500', color: '#1F2937' },
-  qtyInput: { width: 80, fontSize: FontSizes.sm, color: CustomerColors.teal700, fontWeight: '600', textAlign: 'right' },
+  qtyInput: { width: 64, fontSize: FontSizes.sm, color: CustomerColors.teal700, fontWeight: '600', textAlign: 'right' },
+  brandInput: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, paddingVertical: 0 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.md, backgroundColor: CustomerColors.bg, borderTopWidth: 1, borderTopColor: CustomerColors.steelBorder },
   compareBtn: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
   compareBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },

@@ -18,6 +18,8 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { requireAuthForPurchase } from '../../utils/authGuard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BrandHeader from '../../components/common/BrandHeader';
 
 // Ported from client/app/components-main/CartDrawer.tsx — same qty +/-,
 // remove, subtotal, and the ₹499 free-delivery nudge, and "Proceed to
@@ -26,6 +28,7 @@ import { requireAuthForPurchase } from '../../utils/authGuard';
 const FREE_DELIVERY_THRESHOLD = 499;
 
 export default function CartScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
   const { cart, removeFromCart, decreaseQuantity, addToCart, setBuyNowItem } =
@@ -55,29 +58,33 @@ export default function CartScreen() {
 
   if (cart.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <ShoppingBag size={40} color={CustomerColors.textSecondary} />
-        <Text style={styles.emptyTitle}>Your cart is empty</Text>
-        <TouchableOpacity
-          style={styles.shopBtn}
-          onPress={() => {
-            if (user?.role === 'store_owner') {
-              navigation.navigate('Suppliers');
-            } else {
-              navigation.navigate('CustomerTabs', {
-                screen: 'Home',
-              });
-            }
-          }}
-        >
-          <Text style={styles.shopBtnText}>Start Shopping</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <BrandHeader />
+        <View style={styles.emptyContainer}>
+          <ShoppingBag size={40} color={CustomerColors.textSecondary} />
+          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+          <TouchableOpacity
+            style={styles.shopBtn}
+            onPress={() => {
+              if (user?.role === 'store_owner') {
+                navigation.navigate('Suppliers');
+              } else {
+                navigation.navigate('CustomerTabs', {
+                  screen: 'Home',
+                });
+              }
+            }}
+          >
+            <Text style={styles.shopBtnText}>Start Shopping</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <BrandHeader />
       {remainingForFreeDelivery > 0 ? (
         <View style={styles.nudge}>
           <Text style={styles.nudgeText}>

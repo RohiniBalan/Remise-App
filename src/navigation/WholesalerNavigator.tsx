@@ -219,6 +219,7 @@ function WholesalerHeaderRight() {
 }
 
 function WholesalerTabs() {
+  const { newOrderCount } = useSellerDashboard();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -259,6 +260,8 @@ function WholesalerTabs() {
         options={{
           title: 'Incoming Orders',
           tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
+          tabBarBadge: newOrderCount > 0 ? newOrderCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#FF0000' },
         }}
       />
       <Tab.Screen
@@ -272,6 +275,7 @@ function WholesalerTabs() {
     </Tab.Navigator>
   );
 }
+
 
 function WholesalerDashboardGate({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation<any>();

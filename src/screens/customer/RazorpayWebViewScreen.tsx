@@ -12,16 +12,21 @@ export default function RazorpayWebViewScreen() {
   const [verifying, setVerifying] = useState(false);
   const handledRef = useRef(false);
 
-  const paymentSessionId = options?.paymentSessionId || '';
-  const cashfreeOrderId = options?.cashfreeOrderId || options?.order_id || orderId;
+  // Razorpay Options
+  const razorpayKey = options?.key || options?.keyId || '';
+  const razorpayOrderId = options?.razorpayOrderId || options?.order_id || '';
+  const razorpayAmount = options?.amountPaise || Math.round((options?.amount || 0) * 100);
+  const customerName = options?.customer?.name || 'Customer';
+  const customerEmail = options?.customer?.email || '';
+  const customerContact = options?.customer?.contact || '';
 
-  // Real Cashfree JS SDK Checkout HTML (Loads Cashfree v3 SDK with paymentSessionId)
-  const htmlContent = `
+  // Razorpay Checkout HTML
+  const razorpayHtml = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body {
@@ -34,9 +39,7 @@ export default function RazorpayWebViewScreen() {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             text-align: center;
           }
-          .loader-box {
-            padding: 24px;
-          }
+          .loader-box { padding: 24px; }
           .spinner {
             border: 3px solid rgba(45, 212, 191, 0.2);
             border-top: 3px solid #2dd4bf;
@@ -57,46 +60,54 @@ export default function RazorpayWebViewScreen() {
       <body>
         <div class="loader-box">
           <div class="spinner"></div>
-          <h2>Launching Cashfree Checkout</h2>
-          <p>Connecting securely to Cashfree Easy Split...</p>
+          <h2>Launching Razorpay Checkout</h2>
+          <p>Connecting securely to Razorpay Gateway...</p>
         </div>
 
         <script>
           document.addEventListener("DOMContentLoaded", function() {
-            var sessionId = "${paymentSessionId}";
-            if (!sessionId) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'FAILED',
-                error: { description: 'Missing Cashfree payment session ID.' }
-              }));
-              return;
-            }
-
-            try {
-              var cashfree = Cashfree({ mode: "sandbox" });
-              cashfree.checkout({
-                paymentSessionId: sessionId,
-                redirectTarget: "_self"
-              }).then(function(result) {
-                if (result.error) {
+            var options = {
+              key: "${razorpayKey}",
+              amount: ${razorpayAmount},
+              currency: "${options?.currency || 'INR'}",
+              name: "${options?.name || 'Remise Marketplace'}",
+              description: "${options?.description || 'Marketplace Order'}",
+              order_id: "${razorpayOrderId}",
+              prefill: {
+                name: "${customerName}",
+                email: "${customerEmail}",
+                contact: "${customerContact}"
+              },
+              theme: {
+                color: "#0d9488"
+              },
+              modal: {
+                ondismiss: function() {
                   window.ReactNativeWebView.postMessage(JSON.stringify({
                     type: 'CANCELLED',
-                    error: result.error
+                    reason: 'user_closed_modal'
                   }));
                 }
-                if (result.paymentDetails || result.redirect) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'SUCCESS',
-                    paymentSessionId: sessionId,
-                    cashfreeOrderId: "${cashfreeOrderId}"
-                  }));
-                }
-              }).catch(function(err) {
+              },
+              handler: function(response) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'SUCCESS',
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature
+                }));
+              }
+            };
+
+            try {
+              var rzp = new Razorpay(options);
+              rzp.on('payment.failed', function(response) {
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'FAILED',
-                  error: { description: err.message || 'Checkout failed' }
+                  error: response.error
                 }));
               });
+              rzp.open();
             } catch(e) {
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'FAILED',
@@ -117,17 +128,19 @@ export default function RazorpayWebViewScreen() {
         handledRef.current = true;
         setVerifying(true);
         try {
-          const verifyRes = await paymentApi.verify({
+          const verifyPayload: any = {
             orderId,
-            paymentSessionId: data.paymentSessionId || paymentSessionId,
-            cashfree_order_id: data.cashfreeOrderId || cashfreeOrderId,
-            cf_payment_id: data.cf_payment_id,
-          });
+            razorpay_payment_id: data.razorpay_payment_id,
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_signature: data.razorpay_signature,
+          };
+
+          const verifyRes = await paymentApi.verify(verifyPayload);
 
           if (verifyRes.data?.success) {
             navigation.replace('PaymentStatus', { orderId, status: 'SUCCESS' });
           } else {
-            Alert.alert('Payment Verification Failed', verifyRes.data?.message || 'Order status is not paid in Cashfree');
+            Alert.alert('Payment Verification Failed', verifyRes.data?.message || 'Payment could not be verified');
             navigation.goBack();
           }
         } catch (err: any) {
@@ -141,7 +154,7 @@ export default function RazorpayWebViewScreen() {
       } else if (data.type === 'FAILED') {
         handledRef.current = true;
         paymentApi.cancel(orderId, 'app_webview_failed').catch(() => {});
-        Alert.alert('Payment Failed', data.error?.description || 'Transaction failed or was declined by Cashfree');
+        Alert.alert('Payment Failed', data.error?.description || 'Transaction failed or was declined');
         navigation.goBack();
       }
     } catch (e) {
@@ -152,7 +165,10 @@ export default function RazorpayWebViewScreen() {
   return (
     <View style={styles.container}>
       <WebView
-        source={{ html: htmlContent, baseUrl: 'https://sandbox.cashfree.com' }}
+        source={{
+          html: razorpayHtml,
+          baseUrl: 'https://checkout.razorpay.com',
+        }}
         onMessage={handleMessage}
         javaScriptEnabled
         domStorageEnabled

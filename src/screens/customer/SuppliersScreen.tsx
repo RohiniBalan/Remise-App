@@ -42,13 +42,14 @@ import {
   BorderRadius,
   Shadows,
 } from '../../styles/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { requireAuthForPurchase } from '../../utils/authGuard';
 import { mergeCategories } from '../../utils/storeCategories';
-import CustomerHeader from '../../components/home/CustomerHeader';
 
 const API_BASE = 'YOUR_API_BASE_URL';
 
 export default function SuppliersScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [view, setView] = useState<'browse' | 'orders'>('browse');
@@ -212,8 +213,7 @@ export default function SuppliersScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <CustomerHeader />
+    <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Buy from Suppliers</Text>
         <Text style={styles.headerSubtitle}>

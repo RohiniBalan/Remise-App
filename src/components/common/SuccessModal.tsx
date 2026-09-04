@@ -7,14 +7,15 @@ interface SuccessModalProps {
   visible: boolean;
   title: string;
   message?: string;
+  onClose?: () => void;
 }
 
 // Reusable success confirmation modal. Shows a checkmark + message,
 // no buttons — intended to auto-dismiss via a timeout in the caller
 // right before navigating away (see StoreRegisterScreen for the pattern).
-export default function SuccessModal({ visible, title, message }: SuccessModalProps) {
+export default function SuccessModal({ visible, title, message, onClose }: SuccessModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           <CheckCircle size={48} color={CustomerColors.teal600} />

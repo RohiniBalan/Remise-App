@@ -222,6 +222,7 @@ function HomeBusinessHeaderRight() {
 }
 
 function HomeBusinessTabs() {
+  const { newOrderCount } = useSellerDashboard();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -262,6 +263,8 @@ function HomeBusinessTabs() {
         options={{
           title: 'Incoming Orders',
           tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
+          tabBarBadge: newOrderCount > 0 ? newOrderCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#FF0000' },
         }}
       />
       <Tab.Screen
@@ -275,6 +278,7 @@ function HomeBusinessTabs() {
     </Tab.Navigator>
   );
 }
+
 
 function HomeBusinessDashboardGate({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation<any>();

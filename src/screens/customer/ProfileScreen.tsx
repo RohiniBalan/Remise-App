@@ -8,6 +8,8 @@ import {
   StyleSheet,
   Image,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -23,6 +25,8 @@ import {
   Store,
   Save,
   LogOut,
+  LogIn,
+  User,
   Eye,
   EyeOff,
   Plus,
@@ -30,6 +34,7 @@ import {
   Calendar,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/authApi';
 import {
@@ -46,6 +51,7 @@ import {
 } from '../../components/common/LocationSelectField';
 import { mergeCategories } from '../../utils/storeCategories';
 import { storeProductApi } from '../../api/storeProductApi';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabKey = 'overview' | 'addresses' | 'security' | 'store';
 
@@ -113,10 +119,13 @@ const formatDob = (iso: string) => {
 };
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { user, updateUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [form, setForm] = useState<{
     fullname: string;
     email: string;
@@ -305,8 +314,32 @@ export default function ProfileScreen() {
     }
   };
 
+  if (!user) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.guestContainer}>
+          <View style={styles.guestAvatar}>
+            <User size={42} color={CustomerColors.primary} />
+          </View>
+          <Text style={styles.guestTitle}>Welcome to REmise</Text>
+          <Text style={styles.guestSubtitle}>
+            Sign in to view your orders, saved addresses, wishlist, and manage your account.
+          </Text>
+          <TouchableOpacity
+            style={styles.guestLoginActionBtn}
+            onPress={() => navigation.navigate('LoginRegister')}
+            activeOpacity={0.85}
+          >
+            <LogIn size={18} color="#FFFFFF" />
+            <Text style={styles.guestLoginActionBtnText}>Sign In / Register</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={{
           padding: Spacing.lg,
@@ -349,6 +382,14 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             </View>
+            {/* Logout button inside avatar card */}
+            <TouchableOpacity
+              style={styles.logoutBtn}
+              onPress={() => setLogoutModalOpen(true)}
+            >
+              <LogOut size={16} color={CustomerColors.primary} />
+              <Text style={styles.logoutBtnText}>Logout</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -391,6 +432,7 @@ export default function ProfileScreen() {
               style={styles.input}
               value={form.email}
               placeholder="Email"
+              placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
               onChangeText={value =>
                 setForm(prev => ({ ...prev, email: value }))
@@ -400,6 +442,7 @@ export default function ProfileScreen() {
               style={styles.input}
               value={form.mobilenumber}
               placeholder="Mobile number"
+              placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               onChangeText={value =>
                 setForm(prev => ({ ...prev, mobilenumber: value }))
@@ -656,6 +699,8 @@ export default function ProfileScreen() {
                       !showPassword[item.key as 'current' | 'new' | 'confirm']
                     }
                     style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    placeholder={item.label}
+                    placeholderTextColor="#9CA3AF"
                     value={
                       item.key === 'current'
                         ? security.currentPassword
@@ -703,22 +748,15 @@ export default function ProfileScreen() {
               style={[
                 styles.saveBtn,
                 {
-                  backgroundColor: CustomerColors.dangerBg,
+                  backgroundColor: '#FFF5F5',
                   marginTop: Spacing.md,
+                  borderWidth: 1,
+                  borderColor: '#FFD0D0',
                 },
               ]}
-              onPress={async () => {
-                try {
-                  await authApi.logoutAll();
-                  await logout();
-                } catch (error: any) {
-                  Alert.alert(
-                    'Error',
-                    error.response?.data?.message || 'Unable to logout.',
-                  );
-                }
-              }}
+              onPress={() => setLogoutModalOpen(true)}
             >
+              <LogOut size={15} color={CustomerColors.primary} />
               <Text
                 style={[styles.saveBtnText, { color: CustomerColors.primary }]}
               >
@@ -966,6 +1004,64 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Custom Logout Confirmation Modal ─────────────────────────── */}
+      <Modal
+        visible={logoutModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLogoutModalOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setLogoutModalOpen(false)}
+        >
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            {/* Handle bar */}
+            <View style={styles.modalHandle} />
+
+            {/* Icon */}
+            <View style={styles.modalIconWrap}>
+              <LogOut size={28} color={CustomerColors.primary} />
+            </View>
+
+            {/* Text */}
+            <Text style={styles.modalTitle}>Log out?</Text>
+            <Text style={styles.modalSubtitle}>
+              You'll need to sign in again to access your account and orders.
+            </Text>
+
+            {/* Buttons */}
+            <TouchableOpacity
+              style={styles.modalConfirmBtn}
+              onPress={async () => {
+                setLogoutModalOpen(false);
+                try {
+                  await authApi.logoutAll();
+                } catch {
+                  // non-fatal
+                }
+                await logout();
+                // Navigate to Home tab after logout
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'CustomerTabs' }],
+                });
+              }}
+            >
+              <LogOut size={16} color="#FFFFFF" />
+              <Text style={styles.modalConfirmBtnText}>Yes, Log Out</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setLogoutModalOpen(false)}
+            >
+              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1075,6 +1171,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     marginBottom: Spacing.sm,
     fontSize: FontSizes.sm,
+    color: CustomerColors.black,
+    backgroundColor: CustomerColors.white,
   },
   label: {
     fontSize: FontSizes.xs,
@@ -1140,4 +1238,161 @@ const styles = StyleSheet.create({
   },
   dobValue: { fontSize: FontSizes.sm, color: CustomerColors.black },
   dobPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF' },
+  logoutBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: '#FFD0D0',
+    backgroundColor: '#FFF5F5',
+  },
+  logoutBtnText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.primary,
+  },
+  // ── Logout Modal ──────────────────────────────────────────────────────────
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: 36,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    marginBottom: Spacing.lg,
+  },
+  modalIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#FFD0D0',
+  },
+  modalTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: '800',
+    color: '#1A1A2E',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.sm,
+    color: CustomerColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.sm,
+  },
+  modalConfirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: CustomerColors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 14,
+    width: '100%',
+    marginBottom: Spacing.sm,
+    shadowColor: CustomerColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modalConfirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.base,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  modalCancelBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 14,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modalCancelBtnText: {
+    color: CustomerColors.textSecondary,
+    fontSize: FontSizes.base,
+    fontWeight: '600',
+  },
+  guestContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+    marginTop: 40,
+  },
+  guestAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  guestTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: '800',
+    color: CustomerColors.black,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  guestSubtitle: {
+    fontSize: FontSizes.sm,
+    color: CustomerColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.xl,
+    maxWidth: 280,
+  },
+  guestLoginActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: CustomerColors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: BorderRadius.pill,
+    shadowColor: CustomerColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  guestLoginActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.base,
+    fontWeight: '700',
+  },
 });

@@ -2,29 +2,73 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking, TextInput, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Phone, MapPin, Shield, CreditCard, Truck, Mail, Send } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+
+// lucide-react-native 1.0 dropped all brand/logo icons (Twitter, Instagram,
+// Facebook, Youtube, etc.), so the social icons below are small inline SVGs
+// built on react-native-svg (already a dependency of lucide-react-native) —
+// no extra icon package needed.
+const TwitterXIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </Svg>
+);
+
+const InstagramIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+    <Path d="M17 2H7a5 5 0 0 0-5 5v10a5 5 0 0 0 5 5h10a5 5 0 0 0 5-5V7a5 5 0 0 0-5-5z" />
+    <Path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <Path d="M17.5 6.5h.01" />
+  </Svg>
+);
+
+const FacebookIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <Path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z" />
+  </Svg>
+);
+
+const YoutubeIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+    <Path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17z" />
+    <Path d="m10 15 5-3-5-3z" fill={color} />
+  </Svg>
+);
 
 // Compact mobile counterpart of client/app/components-sections/Footer.tsx.
 // Web's link columns (Company/Support/Shop) mostly point at '#' (no real
 // page behind them even on web), so those are kept as static text here
 // rather than fake-navigating; the handful of web footer links that DO have
-// a real destination (About Us, Our Services, Testimonials, Nearby Offers,
-// My Orders) are wired to the matching registered screens. Social icons
-// and the legal links (Privacy Policy, Terms of Use, Cookie Policy, Sitemap)
-// mirror web's non-functional '#' links — decorative, not fake buttons that
-// silently do nothing when tapped is what the buttons signal.
+// a real destination (About Us, Our Services, Help Center, Nearby Offers,
+// My Orders) are wired to the matching registered screens. The legal links
+// (Privacy Policy, Terms of Use, Sitemap) are also wired to their screens
+// in screens/customer/. Social icons are decorative (no real destination).
 
 const QUICK_LINKS = [
+  { label: 'New Arrivals', route: 'NewArrivals' },
+  { label: 'Best Sellers', route: 'BestSellers' },
   { label: 'About Us', route: 'About' },
   { label: 'Our Services', route: 'Services' },
-  { label: 'Testimonials', route: 'Testimonials' },
+  { label: 'Help Center', route: 'HelpCenter' },
   { label: 'Nearby Offers', route: 'Nearby' },
   { label: 'My Orders', route: 'Orders' },
 ];
 
 const PAYMENT_ICONS = ['UPI', 'Visa', 'Mastercard', 'RuPay', 'Net Banking'];
 
-const LEGAL_LINKS = ['Privacy Policy', 'Terms of Use', 'Cookie Policy', 'Sitemap'];
+const LEGAL_LINKS = [
+  { label: 'Privacy Policy', route: 'PrivacyPolicy' },
+  { label: 'Terms of Use', route: 'TermsOfUse' },
+  { label: 'Sitemap', route: 'Sitemap' },
+];
+
+const SOCIAL_ICONS = [
+  { key: 'X', Icon: TwitterXIcon },
+  { key: 'IG', Icon: InstagramIcon },
+  { key: 'FB', Icon: FacebookIcon },
+  { key: 'YT', Icon: YoutubeIcon },
+];
 
 export default function HomeFooter() {
   const navigation = useNavigation<any>();
@@ -70,19 +114,25 @@ export default function HomeFooter() {
           India's favourite lifestyle destination. Groceries, cosmetics, toys & more — delivered to your door.
         </Text>
 
-        <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL('tel:+919677710045')}>
+        <Text style={styles.companyName}>PORULON TECHNOLOGIES PRIVATE LIMITED</Text>
+
+        <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL('tel:+919047099277')}>
           <Phone size={13} color={GoldColors.gold} />
-          <Text style={styles.contactText}>+91 96777 10045</Text>
+          <Text style={styles.contactText}>+91 90470 99277</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL('mailto:porulontechnologies@gmail.com')}>
+          <Mail size={13} color={GoldColors.gold} />
+          <Text style={styles.contactText}>porulontechnologies@gmail.com</Text>
         </TouchableOpacity>
         <View style={styles.contactRow}>
           <MapPin size={13} color={GoldColors.gold} />
-          <Text style={styles.contactText}>Chennai, Tamil Nadu, India</Text>
+          <Text style={styles.contactText}>Coimbatore, Tamil Nadu, India</Text>
         </View>
 
         <View style={styles.socialRow}>
-          {['X', 'IG', 'FB', 'YT'].map((label) => (
-            <View key={label} style={styles.socialIcon}>
-              <Text style={styles.socialIconText}>{label}</Text>
+          {SOCIAL_ICONS.map(({ key, Icon }) => (
+            <View key={key} style={styles.socialIcon}>
+              <Icon size={15} color="#9CA3AF" />
             </View>
           ))}
         </View>
@@ -127,8 +177,10 @@ export default function HomeFooter() {
         <View style={styles.divider} />
 
         <View style={styles.legalRow}>
-          {LEGAL_LINKS.map(label => (
-            <Text key={label} style={styles.legalText}>{label}</Text>
+          {LEGAL_LINKS.map(link => (
+            <TouchableOpacity key={link.label} onPress={() => navigation.navigate(link.route)}>
+              <Text style={styles.legalText}>{link.label}</Text>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -173,4 +225,5 @@ const styles = StyleSheet.create({
   legalRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
   legalText: { fontSize: 11, color: '#6B7280' },
   copyright: { fontSize: 11, color: '#6B7280', textAlign: 'center' },
+  companyName: { fontSize: FontSizes.xs, fontWeight: '800', color: '#fff', marginBottom: 6 },
 });

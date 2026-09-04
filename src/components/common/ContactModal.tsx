@@ -18,31 +18,27 @@ interface ContactData {
   hoursSunday: string;
 }
 
-const DEFAULTS: ContactData = {
+export const OFFICIAL_CONTACT_INFO: ContactData = {
   title: 'Get in Touch',
   subtitle: "We'd love to hear from you. Contact us for any queries.",
-  email: 'contact@wowlifestyle.com',
-  phone: '+91 98765 43210',
-  address: '123 Lifestyle Street, Mumbai, India 400001',
+  email: 'porulontechnologies@gmail.com',
+  phone: '+91 90470 99277',
+  address: 'Coimbatore, Tamil Nadu, India',
   hoursWeekday: '9:00 AM - 8:00 PM',
   hoursSaturday: '10:00 AM - 6:00 PM',
-  hoursSunday: 'Closed',
+  hoursSunday: 'Opened',
 };
 
 export default function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const [data, setData] = useState<ContactData>(DEFAULTS);
+  const [data, setData] = useState<ContactData>(OFFICIAL_CONTACT_INFO);
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
-    if (!visible) return;
-    contactApi
-      .get()
-      .then(res => {
-        if (res.data.success && res.data.data) setData(res.data.data);
-      })
-      .catch(() => {});
+    if (!visible) {
+      setNotification(null);
+    }
   }, [visible]);
 
   const handleSubmit = async () => {
@@ -86,19 +82,47 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
             </View>
           ) : null}
 
-          <View style={styles.infoRow}><Mail size={14} color={GoldColors.gold} /><Text style={styles.infoText}>{data.email}</Text></View>
+          <View style={styles.infoRow}><Mail size={14} color={CustomerColors.primary} /><Text style={styles.infoText}>{data.email}</Text></View>
           <TouchableOpacity style={styles.infoRow} onPress={() => Linking.openURL(`tel:${data.phone}`)}>
-            <Phone size={14} color={GoldColors.gold} /><Text style={styles.infoText}>{data.phone}</Text>
+            <Phone size={14} color={CustomerColors.primary} /><Text style={styles.infoText}>{data.phone}</Text>
           </TouchableOpacity>
-          <View style={styles.infoRow}><MapPin size={14} color={GoldColors.gold} /><Text style={styles.infoText}>{data.address}</Text></View>
+          <View style={styles.infoRow}><MapPin size={14} color={CustomerColors.primary} /><Text style={styles.infoText}>{data.address}</Text></View>
 
-          <TextInput style={styles.input} placeholder="Your Name" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} />
-          <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" value={form.email} onChangeText={v => setForm(f => ({ ...f, email: v }))} />
-          <TextInput style={styles.input} placeholder="Phone" keyboardType="phone-pad" value={form.phone} onChangeText={v => setForm(f => ({ ...f, phone: v }))} />
-          <TextInput style={[styles.input, { height: 80 }]} placeholder="Message" multiline value={form.message} onChangeText={v => setForm(f => ({ ...f, message: v }))} />
+          <TextInput
+            style={styles.input}
+            placeholder="Your Name"
+            placeholderTextColor="#9CA3AF"
+            value={form.name}
+            onChangeText={v => setForm(f => ({ ...f, name: v }))}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={form.email}
+            onChangeText={v => setForm(f => ({ ...f, email: v }))}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Phone"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="phone-pad"
+            value={form.phone}
+            onChangeText={v => setForm(f => ({ ...f, phone: v }))}
+          />
+          <TextInput
+            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+            placeholder="Message"
+            placeholderTextColor="#9CA3AF"
+            multiline
+            value={form.message}
+            onChangeText={v => setForm(f => ({ ...f, message: v }))}
+          />
 
           <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={submitting}>
-            {submitting ? <ActivityIndicator color="#000" /> : <Text style={styles.submitBtnText}>Send Message</Text>}
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Send Message</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -117,7 +141,7 @@ const styles = StyleSheet.create({
   notificationText: { flex: 1, fontSize: FontSizes.xs, fontWeight: '700', color: '#92400E' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   infoText: { fontSize: FontSizes.xs, color: '#4B5563' },
-  input: { backgroundColor: '#F9F9F9', borderWidth: 1, borderColor: '#EAEAEA', borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm, marginTop: Spacing.xs },
-  submitBtn: { backgroundColor: GoldColors.gold, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center', marginTop: Spacing.md },
-  submitBtnText: { color: '#000', fontWeight: '800', fontSize: FontSizes.sm },
+  input: { backgroundColor: '#F9F9F9', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm, color: '#111827', marginTop: Spacing.xs },
+  submitBtn: { backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center', marginTop: Spacing.md },
+  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.sm },
 });

@@ -4,6 +4,7 @@ import { ChevronDown, X } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { AVAILABILITY_OPTIONS, ProductFormFields } from '../../utils/productForm';
 import { mergeCategories } from '../../utils/storeCategories';
+import { getSubcategories } from '../../utils/categoryAttributes';
 
 // Extracted from StoreProductFormScreen so both the single manual/scan form
 // and each card in StoreBulkProductScanScreen render the identical field
@@ -25,6 +26,11 @@ export default function ProductFieldsForm({
     [categories],
   );
 
+  const subcategoryOptions = useMemo(
+    () => getSubcategories(form.category).map(s => ({ key: s, label: s })),
+    [form.category],
+  );
+
   return (
     <>
       <Field label="Product Title *" value={form.title} onChangeText={v => set('title', v)} placeholder="e.g. Organic Face Moisturizer" />
@@ -40,7 +46,19 @@ export default function ProductFieldsForm({
         value={form.category}
         placeholder="Select Category"
         options={categoryOptions}
-        onSelect={key => set('category', key)}
+        onSelect={key => {
+          set('category', key);
+          set('subcategory', '');
+        }}
+      />
+
+      <SelectField
+        label="Subcategory"
+        value={form.subcategory || ''}
+        placeholder={form.category ? 'Select Subcategory' : 'Select a Category first'}
+        options={subcategoryOptions}
+        disabled={!form.category || subcategoryOptions.length === 0}
+        onSelect={key => set('subcategory', key)}
       />
 
       <Field label="Brand" value={form.brand} onChangeText={v => set('brand', v)} placeholder="e.g. Nivea" />

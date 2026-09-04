@@ -70,6 +70,8 @@ export const sellerStoreApi = {
 export interface ExtractedProductFields {
   productName?: string;
   category?: string;
+  subcategory?: string;
+  attributes?: Record<string, any>;
   price?: number;
   discountedPrice?: number;
   storePrice?: number;

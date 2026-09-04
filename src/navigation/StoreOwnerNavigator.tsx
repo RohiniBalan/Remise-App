@@ -129,6 +129,7 @@ export type StoreOwnerStackParamList = {
   SupplierBrands: { titleGroup: any };
   SupplierCompare: { group: any };
   SupplierCart: undefined;
+  StoreRegister: undefined;
 };
 
 const Tab = createBottomTabNavigator<StoreOwnerTabParamList>();
@@ -564,6 +565,11 @@ export default function StoreOwnerNavigator() {
               name="Orders"
               component={OrdersScreen}
               options={{ headerShown: true, title: 'My Orders' }}
+            />
+            <Stack.Screen
+              name="StoreRegister"
+              component={StoreRegisterScreen}
+              options={{ headerShown: true, title: 'Register Your Store' }}
             />
           </Stack.Navigator>
         </DashboardGate>

@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
+import { WishlistProvider } from './src/context/WishlistContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 function App() {
@@ -20,7 +21,9 @@ function App() {
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <AuthProvider>
           <CartProvider>
-            <AppNavigator />
+            <WishlistProvider>
+              <AppNavigator />
+            </WishlistProvider>
           </CartProvider>
         </AuthProvider>
       </SafeAreaProvider>

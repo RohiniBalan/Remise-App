@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -19,20 +20,25 @@ import {
   Minus,
   Trash2,
   QrCode,
+  ChevronLeft,
+  Store,
+  Lock,
+  Truck,
+  Check,
+  Wallet,
 } from 'lucide-react-native';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import {
   paymentApi,
-  extractOrderId,
   PAYMENT_RETURN_SENTINEL,
   AddressData,
 } from '../../api/paymentApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { storeApi } from '../../api/storeApi';
 import AddressFormFields from '../../components/common/AddressFormFields';
+import BrandHeader from '../../components/common/BrandHeader';
 import {
-  GoldColors,
   CustomerColors,
   Spacing,
   FontSizes,
@@ -40,14 +46,6 @@ import {
 } from '../../styles/theme';
 import { requireAuthForPurchase } from '../../utils/authGuard';
 
-// Ported from client/app/checkout/page.tsx — same items-to-checkout logic
-// (buyNowItem takes priority over the full cart, exactly like web), same
-// validation rules (isShippingValid/isBillingValid/isFormValid), same
-// payment methods (phonepe/cod), same qty +/- / remove handlers for the
-// order-summary line items (including the buyNowItem-vs-cart branching),
-// and the same POST /api/payment/initiate payload shape. The PhonePe
-// redirect becomes an in-app WebView (see PhonePeWebViewScreen) since
-// there's no browser `window.location.href` on mobile.
 const emptyAddress = (): AddressData => ({
   country: 'India',
   firstName: '',
@@ -62,7 +60,7 @@ const emptyAddress = (): AddressData => ({
 
 export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const {
     cart,
     buyNowItem,
@@ -74,16 +72,21 @@ export default function CheckoutScreen() {
   } = useCart();
 
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
-  const [shippingAddress, setShippingAddress] = useState<AddressData>(
-    emptyAddress(),
-  );
-  const [billingAddress, setBillingAddress] = useState<AddressData>(
-    emptyAddress(),
-  );
+  const [shippingAddress, setShippingAddress] = useState<AddressData>(() => {
+    const base = emptyAddress();
+    if (user?.fullname || user?.name) {
+      const parts = (user?.fullname || user?.name || '').split(' ');
+      base.firstName = parts[0] || '';
+      base.lastName = parts.slice(1).join(' ') || '';
+    }
+    if (user?.mobilenumber) {
+      base.phone = user.mobilenumber;
+    }
+    return base;
+  });
+  const [billingAddress, setBillingAddress] = useState<AddressData>(emptyAddress());
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'qr' | 'cod'>(
-    'razorpay',
-  );
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'qr' | 'cod'>('razorpay');
   const [storeUpiInfo, setStoreUpiInfo] = useState<{
     storeName: string;
     upiId: string;
@@ -91,6 +94,7 @@ export default function CheckoutScreen() {
   } | null>(null);
   const [storeQrLoading, setStoreQrLoading] = useState(false);
   const [utrNumber, setUtrNumber] = useState('');
+  const [copiedUpi, setCopiedUpi] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
@@ -103,7 +107,6 @@ export default function CheckoutScreen() {
   const isShippingValid =
     contactEmail.trim() !== '' &&
     shippingAddress.firstName.trim() !== '' &&
-    shippingAddress.lastName.trim() !== '' &&
     shippingAddress.address.trim() !== '' &&
     shippingAddress.city.trim() !== '' &&
     shippingAddress.pinCode.trim() !== '' &&
@@ -112,7 +115,6 @@ export default function CheckoutScreen() {
   const isBillingValid =
     billingSameAsShipping ||
     (billingAddress.firstName.trim() !== '' &&
-      billingAddress.lastName.trim() !== '' &&
       billingAddress.address.trim() !== '' &&
       billingAddress.city.trim() !== '' &&
       billingAddress.pinCode.trim() !== '' &&
@@ -162,41 +164,21 @@ export default function CheckoutScreen() {
     };
   }, [paymentMethod, itemsToCheckout]);
 
-  const handleIncrease = (item: (typeof itemsToCheckout)[number]) => {
-    if (item.totalStock && item.quantity >= item.totalStock) {
-      setError('Out of stock');
-      return;
-    }
-    if (buyNowItem)
-      setBuyNowItem({ ...buyNowItem, quantity: buyNowItem.quantity + 1 });
-    else addToCart(item);
-  };
-
-  const handleDecrease = (item: (typeof itemsToCheckout)[number]) => {
-    if (buyNowItem) {
-      if (buyNowItem.quantity > 1)
-        setBuyNowItem({ ...buyNowItem, quantity: buyNowItem.quantity - 1 });
-      else setBuyNowItem(null);
-    } else {
-      decreaseQuantity(item.id);
-    }
-  };
-
-  const handleRemove = (item: (typeof itemsToCheckout)[number]) => {
-    if (buyNowItem) setBuyNowItem(null);
-    else removeFromCart(item.id);
-  };
-
   const handlePayment = async () => {
-    if (!isFormValid) return;
     if (
       !requireAuthForPurchase({
         navigation,
-        isAuthenticated: Boolean(user?._id),
-        message: 'Please sign in to complete your order.',
+        isAuthenticated: Boolean(token && user),
+        message: 'Please sign in to place your order.',
       })
     )
       return;
+
+    if (!isFormValid) {
+      setError('Please fill in all mandatory fields.');
+      return;
+    }
+
     setIsProcessing(true);
     setError('');
 
@@ -239,18 +221,18 @@ export default function CheckoutScreen() {
           return;
         }
 
-        if ((paymentMethod === 'cashfree' || paymentMethod === 'razorpay') && (data.paymentSessionId || data.cashfreeOrderId || data.razorpayOrderId)) {
+        if (paymentMethod === 'razorpay' && (data.razorpayOrderId || data.orderId)) {
           const options = {
-            order_id: data.cashfreeOrderId || data.razorpayOrderId || data.orderId,
-            paymentSessionId: data.paymentSessionId,
-            cashfreeOrderId: data.cashfreeOrderId,
+            provider: 'razorpay',
+            order_id: data.razorpayOrderId || data.orderId,
+            razorpayOrderId: data.razorpayOrderId,
+            keyId: data.keyId,
             amount: data.amount,
-            amountInRupees: subtotal,
+            amountPaise: data.amountPaise || Math.round(subtotal * 100),
             currency: data.currency || 'INR',
-            name: data.name || 'WOW Lifestyle Marketplace',
+            name: data.name || 'Remise Marketplace',
             description: data.description || `Order #${data.orderId}`,
             storeUpiId: storeUpiInfo?.upiId,
-            isSandbox: Boolean(data.isSandbox || data.isMock),
             customer: {
               name: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() || data.customer?.name,
               email: contactEmail || data.customer?.email,
@@ -262,110 +244,162 @@ export default function CheckoutScreen() {
         }
       }
 
-      setError(
-        data.message || 'Failed to initialize payment gateway.'
-      );
+      setError(data.message || 'Failed to initialize payment gateway.');
       setIsProcessing(false);
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
-          err.message ||
-          'Server unreachable. Please check your connection.'
+        err.message ||
+        'Server unreachable. Please check your connection.'
       );
       setIsProcessing(false);
     }
   };
 
-
   if (itemsToCheckout.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>There is nothing to checkout.</Text>
-        <TouchableOpacity
-          style={styles.emptyBtn}
-          onPress={() =>
-            navigation.navigate('CustomerTabs', { screen: 'Categories' })
-          }
-        >
-          <Text style={styles.emptyBtnText}>Return to Shop</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <BrandHeader />
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>There is nothing to checkout.</Text>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() =>
+              navigation.navigate('CustomerTabs', { screen: 'Categories' })
+            }
+          >
+            <Text style={styles.emptyBtnText}>Return to Shop</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: Spacing.xxl }}
-    >
-      {error ? (
-        <View style={styles.errorBanner}>
-          <AlertCircle size={14} color={CustomerColors.danger} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
+    <View style={styles.container}>
+      <BrandHeader />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          Order Summary {buyNowItem ? '(Buy Now)' : ''}
-        </Text>
-        {itemsToCheckout.map(item => (
-          <View key={item.id} style={styles.lineItem}>
-            <Image
-              source={{ uri: item.image ?? undefined }}
-              style={styles.lineImage}
-            />
-            <View style={styles.lineInfo}>
-              <Text style={styles.lineTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
-              <View style={styles.lineBottomRow}>
-                <View style={styles.qtyStepper}>
-                  <TouchableOpacity
-                    style={styles.qtyBtn}
-                    onPress={() => decreaseQuantity(item.id)}
-                  >
-                    <Minus size={12} color={CustomerColors.textPrimary} />
-                  </TouchableOpacity>
-                  <Text style={styles.qtyValue}>{item.quantity}</Text>
-                  <TouchableOpacity
-                    style={styles.qtyBtn}
-                    onPress={() => addToCart(item)}
-                  >
-                    <Plus size={12} color={CustomerColors.textPrimary} />
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.linePrice}>
-                  ₹{(item.price * item.quantity).toLocaleString()}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => removeFromCart(item.id)}
-                  style={{ marginLeft: Spacing.sm }}
-                >
-                  <Trash2 size={15} color={CustomerColors.danger} />
-                </TouchableOpacity>
+      {/* Header bar */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity
+          onPress={() => {
+            setBuyNowItem(null);
+            navigation.goBack();
+          }}
+          style={styles.backBtn}
+        >
+          <ChevronLeft size={20} color={CustomerColors.black} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+            <Text style={styles.headerTitle}>Secure Checkout</Text>
+            {buyNowItem ? (
+              <View style={styles.buyNowPill}>
+                <Text style={styles.buyNowPillText}>BUY NOW</Text>
               </View>
-            </View>
+            ) : null}
           </View>
-        ))}
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total Payable</Text>
-          <Text style={styles.totalValue}>₹{subtotal.toLocaleString()}</Text>
+        </View>
+        <View style={styles.sslBadge}>
+          <ShieldCheck size={12} color={CustomerColors.teal700} />
+          <Text style={styles.sslBadgeText}>256-Bit SSL</Text>
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Contact & Shipping</Text>
-        <TextInput
-          style={styles.input}
-          value={contactEmail}
-          onChangeText={setContactEmail}
-          placeholder="Email address *"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <View style={{ marginTop: Spacing.sm }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: Spacing.xxl }}
+      >
+        {error ? (
+          <View style={styles.errorBanner}>
+            <AlertCircle size={15} color={CustomerColors.danger} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* 1. Order Items Summary */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Order Summary</Text>
+            <Text style={styles.itemCountText}>
+              {itemsToCheckout.length} item{itemsToCheckout.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+
+          {itemsToCheckout.map(item => (
+            <View key={item.id} style={styles.lineItem}>
+              <Image
+                source={{ uri: item.image ?? undefined }}
+                style={styles.lineImage}
+              />
+              <View style={styles.lineInfo}>
+                <Text style={styles.lineTitle} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <View style={styles.lineBottomRow}>
+                  <View style={styles.qtyStepper}>
+                    <TouchableOpacity
+                      style={styles.qtyBtn}
+                      onPress={() => decreaseQuantity(item.id)}
+                    >
+                      <Minus size={12} color={CustomerColors.teal700} />
+                    </TouchableOpacity>
+                    <Text style={styles.qtyValue}>{item.quantity}</Text>
+                    <TouchableOpacity
+                      style={styles.qtyBtn}
+                      onPress={() => addToCart(item)}
+                    >
+                      <Plus size={12} color={CustomerColors.teal700} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.linePrice}>
+                    ₹{(item.price * item.quantity).toLocaleString()}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => removeFromCart(item.id)}
+                    style={{ marginLeft: Spacing.sm }}
+                  >
+                    <Trash2 size={15} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.priceStrip}>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Subtotal</Text>
+              <Text style={styles.priceValue}>₹{subtotal.toLocaleString()}</Text>
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Delivery</Text>
+              <Text style={[styles.priceValue, { color: '#15803D' }]}>FREE</Text>
+            </View>
+            <View style={[styles.priceRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Total Payable</Text>
+              <Text style={styles.totalValue}>₹{subtotal.toLocaleString()}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 2. Contact Information */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>1. Contact Information</Text>
+          <Text style={styles.inputLabel}>Email Address *</Text>
+          <TextInput
+            style={styles.input}
+            value={contactEmail}
+            onChangeText={setContactEmail}
+            placeholder="e.g. yourname@example.com"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
+
+        {/* 3. Delivery Address */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>2. Delivery Address</Text>
           <AddressFormFields
             data={shippingAddress}
             onChange={(field, v) =>
@@ -373,232 +407,249 @@ export default function CheckoutScreen() {
             }
           />
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Payment Method</Text>
+        {/* 4. Payment Method */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>3. Payment Method</Text>
 
-        {/* 1. Cashfree Easy Split Gateway */}
-        <TouchableOpacity
-          style={[
-            styles.paymentOption,
-            (paymentMethod === 'cashfree' || paymentMethod === 'razorpay') && styles.paymentOptionActive,
-          ]}
-          onPress={() => setPaymentMethod('cashfree')}
-        >
-          <View
+          {/* 1. Razorpay */}
+          <TouchableOpacity
             style={[
-              styles.radio,
-              (paymentMethod === 'cashfree' || paymentMethod === 'razorpay') && styles.radioActive,
+              styles.paymentCard,
+              paymentMethod === 'razorpay' && styles.paymentCardActive,
             ]}
+            onPress={() => setPaymentMethod('razorpay')}
           >
-            {(paymentMethod === 'cashfree' || paymentMethod === 'razorpay') && <View style={styles.radioDot} />}
-          </View>
-          <Text style={styles.paymentLabel}>
-            Cashfree Gateway (Easy Split · UPI, Cards, NetBanking)
-          </Text>
-          <CreditCard
-            size={18}
-            color={GoldColors.gold}
-            style={{ marginLeft: 'auto' }}
-          />
-        </TouchableOpacity>
-        {(paymentMethod === 'cashfree' || paymentMethod === 'razorpay') && (
-          <View style={styles.phonepeNote}>
-            <ShieldCheck size={20} color={GoldColors.gold} />
-            <Text style={styles.phonepeNoteText}>
-              Dynamic UPI QR with real-time verification, Cards, and UPI Apps (GPay, PhonePe, Paytm).
-            </Text>
-          </View>
-        )}
-
-        {/* 2. Direct Store QR Code (Merchant UPI) */}
-        <TouchableOpacity
-          style={[
-            styles.paymentOption,
-            paymentMethod === 'qr' && styles.paymentOptionActive,
-            { marginTop: Spacing.sm },
-          ]}
-          onPress={() => setPaymentMethod('qr')}
-        >
-          <View
-            style={[
-              styles.radio,
-              paymentMethod === 'qr' && styles.radioActive,
-            ]}
-          >
-            {paymentMethod === 'qr' && <View style={styles.radioDot} />}
-          </View>
-          <Text style={styles.paymentLabel}>
-            Direct Store QR Code (Merchant UPI)
-          </Text>
-          <QrCode
-            size={18}
-            color={GoldColors.gold}
-            style={{ marginLeft: 'auto' }}
-          />
-        </TouchableOpacity>
-
-        {paymentMethod === 'qr' && (
-          <View style={styles.qrContainer}>
-            {storeQrLoading ? (
-              <ActivityIndicator color={GoldColors.gold} />
-            ) : (
-              <>
-                <View style={styles.qrHeader}>
-                  <Text style={styles.qrStoreName}>
-                    {storeUpiInfo?.storeName || 'Verified Store Merchant'}
-                  </Text>
-                  <Text style={styles.qrAmount}>
-                    Pay ₹{subtotal.toLocaleString()}
-                  </Text>
+            <View
+              style={[
+                styles.radio,
+                paymentMethod === 'razorpay' && styles.radioActive,
+              ]}
+            >
+              {paymentMethod === 'razorpay' && <View style={styles.radioDot} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                <Text style={styles.paymentTitle}>Online Payment (Razorpay)</Text>
+                <View style={styles.instantTag}>
+                  <Text style={styles.instantTagText}>INSTANT</Text>
                 </View>
+              </View>
+              <Text style={styles.paymentSubtitle}>
+                UPI, Debit/Credit Cards, Net Banking & Wallets
+              </Text>
+            </View>
+            <CreditCard size={18} color={CustomerColors.teal600} />
+          </TouchableOpacity>
 
-                <View style={styles.qrImageBox}>
-                  <Image
-                    source={{
-                      uri:
-                        storeUpiInfo?.qrCodeImage ||
-                        `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                          `upi://pay?pa=${storeUpiInfo?.upiId || 'rohinibalan529@oksbi'}&pn=${encodeURIComponent(storeUpiInfo?.storeName || 'Store Merchant')}&am=${subtotal.toFixed(2)}&cu=INR&tn=Order_Checkout`
-                        )}&margin=4`,
-                    }}
-                    style={styles.qrImage}
-                    resizeMode="contain"
+          {/* 2. Store QR */}
+          <TouchableOpacity
+            style={[
+              styles.paymentCard,
+              paymentMethod === 'qr' && styles.paymentCardActive,
+              { marginTop: Spacing.sm },
+            ]}
+            onPress={() => setPaymentMethod('qr')}
+          >
+            <View
+              style={[
+                styles.radio,
+                paymentMethod === 'qr' && styles.radioActive,
+              ]}
+            >
+              {paymentMethod === 'qr' && <View style={styles.radioDot} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.paymentTitle}>Direct Store QR Code</Text>
+              <Text style={styles.paymentSubtitle}>
+                Scan merchant's QR and pay via any UPI app
+              </Text>
+            </View>
+            <QrCode size={18} color={CustomerColors.teal600} />
+          </TouchableOpacity>
+
+          {paymentMethod === 'qr' && (
+            <View style={styles.qrContainer}>
+              {storeQrLoading ? (
+                <ActivityIndicator color={CustomerColors.teal600} />
+              ) : (
+                <>
+                  <View style={styles.qrHeader}>
+                    <Text style={styles.qrStoreName}>
+                      {storeUpiInfo?.storeName || 'Verified Store Merchant'}
+                    </Text>
+                    <Text style={styles.qrAmount}>
+                      ₹{subtotal.toLocaleString()}
+                    </Text>
+                  </View>
+
+                  <View style={styles.qrImageBox}>
+                    <Image
+                      source={{
+                        uri:
+                          storeUpiInfo?.qrCodeImage ||
+                          `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                            `upi://pay?pa=${storeUpiInfo?.upiId || 'rohinibalan529@oksbi'}&pn=${encodeURIComponent(storeUpiInfo?.storeName || 'Store Merchant')}&am=${subtotal.toFixed(2)}&cu=INR&tn=Remise_Order`
+                          )}&margin=4`,
+                      }}
+                      style={styles.qrImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+
+                  <View style={styles.vpaPill}>
+                    <Text style={styles.vpaLabel}>UPI ID:</Text>
+                    <Text style={styles.vpaValue}>
+                      {storeUpiInfo?.upiId || 'rohinibalan529@oksbi'}
+                    </Text>
+                  </View>
+
+                  <TextInput
+                    style={styles.utrInput}
+                    value={utrNumber}
+                    onChangeText={setUtrNumber}
+                    placeholder="UPI Reference / UTR Number (Optional)"
+                    placeholderTextColor="#9CA3AF"
                   />
-                </View>
+                </>
+              )}
+            </View>
+          )}
 
-                <View style={styles.vpaPill}>
-                  <Text style={styles.vpaLabel}>Merchant UPI VPA:</Text>
-                  <Text style={styles.vpaValue}>
-                    {storeUpiInfo?.upiId || 'rohinibalan529@oksbi'}
-                  </Text>
-                </View>
-
-                <Text style={styles.qrDesc}>
-                  Scan using Google Pay, PhonePe, Paytm, CRED or BHIM on your phone to pay directly.
-                </Text>
-
-                <TextInput
-                  style={styles.utrInput}
-                  value={utrNumber}
-                  onChangeText={setUtrNumber}
-                  placeholder="UPI Reference / UTR Number (Optional)"
-                  placeholderTextColor="#999"
-                />
-              </>
-            )}
-          </View>
-        )}
-
-        {/* 3. COD */}
-        <TouchableOpacity
-          style={[
-            styles.paymentOption,
-            paymentMethod === 'cod' && styles.paymentOptionActive,
-            { marginTop: Spacing.sm },
-          ]}
-          onPress={() => setPaymentMethod('cod')}
-        >
-          <View
+          {/* 3. Cash on Delivery */}
+          <TouchableOpacity
             style={[
-              styles.radio,
-              paymentMethod === 'cod' && styles.radioActive,
+              styles.paymentCard,
+              paymentMethod === 'cod' && styles.paymentCardActive,
+              { marginTop: Spacing.sm },
             ]}
+            onPress={() => setPaymentMethod('cod')}
           >
-            {paymentMethod === 'cod' && <View style={styles.radioDot} />}
-          </View>
-          <Text style={styles.paymentLabel}>Cash on Delivery (COD)</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Billing Address</Text>
-        <TouchableOpacity
-          style={[
-            styles.paymentOption,
-            billingSameAsShipping && styles.paymentOptionActive,
-          ]}
-          onPress={() => setBillingSameAsShipping(true)}
-        >
-          <View
-            style={[styles.radio, billingSameAsShipping && styles.radioActive]}
-          >
-            {billingSameAsShipping && <View style={styles.radioDot} />}
-          </View>
-          <Text style={styles.paymentLabel}>Same as shipping address</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.paymentOption,
-            !billingSameAsShipping && styles.paymentOptionActive,
-          ]}
-          onPress={() => setBillingSameAsShipping(false)}
-        >
-          <View
-            style={[styles.radio, !billingSameAsShipping && styles.radioActive]}
-          >
-            {!billingSameAsShipping && <View style={styles.radioDot} />}
-          </View>
-          <Text style={styles.paymentLabel}>
-            Use a different billing address
-          </Text>
-        </TouchableOpacity>
-        {!billingSameAsShipping && (
-          <View style={{ marginTop: Spacing.md }}>
-            <AddressFormFields
-              data={billingAddress}
-              onChange={(field, v) =>
-                setBillingAddress(prev => ({ ...prev, [field]: v }))
-              }
-            />
-          </View>
-        )}
-      </View>
-
-      {!isFormValid && (
-        <View style={styles.errorBanner}>
-          <AlertCircle size={14} color={CustomerColors.danger} />
-          <Text style={styles.errorText}>
-            Please fill in all mandatory details to proceed.
-          </Text>
+            <View
+              style={[
+                styles.radio,
+                paymentMethod === 'cod' && styles.radioActive,
+              ]}
+            >
+              {paymentMethod === 'cod' && <View style={styles.radioDot} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.paymentTitle}>Cash on Delivery (COD)</Text>
+              <Text style={styles.paymentSubtitle}>
+                Pay cash to delivery person upon arrival
+              </Text>
+            </View>
+            <Wallet size={18} color={CustomerColors.teal600} />
+          </TouchableOpacity>
         </View>
-      )}
 
-      <TouchableOpacity
-        style={[
-          styles.payBtn,
-          (!isFormValid || isProcessing) && styles.payBtnDisabled,
-        ]}
-        onPress={handlePayment}
-        disabled={!isFormValid || isProcessing}
-      >
-        {isProcessing ? (
-          <ActivityIndicator color="#000" />
-        ) : (
-          <>
-            <CheckCircle size={18} color="#000" />
-            <Text style={styles.payBtnText}>
-              {paymentMethod === 'razorpay'
-                ? 'Pay with Razorpay'
-                : paymentMethod === 'qr'
-                ? 'Place Order via Store QR'
-                : 'Complete Order (COD)'}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+        {/* 5. Billing Address */}
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={[styles.checkboxRow]}
+            onPress={() => setBillingSameAsShipping(!billingSameAsShipping)}
+          >
+            <View style={[styles.checkbox, billingSameAsShipping && styles.checkboxActive]}>
+              {billingSameAsShipping && <Check size={12} color="#fff" strokeWidth={3} />}
+            </View>
+            <Text style={styles.checkboxText}>Billing address same as shipping</Text>
+          </TouchableOpacity>
+
+          {!billingSameAsShipping && (
+            <View style={{ marginTop: Spacing.md }}>
+              <AddressFormFields
+                data={billingAddress}
+                onChange={(field, v) =>
+                  setBillingAddress(prev => ({ ...prev, [field]: v }))
+                }
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Primary CTA */}
+        <TouchableOpacity
+          style={[
+            styles.payBtn,
+            (!isFormValid || isProcessing) && styles.payBtnDisabled,
+          ]}
+          onPress={handlePayment}
+          disabled={!isFormValid || isProcessing}
+        >
+          {isProcessing ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Lock size={16} color="#fff" />
+              <Text style={styles.payBtnText}>
+                {paymentMethod === 'razorpay'
+                  ? `Pay ₹${subtotal.toLocaleString()} via Razorpay`
+                  : paymentMethod === 'qr'
+                  ? `Place Order via Store QR · ₹${subtotal.toLocaleString()}`
+                  : `Confirm Order (COD) · ₹${subtotal.toLocaleString()}`}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CustomerColors.bg },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: Spacing.sm,
+  },
+  backBtn: {
+    padding: Spacing.xs,
+  },
+  headerTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  buyNowPill: {
+    backgroundColor: CustomerColors.mint,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+  },
+  buyNowPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: CustomerColors.teal700,
+  },
+  sslBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0FDFA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+  },
+  sslBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: CustomerColors.teal700,
+  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: CustomerColors.bg,
     padding: Spacing.xl,
     gap: Spacing.md,
   },
@@ -609,12 +660,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyBtn: {
-    backgroundColor: GoldColors.gold,
+    backgroundColor: CustomerColors.teal600,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
   },
-  emptyBtnText: { color: '#000', fontWeight: '800' },
+  emptyBtnText: { color: '#fff', fontWeight: '800' },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -626,26 +677,38 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   errorText: { flex: 1, color: CustomerColors.danger, fontSize: FontSizes.xs },
-  section: {
+  card: {
     backgroundColor: CustomerColors.white,
-    margin: Spacing.md,
-    marginBottom: 0,
+    marginHorizontal: Spacing.md,
     marginTop: Spacing.md,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: CustomerColors.border,
+    borderColor: CustomerColors.steelBorder,
   },
-  sectionTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: CustomerColors.black,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
-  sectionSubtitle: {
+  cardTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+    marginBottom: Spacing.xs,
+  },
+  itemCountText: {
     fontSize: FontSizes.xs,
+    color: CustomerColors.teal700,
+    fontWeight: '700',
+  },
+  inputLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
     color: CustomerColors.textSecondary,
-    marginBottom: Spacing.md,
+    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   input: {
     backgroundColor: CustomerColors.white,
@@ -653,26 +716,34 @@ const styles = StyleSheet.create({
     borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-  },
-  lineItem: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
-  lineImage: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: '#F9F9F9',
-  },
-  lineInfo: { flex: 1, gap: 6 },
-  lineTitle: {
+    paddingVertical: Spacing.sm,
     fontSize: FontSizes.sm,
-    fontWeight: '600',
+    color: CustomerColors.black,
+  },
+  lineItem: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  lineImage: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: '#F8FAFC',
+  },
+  lineInfo: { flex: 1, gap: 4 },
+  lineTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
     color: CustomerColors.black,
   },
   lineBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
+    marginTop: 2,
   },
   qtyStepper: {
     flexDirection: 'row',
@@ -680,119 +751,118 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.sm,
+    backgroundColor: '#F8FAFC',
   },
   qtyBtn: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   qtyValue: {
-    width: 20,
+    width: 18,
     textAlign: 'center',
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 10,
+    color: CustomerColors.black,
+  },
+  linePrice: {
+    fontWeight: '800',
+    color: CustomerColors.teal700,
     fontSize: FontSizes.xs,
   },
-  lineTotal: {
-    marginLeft: 'auto',
-    fontWeight: '700',
-    color: CustomerColors.black,
-    fontSize: FontSizes.sm,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  priceStrip: {
     paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: CustomerColors.border,
-    marginTop: Spacing.xs,
+    gap: 4,
   },
-  summaryLabel: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary },
-  summaryValue: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: CustomerColors.black,
-  },
-  summaryValueMuted: {
-    fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  totalRow: {
+  priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: Spacing.md,
-    marginTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: CustomerColors.border,
   },
-  totalLabel: {
-    fontSize: FontSizes.md,
+  priceLabel: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
+  },
+  priceValue: {
+    fontSize: FontSizes.xs,
     fontWeight: '700',
     color: CustomerColors.black,
   },
-  totalValue: {
-    fontSize: FontSizes.xl,
+  totalRow: {
+    paddingTop: Spacing.xs,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  totalLabel: {
+    fontSize: FontSizes.sm,
     fontWeight: '800',
     color: CustomerColors.black,
   },
-  paymentOption: {
+  totalValue: {
+    fontSize: FontSizes.md,
+    fontWeight: '900',
+    color: CustomerColors.teal700,
+  },
+  paymentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: CustomerColors.border,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
     borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.sm,
+    backgroundColor: '#FFFFFF',
   },
-  paymentOptionActive: {
-    borderColor: GoldColors.gold,
-    backgroundColor: 'rgba(201,168,76,0.06)',
+  paymentCardActive: {
+    borderColor: CustomerColors.teal600,
+    backgroundColor: '#F0FDFA',
   },
   radio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
     borderColor: '#9CA3AF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioActive: { borderColor: GoldColors.gold },
+  radioActive: { borderColor: CustomerColors.teal600 },
   radioDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: GoldColors.gold,
+    backgroundColor: CustomerColors.teal600,
   },
-  paymentLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
+  paymentTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
     color: CustomerColors.black,
   },
-  phonepeNote: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-  },
-  phonepeNoteText: {
-    flex: 1,
-    fontSize: FontSizes.xs,
+  paymentSubtitle: {
+    fontSize: 10,
     color: CustomerColors.textSecondary,
+    marginTop: 1,
+  },
+  instantTag: {
+    backgroundColor: CustomerColors.teal600,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  instantTagText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#fff',
   },
   qrContainer: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F8FAFC',
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: CustomerColors.border,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginTop: Spacing.sm,
   },
   qrHeader: {
     flexDirection: 'row',
@@ -800,7 +870,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingBottom: Spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: CustomerColors.border,
+    borderBottomColor: '#E2E8F0',
   },
   qrStoreName: {
     fontSize: FontSizes.xs,
@@ -810,18 +880,18 @@ const styles = StyleSheet.create({
   qrAmount: {
     fontSize: FontSizes.xs,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: CustomerColors.teal700,
   },
   qrImageBox: {
     padding: Spacing.xs,
     backgroundColor: '#FFF',
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.border,
+    borderColor: '#E2E8F0',
   },
   qrImage: {
-    width: 160,
-    height: 160,
+    width: 140,
+    height: 140,
   },
   vpaPill: {
     flexDirection: 'row',
@@ -832,22 +902,17 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: CustomerColors.border,
+    borderColor: '#E2E8F0',
   },
   vpaLabel: {
-    fontSize: FontSizes.xs,
+    fontSize: 10,
     color: CustomerColors.textSecondary,
     fontWeight: '600',
   },
   vpaValue: {
-    fontSize: FontSizes.xs,
+    fontSize: 10,
     color: CustomerColors.black,
     fontWeight: '700',
-  },
-  qrDesc: {
-    fontSize: 11,
-    color: CustomerColors.textSecondary,
-    textAlign: 'center',
   },
   utrInput: {
     width: '100%',
@@ -858,7 +923,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     fontSize: FontSizes.xs,
-    fontFamily: 'monospace',
+    color: CustomerColors.black,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: CustomerColors.teal600,
+    borderColor: CustomerColors.teal600,
+  },
+  checkboxText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
     color: CustomerColors.black,
   },
   payBtn: {
@@ -866,17 +954,18 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: GoldColors.gold,
+    backgroundColor: CustomerColors.teal600,
     margin: Spacing.md,
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
+    shadowColor: CustomerColors.teal600,
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
   },
   payBtnDisabled: { opacity: 0.5 },
   payBtnText: {
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: '#000',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: '#fff',
   },
 });

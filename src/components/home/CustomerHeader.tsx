@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ShoppingCart, User, Package, Percent, Settings as SettingsIcon, LogOut } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -17,6 +18,7 @@ export default function CustomerHeader() {
   const { cartCount } = useCart();
   const { unreadCount } = useUnreadNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const initial = useMemo(
     () => (user?.fullname || user?.name || user?.email || '?').trim().charAt(0).toUpperCase(),
@@ -37,7 +39,7 @@ export default function CustomerHeader() {
 
   return (
     <>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
         <Text style={styles.logo}>REmise</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
@@ -70,7 +72,7 @@ export default function CustomerHeader() {
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-          <Pressable style={styles.menuSheet} onPress={() => {}}>
+          <Pressable style={styles.menuSheet} onPress={() => { }}>
             <View style={styles.menuHeader}>
               <Text style={styles.menuName} numberOfLines={1}>{user?.fullname || user?.name || 'Account'}</Text>
               <Text style={styles.menuEmail} numberOfLines={1}>{user?.email}</Text>

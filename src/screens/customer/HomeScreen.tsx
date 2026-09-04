@@ -12,6 +12,7 @@ import {
   PermissionsAndroid,
   Platform,
   ActivityIndicator,
+  ToastAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
@@ -28,6 +29,7 @@ import {
   Percent,
   Settings as SettingsIcon,
   LogOut,
+  LogIn,
   MapPin,
   Clock,
   Navigation,
@@ -46,17 +48,33 @@ import {
   Shirt,
   Home as HomeIcon,
   Smartphone,
+  Apple,
+  Carrot,
+  Flower2,
+  Pill,
+  Dumbbell,
 } from 'lucide-react-native';
 import HeroCarousel from '../../components/home/HeroCarousel';
 import HomeFooter from '../../components/home/HomeFooter';
+import BrandHeader from '../../components/common/BrandHeader';
 import { offersApi } from '../../api/offersApi';
-import { homeSectionsApi, CategoryItem, BestSellerItem, CATEGORY_FALLBACK, BEST_SELLER_FALLBACK } from '../../api/homeSectionsApi';
+import {
+  CategoryItem,
+  BestSellerItem,
+  CATEGORY_FALLBACK,
+  BEST_SELLER_FALLBACK,
+  buildCategoryItems,
+  fetchBestSellers,
+  fetchNewArrivals,
+} from '../../api/homeSectionsApi';
+import { Product, productId, productImage } from '../../api/productApi';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
-import CustomerHeader from '../../components/home/CustomerHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // The actual Home screen — previously this file was an accidental duplicate
 // of components/home/HeroCarousel.tsx (the carousel only). Rebuilt to match
@@ -93,6 +111,7 @@ const INFO_STRIP = [
 const ICON_MAP: Record<string, any> = {
   CarFront, Trophy, Gift, Brain, Palette, Gamepad2, Sparkles, Zap,
   ShoppingBasket, Star, Shirt, Home: HomeIcon, Smartphone, Heart,
+  Apple, Carrot, Flower2, Pill, Dumbbell, Package,
 };
 
 // Web colors these via arbitrary Tailwind gradient classes per category
@@ -106,12 +125,14 @@ export default function HomeScreen() {
   
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
-  const { cartCount } = useCart();
+  const { cart, cartCount, addToCart } = useCart();
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const { unreadCount } = useUnreadNotifications();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [bestSellers, setBestSellers] = useState<BestSellerItem[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
 
   // ── Shop by Offers Nearby — mirrors ShopByOffersNearbySection.tsx's
   // status machine exactly (idle → locating → loading → done/denied/error),
@@ -122,73 +143,82 @@ export default function HomeScreen() {
   const [nearbyOffers, setNearbyOffers] = useState<NearbyOffer[]>([]);
 
   useEffect(() => {
-    // NOTE: /shopbycategory's live data is a real but unrelated toy-store
-    // taxonomy (Vehicles & Tracksets, Collectors Edition, etc.) seeded on
-    // the backend — not the marketplace categories (Groceries & Fresh,
-    // Beauty & Cosmetics, ...) web actually displays. Web's fetch() to that
-    // endpoint reliably fails in practice (cold-start/timeout) and falls
-    // back to its hardcoded FALLBACK, which is why web consistently shows
-    // the marketplace set. Rather than race the same flaky endpoint and
-    // risk mobile showing the mismatched live data on days it responds in
-    // time, mobile renders the same fixed content directly for guaranteed
-    // parity. Revisit this once the backend's category data is reseeded to
-    // match what web is actually meant to show.
-    setCategories(CATEGORY_FALLBACK);
+    // Fetch real data from the product-service via the gateway — same
+    // approach the web's ShopByCategorySection.tsx and BestSellersSection.tsx
+    // use (fetches /api/categories + /api/products from product-service).
+    buildCategoryItems()
+      .then(items => setCategories(items))
+      .catch(() => setCategories(CATEGORY_FALLBACK));
 
-    homeSectionsApi
-      .getBestSellers()
-      .then(res => {
-        const data = res.data?.data;
-        // The live endpoint sometimes returns thin placeholder records
-        // (id/name/img/color only — no price/rating) rather than full
-        // product data. `success && length > 0` alone doesn't catch that,
-        // so also require every item to carry a usable price before
-        // trusting the response — otherwise fall back to the same
-        // complete data web shows in that situation.
-        const isComplete = res.data?.success && Array.isArray(data) && data.length > 0
-          && data.every((item: BestSellerItem) => typeof item.price === 'number');
-        setBestSellers(isComplete ? data : BEST_SELLER_FALLBACK);
-      })
+    fetchBestSellers()
+      .then(items => setBestSellers(items))
       .catch(() => setBestSellers(BEST_SELLER_FALLBACK));
+
+    fetchNewArrivals()
+      .then(items => setNewArrivals(items.slice(0, 10)))
+      .catch(() => setNewArrivals([]));
   }, []);
 
-  const fetchNearbyOffers = useCallback((lat: number, lng: number) => {
+  const fetchNearbyOffers = useCallback(async (lat?: number, lng?: number) => {
     setNearbyStatus('loading');
-    offersApi
-      .getNearby(lat, lng, 10)
-      .then(res => {
-        setNearbyOffers(res.data?.data || []);
+    try {
+      if (lat !== undefined && lng !== undefined) {
+        const res = await offersApi.getNearby(lat, lng, 10);
+        const data = res.data?.data || [];
+        if (data.length > 0) {
+          setNearbyOffers(data);
+          setNearbyStatus('done');
+          return;
+        }
+      }
+      // If no specific nearby data or coordinates not provided, fetch active offers
+      const activeRes = await offersApi.getActive(10);
+      const activeData = activeRes.data?.data || [];
+      setNearbyOffers(activeData);
+      setNearbyStatus('done');
+    } catch {
+      try {
+        const activeRes = await offersApi.getActive(10);
+        const activeData = activeRes.data?.data || [];
+        setNearbyOffers(activeData);
         setNearbyStatus('done');
-      })
-      .catch(() => setNearbyStatus('error'));
+      } catch {
+        setNearbyStatus('error');
+      }
+    }
   }, []);
 
   const detectLocation = useCallback(() => {
     setNearbyStatus('locating');
     Geolocation.getCurrentPosition(
       pos => fetchNearbyOffers(pos.coords.latitude, pos.coords.longitude),
-      () => setNearbyStatus('denied'),
-      { enableHighAccuracy: false, timeout: 8000 },
+      () => {
+        // If location is denied or unavailable, fallback to active offers seamlessly
+        fetchNearbyOffers();
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
   }, [fetchNearbyOffers]);
 
   useEffect(() => {
-    // Auto-detect only if location permission is ALREADY granted — never
-    // prompt on load. On iOS, Geolocation.getCurrentPosition itself triggers
-    // the OS prompt on first call, so there's no non-prompting "check" to do
-    // there the way Android's PermissionsAndroid.check() provides.
     if (Platform.OS === 'android') {
       PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION).then(granted => {
-        if (granted) detectLocation();
+        if (granted) {
+          detectLocation();
+        } else {
+          fetchNearbyOffers();
+        }
       });
+    } else {
+      fetchNearbyOffers();
     }
-  }, [detectLocation]);
+  }, [detectLocation, fetchNearbyOffers]);
 
   const handleEnableLocation = async () => {
     if (Platform.OS === 'android') {
       const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
       if (result !== PermissionsAndroid.RESULTS.GRANTED) {
-        setNearbyStatus('denied');
+        fetchNearbyOffers();
         return;
       }
     }
@@ -209,30 +239,35 @@ export default function HomeScreen() {
     // token/user are cleared — no explicit navigation needed here.
   };
 
-  const resolveImage = (img: string) => (img?.startsWith('http') ? img : `${GATEWAY_URL}${img}`);
+  const resolveImage = (img?: string) => {
+    if (!img) return 'https://via.placeholder.com/300x200?text=Offer';
+    return img.startsWith('http') ? img : `${GATEWAY_URL}${img}`;
+  };
+
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.container}>
-      <CustomerHeader />
-
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-          <Pressable style={styles.menuSheet} onPress={() => {}}>
-            <View style={styles.menuHeader}>
-              <Text style={styles.menuName} numberOfLines={1}>{user?.fullname || user?.name || 'Account'}</Text>
-              <Text style={styles.menuEmail} numberOfLines={1}>{user?.email}</Text>
-            </View>
-            <MenuItem icon={User} label="My Profile" onPress={() => goToMenuItem('Profile')} />
-            <MenuItem icon={Package} label="My Orders" onPress={() => goToMenuItem('Orders')} />
-            <MenuItem icon={Percent} label="My Offers" onPress={() => goToMenuItem('MyOffers')} />
-            <MenuItem icon={SettingsIcon} label="Settings" onPress={() => goToMenuItem('Settings')} />
-            <View style={styles.menuDivider} />
-            <MenuItem icon={LogOut} label="Sign Out" onPress={handleSignOut} destructive />
-          </Pressable>
-        </Pressable>
-      </Modal>
-
+      <BrandHeader />
       <ScrollView showsVerticalScrollIndicator={false}>
+        {!user && (
+          <View style={styles.guestLoginCard}>
+            <View style={styles.guestLoginIconBg}>
+              <LogIn size={18} color={CustomerColors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.guestLoginTitle}>Welcome to REmise</Text>
+              <Text style={styles.guestLoginSubtitle}>Sign in for offers, wishlist & faster checkout</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.guestLoginBtn}
+              onPress={() => navigation.navigate('LoginRegister')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.guestLoginBtnText}>Login</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <HeroCarousel />
 
         <View style={styles.infoStrip}>
@@ -324,10 +359,12 @@ export default function HomeScreen() {
                           <Text style={styles.offerDiscountText}>{item.discountPercent}% OFF</Text>
                         </View>
                       )}
-                      <View style={styles.offerDistancePill}>
-                        <MapPin size={8} color="#fff" />
-                        <Text style={styles.offerDistanceText}>{item.distanceKm} km</Text>
-                      </View>
+                      {item.distanceKm ? (
+                        <View style={styles.offerDistancePill}>
+                          <MapPin size={8} color="#fff" />
+                          <Text style={styles.offerDistanceText}>{item.distanceKm} km</Text>
+                        </View>
+                      ) : null}
                     </View>
                     <Text style={styles.offerStore} numberOfLines={1}>{item.storeName}</Text>
                     <Text style={styles.offerTitle} numberOfLines={2}>{item.title}</Text>
@@ -352,7 +389,7 @@ export default function HomeScreen() {
               const IconComp = ICON_MAP[cat.icon] || Sparkles;
               const tint = CATEGORY_TINTS[i % CATEGORY_TINTS.length];
               return (
-                <TouchableOpacity key={cat.id} style={styles.categoryCard} onPress={() => navigation.navigate('Categories')}>
+                <TouchableOpacity key={cat.id} style={styles.categoryCard} onPress={() => navigation.navigate('Categories', { screen: 'CategoryProducts', params: { category: cat.title } })}>
                   <View style={styles.categoryImageWrap}>
                     <Image source={{ uri: resolveImage(cat.img) }} style={styles.categoryImage} />
                     <View style={styles.categoryOverlay} />
@@ -379,7 +416,7 @@ export default function HomeScreen() {
         </Section>
 
         {/* ── Best Sellers ─────────────────────────────────────────────── */}
-        <Section title="Best Sellers" onViewAll={() => navigation.navigate('Categories')}>
+        <Section title="Best Sellers" onViewAll={() => navigation.navigate('BestSellers')}>
           <FlatList
             data={bestSellers}
             horizontal
@@ -415,20 +452,115 @@ export default function HomeScreen() {
                       <Text style={styles.sellerPrice}>₹{price.toLocaleString()}</Text>
                       {discount > 0 && <Text style={styles.sellerOriginal}>₹{original.toLocaleString()}</Text>}
                     </View>
-                    {/* Matches web parity — Best Sellers' "Add to Cart" is a
-                        display-only button there too (see ProductCard in
-                        BestSellersSection.tsx: the onClick is a no-op with a
-                        comment that cart logic lives on the product page). */}
-                    <View style={styles.sellerCartBtn}>
+                    <TouchableOpacity
+                      style={styles.sellerCartBtn}
+                      onPress={() => {
+                        addToCart({
+                          id: String(item.id),
+                          title: item.name,
+                          price: price,
+                          quantity: 1,
+                          image: item.img,
+                        });
+                        if (Platform.OS === 'android') {
+                          ToastAndroid.show('Added to cart ✓', ToastAndroid.SHORT);
+                        }
+                      }}
+                    >
                       <ShoppingCart size={12} color={CustomerColors.teal700} />
                       <Text style={styles.sellerCartText}>Add to Cart</Text>
-                    </View>
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               );
             }}
           />
         </Section>
+
+        {/* ── New Arrivals ─────────────────────────────────────────────── */}
+        {newArrivals.length > 0 && (
+          <Section title="New Arrivals" onViewAll={() => navigation.navigate('NewArrivals')}>
+            <FlatList
+              data={newArrivals}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={p => productId(p)}
+              contentContainerStyle={styles.newArrivalList}
+              renderItem={({ item }) => {
+                const price = item.discountedPrice ?? item.price;
+                const original = item.originalPrice && item.originalPrice > price ? item.originalPrice : undefined;
+                const discount = original ? Math.round(((original - price) / original) * 100) : 0;
+                const img = productImage(item);
+                const isWished = isWishlisted(productId(item));
+
+                return (
+                  <TouchableOpacity
+                    style={styles.newArrivalCard}
+                    onPress={() => navigation.navigate('ProductDetail', { productId: productId(item) })}
+                  >
+                    <View style={styles.newArrivalImageWrap}>
+                      <Image source={{ uri: img ? resolveImage(img) : undefined }} style={styles.newArrivalImage} />
+                      <View style={styles.newArrivalNewBadge}>
+                        <Sparkles size={8} color="#fff" />
+                        <Text style={styles.newArrivalNewBadgeText}>NEW</Text>
+                      </View>
+                      {discount > 0 && (
+                        <View style={styles.newArrivalDiscount}>
+                          <Text style={styles.newArrivalDiscountText}>-{discount}%</Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.newArrivalWishBtn, isWished && styles.newArrivalWishBtnActive]}
+                        onPress={() => toggleWishlist(item)}
+                      >
+                        <Heart
+                          size={11}
+                          color={isWished ? '#FF0000' : CustomerColors.textSecondary}
+                          fill={isWished ? '#FF0000' : 'none'}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.newArrivalBody}>
+                      {item.category && (
+                        <Text style={styles.newArrivalCategory} numberOfLines={1}>
+                          {item.category}
+                        </Text>
+                      )}
+                      <Text style={styles.newArrivalTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <View style={styles.newArrivalPriceRow}>
+                        <Text style={styles.newArrivalPrice}>₹{price?.toLocaleString()}</Text>
+                        {original && (
+                          <Text style={styles.newArrivalOriginal}>₹{original.toLocaleString()}</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.newArrivalCartBtn}
+                        onPress={() => {
+                          addToCart({
+                            id: productId(item),
+                            title: item.title,
+                            price: price,
+                            quantity: 1,
+                            image: img,
+                            totalStock: item.totalStock,
+                          });
+                          if (Platform.OS === 'android') {
+                            ToastAndroid.show('Added to cart ✓', ToastAndroid.SHORT);
+                          }
+                        }}
+                      >
+                        <ShoppingCart size={12} color={CustomerColors.teal700} />
+                        <Text style={styles.newArrivalCartText}>Add to Cart</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </Section>
+        )}
 
         <View style={{ height: Spacing.xl }} />
         <HomeFooter />
@@ -578,16 +710,95 @@ const styles = StyleSheet.create({
   sellerOriginal: { fontSize: 9, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
   sellerCartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: BorderRadius.sm, paddingVertical: 6, marginTop: Spacing.xs },
   sellerCartText: { fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 },
-  loginBtn: {
-  backgroundColor: CustomerColors.primary,
-  paddingHorizontal: 14,
-  paddingVertical: 8,
-  borderRadius: 8,
-},
 
-loginBtnText: {
-  color: '#fff',
-  fontWeight: '700',
-  fontSize: FontSizes.sm,
-},
+  // New Arrivals styles
+  newArrivalList: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
+  newArrivalCard: { width: 140, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', ...Shadows.card },
+  newArrivalImageWrap: { aspectRatio: 1, backgroundColor: CustomerColors.bg, position: 'relative' },
+  newArrivalImage: { width: '100%', height: '100%' },
+  newArrivalNewBadge: { position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: CustomerColors.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 2 },
+  newArrivalNewBadgeText: { fontSize: 8, fontWeight: '800', color: '#fff' },
+  newArrivalDiscount: { position: 'absolute', top: 6, right: 36, backgroundColor: GoldColors.gold, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 2 },
+  newArrivalDiscountText: { fontSize: 8, fontWeight: '800', color: '#000' },
+  newArrivalWishBtn: { position: 'absolute', top: 6, right: 6, zIndex: 3, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' },
+  newArrivalWishBtnActive: { backgroundColor: '#FFE5E5' },
+  newArrivalBody: { padding: Spacing.xs },
+  newArrivalCategory: { fontSize: 9, color: CustomerColors.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  newArrivalTitle: { fontSize: 11, fontWeight: '700', color: CustomerColors.black, marginTop: 1, minHeight: 28 },
+  newArrivalPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 5 },
+  newArrivalPrice: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
+  newArrivalOriginal: { fontSize: 9, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
+  newArrivalCartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: BorderRadius.sm, paddingVertical: 6, marginTop: Spacing.xs },
+  newArrivalCartText: { fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 },
+  guestLoginCard: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  guestLoginIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestLoginTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  guestLoginSubtitle: {
+    fontSize: 10,
+    color: CustomerColors.textSecondary,
+    marginTop: 1,
+  },
+  guestLoginBtn: {
+    backgroundColor: CustomerColors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.pill,
+    shadowColor: CustomerColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  guestLoginBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+  },
+  topLogoHeader: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    justifyContent: 'center',
+  },
+  topLogoText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: CustomerColors.primary,
+    letterSpacing: -0.3,
+  },
+  topLogoRed: {
+    color: CustomerColors.primary,
+    fontWeight: '900',
+  },
 });

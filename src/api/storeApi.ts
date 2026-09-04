@@ -18,16 +18,9 @@ export const storeApi = {
 
   syncRole: () => gatewayClient.post('/api/stores/me/sync-role'),
 
-  onboardCashfree: (data: any) =>
-    gatewayClient.post('/api/stores/me/cashfree-onboard', data),
-
-  getCashfreeStatus: () =>
-    gatewayClient.get('/api/stores/me/cashfree-status'),
-
-  // Backwards-compatible aliases
   onboardRazorpay: (data: any) =>
-    gatewayClient.post('/api/stores/me/cashfree-onboard', data),
+    gatewayClient.post('/api/stores/me/razorpay-onboard', data),
 
   getRazorpayStatus: () =>
-    gatewayClient.get('/api/stores/me/cashfree-status'),
+    gatewayClient.get('/api/stores/me/razorpay-status'),
 };

@@ -33,14 +33,11 @@ export interface InitiatePaymentPayload {
   contactEmail: string;
   shippingAddress: AddressData;
   billingAddress: AddressData;
-  paymentMethod: 'cashfree' | 'razorpay' | 'cod' | 'phonepe' | 'qr' | 'online';
+  paymentMethod: 'razorpay' | 'cod' | 'phonepe' | 'qr';
 }
 
 export interface VerifyPaymentPayload {
   orderId: string;
-  paymentSessionId?: string;
-  cashfree_order_id?: string;
-  cf_payment_id?: string;
   razorpay_payment_id?: string;
   razorpay_order_id?: string;
   razorpay_signature?: string;

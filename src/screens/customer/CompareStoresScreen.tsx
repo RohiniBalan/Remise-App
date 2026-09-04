@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -52,6 +52,12 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { requireAuthForPurchase } from '../../utils/authGuard';
+import { indianStates, getCities } from '../../utils/indiaLocation';
+import {
+  LocationSelectField,
+  normalizeLoc,
+  lookupPincode,
+} from '../../components/common/LocationSelectField';
 
 
 // Ported from client/app/(root)/bulk-purchase/CompareModal.tsx — same step
@@ -137,6 +143,39 @@ export default function CompareStoresScreen() {
   });
   const setField = (k: keyof AddressForm, v: string) =>
     setForm(f => ({ ...f, [k]: v }));
+
+  // ── State → City cascade + pincode auto-fill ──────────────────────────────
+  const [cityOptions, setCityOptions] = useState<{ key: string; label: string }[]>([]);
+
+  const stateOptions = indianStates.map(s => ({ key: s.isoCode, label: s.name }));
+
+  const findState = useCallback((value: string) => {
+    const v = normalizeLoc(value);
+    if (!v) return undefined;
+    return indianStates.find(
+      s => normalizeLoc(s.name) === v || normalizeLoc(s.isoCode) === v,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!form.state) { setCityOptions([]); return; }
+    const s = findState(form.state);
+    setCityOptions(s ? getCities(s.isoCode).map((c: any) => ({ key: c.name, label: c.name })) : []);
+  }, [form.state, findState]);
+
+  const handleStateSelect = (isoCode: string, label: string) => {
+    setForm(f => ({ ...f, state: label, city: '', pinCode: '' }));
+    const cities = getCities(isoCode);
+    setCityOptions(cities.map((c: any) => ({ key: c.name, label: c.name })));
+  };
+
+  const handleCitySelect = async (cityName: string) => {
+    setField('city', cityName);
+    if (!cityName) return;
+    const pin = await lookupPincode(cityName);
+    if (pin) setField('pinCode', pin);
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (paymentMethod !== 'qr' || !chosen) return;
@@ -376,21 +415,20 @@ export default function CompareStoresScreen() {
       if (!res.data.success)
         throw new Error(res.data.message || 'Order failed.');
 
-      if (paymentMethod === 'cashfree' || paymentMethod === 'razorpay') {
+      if (paymentMethod === 'razorpay') {
         const data = res.data;
-        if (!data.paymentSessionId && !data.cashfreeOrderId && !data.razorpayOrderId) {
-          throw new Error('Failed to initialize Cashfree payment session.');
+        if (!data.razorpayOrderId && !data.keyId) {
+          throw new Error('Failed to initialize Razorpay payment session.');
         }
 
         const options = {
-          order_id: data.cashfreeOrderId || data.razorpayOrderId || data.orderId,
-          paymentSessionId: data.paymentSessionId,
-          cashfreeOrderId: data.cashfreeOrderId,
-          amount: data.amount,
+          provider: 'razorpay',
+          order_id: data.razorpayOrderId || data.orderId,
+          key: data.keyId || data.key,
+          amount: data.amountPaise || Math.round(data.amount * 100),
           currency: data.currency || 'INR',
-          name: data.name || chosen.storeName || 'WOW Lifestyle Marketplace',
+          name: data.name || chosen.storeName || 'Remise Marketplace',
           description: data.description || `Order #${data.orderId}`,
-          isSandbox: Boolean(data.isSandbox),
           customer: {
             name: `${form.firstName} ${form.lastName}`.trim() || data.customer?.name,
             email: form.contactEmail || data.customer?.email,
@@ -481,6 +519,7 @@ export default function CompareStoresScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Custom km"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="number-pad"
                 value={customRadius}
                 onChangeText={setCustomRadius}
@@ -647,29 +686,29 @@ export default function CompareStoresScreen() {
                 value={form.address}
                 onChangeText={v => setField('address', v)}
               />
-              <View style={styles.row3}>
-                <TextInput
-                  style={[styles.input, styles.third]}
-                  placeholder="City *"
-                  placeholderTextColor="#9CA3AF"
-                  value={form.city}
-                  onChangeText={v => setField('city', v)}
-                />
-                <TextInput
-                  style={[styles.input, styles.third]}
-                  placeholder="State *"
-                  placeholderTextColor="#9CA3AF"
-                  value={form.state}
-                  onChangeText={v => setField('state', v)}
-                />
-                <TextInput
-                  style={[styles.input, styles.third]}
-                  placeholder="Pin Code *"
-                  placeholderTextColor="#9CA3AF"
-                  value={form.pinCode}
-                  onChangeText={v => setField('pinCode', v)}
-                />
-              </View>
+              <LocationSelectField
+                label="State"
+                value={form.state}
+                placeholder="Select State *"
+                options={stateOptions}
+                onSelect={handleStateSelect}
+              />
+              <LocationSelectField
+                label="City"
+                value={form.city}
+                placeholder={form.state ? 'Select City *' : 'Select a state first'}
+                options={cityOptions}
+                disabled={!form.state}
+                onSelect={handleCitySelect}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Pin Code *"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="number-pad"
+                value={form.pinCode}
+                onChangeText={v => setField('pinCode', v)}
+              />
 
               <View style={styles.buttonRow}>
                 <TouchableOpacity
@@ -1183,6 +1222,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSizes.sm,
+    color: CustomerColors.black,
   },
   primaryBtn: {
     flexDirection: 'row',

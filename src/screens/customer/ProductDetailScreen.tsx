@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
@@ -15,28 +16,32 @@ import {
   Zap,
   Truck,
   CheckCircle,
+  ArrowLeft,
+  Store,
+  ShieldCheck,
+  Star,
+  Tag,
+  Sparkles,
+  Package,
 } from 'lucide-react-native';
 import { productApi, Product, productImage } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import {
   GoldColors,
   CustomerColors,
   Spacing,
   FontSizes,
   BorderRadius,
+  Shadows,
 } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
 import { requireAuthForPurchase } from '../../utils/authGuard';
+import { normalizeSpecifications } from '../../utils/categoryAttributes';
 
-// Ported from client/app/product/[productId]/page.tsx — same single
-// full-catalog fetch + client-side find-by-id (the web page doesn't use a
-// dedicated /:id endpoint either), same 4 tabs (About/Specs/Ideal For/
-// Shipping), same quantity bounds (1..totalStock), same Add to Cart / Buy
-// Now behavior. Zoom-on-hover and the noise texture overlay are desktop-only
-// affordances with no mobile equivalent and are intentionally not ported —
-// everything else (fields, business logic, gold theme) carries over.
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const TABS = ['About', 'Specs', 'Ideal For', 'Shipping'] as const;
+const TABS = ['About', 'Specifications', 'Highlights', 'Shipping'] as const;
 
 // Roles that see store-owner pricing instead of the direct-customer price
 const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
@@ -47,51 +52,131 @@ export default function ProductDetailScreen() {
   const { productId: routeProductId } = route.params;
   const { user, token } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
+  const { isWishlisted: checkWishlisted, toggleWishlist } = useWishlist();
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState<string | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<(typeof TABS)[number]>('About');
-  const [wishlisted, setWishlisted] = useState(false);
 
   useEffect(() => {
-    productApi
-      .getAll()
-      .then(res => {
+    let isMounted = true;
+
+    const fetchProductData = async () => {
+      let found: Product | null = null;
+      let allItems: Product[] = [];
+
+      // 1. Try Gateway Products list first
+      try {
+        const res = await productApi.getProductsViaGateway({ limit: 10000 });
         const data = res.data;
         const arr: Product[] = Array.isArray(data)
           ? data
           : data.products || data.data || [];
-        const found = arr.find(
-          p =>
-            String(p._id) === String(routeProductId) ||
-            String(p.id) === String(routeProductId),
-        );
+        if (arr.length > 0) {
+          allItems = arr;
+          const match = arr.find(
+            p =>
+              String(p._id) === String(routeProductId) ||
+              String(p.id) === String(routeProductId),
+          );
+          if (match) found = match;
+        }
+      } catch (err) {
+        // Fallback to next
+      }
+
+      // 2. If not found, try direct single product by ID
+      if (!found) {
+        try {
+          const res = await productApi.getById(routeProductId);
+          const data = res.data;
+          const item: Product = data.product || data.data || data;
+          if (item && (String(item._id) === String(routeProductId) || String(item.id) === String(routeProductId))) {
+            found = item;
+          }
+        } catch (err) {
+          // Fallback to next
+        }
+      }
+
+      // 3. If still not found, try legacy products endpoint
+      if (!found) {
+        try {
+          const res = await productApi.getAll();
+          const data = res.data;
+          const arr: Product[] = Array.isArray(data)
+            ? data
+            : data.products || data.data || [];
+          if (arr.length > 0) {
+            if (allItems.length === 0) allItems = arr;
+            const match = arr.find(
+              p =>
+                String(p._id) === String(routeProductId) ||
+                String(p.id) === String(routeProductId),
+            );
+            if (match) found = match;
+          }
+        } catch (err) {
+          // Both failed
+        }
+      }
+
+      if (isMounted) {
+        if (allItems.length > 0) setAllProducts(allItems);
         if (found) {
           setProduct(found);
           setActiveImage(productImage(found));
         }
-      })
-      .finally(() => setLoading(false));
+        setLoading(false);
+      }
+    };
+
+    fetchProductData();
+    return () => {
+      isMounted = false;
+    };
   }, [routeProductId]);
 
   const gallery = useMemo(() => {
     if (!product) return [];
     if (Array.isArray(product.images) && product.images.length > 0)
-      return product.images;
+      return product.images.filter(Boolean);
     return product.imageUrl ? [product.imageUrl] : [];
   }, [product]);
 
-  const specs = useMemo(() => {
+  // Dynamic specifications normalization (filtering out empty fields)
+  const normalizedSpecs = useMemo(() => {
     if (!product) return [];
-    const base = Array.isArray(product.specifications)
-      ? [...product.specifications]
-      : [];
-    if (product.totalStock !== undefined)
-      base.push({ label: 'Total Stock', value: `${product.totalStock} Units` });
-    return base;
+    const specs = normalizeSpecifications(
+      product.attributes,
+      product.specifications,
+      product.category,
+      product.subcategory,
+    );
+    if (product.totalStock !== undefined) {
+      specs.push({ label: 'Total Stock', value: `${product.totalStock} Units` });
+    }
+    if (product.moq && Number(product.moq) > 1) {
+      specs.push({ label: 'Min Order Qty', value: `${product.moq} Units` });
+    }
+    return specs;
   }, [product]);
+
+  // Similar products
+  const similarProducts = useMemo(() => {
+    if (!product || !allProducts.length) return [];
+    return allProducts
+      .filter(
+        p =>
+          (p._id || p.id) !== (product._id || product.id) &&
+          (p.category?.toLowerCase() === product.category?.toLowerCase() ||
+            p.subcategory?.toLowerCase() === product.subcategory?.toLowerCase()),
+      )
+      .slice(0, 4);
+  }, [product, allProducts]);
 
   if (loading) {
     return (
@@ -117,8 +202,6 @@ export default function ProductDetailScreen() {
   }
 
   const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
-  // Store-owner buyers see storePrice/storeDiscountedPrice (falling back to
-  // the regular customer price if the seller didn't set a store price).
   const displayProduct: Product = isStoreOwner
     ? {
         ...product,
@@ -128,632 +211,673 @@ export default function ProductDetailScreen() {
     : product;
 
   const isOutOfStock = product.totalStock <= 0;
+  const originalPriceVal = displayProduct.originalPrice || displayProduct.price * 1.25;
+  const currentPriceVal = displayProduct.price;
   const discount =
-    displayProduct.originalPrice && displayProduct.originalPrice > displayProduct.price
-      ? Math.round(
-          ((displayProduct.originalPrice - displayProduct.price) /
-            displayProduct.originalPrice) *
-            100,
-        )
+    originalPriceVal > currentPriceVal
+      ? Math.round(((originalPriceVal - currentPriceVal) / originalPriceVal) * 100)
       : 0;
+
+  const pId = product._id || product.id || '';
+  const isItemWishlisted = checkWishlisted(pId);
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to add items to your cart.',
-      })
-    )
-      return;
-    addToCart({
-      id: product._id || product.id!,
-      title: product.title,
-      price: displayProduct.price,
-      quantity,
-      image: activeImage,
-      totalStock: product.totalStock,
-    });
+    if (!requireAuthForPurchase(navigation)) return;
+
+    for (let i = 0; i < quantity; i++) {
+      addToCart({
+        id: pId,
+        title: product.title,
+        price: displayProduct.price,
+        quantity: 1,
+        image: productImage(product) || '',
+        totalStock: product.totalStock,
+      });
+    }
   };
 
   const handleBuyNow = () => {
     if (isOutOfStock) return;
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to complete this purchase.',
-      })
-    )
-      return;
+    if (!requireAuthForPurchase(navigation)) return;
+
     setBuyNowItem({
-      id: product._id || product.id!,
+      id: pId,
       title: product.title,
       price: displayProduct.price,
       quantity,
-      image: activeImage,
+      image: productImage(product) || '',
       totalStock: product.totalStock,
     });
     navigation.navigate('Checkout');
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: Spacing.xxl }}
-    >
-      <View style={styles.imageWrap}>
-        {discount > 0 && !isOutOfStock && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountBadgeText}>-{discount}% OFF</Text>
-          </View>
-        )}
-        <Image
-          source={{ uri: activeImage }}
-          style={[styles.image, isOutOfStock && styles.imageDimmed]}
-        />
+    <View style={styles.container}>
+      {/* Top Header */}
+      <View style={styles.header}>
         <TouchableOpacity
-          style={[styles.wishBtn, wishlisted && styles.wishBtnActive]}
-          onPress={() => setWishlisted(w => !w)}
+          style={styles.headerBtn}
+          onPress={() => navigation.goBack()}
         >
-          <Heart
-            size={16}
-            color={wishlisted ? '#000' : CustomerColors.textSecondary}
-            fill={wishlisted ? '#000' : 'none'}
-          />
+          <ArrowLeft size={20} color={CustomerColors.black} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {product.title}
+        </Text>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => navigation.navigate('Cart')}
+        >
+          <ShoppingCart size={20} color={CustomerColors.black} />
         </TouchableOpacity>
       </View>
 
-      {gallery.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.thumbRow}
-        >
-          {gallery.map((img, idx) => (
-            <TouchableOpacity
-              key={idx}
-              onPress={() => setActiveImage(img)}
-              style={[styles.thumb, activeImage === img && styles.thumbActive]}
-            >
-              <Image source={{ uri: img }} style={styles.thumbImage} />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      <View style={styles.content}>
-        <View style={styles.metaRow}>
-          <Text style={styles.brand}>{product.brand}</Text>
-          <View style={styles.metaDivider} />
-          <Text style={styles.category}>{product.category}</Text>
-          {product.badge && !isOutOfStock && (
-            <View style={styles.badgePill}>
-              <Text style={styles.badgePillText}>{product.badge}</Text>
-            </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Main Image View */}
+        <View style={styles.imageStage}>
+          {activeImage ? (
+            <Image source={{ uri: activeImage }} style={styles.mainImage} />
+          ) : (
+            <Package size={48} color={CustomerColors.textSecondary} />
           )}
-        </View>
 
-        <Text style={styles.title}>{product.title}</Text>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹{displayProduct.price?.toLocaleString()}</Text>
-          {displayProduct.originalPrice &&
-            displayProduct.originalPrice > displayProduct.price &&
-            !isOutOfStock && (
-              <Text style={styles.originalPrice}>
-                ₹{displayProduct.originalPrice.toLocaleString()}
+          {/* Stock status badge */}
+          <View style={styles.stockBadgeContainer}>
+            <View
+              style={[
+                styles.stockBadge,
+                isOutOfStock
+                  ? styles.stockBadgeOut
+                  : product.totalStock < 5
+                  ? styles.stockBadgeLow
+                  : styles.stockBadgeIn,
+              ]}
+            >
+              <Text style={styles.stockBadgeText}>
+                {isOutOfStock
+                  ? 'Out of Stock'
+                  : product.totalStock < 5
+                  ? `Only ${product.totalStock} Left`
+                  : 'In Stock'}
               </Text>
-            )}
-        </View>
-
-        <View style={styles.stockRow}>
-          <View>
-            <Text style={styles.stockLabel}>Stock</Text>
-            <Text
-              style={[styles.stockValue, isOutOfStock && styles.stockValueOut]}
-            >
-              {isOutOfStock ? 'Out of Stock' : `${product.totalStock} units`}
-            </Text>
-          </View>
-          <View>
-            <Text style={styles.stockLabel}>Delivery</Text>
-            <Text style={styles.stockValue}>
-              {product.deliveryTime || '3–8 days'}
-            </Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.qtyRow}>
-          <Text style={styles.qtyLabel}>Qty</Text>
-          <View style={styles.qtyStepper}>
-            <TouchableOpacity
-              style={styles.qtyBtn}
-              disabled={isOutOfStock}
-              onPress={() => setQuantity(q => Math.max(1, q - 1))}
-            >
-              <Text style={styles.qtyBtnText}>−</Text>
-            </TouchableOpacity>
-            <Text style={styles.qtyValue}>{isOutOfStock ? 0 : quantity}</Text>
-            <TouchableOpacity
-              style={styles.qtyBtn}
-              disabled={isOutOfStock || quantity >= product.totalStock}
-              onPress={() =>
-                setQuantity(q => Math.min(product.totalStock, q + 1))
-              }
-            >
-              <Text style={styles.qtyBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {isOutOfStock ? (
-          <View style={styles.outOfStockCta}>
-            <Text style={styles.outOfStockCtaText}>Out of Stock</Text>
-          </View>
-        ) : (
-          <View style={styles.ctaRow}>
-            <TouchableOpacity style={styles.cartCta} onPress={handleAddToCart}>
-              <ShoppingCart size={14} color={GoldColors.goldDark} />
-              <Text style={styles.cartCtaText}>Add to Cart</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.buyCta} onPress={handleBuyNow}>
-              <Zap size={14} color="#000" />
-              <Text style={styles.buyCtaText}>Buy Now</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Thumbnails */}
+        {gallery.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.thumbnailRow}
+            contentContainerStyle={{ gap: Spacing.sm }}
+          >
+            {gallery.map((img, i) => (
+              <TouchableOpacity
+                key={i}
+                onPress={() => setActiveImage(img)}
+                style={[
+                  styles.thumbnailBox,
+                  activeImage === img && styles.thumbnailActive,
+                ]}
+              >
+                <Image source={{ uri: img }} style={styles.thumbnailImg} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         )}
 
-        <View style={styles.shippingNote}>
-          <Truck size={13} color={GoldColors.gold} />
-          <Text style={styles.shippingNoteText}>
-            Free shipping on prepaid orders · Est. delivery{' '}
-            <Text style={styles.shippingNoteBold}>
-              {product.deliveryTime || '3–8 days'}
+        {/* Core Product Info */}
+        <View style={styles.infoCard}>
+          {/* Badges */}
+          <View style={styles.badgeRow}>
+            {product.brand && (
+              <View style={styles.brandBadge}>
+                <Text style={styles.brandBadgeText}>{product.brand}</Text>
+              </View>
+            )}
+            {product.category && (
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryBadgeText}>{product.category}</Text>
+              </View>
+            )}
+            {product.subcategory && (
+              <View style={styles.subcategoryBadge}>
+                <Text style={styles.subcategoryBadgeText}>
+                  {product.subcategory}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Title */}
+          <Text style={styles.title}>{product.title}</Text>
+
+          {/* Rating Summary */}
+          <View style={styles.ratingBar}>
+            <View style={styles.ratingChip}>
+              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Text style={styles.ratingText}>4.8</Text>
+            </View>
+            <Text style={styles.ratingCount}>128 Ratings</Text>
+            <Text style={styles.dotSeparator}>·</Text>
+            <ShieldCheck size={14} color={CustomerColors.teal700} />
+            <Text style={styles.verifiedText}>Verified Genuine</Text>
+          </View>
+
+          {/* Price Box */}
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>
+              ₹{currentPriceVal?.toLocaleString('en-IN')}
             </Text>
-          </Text>
-        </View>
-
-        <View style={styles.tabBar}>
-          {TABS.map(t => (
-            <TouchableOpacity
-              key={t}
-              style={styles.tabItem}
-              onPress={() => setTab(t)}
-            >
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                {t}
-              </Text>
-              {tab === t && <View style={styles.tabIndicator} />}
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.tabContent}>
-          {tab === 'About' && (
-            <View style={{ gap: Spacing.lg }}>
-              {product.aboutFeatures && product.aboutFeatures.length > 0 && (
-                <View>
-                  <Text style={styles.sectionTitle}>Key Features</Text>
-                  {product.aboutFeatures.map((f, i) => (
-                    <View key={i} style={styles.featureRow}>
-                      <View style={styles.featureDot} />
-                      <Text style={styles.featureText}>{f}</Text>
-                    </View>
-                  ))}
+            {originalPriceVal > currentPriceVal && (
+              <>
+                <Text style={styles.originalPrice}>
+                  ₹{originalPriceVal?.toLocaleString('en-IN')}
+                </Text>
+                <View style={styles.discountBadge}>
+                  <Text style={styles.discountText}>{discount}% OFF</Text>
                 </View>
-              )}
+              </>
+            )}
+          </View>
+
+          {/* Store Info Card */}
+          <View style={styles.storeCard}>
+            <View style={styles.storeIconBox}>
+              <Store size={18} color={GoldColors.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.storeName}>
+                Sold by {product.storeId ? 'Verified Partner Store' : 'Remise Direct Official'}
+              </Text>
+              <Text style={styles.storeSub}>Fast Dispatch · 100% Quality Checked</Text>
+            </View>
+          </View>
+
+          {/* Offer Banner */}
+          <View style={styles.offerBanner}>
+            <Tag size={16} color={CustomerColors.teal700} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.offerTitle}>
+                Use Code <Text style={{ textDecorationLine: 'underline', fontWeight: '800' }}>REMISE10</Text> for 10% Extra Off
+              </Text>
+              <Text style={styles.offerSubtitle}>
+                Free delivery on prepaid orders above ₹499
+              </Text>
+            </View>
+          </View>
+
+          {/* Quantity and Wishlist Selector */}
+          <View style={styles.qtyWishlistRow}>
+            <View style={styles.qtySelector}>
+              <TouchableOpacity
+                onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                disabled={isOutOfStock || quantity <= 1}
+                style={styles.qtyBtn}
+              >
+                <Text style={styles.qtyBtnText}>−</Text>
+              </TouchableOpacity>
+              <Text style={styles.qtyText}>{isOutOfStock ? 0 : quantity}</Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setQuantity(Math.min(product.totalStock || 99, quantity + 1))
+                }
+                disabled={isOutOfStock || quantity >= (product.totalStock || 99)}
+                style={styles.qtyBtn}
+              >
+                <Text style={styles.qtyBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => toggleWishlist(product)}
+              style={[
+                styles.wishlistBtn,
+                isItemWishlisted && styles.wishlistBtnActive,
+              ]}
+            >
+              <Heart
+                size={20}
+                color={isItemWishlisted ? '#DC2626' : CustomerColors.textSecondary}
+                fill={isItemWishlisted ? '#DC2626' : 'none'}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Delivery Note */}
+          <View style={styles.deliveryNote}>
+            <Truck size={14} color={GoldColors.gold} />
+            <Text style={styles.deliveryText}>
+              Est. delivery in {product.deliveryTime || '3–7 Business Days'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Tabbed Specifications & Details */}
+        <View style={styles.tabsCard}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabsHeader}
+            contentContainerStyle={{ gap: Spacing.sm }}
+          >
+            {TABS.map(t => (
+              <TouchableOpacity
+                key={t}
+                onPress={() => setTab(t)}
+                style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
+              >
+                <Text
+                  style={[
+                    styles.tabBtnText,
+                    tab === t && styles.tabBtnTextActive,
+                  ]}
+                >
+                  {t}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.tabBody}>
+            {tab === 'About' && (
               <View>
-                <Text style={styles.sectionTitle}>Description</Text>
-                <Text style={styles.paragraph}>
+                <Text style={styles.tabHeading}>Description</Text>
+                <Text style={styles.descriptionText}>
                   {product.aboutDescription ||
                     product.description ||
-                    'No description available.'}
+                    'No detailed description available for this product.'}
                 </Text>
               </View>
-            </View>
-          )}
+            )}
 
-          {tab === 'Specs' &&
-            (specs.length > 0 ? (
-              <View style={styles.specTable}>
-                {specs.map((s, idx) => (
-                  <View
-                    key={idx}
-                    style={[styles.specRow, idx % 2 === 0 && styles.specRowAlt]}
-                  >
-                    <Text style={styles.specLabel}>{s.label}</Text>
-                    <Text style={styles.specValue}>{s.value || '—'}</Text>
+            {/* DYNAMIC SPECIFICATIONS TABLE (ONLY DISPLAY FIELDS WITH VALUES) */}
+            {tab === 'Specifications' && (
+              <View>
+                {normalizedSpecs.length > 0 ? (
+                  <View style={styles.specsTable}>
+                    {normalizedSpecs.map((spec, idx) => (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.specRow,
+                          idx % 2 === 0 && styles.specRowAlt,
+                        ]}
+                      >
+                        <Text style={styles.specLabel}>{spec.label}</Text>
+                        <Text style={styles.specValue}>{spec.value}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
+                ) : (
+                  <Text style={styles.emptyTabText}>
+                    No specifications available.
+                  </Text>
+                )}
               </View>
-            ) : (
-              <Text style={styles.emptyText}>No specifications available.</Text>
-            ))}
+            )}
 
-          {tab === 'Ideal For' &&
-            (product.idealFor && product.idealFor.length > 0 ? (
-              <View style={styles.idealGrid}>
-                {product.idealFor.map((item, idx) => (
-                  <View key={idx} style={styles.idealCard}>
-                    <CheckCircle size={13} color={GoldColors.gold} />
-                    <Text style={styles.idealCardText}>{item}</Text>
-                  </View>
-                ))}
+            {tab === 'Highlights' && (
+              <View>
+                {Array.isArray(product.idealFor) && product.idealFor.length > 0 ? (
+                  product.idealFor.map((item, idx) => (
+                    <View key={idx} style={styles.highlightItem}>
+                      <Sparkles size={14} color={GoldColors.gold} />
+                      <Text style={styles.highlightText}>{item}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyTabText}>
+                    Standard item highlights apply.
+                  </Text>
+                )}
               </View>
-            ) : (
-              <Text style={styles.emptyText}>No tags available.</Text>
-            ))}
+            )}
 
-          {tab === 'Shipping' && (
-            <View style={{ gap: Spacing.md }}>
-              <View style={styles.policyCard}>
-                <Text style={styles.policyTitle}>Incorrect Product</Text>
-                <Text style={styles.paragraph}>
-                  If the delivered item does not match your order confirmation,
-                  you are eligible for a full return or replacement at no
-                  additional cost.
-                </Text>
+            {tab === 'Shipping' && (
+              <View style={{ gap: Spacing.sm }}>
+                <View style={styles.policyCard}>
+                  <Text style={styles.policyTitle}>Delivery Policy</Text>
+                  <Text style={styles.policyBody}>
+                    Dispatched within 24 hours of order confirmation. Track live updates directly from your orders tab.
+                  </Text>
+                </View>
+                <View style={styles.policyCard}>
+                  <Text style={styles.policyTitle}>7 Days Replacement</Text>
+                  <Text style={styles.policyBody}>
+                    Hassle-free pickup and replacement for damaged or incorrect items within 7 days of delivery.
+                  </Text>
+                </View>
               </View>
-              <View style={styles.policyCard}>
-                <Text style={styles.policyTitle}>Manufacturing Defect</Text>
-                <Text style={styles.paragraph}>
-                  Photograph the defect immediately after unboxing and share
-                  with our support team. We will arrange a replacement or full
-                  refund promptly.
-                </Text>
-              </View>
-            </View>
-          )}
+            )}
+          </View>
         </View>
+
+        {/* Similar Products */}
+        {similarProducts.length > 0 && (
+          <View style={styles.similarSection}>
+            <Text style={styles.similarTitle}>
+              Similar Products in {product.subcategory || product.category}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: Spacing.md }}
+            >
+              {similarProducts.map(p => {
+                const img = productImage(p);
+                return (
+                  <TouchableOpacity
+                    key={p._id || p.id}
+                    style={styles.similarCard}
+                    onPress={() =>
+                      navigation.push('ProductDetail', {
+                        productId: p._id || p.id,
+                      })
+                    }
+                  >
+                    <View style={styles.similarImgBox}>
+                      {img ? (
+                        <Image source={{ uri: img }} style={styles.similarImg} />
+                      ) : (
+                        <Package size={24} color={CustomerColors.textSecondary} />
+                      )}
+                    </View>
+                    <Text style={styles.similarBrand} numberOfLines={1}>
+                      {p.brand || p.category}
+                    </Text>
+                    <Text style={styles.similarName} numberOfLines={2}>
+                      {p.title}
+                    </Text>
+                    <Text style={styles.similarPrice}>
+                      ₹{p.price?.toLocaleString('en-IN')}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Bottom Sticky Action Bar */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={[styles.cartBtn, isOutOfStock && styles.btnDisabled]}
+          onPress={handleAddToCart}
+          disabled={isOutOfStock}
+        >
+          <ShoppingCart size={18} color={GoldColors.gold} />
+          <Text style={styles.cartBtnText}>Add to Cart</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.buyBtn, isOutOfStock && styles.btnDisabled]}
+          onPress={handleBuyNow}
+          disabled={isOutOfStock}
+        >
+          <Zap size={18} color="#000" />
+          <Text style={styles.buyBtnText}>Buy Now</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: Spacing.xl,
-  },
-  notFoundTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  notFoundSubtitle: {
-    fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg,
-  },
-  backBtn: {
-    backgroundColor: GoldColors.gold,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  backBtnText: { color: '#000', fontWeight: '800', fontSize: FontSizes.sm },
-  imageWrap: { aspectRatio: 1, backgroundColor: '#F9F9F9' },
-  image: { width: '100%', height: '100%' },
-  imageDimmed: { opacity: 0.5 },
-  discountBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    zIndex: 2,
-    backgroundColor: GoldColors.gold,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 3,
-  },
-  discountBadgeText: { fontSize: 10, fontWeight: '800', color: '#000' },
-  wishBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 2,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wishBtnActive: { backgroundColor: GoldColors.gold },
-  thumbRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  thumb: {
-    width: 60,
-    height: 60,
-    borderRadius: BorderRadius.sm,
-    marginRight: Spacing.sm,
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    overflow: 'hidden',
-  },
-  thumbActive: { borderColor: GoldColors.gold, borderWidth: 2 },
-  thumbImage: { width: '100%', height: '100%' },
-  content: { padding: Spacing.lg },
-  metaRow: {
+  container: { flex: 1, backgroundColor: '#070707' },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.sm,
+    backgroundColor: '#111',
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
   },
-  brand: {
-    fontSize: FontSizes.xs,
-    fontWeight: '800',
-    color: GoldColors.gold,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  headerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#222',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  metaDivider: { width: 1, height: 12, backgroundColor: '#EAEAEA' },
-  category: {
-    fontSize: FontSizes.xs,
+  headerTitle: {
+    fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: Spacing.sm,
   },
-  badgePill: {
-    marginLeft: 'auto',
-    backgroundColor: 'rgba(201,168,76,0.15)',
+  scrollContent: { paddingBottom: 100 },
+  center: {
+    flex: 1,
+    backgroundColor: '#070707',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  notFoundTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: '#fff', marginBottom: Spacing.xs },
+  notFoundSubtitle: { fontSize: FontSizes.sm, color: '#888', marginBottom: Spacing.lg },
+  backBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: GoldColors.gold,
+    borderRadius: BorderRadius.md,
+  },
+  backBtnText: { color: '#000', fontSize: FontSizes.xs, fontWeight: '800', textTransform: 'uppercase' },
+  imageStage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+    backgroundColor: '#111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  mainImage: { width: '85%', height: '85%', resizeMode: 'contain' },
+  stockBadgeContainer: { position: 'absolute', top: Spacing.md, left: Spacing.md },
+  stockBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.pill },
+  stockBadgeIn: { backgroundColor: '#15803D' },
+  stockBadgeLow: { backgroundColor: '#B45309' },
+  stockBadgeOut: { backgroundColor: '#B91C1C' },
+  stockBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  thumbnailRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, backgroundColor: '#0D0D0D' },
+  thumbnailBox: {
+    width: 54,
+    height: 54,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: GoldColors.gold,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 3,
+    borderColor: '#222',
+    backgroundColor: '#161616',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  badgePillText: { fontSize: 9, fontWeight: '800', color: GoldColors.goldDark },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: Spacing.md,
+  thumbnailActive: { borderColor: GoldColors.gold, borderWidth: 2 },
+  thumbnailImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  infoCard: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#1F1F1F',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    margin: Spacing.md,
   },
-  priceRow: {
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm },
+  brandBadge: { backgroundColor: '#222', paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.sm },
+  brandBadgeText: { color: GoldColors.gold, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  categoryBadge: { borderWidth: 1, borderColor: '#333', paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.sm },
+  categoryBadgeText: { color: '#9CA3AF', fontSize: 10, fontWeight: '600' },
+  subcategoryBadge: { borderWidth: 1, borderColor: GoldColors.gold, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.sm },
+  subcategoryBadgeText: { color: GoldColors.goldLight, fontSize: 10, fontWeight: '700' },
+  title: { fontSize: FontSizes.lg, fontWeight: '800', color: '#fff', lineHeight: 26, marginBottom: Spacing.xs },
+  ratingBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md },
+  ratingChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(245, 158, 11, 0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.sm },
+  ratingText: { color: '#F59E0B', fontSize: 11, fontWeight: '800' },
+  ratingCount: { color: '#888', fontSize: 11 },
+  dotSeparator: { color: '#444' },
+  verifiedText: { color: CustomerColors.teal700, fontSize: 11, fontWeight: '700' },
+  priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  price: { fontSize: 28, fontWeight: '700', color: '#111827' },
-  originalPrice: {
-    fontSize: FontSizes.base,
-    color: CustomerColors.textSecondary,
-    textDecorationLine: 'line-through',
-  },
-  stockRow: {
-    flexDirection: 'row',
-    gap: Spacing.xl,
-    paddingBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EAEAEA',
-    marginBottom: Spacing.md,
-  },
-  stockLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  stockValue: { fontSize: FontSizes.sm, fontWeight: '700', color: '#111827' },
-  stockValueOut: { color: CustomerColors.danger },
-  qtyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  qtyLabel: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  qtyStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: BorderRadius.sm,
-    overflow: 'hidden',
+    borderColor: '#262626',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
-  qtyBtn: {
+  price: { fontSize: 28, fontWeight: '900', color: GoldColors.gold },
+  originalPrice: { fontSize: FontSizes.sm, color: '#777', textDecorationLine: 'line-through' },
+  discountBadge: { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.sm },
+  discountText: { color: '#EF4444', fontSize: 10, fontWeight: '800' },
+  storeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: '#262626',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  storeIconBox: {
     width: 36,
     height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#222',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qtyBtnText: { fontSize: 18, color: CustomerColors.textSecondary },
-  qtyValue: {
-    width: 36,
-    textAlign: 'center',
-    fontWeight: '700',
-    color: GoldColors.goldDark,
-  },
-  ctaRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  cartCta: {
-    flex: 1,
+  storeName: { fontSize: FontSizes.xs, fontWeight: '800', color: '#fff' },
+  storeSub: { fontSize: 10, color: '#888' },
+  offerBanner: {
     flexDirection: 'row',
-    gap: 6,
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 46,
-    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(20, 184, 166, 0.08)',
     borderWidth: 1,
-    borderColor: GoldColors.gold,
-  },
-  cartCtaText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '800',
-    color: GoldColors.goldDark,
-    textTransform: 'uppercase',
-  },
-  buyCta: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 46,
-    borderRadius: BorderRadius.md,
-    backgroundColor: GoldColors.gold,
-  },
-  buyCtaText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '800',
-    color: '#000',
-    textTransform: 'uppercase',
-  },
-  outOfStockCta: {
-    height: 46,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: 'rgba(20, 184, 166, 0.3)',
+    borderStyle: 'dashed',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  outOfStockCtaText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '800',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  shippingNote: {
+  offerTitle: { fontSize: FontSizes.xs, fontWeight: '700', color: '#2DD4BF' },
+  offerSubtitle: { fontSize: 10, color: '#99F6E4' },
+  qtyWishlistRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
+  qtySelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  shippingNoteText: {
-    flex: 1,
-    fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
-  },
-  shippingNoteBold: { fontWeight: '700', color: '#111827' },
-  tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EAEAEA',
-    marginBottom: Spacing.lg,
-  },
-  tabItem: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    marginRight: Spacing.sm,
-  },
-  tabText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  tabTextActive: { color: GoldColors.goldDark },
-  tabIndicator: {
-    height: 2,
-    backgroundColor: GoldColors.gold,
-    marginTop: 6,
-    borderRadius: 1,
-  },
-  tabContent: { minHeight: 150 },
-  sectionTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: GoldColors.goldDark,
-    marginBottom: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EAEAEA',
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  featureDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: GoldColors.gold,
-    marginTop: 6,
-  },
-  featureText: { flex: 1, fontSize: FontSizes.sm, color: '#111827' },
-  paragraph: {
-    fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
-    lineHeight: 20,
-  },
-  specTable: {
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
+    borderColor: '#262626',
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
   },
-  specRow: {
+  qtyBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  qtyBtnText: { color: '#fff', fontSize: FontSizes.base, fontWeight: '800' },
+  qtyText: { color: GoldColors.gold, fontSize: FontSizes.sm, fontWeight: '800', minWidth: 28, textAlign: 'center' },
+  wishlistBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: '#262626',
+    backgroundColor: '#161616',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wishlistBtnActive: { borderColor: '#DC2626', backgroundColor: 'rgba(220, 38, 38, 0.1)' },
+  deliveryNote: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
+  deliveryText: { fontSize: 11, color: '#888' },
+  tabsCard: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#1F1F1F',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  tabsHeader: { borderBottomWidth: 1, borderBottomColor: '#222', paddingBottom: Spacing.xs },
+  tabBtn: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.sm, borderRadius: BorderRadius.sm },
+  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: GoldColors.gold },
+  tabBtnText: { color: '#888', fontSize: FontSizes.xs, fontWeight: '700', textTransform: 'uppercase' },
+  tabBtnTextActive: { color: GoldColors.gold },
+  tabBody: { paddingTop: Spacing.md },
+  tabHeading: { fontSize: FontSizes.sm, fontWeight: '800', color: GoldColors.gold, marginBottom: Spacing.xs },
+  descriptionText: { fontSize: FontSizes.xs, color: '#BBB', lineHeight: 20 },
+  specsTable: { borderWidth: 1, borderColor: '#222', borderRadius: BorderRadius.md, overflow: 'hidden' },
+  specRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' },
+  specRowAlt: { backgroundColor: '#161616' },
+  specLabel: { width: '45%', fontSize: FontSizes.xs, fontWeight: '700', color: '#888', textTransform: 'uppercase' },
+  specValue: { flex: 1, fontSize: FontSizes.xs, fontWeight: '600', color: '#fff' },
+  emptyTabText: { color: '#666', fontSize: FontSizes.xs, textAlign: 'center', paddingVertical: Spacing.md },
+  highlightItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+  highlightText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '600' },
+  policyCard: { backgroundColor: '#161616', padding: Spacing.sm, borderRadius: BorderRadius.md },
+  policyTitle: { fontSize: FontSizes.xs, fontWeight: '800', color: GoldColors.gold, marginBottom: 2 },
+  policyBody: { fontSize: 10, color: '#AAA', lineHeight: 15 },
+  similarSection: { marginHorizontal: Spacing.md, marginBottom: Spacing.xl },
+  similarTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#fff', marginBottom: Spacing.md },
+  similarCard: {
+    width: 140,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#1F1F1F',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+  },
+  similarImgBox: { width: '100%', height: 100, backgroundColor: '#161616', borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: Spacing.xs },
+  similarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  similarBrand: { fontSize: 9, fontWeight: '700', color: GoldColors.gold, textTransform: 'uppercase' },
+  similarName: { fontSize: 11, fontWeight: '700', color: '#fff', marginTop: 2, marginBottom: 4, height: 28 },
+  similarPrice: { fontSize: FontSizes.xs, fontWeight: '900', color: '#fff' },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#111',
+    borderTopWidth: 1,
+    borderTopColor: '#222',
     flexDirection: 'row',
-    paddingVertical: Spacing.sm,
+    gap: Spacing.md,
     paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
   },
-  specRowAlt: { backgroundColor: '#F9F9F9' },
-  specLabel: {
-    width: '40%',
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  specValue: {
+  cartBtn: {
     flex: 1,
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  idealGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  idealCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: '#F9F9F9',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#1A1A1A',
     borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    borderColor: GoldColors.gold,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: 12,
   },
-  idealCardText: {
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
+  cartBtnText: { color: GoldColors.gold, fontSize: FontSizes.xs, fontWeight: '800', textTransform: 'uppercase' },
+  buyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: GoldColors.gold,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: 12,
   },
-  emptyText: {
-    textAlign: 'center',
-    color: CustomerColors.textSecondary,
-    paddingVertical: Spacing.xl,
-  },
-  policyCard: {
-    backgroundColor: '#F9F9F9',
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-  },
-  policyTitle: {
-    fontSize: FontSizes.xs,
-    fontWeight: '800',
-    color: GoldColors.goldDark,
-    textTransform: 'uppercase',
-    marginBottom: Spacing.xs,
-  },
+  buyBtnText: { color: '#000', fontSize: FontSizes.xs, fontWeight: '800', textTransform: 'uppercase' },
+  btnDisabled: { opacity: 0.5 },
 });

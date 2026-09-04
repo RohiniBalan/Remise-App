@@ -18,13 +18,14 @@ import { useAuth } from '../../context/AuthContext';
 import { orderApi, OrderData } from '../../api/orderApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BrandHeader from '../../components/common/BrandHeader';
 import {
   CustomerColors,
   Spacing,
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
-import CustomerHeader from '../../components/home/CustomerHeader';
 
 const STATUS_FILTERS = [
   'On the way',
@@ -94,6 +95,7 @@ function getStatusUI(status: string, orderDate: string, deliveryDate: string, de
 
 
 export default function OrdersScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +226,7 @@ export default function OrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <CustomerHeader />
+      <BrandHeader />
       {loadError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{loadError}</Text>

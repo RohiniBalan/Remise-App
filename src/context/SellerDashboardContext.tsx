@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { storeApi } from '../api/storeApi';
 import { storeProductApi } from '../api/storeProductApi';
@@ -8,6 +9,25 @@ import { sellerOrderApi, sellerStoreApi, SellerOrder } from '../api/sellerApi';
 // gaps as web (see seller-analytics.ts comments there): no buyer store
 // name/id on the order itself (resolved here via storeNameByOwnerId), and
 // no paidAt timestamp (payment aging is createdAt-based only).
+
+const SEEN_ORDERS_KEY = 'seller_seen_order_ids';
+
+async function getSeenOrderIds(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(SEEN_ORDERS_KEY);
+    return new Set<string>(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+async function persistSeenOrderIds(ids: Set<string>) {
+  try {
+    await AsyncStorage.setItem(SEEN_ORDERS_KEY, JSON.stringify([...ids]));
+  } catch {
+    // non-fatal
+  }
+}
 
 interface SellerDashboardValue {
   store: any;
@@ -19,6 +39,10 @@ interface SellerDashboardValue {
   loadError: string;
   noStore: boolean;
   refresh: () => Promise<void>;
+  /** Count of Processing orders not yet seen by the seller */
+  newOrderCount: number;
+  /** Call this when the seller opens the Incoming Orders screen */
+  markOrdersAsSeen: () => Promise<void>;
 }
 
 const SellerDashboardContext = createContext<SellerDashboardValue | undefined>(undefined);
@@ -33,6 +57,28 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [noStore, setNoStore] = useState(false);
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+
+  // Load seen IDs from storage on mount
+  useEffect(() => {
+    getSeenOrderIds().then(setSeenIds);
+  }, []);
+
+  // Count only NEW (unseen) Processing orders
+  const newOrderCount = orders.filter(
+    (o) => o.orderStatus === 'Processing' && !seenIds.has((o as any)._id || (o as any).id)
+  ).length;
+
+  // Mark all current orders as seen
+  const markOrdersAsSeen = useCallback(async () => {
+    const existing = await getSeenOrderIds();
+    orders.forEach((o) => {
+      const id = (o as any)._id || (o as any).id;
+      if (id) existing.add(id);
+    });
+    await persistSeenOrderIds(existing);
+    setSeenIds(new Set(existing));
+  }, [orders]);
 
   const loadData = useCallback(async () => {
     setLoadError('');
@@ -122,7 +168,7 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
 
   return (
     <SellerDashboardContext.Provider
-      value={{ store, products, categories, orders, storeNameByOwnerId, loading, loadError, noStore, refresh: loadData }}
+      value={{ store, products, categories, orders, storeNameByOwnerId, loading, loadError, noStore, refresh: loadData, newOrderCount, markOrdersAsSeen }}
     >
       {children}
     </SellerDashboardContext.Provider>

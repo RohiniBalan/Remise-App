@@ -1,16 +1,13 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { Heart, ShoppingCart, Zap } from 'lucide-react-native';
+import { Heart, ShoppingCart, Zap, Sparkles } from 'lucide-react-native';
 import { Product, productImage, productId, discountPercent } from '../../api/productApi';
-import { GoldColors, CustomerColors, Spacing, BorderRadius, FontSizes, Shadows } from '../../styles/theme';
+import { CustomerColors, GoldColors, Spacing, BorderRadius, FontSizes, Shadows } from '../../styles/theme';
 
-// Shared between CategoryScreen and (later) HomeScreen — reproduces the
-// same card fields/actions as web's product-card markup in
-// category/[categoryId]/page.tsx: discount badge, product badge, wishlist
+// Shared between CategoryScreen, NewArrivalsScreen and (later) HomeScreen — reproduces the
+// same card fields/actions as web's product-card markup: discount badge, NEW badge, wishlist
 // toggle (local-only, not persisted — matches web), Add to Cart / Buy Now
-// (disabled + "Out of Stock" when totalStock <= 0). Gold accent palette
-// matches the web product/category pages' distinct theme (not the red/teal
-// used elsewhere in the app).
+// (disabled + "Out of Stock" when totalStock <= 0).
 
 interface Props {
   product: Product;
@@ -19,9 +16,10 @@ interface Props {
   onToggleWishlist: () => void;
   onAddToCart: () => void;
   onBuyNow: () => void;
+  hideBuyNow?: boolean;
 }
 
-export default function ProductCard({ product, isWished, onPress, onToggleWishlist, onAddToCart, onBuyNow }: Props) {
+export default function ProductCard({ product, isWished, onPress, onToggleWishlist, onAddToCart, onBuyNow, hideBuyNow = false }: Props) {
   const discount = discountPercent(product);
   const isOutOfStock = product.totalStock <= 0;
   const image = productImage(product);
@@ -29,19 +27,22 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.imageWrap}>
-        {discount > 0 && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountBadgeText}>-{discount}%</Text>
-          </View>
-        )}
-        {product.badge && !isWished && (
-          <View style={styles.productBadge}>
-            <Text style={styles.productBadgeText}>{product.badge}</Text>
-          </View>
-        )}
+        <View style={styles.badgeContainer}>
+          {product.badge && (
+            <View style={styles.productBadge}>
+              {product.badge.toUpperCase() === 'NEW' && <Sparkles size={8} color="#FFF" />}
+              <Text style={styles.productBadgeText}>{product.badge}</Text>
+            </View>
+          )}
+          {discount > 0 && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountBadgeText}>-{discount}%</Text>
+            </View>
+          )}
+        </View>
         <Image source={{ uri: image }} style={[styles.image, isOutOfStock && styles.imageDimmed]} />
         <TouchableOpacity style={[styles.wishBtn, isWished && styles.wishBtnActive]} onPress={onToggleWishlist}>
-          <Heart size={13} color={isWished ? '#000' : GoldColors.goldMuted} fill={isWished ? '#000' : 'none'} />
+          <Heart size={13} color={isWished ? '#FF0000' : CustomerColors.textSecondary} fill={isWished ? '#FF0000' : 'none'} />
         </TouchableOpacity>
       </View>
 
@@ -62,13 +63,21 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
         </View>
       ) : (
         <View style={styles.ctaRow}>
-          <TouchableOpacity style={styles.cartBtn} onPress={onAddToCart}>
+          <TouchableOpacity
+            style={[styles.cartBtn, hideBuyNow && styles.cartBtnFull]}
+            onPress={onAddToCart}
+          >
             <ShoppingCart size={12} color={CustomerColors.textSecondary} />
+            {hideBuyNow && (
+              <Text style={styles.cartBtnText}>Add to Cart</Text>
+            )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.buyBtn} onPress={onBuyNow}>
-            <Zap size={12} color="#000" />
-            <Text style={styles.buyBtnText}>Buy Now</Text>
-          </TouchableOpacity>
+          {!hideBuyNow && (
+            <TouchableOpacity style={styles.buyBtn} onPress={onBuyNow}>
+              <Zap size={12} color="#FFF" />
+              <Text style={styles.buyBtnText}>Buy Now</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </TouchableOpacity>
@@ -80,22 +89,25 @@ const styles = StyleSheet.create({
   imageWrap: { aspectRatio: 1, backgroundColor: '#F9F9F9' },
   image: { width: '100%', height: '100%' },
   imageDimmed: { opacity: 0.5 },
-  discountBadge: { position: 'absolute', top: 8, left: 8, zIndex: 2, backgroundColor: GoldColors.gold, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
+  badgeContainer: { position: 'absolute', top: 8, left: 8, zIndex: 2, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  productBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: CustomerColors.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
+  productBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFF', textTransform: 'uppercase' },
+  discountBadge: { backgroundColor: GoldColors.gold, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
   discountBadgeText: { fontSize: 9, fontWeight: '800', color: '#000' },
-  productBadge: { position: 'absolute', top: 8, right: 8, zIndex: 2, backgroundColor: 'rgba(201,168,76,0.15)', borderWidth: 1, borderColor: GoldColors.gold, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
-  productBadgeText: { fontSize: 9, fontWeight: '700', color: GoldColors.goldDark },
   wishBtn: { position: 'absolute', top: 8, right: 8, zIndex: 3, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' },
-  wishBtnActive: { backgroundColor: GoldColors.gold },
+  wishBtnActive: { backgroundColor: '#FFE5E5' },
   info: { padding: Spacing.sm, gap: 2 },
-  brand: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: GoldColors.goldDark },
+  brand: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: CustomerColors.primary },
   title: { fontSize: FontSizes.sm, fontWeight: '500', color: '#111827', minHeight: 32 },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 },
   price: { fontSize: FontSizes.md, fontWeight: '700', color: '#111827' },
   originalPrice: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
   ctaRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: CustomerColors.border },
   cartBtn: { width: 40, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, borderRightWidth: 1, borderRightColor: CustomerColors.border },
-  buyBtn: { flex: 1, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, backgroundColor: GoldColors.gold },
-  buyBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: '#000', textTransform: 'uppercase' },
+  cartBtnFull: { flex: 1, width: undefined, flexDirection: 'row', gap: 5, borderRightWidth: 0 },
+  cartBtnText: { fontSize: 10, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.3 },
+  buyBtn: { flex: 1, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, backgroundColor: CustomerColors.primary },
+  buyBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: '#FFF', textTransform: 'uppercase' },
   outOfStockRow: { borderTopWidth: 1, borderTopColor: CustomerColors.border, paddingVertical: Spacing.sm, alignItems: 'center' },
   outOfStockText: { fontSize: 10, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase' },
 });

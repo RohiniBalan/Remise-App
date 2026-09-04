@@ -1,29 +1,48 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Image,
-  ActivityIndicator, Alert,
+  View,
+  Text,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  FlatList,
 } from 'react-native';
-import { Save, Trash2, Plus, Mic, MicOff, RefreshCw, ImageIcon, AlertCircle, ChevronDown, Check } from 'lucide-react-native';
-import { Modal, FlatList } from 'react-native';
+import {
+  Save,
+  Trash2,
+  Plus,
+  Mic,
+  MicOff,
+  RefreshCw,
+  ImageIcon,
+  AlertCircle,
+  ChevronDown,
+  Check,
+  Sparkles,
+  Sliders,
+  X,
+  Layers,
+} from 'lucide-react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
-import { useNavigation, useRoute } from '@react-navigation/native';import { useSellerDashboard } from '../../context/SellerDashboardContext';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { useAuth } from '../../context/AuthContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { sellerAiApi } from '../../api/sellerApi';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { requestCameraPermission } from '../../utils/permissions';
-import { mergeCategories } from '../../utils/storeCategories';
-
-// Ported from client/app/store/seller/page.tsx's SellerProductModal.
-// Web renders this as a centered modal overlay; here it's a pushed stack
-// screen (SellerNavigator.tsx), same as StoreProductFormScreen already does
-// for the store-owner side.
-//
-// Uses react-native-image-picker (not expo-image-picker) and this app's
-// real useVoiceInput hook (listening/transcript/partialTranscript/error/
-// start/stop — no `supported` flag, no `interimTranscript`), matching what
-// StoreProductFormScreen already uses.
+import {
+  getCategories,
+  getSubcategories,
+  getCategoryAttributes,
+  normalizeSpecifications,
+} from '../../utils/categoryAttributes';
 
 type BulkTier = { minQty: string; price: string };
 
@@ -47,23 +66,45 @@ export default function SellerProductFormScreen() {
     storePrice: product?.storePrice ? String(product.storePrice) : '',
     storeDiscountedPrice: product?.storeDiscountedPrice ? String(product.storeDiscountedPrice) : '',
     category: product?.category || initialCategory || '',
+    subcategory: product?.subcategory || '',
     brand: product?.brand || '',
     totalStock: product?.totalStock ? String(product.totalStock) : '',
     availability: product?.availability || 'In Stock',
     tags: product?.tags?.join(', ') || '',
     moq: product?.moq ? String(product.moq) : '1',
   });
+
+  const [dynamicAttributes, setDynamicAttributes] = useState<Record<string, string>>(() => {
+    if (product?.attributes && typeof product.attributes === 'object') {
+      return { ...product.attributes };
+    }
+    if (Array.isArray(product?.specifications)) {
+      const init: Record<string, string> = {};
+      product.specifications.forEach((s: any) => {
+        if (s?.label && s?.value) init[s.label] = s.value;
+      });
+      return init;
+    }
+    return {};
+  });
+
   const [bulkTiers, setBulkTiers] = useState<BulkTier[]>(
     product?.bulkPricing?.map((t: any) => ({ minQty: String(t.minQty), price: String(t.price) })) || [],
   );
+
   const [imageAsset, setImageAsset] = useState<Asset | null>(null);
   const [preview, setPreview] = useState<string>(product?.imageUrl || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [aiAutofilling, setAiAutofilling] = useState(false);
+  const [aiSuccessMsg, setAiSuccessMsg] = useState('');
+
   const [voiceLang, setVoiceLang] = useState<VoiceLanguageOption>(VOICE_LANGUAGES[0]);
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceError, setVoiceError] = useState('');
+
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [subcategoryModalVisible, setSubcategoryModalVisible] = useState(false);
 
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
   const addTier = () => setBulkTiers(t => [...t, { minQty: '', price: '' }]);
@@ -71,16 +112,46 @@ export default function SellerProductFormScreen() {
   const setTier = (i: number, k: keyof BulkTier, v: string) =>
     setBulkTiers(t => t.map((row, idx) => (idx === i ? { ...row, [k]: v } : row)));
 
-  const categoryOptions = useMemo(
-  () => mergeCategories(categories || []),
-  [categories],
-);
+  // Category & Subcategory options
+  const categoryOptions = useMemo(() => {
+    const predefined = getCategories();
+    const dynamic = (categories || []).map((c: any) => c.name).filter(Boolean);
+    return Array.from(new Set([...predefined, ...dynamic]));
+  }, [categories]);
+
+  const subcategoryOptions = useMemo(() => {
+    return getSubcategories(form.category);
+  }, [form.category]);
+
+  const dynamicFields = useMemo(() => {
+    return getCategoryAttributes(form.category, form.subcategory);
+  }, [form.category, form.subcategory]);
+
+  const handleCategorySelect = (selectedCat: string) => {
+    setForm(f => ({
+      ...f,
+      category: selectedCat,
+      subcategory: '', // Reset subcategory when category changes
+    }));
+    setCategoryModalVisible(false);
+  };
+
+  const handleSubcategorySelect = (selectedSub: string) => {
+    setForm(f => ({ ...f, subcategory: selectedSub }));
+    setSubcategoryModalVisible(false);
+  };
+
+  const handleAttributeChange = (key: string, value: string) => {
+    setDynamicAttributes(prev => ({ ...prev, [key]: value }));
+  };
+
+  // ── Voice Input ──────────────────────────────────────────────────────────
   const handleVoiceResult = async (text: string) => {
     setVoiceParsing(true);
     setVoiceError('');
     try {
       const res = await sellerAiApi.parseVoiceProduct(text, voiceLang.short);
-      if (!res.data.success) throw new Error(res.data.message || "Could not understand that.");
+      if (!res.data.success) throw new Error(res.data.message || 'Could not understand that.');
       const x = res.data.extracted;
       setForm(f => ({
         ...f,
@@ -102,7 +173,66 @@ export default function SellerProductFormScreen() {
 
   const voice = useVoiceInput(handleVoiceResult);
 
-  const pickImage = async (fromCamera: boolean) => {
+  // ── AI Auto-Fill ─────────────────────────────────────────────────────────
+  const handleAiAutoFill = async (assetToScan?: Asset) => {
+    const targetAsset = assetToScan || imageAsset;
+    if (!targetAsset?.uri) {
+      Alert.alert(
+        'Upload Image First',
+        'Please take a photo or select an image from your gallery to auto-fill product details.',
+        [
+          { text: 'Camera', onPress: () => pickImage(true, true) },
+          { text: 'Gallery', onPress: () => pickImage(false, true) },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      );
+      return;
+    }
+
+    setAiAutofilling(true);
+    setAiSuccessMsg('');
+    setError('');
+
+    try {
+      const fd = new FormData();
+      fd.append('image', {
+        uri: targetAsset.uri,
+        name: targetAsset.fileName || 'product.jpg',
+        type: targetAsset.type || 'image/jpeg',
+      } as any);
+
+      const res = await sellerAiApi.scanSingleProduct(fd);
+      const data = res.data;
+      if (!data.success) throw new Error(data.message || 'Could not detect product details.');
+
+      const ext = data.extracted;
+      setForm(f => ({
+        ...f,
+        title: ext.productName || f.title,
+        category: ext.category || f.category,
+        subcategory: ext.subcategory || f.subcategory,
+        brand: ext.brand || f.brand,
+        price: ext.price ? String(ext.price) : f.price,
+        discountedPrice: ext.discountedPrice ? String(ext.discountedPrice) : f.discountedPrice,
+        description: ext.description || f.description,
+      }));
+
+      if (ext.attributes && typeof ext.attributes === 'object') {
+        setDynamicAttributes(prev => ({
+          ...prev,
+          ...ext.attributes,
+        }));
+      }
+
+      setAiSuccessMsg('✨ Product details auto-filled! Please review and edit before saving.');
+    } catch (err: any) {
+      setError(err.message || 'AI auto-fill failed. Please enter details manually.');
+    } finally {
+      setAiAutofilling(false);
+    }
+  };
+
+  const pickImage = async (fromCamera: boolean, autoScan: boolean = false) => {
     if (fromCamera) {
       const granted = await requestCameraPermission();
       if (!granted) return;
@@ -115,9 +245,13 @@ export default function SellerProductFormScreen() {
     if (asset) {
       setImageAsset(asset);
       setPreview(asset.uri || '');
+      if (autoScan) {
+        handleAiAutoFill(asset);
+      }
     }
   };
 
+  // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!form.title || !form.price) {
       setError('Title and price are required.');
@@ -131,9 +265,22 @@ export default function SellerProductFormScreen() {
         if (v !== '') fd.append(k, String(v));
       });
       fd.append('storeId', store._id);
+
+      const cleanSpecs = normalizeSpecifications(
+        dynamicAttributes,
+        [],
+        form.category,
+        form.subcategory,
+      );
+      fd.append('specifications', JSON.stringify(cleanSpecs));
+      fd.append('attributes', JSON.stringify(dynamicAttributes));
+
       const validTiers = bulkTiers.filter(t => t.minQty && t.price);
       if (validTiers.length) {
-        fd.append('bulkPricing', JSON.stringify(validTiers.map(t => ({ minQty: Number(t.minQty), price: Number(t.price) }))));
+        fd.append(
+          'bulkPricing',
+          JSON.stringify(validTiers.map(t => ({ minQty: Number(t.minQty), price: Number(t.price) }))),
+        );
       }
       if (imageAsset?.uri) {
         fd.append('image', {
@@ -143,207 +290,638 @@ export default function SellerProductFormScreen() {
         } as any);
       }
 
-      if (isEdit) await storeProductApi.update(product._id, fd);
+      if (isEdit) await storeProductApi.update(product._id || product.id, fd);
       else await storeProductApi.create(fd);
 
       await refresh();
       navigation.goBack();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to save product.');
+      setError(err.response?.data?.message || 'Failed to save product.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {/* AI Auto-Fill Card */}
+      <View style={styles.aiCard}>
+        <View style={styles.aiCardHeader}>
+          <Sparkles size={18} color={CustomerColors.teal700} />
+          <Text style={styles.aiCardTitle}>✨ Auto-fill Product Details</Text>
+        </View>
+        <Text style={styles.aiCardSubtitle}>
+          Scan product packaging or photo to auto-detect title, category, subcategory, price, and specs.
+        </Text>
+        <TouchableOpacity
+          style={[styles.aiButton, aiAutofilling && styles.buttonDisabled]}
+          onPress={() => handleAiAutoFill()}
+          disabled={aiAutofilling}
+        >
+          {aiAutofilling ? (
+            <>
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: Spacing.xs }} />
+              <Text style={styles.aiButtonText}>Scanning with AI…</Text>
+            </>
+          ) : (
+            <>
+              <Sparkles size={14} color="#fff" style={{ marginRight: Spacing.xs }} />
+              <Text style={styles.aiButtonText}>
+                {imageAsset ? 'Auto-fill from current photo' : 'Upload photo & Auto-fill'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
       {error ? (
-        <View style={styles.errorBox}>
-          <AlertCircle size={14} color="#FF0000" />
+        <View style={styles.errorBanner}>
+          <AlertCircle size={16} color="#DC2626" />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
 
-      {/* Voice fill */}
-      <View style={styles.voiceCard}>
-        <View style={styles.voiceLangRow}>
+      {aiSuccessMsg ? (
+        <View style={styles.successBanner}>
+          <Check size={16} color={CustomerColors.teal700} />
+          <Text style={styles.successText}>{aiSuccessMsg}</Text>
+        </View>
+      ) : null}
+
+      {/* Voice Assistant */}
+      <View style={styles.voiceSection}>
+        <View style={styles.voiceLanguages}>
           {VOICE_LANGUAGES.map(l => (
             <TouchableOpacity
               key={l.code}
-              disabled={voice.listening || voiceParsing}
               onPress={() => setVoiceLang(l)}
-              style={[styles.langChip, voiceLang.code === l.code && styles.langChipActive]}
+              disabled={voice.listening || voiceParsing}
+              style={[
+                styles.voiceLangChip,
+                voiceLang.code === l.code && styles.voiceLangChipActive,
+              ]}
             >
-              <Text style={[styles.langChipText, voiceLang.code === l.code && styles.langChipTextActive]}>{l.label}</Text>
+              <Text
+                style={[
+                  styles.voiceLangText,
+                  voiceLang.code === l.code && styles.voiceLangTextActive,
+                ]}
+              >
+                {l.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
+
         <TouchableOpacity
-          disabled={voiceParsing}
           onPress={() => (voice.listening ? voice.stop() : voice.start(voiceLang))}
-          style={[styles.voiceBtn, voice.listening && styles.voiceBtnActive]}
+          disabled={voiceParsing}
+          style={[
+            styles.voiceButton,
+            voice.listening ? styles.voiceButtonActive : styles.voiceButtonIdle,
+          ]}
         >
           {voiceParsing ? (
-            <><RefreshCw size={14} color="#fff" /><Text style={styles.voiceBtnText}>Understanding…</Text></>
+            <>
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: Spacing.xs }} />
+              <Text style={styles.voiceButtonText}>Processing…</Text>
+            </>
           ) : voice.listening ? (
-            <><MicOff size={14} color="#fff" /><Text style={styles.voiceBtnText}>Stop</Text></>
+            <>
+              <MicOff size={16} color="#fff" style={{ marginRight: Spacing.xs }} />
+              <Text style={styles.voiceButtonText}>Stop Listening</Text>
+            </>
           ) : (
-            <><Mic size={14} color="#fff" /><Text style={styles.voiceBtnText}>Speak product details</Text></>
+            <>
+              <Mic size={16} color="#fff" style={{ marginRight: Spacing.xs }} />
+              <Text style={styles.voiceButtonText}>Speak Details</Text>
+            </>
           )}
         </TouchableOpacity>
-        {voice.listening && <Text style={styles.listeningText}>Listening… "{voice.partialTranscript || voice.transcript || '…'}"</Text>}
-        {(voice.error || voiceError) ? <Text style={styles.voiceError}>{voice.error || voiceError}</Text> : null}
       </View>
 
-      {/* Image */}
-      <Text style={styles.label}>Product Image</Text>
-      <View style={styles.imageRow}>
-        <TouchableOpacity style={styles.imagePicker} onPress={() => pickImage(false)}>
-          {preview ? <Image source={{ uri: preview }} style={styles.imagePreview} /> : <ImageIcon size={22} color="#CBD5E1" />}
-        </TouchableOpacity>
-        <View style={styles.imageBtnCol}>
-          <TouchableOpacity style={styles.imageBtn} onPress={() => pickImage(false)}><Text style={styles.imageBtnText}>Choose from Gallery</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.imageBtn} onPress={() => pickImage(true)}><Text style={styles.imageBtnText}>Take Photo</Text></TouchableOpacity>
+      {/* Image Preview & Pickers */}
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Product Image</Text>
+        <View style={styles.imageRow}>
+          <View style={styles.previewBox}>
+            {preview ? (
+              <Image source={{ uri: preview }} style={styles.previewImg} />
+            ) : (
+              <ImageIcon size={32} color={CustomerColors.textSecondary} />
+            )}
+          </View>
+          <View style={styles.imageBtns}>
+            <TouchableOpacity style={styles.pickerBtn} onPress={() => pickImage(true)}>
+              <Text style={styles.pickerBtnText}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.pickerBtn} onPress={() => pickImage(false)}>
+              <Text style={styles.pickerBtnText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      <Field label="Product Title *" value={form.title} onChangeText={(t: string) => set('title', t)} placeholder="e.g. Organic Face Moisturizer" />
-      <Field label="Description" value={form.description} onChangeText={(t: string) => set('description', t)} multiline />
-      <View style={styles.row2}>
-        <Field style={{ flex: 1 }} label="Price (₹) *" value={form.price} onChangeText={(t: string) => set('price', t)} keyboardType="numeric" />
-        <Field style={{ flex: 1 }} label="Discounted Price (₹)" value={form.discountedPrice} onChangeText={(t: string) => set('discountedPrice', t)} keyboardType="numeric" />
+      {/* Core Fields */}
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Product Details</Text>
+
+        <Text style={styles.fieldLabel}>Product Title *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Organic Face Moisturizer / Galaxy S24"
+          placeholderTextColor="#9CA3AF"
+          value={form.title}
+          onChangeText={v => set('title', v)}
+        />
+
+        <Text style={styles.fieldLabel}>Description</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Describe product highlights, materials, and benefits..."
+          placeholderTextColor="#9CA3AF"
+          multiline
+          numberOfLines={3}
+          value={form.description}
+          onChangeText={v => set('description', v)}
+        />
+
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <Text style={styles.fieldLabel}>Price (₹) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0.00"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              value={form.price}
+              onChangeText={v => set('price', v)}
+            />
+          </View>
+          <View style={styles.half}>
+            <Text style={styles.fieldLabel}>Discounted Price (₹)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0.00"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              value={form.discountedPrice}
+              onChangeText={v => set('discountedPrice', v)}
+            />
+          </View>
+        </View>
+
+        {isHomeBusiness && (
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.fieldLabel}>Store Owner Price (₹)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                value={form.storePrice}
+                onChangeText={v => set('storePrice', v)}
+              />
+            </View>
+            <View style={styles.half}>
+              <Text style={styles.fieldLabel}>Store Disc. Price (₹)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                value={form.storeDiscountedPrice}
+                onChangeText={v => set('storeDiscountedPrice', v)}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Category Selector */}
+        <Text style={styles.fieldLabel}>Category *</Text>
+        <TouchableOpacity
+          style={styles.selectBtn}
+          onPress={() => setCategoryModalVisible(true)}
+        >
+          <Text style={form.category ? styles.selectText : styles.placeholderText}>
+            {form.category || 'Select Category'}
+          </Text>
+          <ChevronDown size={18} color={CustomerColors.textSecondary} />
+        </TouchableOpacity>
+
+        {/* Subcategory Selector */}
+        <Text style={styles.fieldLabel}>Subcategory</Text>
+        <TouchableOpacity
+          style={[styles.selectBtn, !form.category && styles.disabledBtn]}
+          onPress={() => form.category && setSubcategoryModalVisible(true)}
+          disabled={!form.category}
+        >
+          <Text style={form.subcategory ? styles.selectText : styles.placeholderText}>
+            {!form.category
+              ? 'Select Category first'
+              : form.subcategory || 'Select Subcategory'}
+          </Text>
+          <ChevronDown size={18} color={CustomerColors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <Text style={styles.fieldLabel}>Brand</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Apple, Organic India"
+              placeholderTextColor="#9CA3AF"
+              value={form.brand}
+              onChangeText={v => set('brand', v)}
+            />
+          </View>
+          <View style={styles.half}>
+            <Text style={styles.fieldLabel}>Stock Quantity</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 50"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="number-pad"
+              value={form.totalStock}
+              onChangeText={v => set('totalStock', v)}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.fieldLabel}>Tags (comma-separated)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. fresh, organic, fast-delivery"
+          placeholderTextColor="#9CA3AF"
+          value={form.tags}
+          onChangeText={v => set('tags', v)}
+        />
       </View>
-      {isHomeBusiness && (
-        <View style={styles.row2}>
-          <Field style={{ flex: 1 }} label="Store Owner Price (₹)" value={form.storePrice} onChangeText={(t: string) => set('storePrice', t)} keyboardType="numeric" placeholder="Leave blank to use Price" />
-          <Field style={{ flex: 1 }} label="Store Owner Discounted Price (₹)" value={form.storeDiscountedPrice} onChangeText={(t: string) => set('storeDiscountedPrice', t)} keyboardType="numeric" placeholder="Leave blank to use Discounted Price" />
+
+      {/* Dynamic Specifications & Details */}
+      {form.category && dynamicFields.length > 0 && (
+        <View style={styles.card}>
+          <View style={styles.dynamicHeader}>
+            <Sliders size={16} color={CustomerColors.teal700} />
+            <Text style={styles.sectionLabel}>
+              {form.subcategory || form.category} Specifications
+            </Text>
+          </View>
+
+          {dynamicFields.map(field => (
+            <View key={field.key} style={styles.fieldBlock}>
+              <Text style={styles.fieldLabel}>{field.label}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                placeholderTextColor="#9CA3AF"
+                value={dynamicAttributes[field.key] || ''}
+                onChangeText={v => handleAttributeChange(field.key, v)}
+              />
+            </View>
+          ))}
         </View>
       )}
-      <Text style={styles.label}>Category</Text>
-<TouchableOpacity style={styles.dropdownInput} onPress={() => setCategoryModalVisible(true)}>
-  <Text style={[styles.dropdownText, !form.category && styles.dropdownPlaceholder]}>
-    {form.category || 'Select category'}
-  </Text>
-  <ChevronDown size={16} color="#6B7280" />
-</TouchableOpacity>
 
-<Modal visible={categoryModalVisible} transparent animationType="fade" onRequestClose={() => setCategoryModalVisible(false)}>
-  <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCategoryModalVisible(false)}>
-    <View style={styles.modalSheet}>
-      <Text style={styles.modalTitle}>Select Category</Text>
-      <FlatList
-  data={categoryOptions}
-  keyExtractor={(item: any) => item._id || item.name}
-  renderItem={({ item }: any) => (
-    <TouchableOpacity
-      style={styles.modalOption}
-      onPress={() => {
-        set('category', item.name);
-        setCategoryModalVisible(false);
-      }}
-    >
-      <Text style={styles.modalOptionText}>{item.name}</Text>
-      {form.category === item.name && <Check size={16} color={CustomerColors.teal600} />}
-    </TouchableOpacity>
-  )}
-  ItemSeparatorComponent={() => <View style={styles.modalSeparator} />}
-/>
-    </View>
-  </TouchableOpacity>
-</Modal>
-      <Field label="Brand" value={form.brand} onChangeText={(t: string) => set('brand', t)} />
-      <View style={styles.row2}>
-        <Field style={{ flex: 1 }} label="Stock Quantity" value={form.totalStock} onChangeText={(t: string) => set('totalStock', t)} keyboardType="numeric" />
-        <Field style={{ flex: 1 }} label="Availability" value={form.availability} onChangeText={(t: string) => set('availability', t)} placeholder="In Stock / Out Of Stock / Pre Order" />
-      </View>
-      <Field label="Tags (comma-separated)" value={form.tags} onChangeText={(t: string) => set('tags', t)} />
+      {/* MOQ & Bulk Pricing */}
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Wholesale & Bulk Pricing</Text>
 
-      <View style={styles.divider} />
-      <Field label="Minimum Order Quantity (MOQ) *" value={form.moq} onChangeText={(t: string) => set('moq', t)} keyboardType="numeric" />
+        <Text style={styles.fieldLabel}>Minimum Order Quantity (MOQ) *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="1"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="number-pad"
+          value={form.moq}
+          onChangeText={v => set('moq', v)}
+        />
 
-      <Text style={styles.label}>Bulk Pricing Tiers</Text>
-      {bulkTiers.map((t, i) => (
-        <View key={i} style={styles.tierRow}>
-          <TextInput style={[styles.input, { flex: 1 }]} value={t.minQty} onChangeText={(v: string) => setTier(i, 'minQty', v)} placeholder="Min qty" keyboardType="numeric" />
-          <Text style={styles.tierAt}>units @ ₹</Text>
-          <TextInput style={[styles.input, { flex: 1 }]} value={t.price} onChangeText={(v: string) => setTier(i, 'price', v)} placeholder="Price" keyboardType="numeric" />
-          <TouchableOpacity onPress={() => removeTier(i)}><Trash2 size={16} color="#9CA3AF" /></TouchableOpacity>
-        </View>
-      ))}
-      <TouchableOpacity onPress={addTier}><Text style={styles.addTierText}>+ Add tier</Text></TouchableOpacity>
+        <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>Bulk Pricing Tiers</Text>
+        {bulkTiers.map((t, idx) => (
+          <View key={idx} style={styles.tierRow}>
+            <TextInput
+              style={[styles.input, styles.half]}
+              placeholder="Min Qty"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="number-pad"
+              value={t.minQty}
+              onChangeText={v => setTier(idx, 'minQty', v)}
+            />
+            <TextInput
+              style={[styles.input, styles.half]}
+              placeholder="Unit Price ₹"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              value={t.price}
+              onChangeText={v => setTier(idx, 'price', v)}
+            />
+            <TouchableOpacity onPress={() => removeTier(idx)} style={styles.trashBtn}>
+              <Trash2 size={18} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        ))}
 
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.saveBtn} disabled={saving} onPress={handleSubmit}>
-          {saving ? <ActivityIndicator color="#fff" size="small" /> : <><Save size={14} color="#fff" /><Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Add Product'}</Text></>}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelBtnText}>Cancel</Text>
+        <TouchableOpacity style={styles.addTierBtn} onPress={addTier}>
+          <Plus size={14} color={CustomerColors.teal700} style={{ marginRight: Spacing.xs }} />
+          <Text style={styles.addTierText}>Add Bulk Price Tier</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Save Button */}
+      <TouchableOpacity
+        style={[styles.saveBtn, saving && styles.buttonDisabled]}
+        onPress={handleSubmit}
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <Save size={18} color="#fff" style={{ marginRight: Spacing.sm }} />
+            <Text style={styles.saveBtnText}>
+              {isEdit ? 'Save Changes' : 'Publish Product'}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {/* Category Modal */}
+      <Modal
+        visible={categoryModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCategoryModalVisible(false)}
+        >
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={categoryOptions}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => handleCategorySelect(item)}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      form.category === item && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {form.category === item && (
+                    <Check size={16} color={CustomerColors.teal700} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Subcategory Modal */}
+      <Modal
+        visible={subcategoryModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSubcategoryModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSubcategoryModalVisible(false)}
+        >
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Subcategory</Text>
+              <TouchableOpacity onPress={() => setSubcategoryModalVisible(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={subcategoryOptions}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => handleSubcategorySelect(item)}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      form.subcategory === item && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {form.subcategory === item && (
+                    <Check size={16} color={CustomerColors.teal700} />
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.modalEmpty}>No subcategories available</Text>
+              }
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
 
-function Field({ label, style, ...props }: any) {
-  return (
-    <View style={[{ marginBottom: Spacing.sm }, style]}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput style={[styles.input, props.multiline && { height: 80, textAlignVertical: 'top' }]} placeholderTextColor="#9CA3AF" {...props} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  errorBox: { flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.sm },
-  errorText: { color: '#FF0000', fontSize: FontSizes.xs, flex: 1 },
-  voiceCard: { backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.md, gap: 8 },
-  voiceLangRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  langChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  langChipActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
-  langChipText: { fontSize: 11, fontWeight: '700', color: '#4B5563' },
-  langChipTextActive: { color: '#fff' },
-  voiceBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.teal600, paddingVertical: 10, borderRadius: BorderRadius.md },
-  voiceBtnActive: { backgroundColor: '#FF0000' },
-  voiceBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
-  listeningText: { fontSize: 11, color: CustomerColors.teal700 },
-  voiceError: { fontSize: 11, color: '#FF0000' },
-  label: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 4 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: FontSizes.sm, color: CustomerColors.black },
-  row2: { flexDirection: 'row', gap: Spacing.sm },
-  imageRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, alignItems: 'center' },
-  imagePicker: { width: 96, height: 96, borderRadius: BorderRadius.md, borderWidth: 2, borderColor: CustomerColors.steelBorder, borderStyle: 'dashed', backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  imagePreview: { width: '100%', height: '100%' },
-  imageBtnCol: { gap: 8 },
-  imageBtn: { borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: 14, paddingVertical: 8 },
-  imageBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: '#374151' },
-  divider: { height: 1, backgroundColor: '#F5F5F5', marginVertical: Spacing.md },
-  tierRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 8 },
-  tierAt: { fontSize: 11, color: '#9CA3AF' },
-  addTierText: { color: CustomerColors.teal600, fontSize: FontSizes.xs, fontWeight: '700', marginTop: 2 },
-  actionsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
-  saveBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF0000', paddingVertical: 14, borderRadius: BorderRadius.md },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
-  cancelBtn: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  cancelBtnText: { color: '#374151', fontWeight: '700', fontSize: FontSizes.sm },
-  dropdownInput: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  backgroundColor: '#fff',
-  borderWidth: 1,
-  borderColor: CustomerColors.steelBorder,
-  borderRadius: BorderRadius.md,
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  marginBottom: Spacing.sm,
-},
-dropdownText: { fontSize: FontSizes.sm, color: CustomerColors.black },
-dropdownPlaceholder: { color: '#9CA3AF' },
-modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '60%', padding: Spacing.md },
-modalTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', marginBottom: Spacing.sm },
-modalOption: { paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-modalOptionText: { fontSize: FontSizes.base, color: CustomerColors.black },
-modalSeparator: { height: 1, backgroundColor: '#F3F4F6' },
+  screen: { flex: 1, backgroundColor: '#F8FAFC' },
+  content: { padding: Spacing.lg, paddingBottom: 40 },
+  aiCard: {
+    backgroundColor: '#F0FDFA',
+    borderColor: '#99F6E4',
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  aiCardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: 4 },
+  aiCardTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.teal700 },
+  aiCardSubtitle: { fontSize: FontSizes.xs, color: CustomerColors.teal700, marginBottom: Spacing.sm },
+  aiButton: {
+    backgroundColor: CustomerColors.teal700,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  aiButtonText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  errorText: { color: '#DC2626', fontSize: FontSizes.xs, fontWeight: '600', flex: 1 },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  successText: { color: CustomerColors.teal700, fontSize: FontSizes.xs, fontWeight: '600', flex: 1 },
+  voiceSection: {
+    backgroundColor: '#fff',
+    borderColor: CustomerColors.steelBorder,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  voiceLanguages: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm },
+  voiceLangChip: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    backgroundColor: '#fff',
+  },
+  voiceLangChipActive: { backgroundColor: CustomerColors.teal700, borderColor: CustomerColors.teal700 },
+  voiceLangText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, fontWeight: '600' },
+  voiceLangTextActive: { color: '#fff' },
+  voiceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: BorderRadius.md,
+  },
+  voiceButtonIdle: { backgroundColor: CustomerColors.teal700 },
+  voiceButtonActive: { backgroundColor: '#DC2626' },
+  voiceButtonText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
+  card: {
+    backgroundColor: '#fff',
+    borderColor: CustomerColors.steelBorder,
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  sectionLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+    marginBottom: Spacing.md,
+  },
+  fieldBlock: { marginBottom: Spacing.sm },
+  fieldLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    fontSize: FontSizes.sm,
+    color: CustomerColors.black,
+    marginBottom: Spacing.sm,
+  },
+  textArea: { minHeight: 70, textAlignVertical: 'top' },
+  selectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    marginBottom: Spacing.sm,
+  },
+  disabledBtn: { opacity: 0.5, backgroundColor: '#F8FAFC' },
+  selectText: { fontSize: FontSizes.sm, color: CustomerColors.black, fontWeight: '600' },
+  placeholderText: { fontSize: FontSizes.sm, color: '#9CA3AF' },
+  row: { flexDirection: 'row', gap: Spacing.md },
+  half: { flex: 1 },
+  imageRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
+  previewBox: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  previewImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  imageBtns: { flex: 1, gap: Spacing.xs },
+  pickerBtn: {
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  pickerBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.black },
+  dynamicHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.sm },
+  tierRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+  trashBtn: { padding: Spacing.sm },
+  addTierBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+    paddingVertical: 4,
+  },
+  addTierText: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.teal700 },
+  saveBtn: {
+    backgroundColor: '#DC2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: BorderRadius.xl,
+    marginTop: Spacing.sm,
+    ...Shadows.card,
+  },
+  saveBtnText: { color: '#fff', fontSize: FontSizes.sm, fontWeight: '800', textTransform: 'uppercase' },
+  buttonDisabled: { opacity: 0.6 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, maxHeight: '75%', paddingBottom: Spacing.xl },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
+  modalItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
+  modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '800' },
+  modalEmpty: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
 });

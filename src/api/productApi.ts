@@ -16,6 +16,13 @@ import { legacyProductClient, gatewayClient } from './client';
 // start with another leading `/api/...` on top of that — every call here
 // was hitting `/api/api/...` and 404ing. Paths below now start after the
 // baseURL's `/api`, e.g. `/products` not `/api/products`.
+//
+// GATEWAY-BACKED METHODS: The customer-facing CategoryGridScreen needs to
+// fetch from the product-service microservice (via the api-gateway at
+// GATEWAY_URL / remise.digital), NOT the legacy render.com backend. The web
+// category page hardcodes `http://localhost:3003/api` (product-service
+// directly); in production, the gateway at remise.digital proxies to the
+// same service. Methods suffixed `ViaGateway` hit these correct endpoints.
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
@@ -25,6 +32,7 @@ export interface Product {
   title: string;
   brand?: string;
   category?: string;
+  subcategory?: string;
   type?: string;
   price: number;
   originalPrice?: number;
@@ -42,6 +50,9 @@ export interface Product {
   aboutFeatures?: string[];
   idealFor?: string[];
   specifications?: Array<{ label: string; value: string }>;
+  attributes?: Record<string, any>;
+  moq?: number;
+  storeId?: string;
 }
 
 export const productApi = {
@@ -49,6 +60,15 @@ export const productApi = {
   getById: (id: string) => legacyProductClient.get(`/products/${id}`),
   getByStore: (storeId: string, params?: Record<string, string | number>) => legacyProductClient.get(`/products/store/${storeId}`, { params }),
   getCategories: () => legacyProductClient.get('/admin/categories'),
+
+  // Gateway-backed equivalents — hit the product-service microservice via
+  // the api-gateway (GATEWAY_URL = remise.digital), matching the web's
+  // category page which fetches from localhost:3003/api (product-service).
+  // Used by CategoryGridScreen to show the same categories as the web.
+  getProductsViaGateway: (params?: Record<string, string | number>) =>
+    gatewayClient.get('/api/products', { params }),
+  getCategoriesViaGateway: () =>
+    gatewayClient.get('/api/categories'),
 
   // FIX: web's client/app/api-services/productApi.ts uses NEXT_PUBLIC_API_URL
   // (the gateway) for this call, not the legacy render.com product host — same

@@ -7,32 +7,29 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Platform,
+  ToastAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useRoute, RouteProp } from '@react-navigation/native';
-import { Filter, X } from 'lucide-react-native';
+import { Filter, X, Sparkles } from 'lucide-react-native';
 import { productApi, Product, productId } from '../../api/productApi';
+import { NEW_ARRIVAL_WINDOW_DAYS } from '../../api/homeSectionsApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useAuth } from '../../context/AuthContext';
+import { requireAuthForPurchase } from '../../utils/authGuard';
 import ProductCard from '../../components/common/ProductCard';
 import {
   CustomerColors,
+  GoldColors,
   Spacing,
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
-import { useAuth } from '../../context/AuthContext';
-import { requireAuthForPurchase } from '../../utils/authGuard';
 
-// Ported from client/app/category/[categoryId]/page.tsx — same single
-// full-catalog fetch, same client-side filter/sort logic (category
-// single-select, brand multi-select, availability multi-select, a max-price
-// filter, and 3 sort modes). The price *slider* is replaced with preset
-// range buttons (Under 500 / 500-1000 / 1000-2500 / 2500+ / All) to avoid
-// pulling in a native slider dependency for one control — same filtering
-// behavior, different input widget, per the plan's "redesign UI, keep
-// functionality identical" rule. Wishlist is local-only state, matching web
-// (never persisted there either).
+// Ported 1:1 from client/app/new-arrivals/page.tsx — same 14-day cutoff window,
+// same category / brand / availability / price presets / sort filtering, and
+// store-owner role pricing support.
 
 const PRICE_PRESETS: Array<{ label: string; min: number; max: number }> = [
   { label: 'All', min: 0, max: Infinity },
@@ -43,33 +40,28 @@ const PRICE_PRESETS: Array<{ label: string; min: number; max: number }> = [
 ];
 
 const SORT_OPTIONS = [
-  'Best selling',
+  'Newest',
   'Price: Low to High',
   'Price: High to Low',
 ] as const;
 
-// Roles that see store-owner pricing instead of the direct-customer price
 const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
 
-export default function CategoryScreen() {
+export default function NewArrivalsScreen() {
   const navigation = useNavigation<any>();
-  const route = useRoute<RouteProp<{ CategoryProducts: { category?: string } }, 'CategoryProducts'>>();
   const { user, token } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(route.params?.category ?? null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [selectedAvailabilities, setSelectedAvailabilities] = useState<
-    string[]
-  >([]);
+  const [selectedAvailabilities, setSelectedAvailabilities] = useState<string[]>([]);
   const [pricePreset, setPricePreset] = useState(PRICE_PRESETS[0]);
-  const [sortBy, setSortBy] =
-    useState<(typeof SORT_OPTIONS)[number]>('Best selling');
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>('Newest');
 
   useEffect(() => {
     productApi
@@ -80,67 +72,69 @@ export default function CategoryScreen() {
       })
       .then(res => {
         const data = res.data;
-        const arr = Array.isArray(data)
+        const arr: Product[] = Array.isArray(data)
           ? data
-          : data.products || data.data || [];
-        setProducts(arr);
+          : data?.products || data?.data || [];
+        setAllProducts(arr);
       })
-      .catch(() => setProducts([]))
+      .catch(() => setAllProducts([]))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    setActiveCategory(route.params?.category ?? null);
-  }, [route.params?.category]);
-  
   const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
-  // Store-owner buyers see storePrice/storeDiscountedPrice (falling back to
-  // the regular customer price if the seller didn't set a store price).
-  // Recomputes whenever isStoreOwner changes (e.g. AuthContext finishes
-  // loading the user from storage after this screen's initial render).
+
+  // 14-day cutoff window — products created/updated within NEW_ARRIVAL_WINDOW_DAYS
+  const newArrivalProducts = useMemo(() => {
+    const cutoff = Date.now() - NEW_ARRIVAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    return allProducts.filter(p => {
+      const created = new Date((p as any).createdAt || (p as any).updatedAt || 0).getTime();
+      return created >= cutoff;
+    });
+  }, [allProducts]);
+
   const displayProducts = useMemo(() => {
-    if (!isStoreOwner) return products;
-    return products.map(p => ({
+    if (!isStoreOwner) return newArrivalProducts;
+    return newArrivalProducts.map(p => ({
       ...p,
       price: p.storePrice ?? p.price,
       discountedPrice: p.storeDiscountedPrice ?? p.discountedPrice,
     }));
-  }, [products, isStoreOwner]);
+  }, [newArrivalProducts, isStoreOwner]);
 
-  const getUnique = (key: keyof Product) =>
-    Array.from(new Set(displayProducts.map(p => p[key]).filter(Boolean))) as string[];
-  const categories = useMemo(() => getUnique('category'), [displayProducts]);
-  const brands = useMemo(() => getUnique('brand'), [displayProducts]);
-  const availabilities = useMemo(() => getUnique('availability'), [displayProducts]);
+  const getUnique = (key: keyof Product, dataset: Product[]) =>
+    Array.from(new Set(dataset.map(p => p[key]).filter(Boolean))) as string[];
 
-  const toggle = (
-    list: string[],
-    setList: (v: string[]) => void,
-    value: string,
-  ) =>
-    setList(
-      list.includes(value) ? list.filter(v => v !== value) : [...list, value],
-    );
+  const categories = useMemo(() => getUnique('category', displayProducts), [displayProducts]);
+
+  const categoryScopedProducts = useMemo(() => {
+    return activeCategory
+      ? displayProducts.filter(p => p.category === activeCategory)
+      : displayProducts;
+  }, [displayProducts, activeCategory]);
+
+  const brands = useMemo(() => getUnique('brand', categoryScopedProducts), [categoryScopedProducts]);
+  const availabilities = useMemo(() => getUnique('availability', categoryScopedProducts), [categoryScopedProducts]);
+
+  const toggle = (list: string[], setList: (v: string[]) => void, value: string) =>
+    setList(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
 
   const filtered = useMemo(() => {
     return displayProducts
       .filter(p => {
         if (activeCategory && p.category !== activeCategory) return false;
-        if (p.price < pricePreset.min || p.price > pricePreset.max)
-          return false;
-        if (selectedBrands.length && !selectedBrands.includes(p.brand || ''))
-          return false;
-        if (
-          selectedAvailabilities.length &&
-          !selectedAvailabilities.includes(p.availability || '')
-        )
+        if (p.price < pricePreset.min || p.price > pricePreset.max) return false;
+        if (selectedBrands.length && !selectedBrands.includes(p.brand || '')) return false;
+        if (selectedAvailabilities.length && !selectedAvailabilities.includes(p.availability || ''))
           return false;
         return true;
       })
       .sort((a, b) => {
         if (sortBy === 'Price: Low to High') return a.price - b.price;
         if (sortBy === 'Price: High to Low') return b.price - a.price;
-        return 0;
+        return (
+          new Date((b as any).createdAt || 0).getTime() -
+          new Date((a as any).createdAt || 0).getTime()
+        );
       });
   }, [
     displayProducts,
@@ -164,6 +158,12 @@ export default function CategoryScreen() {
     setPricePreset(PRICE_PRESETS[0]);
   };
 
+  const showToast = (msg: string) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(msg, ToastAndroid.SHORT);
+    }
+  };
+
   const handleAddToCart = (p: Product) => {
     if (p.totalStock <= 0) return;
     if (
@@ -177,11 +177,12 @@ export default function CategoryScreen() {
     addToCart({
       id: productId(p),
       title: p.title,
-      price: p.price,
+      price: p.discountedPrice ?? p.price,
       quantity: 1,
       image: p.images?.[0] ?? p.imageUrl,
       totalStock: p.totalStock,
     });
+    showToast('Added to cart ✓');
   };
 
   const handleBuyNow = (p: Product) => {
@@ -197,7 +198,7 @@ export default function CategoryScreen() {
     setBuyNowItem({
       id: productId(p),
       title: p.title,
-      price: p.price,
+      price: p.discountedPrice ?? p.price,
       quantity: 1,
       image: p.images?.[0] ?? p.imageUrl,
       totalStock: p.totalStock,
@@ -215,6 +216,17 @@ export default function CategoryScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header Eyebrow & Filter Bar */}
+      <View style={styles.headerBar}>
+        <View style={styles.eyebrowRow}>
+          <Sparkles size={13} color={GoldColors.gold} />
+          <Text style={styles.eyebrowText}>Just In</Text>
+        </View>
+        <Text style={styles.pageTitle}>
+          {activeCategory ? activeCategory : 'New Arrivals'}
+        </Text>
+      </View>
+
       <View style={styles.topBar}>
         <TouchableOpacity
           style={styles.filterToggle}
@@ -230,36 +242,40 @@ export default function CategoryScreen() {
 
       {filtersOpen && (
         <View style={styles.filtersPanel}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipRow}
-          >
-            {categories.map(cat => (
-              <Chip
-                key={cat}
-                label={cat}
-                active={activeCategory === cat}
-                onPress={() =>
-                  setActiveCategory(activeCategory === cat ? null : cat)
-                }
-              />
-            ))}
-          </ScrollView>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipRow}
-          >
-            {brands.map(b => (
-              <Chip
-                key={b}
-                label={b}
-                active={selectedBrands.includes(b)}
-                onPress={() => toggle(selectedBrands, setSelectedBrands, b)}
-              />
-            ))}
-          </ScrollView>
+          {categories.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipRow}
+            >
+              {categories.map(cat => (
+                <Chip
+                  key={cat}
+                  label={cat}
+                  active={activeCategory === cat}
+                  onPress={() => setActiveCategory(activeCategory === cat ? null : cat)}
+                />
+              ))}
+            </ScrollView>
+          )}
+
+          {brands.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipRow}
+            >
+              {brands.map(b => (
+                <Chip
+                  key={b}
+                  label={b}
+                  active={selectedBrands.includes(b)}
+                  onPress={() => toggle(selectedBrands, setSelectedBrands, b)}
+                />
+              ))}
+            </ScrollView>
+          )}
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -274,6 +290,7 @@ export default function CategoryScreen() {
               />
             ))}
           </ScrollView>
+
           {availabilities.length > 0 && (
             <ScrollView
               horizontal
@@ -285,13 +302,12 @@ export default function CategoryScreen() {
                   key={a}
                   label={a}
                   active={selectedAvailabilities.includes(a)}
-                  onPress={() =>
-                    toggle(selectedAvailabilities, setSelectedAvailabilities, a)
-                  }
+                  onPress={() => toggle(selectedAvailabilities, setSelectedAvailabilities, a)}
                 />
               ))}
             </ScrollView>
           )}
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -306,6 +322,7 @@ export default function CategoryScreen() {
               />
             ))}
           </ScrollView>
+
           {hasActiveFilters && (
             <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
               <X size={12} color={CustomerColors.primary} />
@@ -323,13 +340,20 @@ export default function CategoryScreen() {
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.grid}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            No products found. Try adjusting your filters.
-          </Text>
+          <View style={styles.emptyWrap}>
+            <Sparkles size={32} color={GoldColors.gold} style={{ alignSelf: 'center', marginBottom: 8 }} />
+            <Text style={styles.emptyTitle}>No new arrivals</Text>
+            <Text style={styles.emptySubtitle}>
+              Check back soon for latest arrivals or adjust your active filters.
+            </Text>
+          </View>
         }
         renderItem={({ item }) => (
           <ProductCard
-            product={item}
+            product={{
+              ...item,
+              badge: item.badge || 'NEW',
+            }}
             isWished={isWishlisted(productId(item))}
             onPress={() =>
               navigation.navigate('ProductDetail', {
@@ -374,6 +398,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
+  },
+  headerBar: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+    backgroundColor: '#FFFFFF',
+  },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: GoldColors.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  pageTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '900',
+    color: CustomerColors.black,
   },
   topBar: {
     flexDirection: 'row',
@@ -433,10 +481,22 @@ const styles = StyleSheet.create({
   },
   grid: { padding: Spacing.sm },
   row: { gap: Spacing.sm, marginBottom: Spacing.sm },
-  empty: {
-    textAlign: 'center',
-    color: CustomerColors.textSecondary,
+  emptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
+  },
+  emptyTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '700',
+    color: CustomerColors.black,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

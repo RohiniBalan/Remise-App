@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { ShoppingBag, RefreshCw } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { sellerOrderApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
@@ -15,16 +16,24 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
 };
 
 export default function SellerOrdersScreen() {
-  const { orders, refresh, loading } = useSellerDashboard();
+  const { orders, refresh, loading, markOrdersAsSeen } = useSellerDashboard();
   const [filter, setFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [updating, setUpdating] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 30;
 
+  // Mark all orders as seen whenever this screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      markOrdersAsSeen();
+    }, [markOrdersAsSeen])
+  );
+
   useEffect(() => {
     setCurrentPage(1);
   }, [filter]);
+
 
   const counts: Record<string, number> = { all: orders.length };
   ORDER_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.orderStatus === s).length; });

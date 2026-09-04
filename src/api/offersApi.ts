@@ -10,7 +10,15 @@ export interface OrderAgainstOfferPayload {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
-  deliveryAddress: string;
+  deliveryAddress?: string;
+  city?: string;
+  state?: string;
+  pinCode?: string;
+  deliveryMethod?: 'delivery' | 'pickup';
+  paymentMethod?: 'cod' | 'online' | 'card' | 'upi' | 'qr' | 'razorpay';
+  paymentStatus?: 'Pending' | 'Completed' | 'Failed';
+  utrNumber?: string;
+  screenshot?: string;
   quantity: number;
   notes?: string;
 }
