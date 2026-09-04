@@ -5,7 +5,7 @@ import { legacyProductClient } from './client';
 // Category/Product/Cart on the customer side.
 export const adminOrderApi = {
   getAll: () => legacyProductClient.get('/admin/orders'),
-  updateStatus: (orderId: string, orderStatus: string) => legacyProductClient.put(`/admin/orders/${orderId}/status`, { orderStatus }),
+  updateStatus: (orderId: string, orderStatus: string) => legacyProductClient.put(`/admin/orders/${orderId}/status`, { status: orderStatus, orderStatus }),
 };
 
 export const adminUserApi = {

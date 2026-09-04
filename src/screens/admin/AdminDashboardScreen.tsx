@@ -12,6 +12,7 @@ import {
   Truck, 
   Home, 
   UserCheck, 
+  Key,
   ExternalLink, 
   RefreshCw,
   CheckCircle2,
@@ -53,6 +54,7 @@ export default function AdminDashboardScreen() {
     totalWholesalers: 0,
     totalHomeBusinesses: 0,
     totalUsers: 0,
+    tokensUsed: 0,
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
@@ -70,6 +72,7 @@ export default function AdminDashboardScreen() {
           totalWholesalers: data.totalWholesalers ?? 0,
           totalHomeBusinesses: data.totalHomeBusinesses ?? 0,
           totalUsers: data.totalUsers ?? 0,
+          tokensUsed: data.tokensUsed ?? 0,
         });
         if (data.recentOrders && Array.isArray(data.recentOrders)) {
           setRecentOrders(data.recentOrders);
@@ -158,6 +161,14 @@ export default function AdminDashboardScreen() {
       icon: UserCheck,
       color: '#0284C7',
       bg: '#F0F9FF',
+    },
+    {
+      label: 'Tokens Used',
+      value: (stats.tokensUsed || 0).toLocaleString('en-IN'),
+      tag: 'System Tokens',
+      icon: Key,
+      color: '#7C3AED',
+      bg: '#F5F3FF',
     },
   ];
 
