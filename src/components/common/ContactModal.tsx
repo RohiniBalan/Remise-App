@@ -22,11 +22,11 @@ export const OFFICIAL_CONTACT_INFO: ContactData = {
   title: 'Get in Touch',
   subtitle: "We'd love to hear from you. Contact us for any queries.",
   email: 'porulontechnologies@gmail.com',
-  phone: '+91 90470 99277',
+  phone: '+91 90470 099277',
   address: 'Coimbatore, Tamil Nadu, India',
   hoursWeekday: '9:00 AM - 8:00 PM',
   hoursSaturday: '10:00 AM - 6:00 PM',
-  hoursSunday: 'Opened',
+  hoursSunday: 'Closed',
 };
 
 export default function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {

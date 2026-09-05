@@ -70,15 +70,67 @@ const SOCIAL_ICONS = [
   { key: 'YT', Icon: YoutubeIcon },
 ];
 
+import { newsletterApi } from '../../api/newsletterApi';
+
 export default function HomeFooter() {
   const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [hasInputError, setHasInputError] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'success' | 'error' | 'duplicate';
+    text: string;
+  } | null>(null);
 
-  const handleSubscribe = () => {
-    if (!email.trim()) return;
-    // TODO: wire to actual newsletter signup endpoint once available.
-    Alert.alert('Subscribed', "You'll now receive our latest deals & offers.");
-    setEmail('');
+  const validateEmail = (val: string) => {
+    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return re.test(val.trim());
+  };
+
+  const handleSubscribe = async () => {
+    if (isSubscribing) return;
+
+    if (!email.trim()) {
+      setHasInputError(true);
+      setStatusMessage({ type: 'error', text: 'Please enter your email' });
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setHasInputError(true);
+      setStatusMessage({ type: 'error', text: 'Please enter a valid email address' });
+      return;
+    }
+
+    setHasInputError(false);
+    setStatusMessage(null);
+    setIsSubscribing(true);
+
+    try {
+      const res = await newsletterApi.subscribe(email, 'mobile_footer');
+      const data = res?.data;
+
+      if (data?.success) {
+        if (data.isDuplicate) {
+          setHasInputError(true);
+          setStatusMessage({ type: 'duplicate', text: 'This email is already subscribed' });
+        } else {
+          setHasInputError(false);
+          setStatusMessage({ type: 'success', text: 'Thanks for subscribing! Check your inbox to confirm.' });
+          setEmail('');
+        }
+      } else {
+        setHasInputError(true);
+        setStatusMessage({ type: 'error', text: data?.message || 'Something went wrong. Please try again.' });
+      }
+    } catch (err: any) {
+      console.error('Newsletter error in HomeFooter:', err);
+      const msg = err.response?.data?.message || 'Something went wrong. Please try again.';
+      setHasInputError(true);
+      setStatusMessage({ type: 'error', text: msg });
+    } finally {
+      setIsSubscribing(false);
+    }
   };
 
   return (
@@ -87,23 +139,62 @@ export default function HomeFooter() {
         <Text style={styles.newsletterTitle}>Stay in the Loop!</Text>
         <Text style={styles.newsletterSubtitle}>Get exclusive deals, new arrivals & offers in your inbox.</Text>
         <View style={styles.newsletterInputRow}>
-          <View style={styles.newsletterInputWrap}>
+          <View style={[styles.newsletterInputWrap, hasInputError && styles.newsletterInputWrapError]}>
             <Mail size={15} color="#CFF3F6" />
             <TextInput
               style={styles.newsletterInput}
               placeholder="Enter your email"
               placeholderTextColor="#CFF3F6"
               value={email}
-              onChangeText={setEmail}
+              editable={!isSubscribing}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (hasInputError) {
+                  setHasInputError(false);
+                  setStatusMessage(null);
+                }
+              }}
+              onSubmitEditing={handleSubscribe}
               keyboardType="email-address"
               autoCapitalize="none"
+              returnKeyType="send"
             />
           </View>
-          <TouchableOpacity style={styles.subscribeButton} onPress={handleSubscribe}>
+          <TouchableOpacity
+            style={[styles.subscribeButton, isSubscribing && { opacity: 0.7 }]}
+            onPress={handleSubscribe}
+            disabled={isSubscribing}
+          >
             <Send size={14} color="#fff" />
-            <Text style={styles.subscribeButtonText}>Subscribe</Text>
+            <Text style={styles.subscribeButtonText}>{isSubscribing ? 'Subscribing...' : 'Subscribe'}</Text>
           </TouchableOpacity>
         </View>
+
+        {statusMessage && (
+          <View
+            style={[
+              styles.statusBanner,
+              statusMessage.type === 'success'
+                ? styles.statusSuccess
+                : statusMessage.type === 'duplicate'
+                ? styles.statusDuplicate
+                : styles.statusError,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                statusMessage.type === 'success'
+                  ? styles.statusTextSuccess
+                  : statusMessage.type === 'duplicate'
+                  ? styles.statusTextDuplicate
+                  : styles.statusTextError,
+              ]}
+            >
+              {statusMessage.text}
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -197,9 +288,18 @@ const styles = StyleSheet.create({
   newsletterSubtitle: { fontSize: FontSizes.xs, color: '#E0F7FA', marginBottom: Spacing.md },
   newsletterInputRow: { flexDirection: 'row', gap: Spacing.sm },
   newsletterInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: BorderRadius.md, paddingHorizontal: Spacing.sm },
+  newsletterInputWrapError: { borderColor: '#FCA5A5', borderWidth: 1.5 },
   newsletterInput: { flex: 1, paddingVertical: 10, fontSize: FontSizes.xs, color: '#fff' },
   subscribeButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FF0000', paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md, justifyContent: 'center' },
   subscribeButtonText: { fontSize: FontSizes.xs, fontWeight: '700', color: '#fff' },
+  statusBanner: { marginTop: Spacing.xs, paddingVertical: 6, paddingHorizontal: Spacing.sm, borderRadius: BorderRadius.sm, borderWidth: 1 },
+  statusSuccess: { backgroundColor: 'rgba(15, 118, 110, 0.4)', borderColor: 'rgba(204, 251, 241, 0.4)' },
+  statusDuplicate: { backgroundColor: 'rgba(120, 53, 15, 0.4)', borderColor: 'rgba(254, 240, 138, 0.4)' },
+  statusError: { backgroundColor: 'rgba(136, 19, 55, 0.4)', borderColor: 'rgba(254, 205, 211, 0.4)' },
+  statusText: { fontSize: FontSizes.xs, fontWeight: '700' },
+  statusTextSuccess: { color: '#CCFBF1' },
+  statusTextDuplicate: { color: '#FEF08A' },
+  statusTextError: { color: '#FECDD3' },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl },
   brandRow: { marginBottom: Spacing.sm },
   logo: { fontSize: FontSizes.lg, fontWeight: '900', color: '#fff' },

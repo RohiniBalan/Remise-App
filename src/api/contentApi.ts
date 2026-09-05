@@ -1,12 +1,20 @@
-import { legacyProductClient } from './client';
+import { gatewayClient, legacyProductClient } from './client';
 
-// Ported from client/app/services/ContactPage.tsx, client/app/about/ToyBlogLifestyle.tsx,
-// and client/app/testimonials/page.tsx — all three hit LEGACY_PRODUCT_URL
-// (wow-lifebackend.onrender.com), same as Category/Product/Cart.
 export const contactApi = {
-  get: () => legacyProductClient.get('/contact'),
-  sendMessage: (payload: { name: string; email: string; phone: string; message: string }) =>
-    legacyProductClient.post('/contact/messages', payload),
+  get: async () => {
+    try {
+      return await gatewayClient.get('/api/contact');
+    } catch {
+      return await legacyProductClient.get('/contact');
+    }
+  },
+  sendMessage: async (payload: { name: string; email: string; phone: string; message: string }) => {
+    try {
+      return await gatewayClient.post('/api/contact/messages', payload);
+    } catch {
+      return await legacyProductClient.post('/contact/messages', payload);
+    }
+  },
 };
 
 export const servicesApi = {
