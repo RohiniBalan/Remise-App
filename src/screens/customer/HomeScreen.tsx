@@ -99,6 +99,13 @@ interface NearbyOffer {
 
 type NearbyStatus = 'idle' | 'locating' | 'loading' | 'done' | 'denied' | 'error';
 
+const DEAL_STRIP = [
+  { icon: Percent, title: 'Up to 50% Off', subtitle: 'On select products', color: '#FF0000', route: 'Categories' },
+  { icon: MapPin, title: 'Nearby Offers', subtitle: 'Deals around you', color: '#0FA3B1', route: 'Nearby' },
+  { icon: ShoppingBasket, title: 'Monthly / Bulk Buy', subtitle: 'Scan your purchase list', color: '#0d9488', route: 'BulkPurchase' },
+  { icon: Clock, title: 'Flash Sales', subtitle: 'Limited time deals', color: '#9333ea', route: 'Categories' },
+];
+
 const INFO_STRIP = [
   { icon: Truck, title: 'Free Delivery', subtitle: 'On orders ₹499+' },
   { icon: ShieldCheck, title: 'Secure Payments', subtitle: '100% protected' },
@@ -269,6 +276,27 @@ export default function HomeScreen() {
           </View>
         )}
         <HeroCarousel />
+
+        {/* ── Deal Strip ── */}
+        <View style={styles.dealStrip}>
+          {DEAL_STRIP.map(deal => (
+            <TouchableOpacity
+              key={deal.title}
+              style={styles.dealCard}
+              onPress={() => navigation.navigate(deal.route)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.dealIconBox, { backgroundColor: deal.color }]}>
+                <deal.icon size={15} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dealTitle} numberOfLines={1}>{deal.title}</Text>
+                <Text style={styles.dealSubtitle} numberOfLines={1}>{deal.subtitle}</Text>
+              </View>
+              <ChevronRight size={13} color="#9CA3AF" />
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={styles.infoStrip}>
           {INFO_STRIP.map(item => (
@@ -626,9 +654,48 @@ const styles = StyleSheet.create({
   menuItemTextDestructive: { color: CustomerColors.primary },
   menuDivider: { height: 1, backgroundColor: CustomerColors.border, marginVertical: Spacing.xs },
 
+  dealStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    backgroundColor: CustomerColors.white,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: CustomerColors.border,
+  },
+  dealCard: {
+    width: '48.5%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    backgroundColor: '#F9FAFB',
+  },
+  dealIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: BorderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dealTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.black,
+  },
+  dealSubtitle: {
+    fontSize: 9.5,
+    color: CustomerColors.textSecondary,
+    marginTop: 1,
+  },
+
   infoStrip: {
     flexDirection: 'row', flexWrap: 'wrap', backgroundColor: CustomerColors.white,
-    marginTop: Spacing.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, borderBottomWidth: 1, borderBottomColor: CustomerColors.border,
+    marginTop: Spacing.sm, paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, borderBottomWidth: 1, borderBottomColor: CustomerColors.border,
   },
   infoItem: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '50%', paddingVertical: Spacing.xs, paddingHorizontal: Spacing.xs },
   infoTextWrap: {},

@@ -380,7 +380,7 @@ export default function CompareStoresScreen() {
   };
 
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (overrideMethod?: 'razorpay' | 'cod' | 'qr') => {
     if (
       !requireAuthForPurchase({
         navigation,
@@ -389,7 +389,13 @@ export default function CompareStoresScreen() {
       })
     )
       return;
-    if (!chosen || !deliveryMethod || !paymentMethod) return;
+    const methodToUse = (typeof overrideMethod === 'string' && (overrideMethod === 'razorpay' || overrideMethod === 'cod' || overrideMethod === 'qr'))
+      ? overrideMethod
+      : paymentMethod;
+    if (!chosen || !deliveryMethod || !methodToUse) return;
+    if (typeof overrideMethod === 'string') {
+      setPaymentMethod(overrideMethod);
+    }
     setStep('placing');
     setErrorMsg('');
     try {
@@ -409,13 +415,13 @@ export default function CompareStoresScreen() {
         storeId: chosen.storeId,
         storeName: chosen.storeName,
         deliveryMethod,
-        paymentMethod,
+        paymentMethod: methodToUse,
       });
 
       if (!res.data.success)
         throw new Error(res.data.message || 'Order failed.');
 
-      if (paymentMethod === 'razorpay') {
+      if (methodToUse === 'razorpay') {
         const data = res.data;
         if (!data.razorpayOrderId && !data.keyId) {
           throw new Error('Failed to initialize Razorpay payment session.');
@@ -782,10 +788,7 @@ export default function CompareStoresScreen() {
                   {/* 1. Razorpay Option */}
                   <TouchableOpacity
                     style={[styles.optionCard, styles.razorpayOptionCard]}
-                    onPress={() => {
-                      setPaymentMethod('razorpay');
-                      setSelectedSubMethod('upi');
-                    }}
+                    onPress={() => handlePlaceOrder('razorpay')}
                   >
                     <View style={styles.razorpayIconBox}>
                       <CreditCard size={20} color="#FFFFFF" />
@@ -845,114 +848,6 @@ export default function CompareStoresScreen() {
                 </>
               )}
 
-              {/* ── Razorpay Payment Methods Breakdown ── */}
-              {paymentMethod === 'razorpay' && (
-                <View style={{ gap: Spacing.md }}>
-                  <View>
-                    <Text style={[styles.stepText, { fontWeight: '700', color: CustomerColors.black }]}>
-                      Available Payment Methods
-                    </Text>
-                    <Text style={[styles.optionDesc, { marginTop: 1 }]}>
-                      Select payment method to complete payment of ₹{chosen.totalAmount.toFixed(0)} via Razorpay:
-                    </Text>
-                  </View>
-
-                  {/* Sub-method: UPI */}
-                  <TouchableOpacity
-                    style={[styles.subMethodCard, selectedSubMethod === 'upi' && styles.subMethodCardActive]}
-                    onPress={() => setSelectedSubMethod('upi')}
-                  >
-                    <View style={[styles.subMethodIcon, selectedSubMethod === 'upi' && styles.subMethodIconActive]}>
-                      <Smartphone size={18} color={selectedSubMethod === 'upi' ? CustomerColors.teal700 : '#4B5563'} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={styles.subMethodTitle}>UPI (GPay, PhonePe, Paytm, BHIM)</Text>
-                        <Text style={styles.feeTag}>0% Fee</Text>
-                      </View>
-                      <Text style={styles.subMethodDesc}>Instant checkout with any UPI App or ID</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Sub-method: Cards */}
-                  <TouchableOpacity
-                    style={[styles.subMethodCard, selectedSubMethod === 'card' && styles.subMethodCardActive]}
-                    onPress={() => setSelectedSubMethod('card')}
-                  >
-                    <View style={[styles.subMethodIcon, selectedSubMethod === 'card' && styles.subMethodIconActive]}>
-                      <CreditCard size={18} color={selectedSubMethod === 'card' ? CustomerColors.teal700 : '#4B5563'} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={styles.subMethodTitle}>Credit / Debit Cards</Text>
-                        <Text style={styles.cardTag}>All Cards</Text>
-                      </View>
-                      <Text style={styles.subMethodDesc}>Visa, MasterCard, RuPay, Maestro</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Sub-method: Net Banking */}
-                  <TouchableOpacity
-                    style={[styles.subMethodCard, selectedSubMethod === 'netbanking' && styles.subMethodCardActive]}
-                    onPress={() => setSelectedSubMethod('netbanking')}
-                  >
-                    <View style={[styles.subMethodIcon, selectedSubMethod === 'netbanking' && styles.subMethodIconActive]}>
-                      <Building2 size={18} color={selectedSubMethod === 'netbanking' ? CustomerColors.teal700 : '#4B5563'} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={styles.subMethodTitle}>Net Banking</Text>
-                        <Text style={styles.bankTag}>50+ Banks</Text>
-                      </View>
-                      <Text style={styles.subMethodDesc}>SBI, HDFC, ICICI, Axis & all Indian banks</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Sub-method: Wallets */}
-                  <TouchableOpacity
-                    style={[styles.subMethodCard, selectedSubMethod === 'wallet' && styles.subMethodCardActive]}
-                    onPress={() => setSelectedSubMethod('wallet')}
-                  >
-                    <View style={[styles.subMethodIcon, selectedSubMethod === 'wallet' && styles.subMethodIconActive]}>
-                      <Wallet size={18} color={selectedSubMethod === 'wallet' ? CustomerColors.teal700 : '#4B5563'} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={styles.subMethodTitle}>Wallets</Text>
-                        <Text style={styles.walletTag}>1-Click</Text>
-                      </View>
-                      <Text style={styles.subMethodDesc}>Paytm, PhonePe, Mobikwik, Amazon Pay</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Trust badge */}
-                  <View style={styles.trustBanner}>
-                    <ShieldCheck size={16} color={CustomerColors.teal600} />
-                    <Text style={styles.trustBannerText}>
-                      256-bit SSL encrypted · Verified by Razorpay
-                    </Text>
-                  </View>
-
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.secondaryBtn}
-                      onPress={() => setPaymentMethod(null)}
-                    >
-                      <Text style={styles.secondaryBtnText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.primaryBtn, { flex: 1 }]}
-                      onPress={handlePlaceOrder}
-                    >
-                      <Lock size={15} color="#fff" />
-                      <Text style={styles.primaryBtnText}>
-                        Pay ₹{chosen.totalAmount.toFixed(0)} via Razorpay
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
               {/* ── Cash Step ── */}
               {paymentMethod === 'cod' && (
                 <View style={{ gap: Spacing.md }}>
@@ -972,7 +867,7 @@ export default function CompareStoresScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.primaryBtn, { flex: 1 }]}
-                      onPress={handlePlaceOrder}
+                      onPress={() => handlePlaceOrder()}
                     >
                       <Text style={styles.primaryBtnText}>
                         Confirm & Order — ₹{chosen.totalAmount.toFixed(0)}
@@ -1032,7 +927,7 @@ export default function CompareStoresScreen() {
                         { flex: 1 },
                         !storeQr && styles.primaryBtnDisabled,
                       ]}
-                      onPress={handlePlaceOrder}
+                      onPress={() => handlePlaceOrder()}
                       disabled={!storeQr}
                     >
                       <CheckCircle2 size={16} color="#fff" />

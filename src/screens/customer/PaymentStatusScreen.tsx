@@ -96,9 +96,9 @@ export default function PaymentStatusScreen() {
               </View>
             ) : null}
 
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('CustomerTabs', { screen: 'Categories' })}>
-              <ShoppingBag size={18} color="#000" />
-              <Text style={styles.primaryBtnText}>Continue Shopping</Text>
+            <TouchableOpacity style={styles.continueShoppingBtn} onPress={() => navigation.navigate('CustomerTabs', { screen: 'Categories' })}>
+              <ShoppingBag size={18} color="#FFFFFF" />
+              <Text style={styles.continueShoppingBtnText}>Continue Shopping</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -152,7 +152,7 @@ export default function PaymentStatusScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9F9F9', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
   card: { backgroundColor: CustomerColors.white, borderRadius: 24, borderWidth: 1, borderColor: '#F3F4F6', padding: Spacing.xl, width: '100%', maxWidth: 420 },
-  center: { alignItems: 'center' },
+  center: { alignItems: 'center', width: '100%' },
   iconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
   iconCircleSuccess: { backgroundColor: CustomerColors.successBg },
   iconCircleDanger: { backgroundColor: CustomerColors.dangerBg },
@@ -162,6 +162,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.md, width: '100%' },
   primaryBtn: { flex: 1, flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: GoldColors.gold, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
   primaryBtnText: { color: '#000', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
+  continueShoppingBtn: { width: '100%', flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.teal600, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
+  continueShoppingBtnText: { color: '#FFFFFF', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
   secondaryBtn: { flex: 1, flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
   secondaryBtnText: { color: '#1F2937', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
   billActions: { width: '100%', gap: Spacing.sm, marginBottom: Spacing.lg },
