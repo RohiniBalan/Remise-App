@@ -34,6 +34,7 @@ import { storeApi } from '../../api/storeApi';
 import { offersApi } from '../../api/offersApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useTheme } from '../../context/ThemeContext';
 import { mergeCategories } from '../../utils/storeCategories';
 
 async function requestLocationPermission(): Promise<boolean> {
@@ -61,6 +62,9 @@ export default function NewOfferScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { store: contextStore, categories, refresh } = useStoreDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
+
   const [store, setStore] = useState<any>(contextStore || null);
   const [imgUri, setImgUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -98,57 +102,47 @@ export default function NewOfferScreen() {
   const [longitude, setLongitude] = useState('');
   const [locSource, setLocSource] = useState<'store' | 'gps' | 'manual'>('store');
 
-  const targetCustomerId = route.params?.customerId;
-  const targetCustomerName = route.params?.customerName;
+  const targetCustomerId = route.params?.targetCustomerId;
+  const targetCustomerName = route.params?.targetCustomerName;
 
   // Category options merged with store's categories
   const categoryOptions = useMemo(() => {
-    const merged = mergeCategories(categories || []);
-    if (!merged || merged.length === 0) {
-      return DEFAULT_CATEGORIES.map(c => ({ key: c, label: c }));
-    }
-    return merged.map(c => ({ key: c.name, label: c.name }));
+    return mergeCategories(categories || []);
   }, [categories]);
+
+  const applyStoreCoords = (s: any) => {
+    const coords = s?.location?.coordinates;
+    if (Array.isArray(coords) && coords.length === 2 && coords[0] && coords[1]) {
+      setLongitude(String(coords[0]));
+      setLatitude(String(coords[1]));
+      setLocSource('store');
+    }
+  };
 
   useEffect(() => {
     // Initialise validUntil string
     const isoString = selectedDate.toISOString().slice(0, 16);
     set('validUntil', isoString);
+
+    if (!store) {
+      storeApi.getMyStore().then(res => {
+        const s = res.data.data;
+        setStore(s);
+        applyStoreCoords(s);
+      }).catch(() => navigation.replace('StoreRegister'));
+    } else {
+      applyStoreCoords(store);
+    }
   }, []);
 
-  useEffect(() => {
-    if (contextStore?.location?.coordinates) {
-      setStore(contextStore);
-      setLongitude(String(contextStore.location.coordinates[0]));
-      setLatitude(String(contextStore.location.coordinates[1]));
-      setLocSource('store');
-    } else {
-      storeApi
-        .getMyStore()
-        .then(res => {
-          const s = res.data.data;
-          setStore(s);
-          if (s?.location?.coordinates) {
-            setLongitude(String(s.location.coordinates[0]));
-            setLatitude(String(s.location.coordinates[1]));
-            setLocSource('store');
-          }
-        })
-        .catch(() => navigation.replace('StoreRegister'));
-    }
-  }, [contextStore]);
-
   const resetToStoreLocation = () => {
-    if (!store?.location?.coordinates) return;
-    setLongitude(String(store.location.coordinates[0]));
-    setLatitude(String(store.location.coordinates[1]));
-    setLocSource('store');
+    if (store) applyStoreCoords(store);
   };
 
   const detectGPS = async () => {
     setDetecting(true);
-    const granted = await requestLocationPermission();
-    if (!granted) {
+    const ok = await requestLocationPermission();
+    if (!ok) {
       setDetecting(false);
       setError('Could not detect GPS location. Enter coordinates manually.');
       return;
@@ -164,20 +158,23 @@ export default function NewOfferScreen() {
         setError('Could not detect GPS location. Enter coordinates manually.');
         setDetecting(false);
       },
-      { enableHighAccuracy: true, timeout: 15000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
   };
 
-  const pickImage = async () => {
-    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
-    const uri = res.assets?.[0]?.uri;
-    if (uri) setImgUri(uri);
+  const pickImage = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, res => {
+      const uri = res.assets?.[0]?.uri;
+      if (uri) setImgUri(uri);
+    });
   };
 
-  const discount =
-    form.originalPrice && form.offerPrice
-      ? Math.max(0, Math.round(((+form.originalPrice - +form.offerPrice) / +form.originalPrice) * 100))
-      : 0;
+  const discount = useMemo(() => {
+    const orig = parseFloat(form.originalPrice);
+    const off = parseFloat(form.offerPrice);
+    if (!orig || !off || off >= orig) return 0;
+    return Math.round(((orig - off) / orig) * 100);
+  }, [form.originalPrice, form.offerPrice]);
 
   const handleDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false);
@@ -186,10 +183,7 @@ export default function NewOfferScreen() {
       updated.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
       setSelectedDate(updated);
       set('validUntil', updated.toISOString().slice(0, 16));
-      // Prompt for time on Android
-      if (Platform.OS === 'android') {
-        setShowTimePicker(true);
-      }
+      setShowTimePicker(true);
     }
   };
 
@@ -204,49 +198,52 @@ export default function NewOfferScreen() {
   };
 
   const formatDisplayDate = (d: Date) => {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    const month = months[d.getMonth()];
-    const day = d.getDate();
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, '0');
-    const mins = String(d.getMinutes()).padStart(2, '0');
-    return `${month} ${day}, ${year} at ${hours}:${mins}`;
+    return d.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   };
 
   const handleSubmit = async () => {
+    setError('');
     if (!imgUri) {
       setError('Please upload an offer image.');
       return;
     }
-    if (!store) {
-      setError('Store not found.');
+    if (!form.title || !form.originalPrice || !form.offerPrice) {
+      setError('Title, Original Price, and Offer Price are required.');
       return;
     }
-    if (!latitude || !longitude) {
-      setError('Notification coordinates are required.');
-      return;
-    }
-    if (!form.title.trim() || !form.originalPrice || !form.offerPrice || !form.validUntil) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-    if (+form.offerPrice >= +form.originalPrice) {
+    if (Number(form.offerPrice) >= Number(form.originalPrice)) {
       setError('Offer price must be less than original price.');
+      return;
+    }
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    if (isNaN(lat) || isNaN(lng)) {
+      setError('Valid latitude and longitude are required.');
       return;
     }
 
     setLoading(true);
-    setError('');
     try {
       const fd = new FormData();
-      fd.append('image', { uri: imgUri, name: 'offer.jpg', type: 'image/jpeg' } as any);
+      const fn = imgUri.split('/').pop() || 'photo.jpg';
+      const ext = fn.split('.').pop() || 'jpg';
+      fd.append('image', {
+        uri: imgUri,
+        name: fn,
+        type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
+      } as any);
       fd.append('storeId', store._id);
       fd.append('storeName', store.name);
-      fd.append('latitude', latitude);
-      fd.append('longitude', longitude);
+      fd.append('latitude', String(lat));
+      fd.append('longitude', String(lng));
+      fd.append('validUntil', selectedDate.toISOString());
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (targetCustomerId) {
         fd.append('targetCustomerId', targetCustomerId);
@@ -294,7 +291,7 @@ export default function NewOfferScreen() {
           <Image source={{ uri: imgUri }} style={styles.imagePreview} />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <ImageIcon size={28} color={CustomerColors.primary} />
+            <ImageIcon size={28} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
             <Text style={styles.uploadText}>Upload Image</Text>
           </View>
         )}
@@ -305,9 +302,10 @@ export default function NewOfferScreen() {
         value={form.title}
         onChangeText={v => set('title', v)}
         placeholder="e.g. 20% off all groceries"
+        styles={styles}
+        isDark={isDark}
       />
 
-      {/* ── Category Dropdown Field ── */}
       <View style={{ marginBottom: Spacing.md }}>
         <Text style={styles.label}>Category *</Text>
         <TouchableOpacity
@@ -318,7 +316,7 @@ export default function NewOfferScreen() {
           <Text style={form.category ? styles.selectValue : styles.selectPlaceholder}>
             {form.category || 'Select Category'}
           </Text>
-          <ChevronDown size={18} color={CustomerColors.textSecondary} />
+          <ChevronDown size={18} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -329,7 +327,7 @@ export default function NewOfferScreen() {
         value={form.description}
         onChangeText={v => set('description', v)}
         placeholder="Describe special discounts, bundled items, or terms…"
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
       />
 
       <View style={styles.row2}>
@@ -340,6 +338,8 @@ export default function NewOfferScreen() {
           keyboardType="numeric"
           style={{ flex: 1 }}
           placeholder="500"
+          styles={styles}
+          isDark={isDark}
         />
         <Field
           label="Offer Price (₹) *"
@@ -348,6 +348,8 @@ export default function NewOfferScreen() {
           keyboardType="numeric"
           style={{ flex: 1 }}
           placeholder="350"
+          styles={styles}
+          isDark={isDark}
         />
       </View>
       {form.originalPrice && form.offerPrice ? (
@@ -356,7 +358,6 @@ export default function NewOfferScreen() {
         </Text>
       ) : null}
 
-      {/* ── Valid Until Calendar Field ── */}
       <View style={{ marginBottom: Spacing.md }}>
         <Text style={styles.label}>Valid Until *</Text>
         <TouchableOpacity
@@ -365,16 +366,15 @@ export default function NewOfferScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-            <Calendar size={18} color={CustomerColors.primary} />
+            <Calendar size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
             <Text style={styles.selectValue}>
               {formatDisplayDate(selectedDate)}
             </Text>
           </View>
-          <Clock size={16} color={CustomerColors.textSecondary} />
+          <Clock size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      {/* Date Picker Modal */}
       {showDatePicker && (
         <DateTimePicker
           value={selectedDate}
@@ -385,7 +385,6 @@ export default function NewOfferScreen() {
         />
       )}
 
-      {/* Time Picker Modal */}
       {showTimePicker && (
         <DateTimePicker
           value={selectedDate}
@@ -395,19 +394,18 @@ export default function NewOfferScreen() {
         />
       )}
 
-      {/* ── Notification Location Section ── */}
       <View style={styles.locationSection}>
         <Text style={styles.label}>Notification Target Location *</Text>
         <View style={styles.locBtnRow}>
           <TouchableOpacity style={styles.locBtn} onPress={resetToStoreLocation}>
-            <MapPin size={13} color={CustomerColors.primary} />
+            <MapPin size={13} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
             <Text style={styles.locBtnText}>Use Store Location</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.locBtn} onPress={detectGPS} disabled={detecting}>
             {detecting ? (
-              <ActivityIndicator size="small" color={CustomerColors.primary} />
+              <ActivityIndicator size="small" color={isDark ? '#2DD4BF' : CustomerColors.primary} />
             ) : (
-              <Satellite size={13} color={CustomerColors.primary} />
+              <Satellite size={13} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
             )}
             <Text style={styles.locBtnText}>Use Current GPS</Text>
           </TouchableOpacity>
@@ -422,6 +420,8 @@ export default function NewOfferScreen() {
             onChangeText={setLatitude}
             keyboardType="numeric"
             style={{ flex: 1 }}
+            styles={styles}
+            isDark={isDark}
           />
           <Field
             label="Longitude *"
@@ -429,6 +429,8 @@ export default function NewOfferScreen() {
             onChangeText={setLongitude}
             keyboardType="numeric"
             style={{ flex: 1 }}
+            styles={styles}
+            isDark={isDark}
           />
         </View>
       </View>
@@ -441,34 +443,32 @@ export default function NewOfferScreen() {
         )}
       </TouchableOpacity>
 
-      {/* ── Category Selection Modal ── */}
       <Modal visible={categoryModalOpen} transparent animationType="slide" onRequestClose={() => setCategoryModalOpen(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCategoryModalOpen(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Category</Text>
               <TouchableOpacity onPress={() => setCategoryModalOpen(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
             <FlatList
               data={categoryOptions}
-              keyExtractor={item => item.key}
-              style={{ maxHeight: 380 }}
+              keyExtractor={item => item._id}
               renderItem={({ item }) => {
-                const isSelected = form.category === item.label;
+                const isSelected = form.category === item.name;
                 return (
                   <TouchableOpacity
                     style={[styles.modalItem, isSelected && styles.modalItemActive]}
                     onPress={() => {
-                      set('category', item.label);
+                      set('category', item.name);
                       setCategoryModalOpen(false);
                     }}
                   >
                     <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>
-                      {item.label}
+                      {item.name}
                     </Text>
-                    {isSelected && <CheckCircle size={18} color={CustomerColors.primary} />}
+                    {isSelected && <CheckCircle size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />}
                   </TouchableOpacity>
                 );
               }}
@@ -477,7 +477,6 @@ export default function NewOfferScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── High Quality Custom Success Modal ── */}
       <Modal visible={showSuccessModal} transparent animationType="fade" onRequestClose={handleSuccessClose}>
         <View style={styles.successOverlay}>
           <View style={styles.successCard}>
@@ -486,7 +485,7 @@ export default function NewOfferScreen() {
             </View>
             <Text style={styles.successTitle}>Offer Published!</Text>
             <Text style={styles.successSubtitle}>
-              Your offer has been created successfully. Customers near your store will be notified about this deal.
+              Your offer has been created successfully.
             </Text>
             <TouchableOpacity style={styles.successButton} onPress={handleSuccessClose} activeOpacity={0.85}>
               <Text style={styles.successButtonText}>View Offers</Text>
@@ -499,233 +498,248 @@ export default function NewOfferScreen() {
   );
 }
 
-function Field({ label, style, ...props }: { label: string; style?: any } & React.ComponentProps<typeof TextInput>) {
+function Field({
+  label,
+  style,
+  styles,
+  isDark,
+  ...props
+}: {
+  label: string;
+  style?: any;
+  styles: any;
+  isDark?: boolean;
+} & React.ComponentProps<typeof TextInput>) {
   return (
     <View style={[{ marginBottom: Spacing.md }, style]}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} placeholderTextColor="#9CA3AF" {...props} />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+        {...props}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: CustomerColors.bg,
-    gap: Spacing.sm,
-  },
-  loadingText: { color: CustomerColors.textSecondary, fontSize: FontSizes.sm },
-  errorText: {
-    color: CustomerColors.primary,
-    backgroundColor: CustomerColors.dangerBg,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    fontSize: FontSizes.sm,
-  },
-  label: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-    marginBottom: Spacing.xs,
-  },
-  input: {
-    backgroundColor: CustomerColors.white,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.sm,
-    color: CustomerColors.black,
-  },
-  imageBox: {
-    width: '100%',
-    height: 150,
-    borderRadius: BorderRadius.md,
-    borderWidth: 2,
-    borderColor: CustomerColors.steelBorder,
-    borderStyle: 'dashed',
-    backgroundColor: CustomerColors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
-  },
-  imagePlaceholder: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  uploadText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.primary,
-  },
-  imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
-  row2: { flexDirection: 'row', gap: Spacing.sm },
-  discountText: {
-    fontSize: FontSizes.xs,
-    color: CustomerColors.primary,
-    fontWeight: '700',
-    marginTop: -Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  locationSection: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  locBtnRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  locBtn: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,0,0,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.2)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-  },
-  locBtnText: { fontSize: FontSizes.xs, color: CustomerColors.primary, fontWeight: '700' },
-  sourceBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: CustomerColors.white,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.pill,
-    marginBottom: Spacing.md,
-  },
-  sourceBadgeText: { fontSize: 10, color: CustomerColors.textSecondary, fontWeight: '600' },
-  submitBtn: {
-    backgroundColor: CustomerColors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-  },
-  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
-  privateBanner: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  privateBannerText: { fontSize: FontSizes.xs, color: '#92400E' },
-
-  // Dropdown Select styles
-  selectInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, fontWeight: '600' },
-  selectPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF' },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: BorderRadius.lg,
-    borderTopRightRadius: BorderRadius.lg,
-    maxHeight: '75%',
-    paddingBottom: Spacing.xl,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-  },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
-  modalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-  },
-  modalItemActive: { backgroundColor: 'rgba(255,0,0,0.05)' },
-  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black, fontWeight: '500' },
-  modalItemTextActive: { color: CustomerColors.primary, fontWeight: '700' },
-
-  // Success Modal styles
-  successOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-  },
-  successCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 340,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 15,
-    elevation: 10,
-  },
-  successIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: CustomerColors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  successTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '900',
-    color: CustomerColors.black,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
-  },
-  successSubtitle: {
-    fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
-  },
-  successButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: CustomerColors.primary,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.md,
-    width: '100%',
-  },
-  successButtonText: {
-    color: '#FFFFFF',
-    fontSize: FontSizes.sm,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
+      gap: Spacing.sm,
+    },
+    loadingText: { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontSize: FontSizes.sm },
+    errorText: {
+      color: isDark ? '#F87171' : CustomerColors.primary,
+      backgroundColor: isDark ? '#450a0a' : CustomerColors.dangerBg,
+      padding: Spacing.md,
+      borderRadius: BorderRadius.md,
+      marginBottom: Spacing.md,
+      fontSize: FontSizes.sm,
+    },
+    label: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textTransform: 'uppercase',
+      marginBottom: Spacing.xs,
+    },
+    input: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      fontSize: FontSizes.sm,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    imageBox: {
+      width: '100%',
+      height: 150,
+      borderRadius: BorderRadius.md,
+      borderWidth: 2,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderStyle: 'dashed',
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      marginBottom: Spacing.md,
+    },
+    imagePlaceholder: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    uploadText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#2DD4BF' : CustomerColors.primary,
+    },
+    imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
+    row2: { flexDirection: 'row', gap: Spacing.sm },
+    discountText: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#2DD4BF' : CustomerColors.primary,
+      fontWeight: '700',
+      marginTop: -Spacing.sm,
+      marginBottom: Spacing.md,
+    },
+    locationSection: {
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#1F2937' : '#F0F0F0',
+      paddingTop: Spacing.md,
+      marginTop: Spacing.sm,
+    },
+    locBtnRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
+    locBtn: {
+      flexDirection: 'row',
+      gap: 6,
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(45,212,191,0.1)' : 'rgba(255,0,0,0.06)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(45,212,191,0.3)' : 'rgba(255,0,0,0.2)',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      borderRadius: BorderRadius.md,
+    },
+    locBtnText: { fontSize: FontSizes.xs, color: isDark ? '#2DD4BF' : CustomerColors.primary, fontWeight: '700' },
+    sourceBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.pill,
+      marginBottom: Spacing.md,
+    },
+    sourceBadgeText: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
+    submitBtn: {
+      backgroundColor: CustomerColors.primary,
+      paddingVertical: Spacing.md,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+      marginTop: Spacing.lg,
+    },
+    submitBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
+    privateBanner: {
+      backgroundColor: isDark ? '#451a03' : '#FFFBEB',
+      borderWidth: 1,
+      borderColor: isDark ? '#78350f' : '#FDE68A',
+      borderRadius: BorderRadius.md,
+      padding: Spacing.md,
+      marginBottom: Spacing.md,
+    },
+    privateBannerText: { fontSize: FontSizes.xs, color: isDark ? '#fde68a' : '#92400E' },
+    selectInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    selectValue: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, fontWeight: '600' },
+    selectPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#6B7280' : '#9CA3AF' },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: isDark ? '#111827' : '#fff',
+      borderTopLeftRadius: BorderRadius.lg,
+      borderTopRightRadius: BorderRadius.lg,
+      maxHeight: '75%',
+      paddingBottom: Spacing.xl,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? '#1F2937' : 'transparent',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+    },
+    modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    modalItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+    },
+    modalItemActive: { backgroundColor: isDark ? 'rgba(45,212,191,0.1)' : 'rgba(255,0,0,0.05)' },
+    modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, fontWeight: '500' },
+    modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.primary, fontWeight: '700' },
+    successOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: Spacing.xl,
+    },
+    successCard: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.xl,
+      alignItems: 'center',
+      width: '100%',
+      maxWidth: 340,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.25,
+      shadowRadius: 15,
+      elevation: 10,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? '#1F2937' : 'transparent',
+    },
+    successIconCircle: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: CustomerColors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.md,
+    },
+    successTitle: {
+      fontSize: FontSizes.lg,
+      fontWeight: '900',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginBottom: Spacing.xs,
+      textAlign: 'center',
+    },
+    successSubtitle: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: Spacing.lg,
+    },
+    successButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      backgroundColor: CustomerColors.primary,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.xl,
+      borderRadius: BorderRadius.md,
+      width: '100%',
+    },
+    successButtonText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+  });

@@ -1,11 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { storage } from '../utils/storage';
-import { legacyProductClient } from '../api/client';
+import { gatewayClient, legacyProductClient } from '../api/client';
 import { useAuth } from './AuthContext';
-
-// Ported from client/app/components-main/CartContext.tsx. Same backend
-// (LEGACY_PRODUCT_URL / wow-lifebackend.onrender.com — `/user/cart`,
-// `/user/cart/sync`) and same guest-cart-via-local-storage fallback.
 
 export interface CartItem {
   id: string;
@@ -34,22 +30,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null);
 
-  // Hydrate: backend cart if logged in, else the locally-persisted guest cart —
-  // matches web's exact fallback order.
+  // Hydrate: immediately load local cart, then sync with backend if logged in
   useEffect(() => {
     (async () => {
+      const local = await storage.getCart<CartItem[]>();
+      if (local && Array.isArray(local) && local.length > 0) {
+        setCart(local);
+      }
+
       if (token) {
         try {
-          const res = await legacyProductClient.get('/user/cart');
-          const items = res.data?.data?.items ?? res.data?.items ?? [];
-          setCart(items);
-          return;
+          let res;
+          try {
+            res = await gatewayClient.get('/api/user/cart');
+          } catch {
+            res = await legacyProductClient.get('/user/cart');
+          }
+          const items = res.data?.cart ?? res.data?.data?.items ?? res.data?.items ?? [];
+          if (Array.isArray(items) && items.length > 0) {
+            setCart(items);
+            storage.setCart(items);
+          } else if (local && local.length > 0) {
+            gatewayClient
+              .post('/api/user/cart/sync', { cartItems: local.map(i => ({ id: i.id, quantity: i.quantity })) })
+              .catch(() => {});
+          }
         } catch {
-          // fall through to local cart on failure, same as web
+          // keep local cart on failure
         }
       }
-      const local = await storage.getCart<CartItem[]>();
-      if (local) setCart(local);
     })();
   }, [token]);
 
@@ -58,9 +67,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setCart(next);
       storage.setCart(next);
       if (token) {
-        legacyProductClient
-          .post('/user/cart/sync', { cartItems: next.map(i => ({ id: i.id, quantity: i.quantity })) })
-          .catch(() => {});
+        gatewayClient
+          .post('/api/user/cart/sync', { cartItems: next.map(i => ({ id: i.id, quantity: i.quantity })) })
+          .catch(() => {
+            legacyProductClient
+              .post('/user/cart/sync', { cartItems: next.map(i => ({ id: i.id, quantity: i.quantity })) })
+              .catch(() => {});
+          });
       }
     },
     [token],

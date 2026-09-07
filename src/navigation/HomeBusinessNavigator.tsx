@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
@@ -32,6 +32,7 @@ import {
   useSellerDashboard,
 } from '../context/SellerDashboardContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import SellerOverviewScreen from '../screens/seller/SellerOverviewScreen';
 import SellerCategoriesScreen from '../screens/seller/SellerCategoriesScreen';
 import SellerProductsScreen from '../screens/seller/SellerProductsScreen';
@@ -86,10 +87,12 @@ const Stack = createNativeStackNavigator<HomeBusinessStackParamList>();
 
 function HomeBusinessHeaderTitle({ children }: { children?: string }) {
   const { store } = useSellerDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerTitleWrap}>
       <View style={styles.headerNameRow}>
-        <Home size={14} color={CustomerColors.teal700} />
+        <Home size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
         <Text style={styles.headerStoreName} numberOfLines={1}>
           {store?.name || 'Home Business'}
         </Text>
@@ -105,6 +108,8 @@ function HomeBusinessHeaderTitle({ children }: { children?: string }) {
 function HomeBusinessUserMenu() {
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [open, setOpen] = useState(false);
 
   const displayName = user?.fullname || user?.name || 'Home Business Owner';
@@ -203,6 +208,8 @@ function HomeBusinessUserMenu() {
 function HomeBusinessHeaderRight() {
   const navigation = useNavigation<any>();
   const { unreadCount } = useUnreadNotifications();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerIconRow}>
       <TouchableOpacity
@@ -223,14 +230,18 @@ function HomeBusinessHeaderRight() {
 
 function HomeBusinessTabs() {
   const { newOrderCount } = useSellerDashboard();
+  const { isDark } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: true,
         headerTitle: props => <HomeBusinessHeaderTitle {...props} />,
         headerRight: () => <HomeBusinessHeaderRight />,
-        tabBarActiveTintColor: CustomerColors.teal700,
-        tabBarInactiveTintColor: CustomerColors.textSecondary,
+        headerStyle: { backgroundColor: isDark ? '#111827' : '#FFFFFF', borderBottomColor: isDark ? '#1F2937' : '#EAEAEA' },
+        headerTintColor: isDark ? '#F9FAFB' : '#111827',
+        tabBarStyle: { backgroundColor: isDark ? '#111827' : '#FFFFFF', borderTopColor: isDark ? '#1F2937' : '#EAEAEA' },
+        tabBarActiveTintColor: isDark ? '#2DD4BF' : CustomerColors.teal700,
+        tabBarInactiveTintColor: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
       }}
     >
       <Tab.Screen
@@ -279,10 +290,11 @@ function HomeBusinessTabs() {
   );
 }
 
-
 function HomeBusinessDashboardGate({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation<any>();
   const { loading, noStore } = useSellerDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   if (loading) {
     return (
@@ -297,11 +309,11 @@ function HomeBusinessDashboardGate({ children }: { children: React.ReactNode }) 
     return (
       <View style={styles.center}>
         <View style={styles.noStoreIconCircle}>
-          <Home size={32} color={CustomerColors.teal700} />
+          <Home size={32} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
         </View>
         <Text style={styles.noStoreTitle}>No home business profile found</Text>
         <Text style={styles.noStoreSubtitle}>
-          Please register your home business to start listing handmade and artisan goods.
+          Please register your home business to start managing your artisan catalog.
         </Text>
         <TouchableOpacity
           style={styles.registerBtn}
@@ -318,20 +330,27 @@ function HomeBusinessDashboardGate({ children }: { children: React.ReactNode }) 
 }
 
 export default function HomeBusinessNavigator() {
+  const { isDark } = useTheme();
   return (
     <SellerDashboardProvider>
       <HomeBusinessDashboardGate>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            headerStyle: { backgroundColor: isDark ? '#111827' : '#FFFFFF' },
+            headerTintColor: isDark ? '#F9FAFB' : '#111827',
+          }}
+        >
           <Stack.Screen name="HomeBusinessTabs" component={HomeBusinessTabs} />
           <Stack.Screen
             name="SellerCategories"
             component={SellerCategoriesScreen}
-            options={{ headerShown: true, title: 'Home Business Categories' }}
+            options={{ headerShown: true, title: 'Artisan Categories' }}
           />
           <Stack.Screen
             name="SellerProductForm"
             component={SellerProductFormScreen}
-            options={{ headerShown: true, title: 'Product' }}
+            options={{ headerShown: true, title: 'Artisan Product' }}
           />
           <Stack.Screen
             name="SellerManageBrands"
@@ -341,7 +360,7 @@ export default function HomeBusinessNavigator() {
           <Stack.Screen
             name="SellerScanUpload"
             component={SellerScanUploadScreen}
-            options={{ headerShown: true, title: 'Scan & Add Product' }}
+            options={{ headerShown: true, title: 'Scan Paper & Add Product' }}
           />
           <Stack.Screen
             name="SellerBulkScanUpload"
@@ -369,25 +388,25 @@ export default function HomeBusinessNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (isDark: boolean) => StyleSheet.create({
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: CustomerColors.bg,
+    backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
     padding: Spacing.xl,
     gap: 8,
   },
   loadingText: {
     fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: Spacing.sm,
   },
   noStoreIconCircle: {
     width: 64,
     height: 64,
     borderRadius: 20,
-    backgroundColor: CustomerColors.mint,
+    backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : CustomerColors.mint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
@@ -395,12 +414,12 @@ const styles = StyleSheet.create({
   noStoreTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '700',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
     marginTop: 8,
   },
   noStoreSubtitle: {
     fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     textAlign: 'center',
     maxWidth: 280,
     marginBottom: Spacing.lg,
@@ -424,13 +443,13 @@ const styles = StyleSheet.create({
   headerStoreName: {
     fontSize: 14,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
     maxWidth: 160,
   },
   roleBadge: {
-    backgroundColor: CustomerColors.mint,
+    backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : CustomerColors.mint,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.pill,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -438,11 +457,11 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   headerTabTitle: {
     fontSize: 11,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: 1,
   },
   headerIconRow: {
@@ -473,17 +492,17 @@ const styles = StyleSheet.create({
   headerIconBadgeText: { color: '#fff', fontSize: 8, fontWeight: '800' },
   menuBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'flex-end',
     paddingTop: 56,
     paddingRight: 12,
   },
   menuCard: {
     width: 250,
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#111827' : '#fff',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     overflow: 'hidden',
     elevation: 6,
     shadowColor: '#000',
@@ -494,13 +513,13 @@ const styles = StyleSheet.create({
   menuHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#DFF1F1',
+    backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : '#DFF1F1',
     borderBottomWidth: 1,
-    borderBottomColor: CustomerColors.steelBorder,
+    borderBottomColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
   },
   menuHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  menuName: { fontSize: 14, fontWeight: '800', color: '#111827' },
-  menuEmail: { fontSize: 11, color: '#6B7280', marginTop: 1 },
+  menuName: { fontSize: 14, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' },
+  menuEmail: { fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 1 },
   roleTag: {
     backgroundColor: 'rgba(15, 163, 177, 0.15)',
     paddingHorizontal: 6,
@@ -512,28 +531,28 @@ const styles = StyleSheet.create({
   roleTagText: {
     fontSize: 9,
     fontWeight: '700',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 999,
   },
-  verifiedBadgeText: { fontSize: 9, fontWeight: '700', color: '#15803D' },
+  verifiedBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' },
   unverifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FEF3C7',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 999,
   },
-  unverifiedBadgeText: { fontSize: 9, fontWeight: '700', color: '#B45309' },
+  unverifiedBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' },
   menuLinks: { paddingVertical: 4 },
   menuItem: {
     flexDirection: 'row',
@@ -542,10 +561,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 11,
   },
-  menuItemText: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  menuItemText: { fontSize: 13, color: isDark ? '#E5E7EB' : '#374151', fontWeight: '500' },
   menuDivider: {
     height: 1,
-    backgroundColor: CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     marginVertical: 4,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
@@ -34,6 +34,7 @@ import {
   useStoreDashboard,
 } from '../context/StoreDashboardContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import StoreOverviewScreen from '../screens/store/StoreOverviewScreen';
 import StoreAnalyticsScreen from '../screens/store/StoreAnalyticsScreen';
 import StoreProductsScreen from '../screens/store/StoreProductsScreen';
@@ -70,19 +71,6 @@ import StoreSupplierCompareScreen from '../screens/store/StoreSupplierCompareScr
 import StoreSupplierCartScreen from '../screens/store/StoreSupplierCartScreen';
 import { SupplierCartProvider } from '../context/SupplierCartContext';
 import { Truck, Users } from 'lucide-react-native';
-
-// Mirrors web's app/store/dashboard/page.tsx tabs, but trimmed down for the
-// bottom bar: web can afford "This Month / All Categories / All Products"
-// dropdowns plus 6 tabs because it has a wide header. On a phone-width bar,
-// 9 tabs (the old count, once Suppliers/Customers were added) left every
-// label truncated and icons touching. Overview, Analytics, Products, Orders
-// and Offers stay as tabs since they're the day-to-day screens; Categories,
-// Order Stock, Customers and Settings move into the new "More" tab
-// (StoreMoreScreen) — same routes, same screens, just one level deeper.
-// StoreDashboardProvider (see its file) reproduces web's single
-// loadData()/refresh() shared across every tab, since each tab is a
-// separate navigator screen here rather than a conditionally-rendered
-// panel in one page component.
 
 export type StoreOwnerTabParamList = {
   Overview: undefined;
@@ -135,16 +123,14 @@ export type StoreOwnerStackParamList = {
 const Tab = createBottomTabNavigator<StoreOwnerTabParamList>();
 const Stack = createNativeStackNavigator<StoreOwnerStackParamList>();
 
-// Shows the store's name above each tab's title in the header. react-navigation
-// passes the already-resolved title (from the Tab.Screen's `title` option,
-// falling back to the route name) as `children`, so this stays in sync with
-// each tab's title automatically.
 function StoreHeaderTitle({ children }: { children?: string }) {
   const { store } = useStoreDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerTitleWrap}>
       <View style={styles.headerNameRow}>
-        <Store size={14} color={CustomerColors.teal700} />
+        <Store size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
         <Text style={styles.headerStoreName} numberOfLines={1}>
           {store?.name || 'My Store'}
         </Text>
@@ -154,10 +140,6 @@ function StoreHeaderTitle({ children }: { children?: string }) {
   );
 }
 
-// Mirrors web's session user shown atop the dropdown ("Rohini Balan",
-// "rohinibalan529@gma...", Verified badge) using the real signed-in user
-// from AuthContext. Falls back to the store's own name if the user object
-// is still loading/missing a name, so the avatar never renders blank.
 function useOwnerIdentity() {
   const { user } = useAuth();
   const { store } = useStoreDashboard();
@@ -173,16 +155,13 @@ function useOwnerIdentity() {
   return { name, email, initials, isVerified: !!store?.isVerified };
 }
 
-// Web's equivalent of this is the "RB Rohini Balan ⌄" pill in the top-right
-// that opens a card with My Profile / My Orders / My Store / Settings /
-// Preferences / Sign Out. This reproduces that as an avatar button + a
-// dropdown card anchored under it, replacing the separate person and gear
-// icons that used to sit in the header icon row.
 function StoreProfileMenu() {
   const navigation = useNavigation<any>();
   const [open, setOpen] = useState(false);
   const { name, email, initials, isVerified } = useOwnerIdentity();
   const { logout } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const close = () => setOpen(false);
   const go = (route: string, params?: object) => {
@@ -191,14 +170,13 @@ function StoreProfileMenu() {
   };
 
   const handleSignOut = async () => {
-  close();
-
-  try {
-    await logout();
-  } catch (err) {
-    console.error('Sign out failed:', err);
-  }
-};
+    close();
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Sign out failed:', err);
+    }
+  };
 
   return (
     <>
@@ -248,33 +226,31 @@ function StoreProfileMenu() {
               icon={UserIcon}
               label="My Profile"
               onPress={() => go('Profile')}
+              isDark={isDark}
             />
-            {/* Customer-facing order history (client/app/orders/page.tsx
-                equivalent) — the store owner's own purchases as a shopper.
-                Distinct from Suppliers' "My Orders" tab (stock the store
-                bought from suppliers) and StoreOwnerOrders (orders the
-                store received from customers). */}
             <MenuItem
               icon={ShoppingBag}
               label="My Orders"
               onPress={() => go('Orders')}
+              isDark={isDark}
             />
             <MenuItem
               icon={StoreIcon2}
               label="My Store"
               onPress={() => go('StoreOwnerTabs')}
+              isDark={isDark}
             />
             <MenuItem
               icon={SettingsIcon}
               label="Settings"
               onPress={() => go('StoreSettings')}
+              isDark={isDark}
             />
-            {/* TODO: no Preferences screen exists yet — wire this to one once
-                built. Pointing at Settings for now so it isn't a dead tap. */}
             <MenuItem
               icon={SlidersHorizontal}
               label="Preferences"
               onPress={() => go('StoreSettings')}
+              isDark={isDark}
             />
 
             <View style={styles.menuDivider} />
@@ -284,6 +260,7 @@ function StoreProfileMenu() {
               label="Sign Out"
               danger
               onPress={handleSignOut}
+              isDark={isDark}
             />
           </Pressable>
         </Pressable>
@@ -297,12 +274,15 @@ function MenuItem({
   label,
   onPress,
   danger,
+  isDark,
 }: {
   icon: any;
   label: string;
   onPress: () => void;
   danger?: boolean;
+  isDark?: boolean;
 }) {
+  const styles = useMemo(() => getStyles(!!isDark), [isDark]);
   return (
     <TouchableOpacity
       style={styles.menuItem}
@@ -311,9 +291,9 @@ function MenuItem({
     >
       <Icon
         size={16}
-        color={danger ? '#DC2626' : CustomerColors.textSecondary}
+        color={danger ? '#EF4444' : isDark ? '#9CA3AF' : CustomerColors.textSecondary}
       />
-      <Text style={[styles.menuItemText, danger && { color: '#DC2626' }]}>
+      <Text style={[styles.menuItemText, danger && { color: '#EF4444' }]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -324,13 +304,15 @@ function StoreHeaderRight() {
   const navigation = useNavigation<any>();
   const { cartCount } = useCart();
   const { unreadCount } = useUnreadNotifications();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerIconRow}>
       <TouchableOpacity
         style={styles.headerIconBtn}
         onPress={() => navigation.navigate('Notifications')}
       >
-        <Bell size={18} color={CustomerColors.primary} />
+        <Bell size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
         {unreadCount > 0 && (
           <View style={styles.headerIconBadge}>
             <Text style={styles.headerIconBadgeText}>{unreadCount}</Text>
@@ -341,31 +323,43 @@ function StoreHeaderRight() {
         style={styles.headerIconBtn}
         onPress={() => navigation.navigate('Cart')}
       >
-        <ShoppingBag size={18} color={CustomerColors.primary} />
+        <ShoppingBag size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
         {cartCount > 0 && (
           <View style={styles.headerIconBadge}>
             <Text style={styles.headerIconBadgeText}>{cartCount}</Text>
           </View>
         )}
       </TouchableOpacity>
-      {/* Replaces the old separate person + gear icons */}
       <StoreProfileMenu />
     </View>
   );
 }
 
 function StoreOwnerTabs() {
+  const { isDark } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: true,
+        headerStyle: {
+          backgroundColor: isDark ? '#111827' : '#FFFFFF',
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? '#1F2937' : '#EAEAEA',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
         headerTitle: props => <StoreHeaderTitle {...props} />,
         headerRight: () => <StoreHeaderRight />,
-        tabBarActiveTintColor: CustomerColors.teal700,
-        tabBarInactiveTintColor: CustomerColors.textSecondary,
-        // Fixes the cramped bottom bar: taller bar + a touch more padding
-        // per item so labels stop truncating and icons aren't touching.
-        tabBarStyle: { height: 62, paddingTop: 6, paddingBottom: 8 },
+        tabBarActiveTintColor: isDark ? '#2DD4BF' : CustomerColors.teal700,
+        tabBarInactiveTintColor: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+        tabBarStyle: {
+          height: 62,
+          paddingTop: 6,
+          paddingBottom: 8,
+          backgroundColor: isDark ? '#111827' : '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: isDark ? '#1F2937' : '#EAEAEA',
+        },
         tabBarItemStyle: { paddingVertical: 2 },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
         tabBarIconStyle: { marginTop: 2 },
@@ -428,18 +422,16 @@ function StoreOwnerTabs() {
   );
 }
 
-// Mirrors web's noStore/loading gate (which wraps the whole dashboard
-// before any tab renders) — a store_owner-role account should always have
-// a store by construction (the role only flips to store_owner once
-// registration succeeds), so this is a rare edge case, not a normal path.
 function DashboardGate({ children }: { children: React.ReactNode }) {
   const { loading, noStore } = useStoreDashboard();
   const navigation = useNavigation<any>();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={CustomerColors.primary} />
+        <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.primary} />
       </View>
     );
   }
@@ -447,7 +439,7 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
   if (noStore) {
     return (
       <View style={styles.center}>
-        <Store size={40} color={CustomerColors.teal600} />
+        <Store size={40} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
         <Text style={styles.noStoreTitle}>No store found</Text>
         <Text style={styles.noStoreSubtitle}>
           You haven't registered a store yet.
@@ -466,6 +458,21 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function StoreOwnerNavigator() {
+  const { isDark } = useTheme();
+  const stackHeaderOptions = {
+    headerShown: true,
+    headerStyle: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#EAEAEA',
+    },
+    headerTintColor: isDark ? '#F9FAFB' : CustomerColors.black,
+    headerTitleStyle: {
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      fontWeight: '700' as const,
+    },
+  };
+
   return (
     <StoreDashboardProvider>
       <SupplierCartProvider>
@@ -475,71 +482,72 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="StoreDeliveries"
               component={StoreDeliveriesScreen}
-              options={{ headerShown: true, title: 'Deliveries Log' }}
+              options={{ ...stackHeaderOptions, title: 'Deliveries Log' }}
             />
-            {/* Moved off the bottom bar into the "More" tab — same screens,
-              now reached one level deeper with their own header + back
-              button instead of competing for space on the tab bar. */}
             <Stack.Screen
               name="StoreOwnerCategories"
               component={StoreCategoriesScreen}
-              options={{ headerShown: true, title: 'Categories' }}
+              options={{ ...stackHeaderOptions, title: 'Categories' }}
             />
-
             <Stack.Screen
               name="Suppliers"
               component={StoreSuppliersScreen}
-              options={{ headerShown: true, title: 'Order Stock' }}
+              options={{ ...stackHeaderOptions, title: 'Order Stock' }}
             />
             <Stack.Screen
               name="StoreOwnerCustomers"
               component={StoreCustomersScreen}
-              options={{ headerShown: true, title: 'Customers' }}
+              options={{ ...stackHeaderOptions, title: 'Customers' }}
             />
             <Stack.Screen
               name="StoreSettings"
               component={StoreSettingsScreen}
-              options={{ headerShown: true, title: 'Settings' }}
+              options={{ ...stackHeaderOptions, title: 'Settings' }}
             />
             <Stack.Screen
               name="NewOffer"
               component={NewOfferScreen}
-              options={{ headerShown: true, title: 'New Offer' }}
+              options={{ ...stackHeaderOptions, title: 'New Offer' }}
             />
             <Stack.Screen
               name="ProductForm"
               component={StoreProductFormScreen}
-              options={{ headerShown: true, title: 'Product' }}
+              options={{ ...stackHeaderOptions, title: 'Product' }}
             />
             <Stack.Screen
               name="BulkProductScan"
               component={StoreBulkProductScanScreen}
-              options={{ headerShown: true, title: 'Scan Grocery List' }}
+              options={{ ...stackHeaderOptions, title: 'Scan Grocery List' }}
             />
             <Stack.Screen
               name="ManageBrands"
               component={StoreManageBrandsScreen}
-              options={{ headerShown: true, title: 'Manage Brands' }}
+              options={{ ...stackHeaderOptions, title: 'Manage Brands' }}
             />
             <Stack.Screen
               name="Cart"
               component={CartScreen}
-              options={{ headerShown: true, title: 'Your Cart' }}
+              options={{ ...stackHeaderOptions, title: 'Your Cart' }}
             />
             <Stack.Screen
               name="Checkout"
               component={CheckoutScreen}
-              options={{ headerShown: true }}
+              options={{ ...stackHeaderOptions }}
             />
             <Stack.Screen
               name="PhonePeWebView"
               component={PhonePeWebViewScreen}
-              options={{ headerShown: true, title: 'PhonePe' }}
+              options={{ ...stackHeaderOptions, title: 'PhonePe' }}
             />
             <Stack.Screen
               name="RazorpayWebView"
               component={RazorpayWebViewScreen}
-              options={{ headerShown: true, title: 'Razorpay Checkout', headerStyle: { backgroundColor: '#0a0a0a' }, headerTintColor: '#D4AF37' }}
+              options={{
+                headerShown: true,
+                title: 'Razorpay Checkout',
+                headerStyle: { backgroundColor: '#0a0a0a' },
+                headerTintColor: '#D4AF37',
+              }}
             />
             <Stack.Screen
               name="PaymentStatus"
@@ -549,27 +557,27 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ headerShown: true, title: 'Settings' }}
+              options={{ ...stackHeaderOptions, title: 'Settings' }}
             />
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
-              options={{ headerShown: true, title: 'Profile' }}
+              options={{ ...stackHeaderOptions, title: 'Profile' }}
             />
             <Stack.Screen
               name="Notifications"
               component={NotificationScreen}
-              options={{ headerShown: true, title: 'Notifications' }}
+              options={{ ...stackHeaderOptions, title: 'Notifications' }}
             />
             <Stack.Screen
               name="Orders"
               component={OrdersScreen}
-              options={{ headerShown: true, title: 'My Orders' }}
+              options={{ ...stackHeaderOptions, title: 'My Orders' }}
             />
             <Stack.Screen
               name="StoreRegister"
               component={StoreRegisterScreen}
-              options={{ headerShown: true, title: 'Register Your Store' }}
+              options={{ ...stackHeaderOptions, title: 'Register Your Store' }}
             />
           </Stack.Navigator>
         </DashboardGate>
@@ -578,151 +586,156 @@ export default function StoreOwnerNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: CustomerColors.bg,
-    padding: 32,
-    gap: 8,
-  },
-  noStoreTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: CustomerColors.black,
-    marginTop: 8,
-  },
-  noStoreSubtitle: {
-    fontSize: 13,
-    color: CustomerColors.textSecondary,
-    textAlign: 'center',
-  },
-  registerBtn: {
-    marginTop: 20,
-    backgroundColor: CustomerColors.teal600,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  registerBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  headerTitleWrap: { alignItems: 'center' },
-  headerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  headerStoreName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: CustomerColors.black,
-    maxWidth: 220,
-  },
-  headerTabTitle: {
-    fontSize: 11,
-    color: CustomerColors.textSecondary,
-    marginTop: 1,
-  },
-  headerIconRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginRight: 8,
-    alignItems: 'center',
-  },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerIconBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: CustomerColors.primary,
-    borderRadius: 8,
-    minWidth: 14,
-    height: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  headerIconBadgeText: { color: '#fff', fontSize: 8, fontWeight: '800' },
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
+      padding: 32,
+      gap: 8,
+    },
+    noStoreTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginTop: 8,
+    },
+    noStoreSubtitle: {
+      fontSize: 13,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textAlign: 'center',
+    },
+    registerBtn: {
+      marginTop: 20,
+      backgroundColor: CustomerColors.teal600,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 10,
+    },
+    registerBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    headerTitleWrap: { alignItems: 'center' },
+    headerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    headerStoreName: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      maxWidth: 220,
+    },
+    headerTabTitle: {
+      fontSize: 11,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginTop: 1,
+    },
+    headerIconRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginRight: 8,
+      alignItems: 'center',
+    },
+    headerIconBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerIconBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: CustomerColors.primary,
+      borderRadius: 8,
+      minWidth: 14,
+      height: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 2,
+    },
+    headerIconBadgeText: { color: '#fff', fontSize: 8, fontWeight: '800' },
 
-  // Avatar trigger button (replaces the old person + gear icons)
-  avatarBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: CustomerColors.teal700,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+    // Avatar trigger button
+    avatarBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: CustomerColors.teal700,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 
-  // Dropdown card
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    alignItems: 'flex-end',
-  },
-  menuCard: {
-    marginTop: 56,
-    marginRight: 12,
-    width: 240,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EEE',
-    paddingVertical: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  menuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingBottom: 8,
-  },
-  menuAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: CustomerColors.teal700,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuAvatarText: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  menuName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: CustomerColors.black,
-    maxWidth: 140,
-  },
-  menuEmail: {
-    fontSize: 11,
-    color: CustomerColors.textSecondary,
-    marginTop: 1,
-  },
-  menuRole: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: CustomerColors.teal700,
-    marginTop: 2,
-    letterSpacing: 0.5,
-  },
-  menuDivider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 4 },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  menuItemText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: CustomerColors.black,
-  },
-});
+    // Dropdown card
+    menuBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      alignItems: 'flex-end',
+    },
+    menuCard: {
+      marginTop: 56,
+      marginRight: 12,
+      width: 240,
+      backgroundColor: isDark ? '#111827' : '#fff',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#EEE',
+      paddingVertical: 10,
+      shadowColor: '#000',
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 8,
+    },
+    menuHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingBottom: 8,
+    },
+    menuAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: CustomerColors.teal700,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    menuAvatarText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+    menuName: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      maxWidth: 140,
+    },
+    menuEmail: {
+      fontSize: 11,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginTop: 1,
+    },
+    menuRole: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+      marginTop: 2,
+      letterSpacing: 0.5,
+    },
+    menuDivider: {
+      height: 1,
+      backgroundColor: isDark ? '#1F2937' : '#F0F0F0',
+      marginVertical: 4,
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    menuItemText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+  });

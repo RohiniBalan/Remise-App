@@ -4,27 +4,9 @@ import { useNavigation } from '@react-navigation/native';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { Package, Tag, ShoppingBag, IndianRupee, Clock, AlertCircle, TrendingUp, Target } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
-// Ported from client/app/store/dashboard/page.tsx's OverviewTab.
-//
-// UPDATE: this screen was missing a few things web has —
-//  1. "Offer Revenue" stat card (offer-orders only, excludes wholesale/smart orders)
-//  2. "Total Products Sold" card
-//  3. The Target Revenue progress card (achieved-this-month vs store.targetRevenue,
-//     Settings just added the targetRevenue field this reads from)
-//  4. Product-stock thumbnails weren't prefixed with the API base URL, so a
-//     relative image path (e.g. "/uploads/xyz.png") rendered a broken image.
-//
-// NOT ported (bigger lift — needs a charting library like react-native-chart-kit
-// or victory-native, plus the date-range analytics bar): Sales Trend line chart,
-// Top/Least Selling tables, Brand-wise Revenue bar chart, Category-wise pie chart,
-// Revenue by Month bar chart, Best Sales Day card, Export PDF. Happy to build
-// these next if you want full parity.
-
-// TODO: point this at whatever your app already uses for the API base URL
-// (e.g. an existing config/env file) — this mirrors the web app's
-// NEXT_PUBLIC_API_URL fallback so relative image paths resolve correctly.
 const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
 
 function resolveImageUri(url?: string) {
@@ -35,6 +17,8 @@ function resolveImageUri(url?: string) {
 export default function StoreOverviewScreen() {
   const navigation = useNavigation<any>();
   const { store, offers, orders, products, loading, loadError, refresh } = useStoreDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const totalProductsSold = useMemo(
     () => orders.reduce((s, o: any) => s + (o.quantity || 0), 0),
@@ -57,15 +41,15 @@ export default function StoreOverviewScreen() {
     const pendingOrders = orders.filter(o => o.status === 'Pending').length;
     const lowStock = products.filter(p => p.totalStock < 5 && p.availability !== 'Out Of Stock').length;
     return [
-      { label: 'Total Products', value: products.length, icon: Package, color: '#7C3AED' },
-      { label: 'Active Offers', value: activeOffers, icon: Tag, color: CustomerColors.teal700 },
-      { label: 'Total Orders', value: orders.length, icon: ShoppingBag, color: '#2563EB' },
-      { label: 'Revenue (₹)', value: `₹${totalRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: CustomerColors.success },
-      { label: 'Pending Orders', value: pendingOrders, icon: Clock, color: pendingOrders > 0 ? CustomerColors.primary : '#6B7280' },
-      { label: 'Offer Revenue (₹)', value: `₹${offerRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: CustomerColors.success },
-      { label: 'Low Stock', value: lowStock, icon: AlertCircle, color: lowStock > 0 ? '#D97706' : '#6B7280' },
+      { label: 'Total Products', value: products.length, icon: Package, color: isDark ? '#A78BFA' : '#7C3AED' },
+      { label: 'Active Offers', value: activeOffers, icon: Tag, color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+      { label: 'Total Orders', value: orders.length, icon: ShoppingBag, color: isDark ? '#60A5FA' : '#2563EB' },
+      { label: 'Revenue (₹)', value: `₹${totalRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: isDark ? '#34D399' : CustomerColors.success },
+      { label: 'Pending Orders', value: pendingOrders, icon: Clock, color: pendingOrders > 0 ? (isDark ? '#F87171' : CustomerColors.primary) : (isDark ? '#9CA3AF' : '#6B7280') },
+      { label: 'Offer Revenue (₹)', value: `₹${offerRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: isDark ? '#34D399' : CustomerColors.success },
+      { label: 'Low Stock', value: lowStock, icon: AlertCircle, color: lowStock > 0 ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#9CA3AF' : '#6B7280') },
     ];
-  }, [offers, orders, products]);
+  }, [offers, orders, products, isDark]);
 
   const recentOrders = useMemo(() => [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5), [orders]);
   const topProducts = useMemo(() => [...products].sort((a, b) => b.totalStock - a.totalStock).slice(0, 4), [products]);
@@ -73,7 +57,7 @@ export default function StoreOverviewScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={CustomerColors.primary} />
+        <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.primary} />
       </View>
     );
   }
@@ -85,7 +69,7 @@ export default function StoreOverviewScreen() {
     <FlatList
       style={styles.container}
       contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}
+      refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={isDark ? '#2DD4BF' : undefined} />}
       data={[]}
       keyExtractor={() => '_'}
       renderItem={null}
@@ -99,7 +83,7 @@ export default function StoreOverviewScreen() {
           <View style={styles.targetCard}>
             <View style={styles.targetHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Target size={16} color={CustomerColors.teal700} />
+                <Target size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                 <Text style={styles.targetTitle}>Monthly Target</Text>
               </View>
               {target === 0 && (
@@ -126,8 +110,8 @@ export default function StoreOverviewScreen() {
 
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <TrendingUp size={18} color="#7C3AED" />
-              <Text style={[styles.statValue, { color: '#7C3AED' }]}>{totalProductsSold}</Text>
+              <TrendingUp size={18} color={isDark ? '#A78BFA' : '#7C3AED'} />
+              <Text style={[styles.statValue, { color: isDark ? '#A78BFA' : '#7C3AED' }]}>{totalProductsSold}</Text>
               <Text style={styles.statLabel} numberOfLines={1}>Products Sold</Text>
             </View>
             {stats.map(s => (
@@ -178,7 +162,7 @@ export default function StoreOverviewScreen() {
                     <Text style={styles.listRowSub}>{p.category || '—'}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.listRowAmount, p.totalStock < 5 && { color: '#D97706' }]}>{p.totalStock} left</Text>
+                    <Text style={[styles.listRowAmount, p.totalStock < 5 && { color: isDark ? '#FBBF24' : '#D97706' }]}>{p.totalStock} left</Text>
                     <Text style={styles.listRowSub}>₹{p.discountedPrice || p.price}</Text>
                   </View>
                 </View>
@@ -188,7 +172,7 @@ export default function StoreOverviewScreen() {
 
           {!store?.isVerified && (
             <View style={styles.verificationBanner}>
-              <AlertCircle size={16} color="#D97706" />
+              <AlertCircle size={16} color={isDark ? '#FBBF24' : '#D97706'} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.verificationTitle}>Store Verification Pending</Text>
                 <Text style={styles.verificationText}>Our team will review and verify your store shortly.</Text>
@@ -201,40 +185,103 @@ export default function StoreOverviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
-  errorBanner: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.md },
-  errorText: { fontSize: FontSizes.xs, color: '#92400E' },
-  targetCard: { backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.lg, ...Shadows.card },
-  targetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
-  targetTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
-  targetAmounts: { fontSize: FontSizes.md, fontWeight: '800', color: CustomerColors.teal700, marginTop: Spacing.xs },
-  targetOf: { fontSize: FontSizes.xs, fontWeight: '600', color: CustomerColors.textSecondary },
-  progressTrack: { height: 8, borderRadius: 4, backgroundColor: '#F5F5F5', marginTop: Spacing.sm, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 4, backgroundColor: CustomerColors.teal600 },
-  targetPct: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 6 },
-  targetEmpty: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: Spacing.xs },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
-  statCard: { width: '31%', minHeight: 92, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.sm, ...Shadows.card },
-  statValue: { fontSize: FontSizes.md, fontWeight: '800', marginTop: 4 },
-  statLabel: { fontSize: 10, color: CustomerColors.textSecondary, marginTop: 2 },
-  section: { backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, marginBottom: Spacing.md, overflow: 'hidden' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
-  link: { fontSize: FontSizes.xs, color: CustomerColors.teal600, fontWeight: '700' },
-  emptyText: { textAlign: 'center', color: CustomerColors.textSecondary, fontSize: FontSizes.sm, padding: Spacing.lg },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  productThumb: { width: 36, height: 36, borderRadius: BorderRadius.sm, backgroundColor: '#F5F5F5' },
-  listRowTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.black },
-  listRowSub: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
-  listRowAmount: { fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.teal700 },
-  listRowStatus: { fontSize: 10, color: CustomerColors.textSecondary },
-  verificationBanner: { flexDirection: 'row', gap: Spacing.sm, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: BorderRadius.md, padding: Spacing.md },
-  verificationTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#92400E' },
-  verificationText: { fontSize: FontSizes.xs, color: '#92400E', marginTop: 2 },
-  topIconRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginBottom: Spacing.md },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, alignItems: 'center', justifyContent: 'center' },
-  iconBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: CustomerColors.primary, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
-  iconBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    errorBanner: {
+      backgroundColor: isDark ? '#451a03' : '#FFFBEB',
+      borderWidth: 1,
+      borderColor: isDark ? '#78350f' : '#FDE68A',
+      borderRadius: BorderRadius.md,
+      padding: Spacing.md,
+      marginBottom: Spacing.md,
+    },
+    errorText: { fontSize: FontSizes.xs, color: isDark ? '#fde68a' : '#92400E' },
+    targetCard: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      padding: Spacing.md,
+      marginBottom: Spacing.lg,
+      ...Shadows.card,
+    },
+    targetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
+    targetTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    targetAmounts: { fontSize: FontSizes.md, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginTop: Spacing.xs },
+    targetOf: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+    progressTrack: { height: 8, borderRadius: 4, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', marginTop: Spacing.sm, overflow: 'hidden' },
+    progressFill: { height: '100%', borderRadius: 4, backgroundColor: isDark ? '#2DD4BF' : CustomerColors.teal600 },
+    targetPct: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 6 },
+    targetEmpty: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: Spacing.xs },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
+    statCard: {
+      width: '31%',
+      minHeight: 92,
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      padding: Spacing.sm,
+      ...Shadows.card,
+    },
+    statValue: { fontSize: FontSizes.md, fontWeight: '800', marginTop: 4 },
+    statLabel: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
+    section: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      marginBottom: Spacing.md,
+      overflow: 'hidden',
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+    },
+    sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    link: { fontSize: FontSizes.xs, color: isDark ? '#2DD4BF' : CustomerColors.teal600, fontWeight: '700' },
+    emptyText: { textAlign: 'center', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontSize: FontSizes.sm, padding: Spacing.lg },
+    listRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      padding: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+    },
+    productThumb: { width: 36, height: 36, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#1F2937' : '#F5F5F5' },
+    listRowTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    listRowSub: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+    listRowAmount: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    listRowStatus: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+    verificationBanner: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+      backgroundColor: isDark ? '#451a03' : '#FFFBEB',
+      borderWidth: 1,
+      borderColor: isDark ? '#78350f' : '#FDE68A',
+      borderRadius: BorderRadius.md,
+      padding: Spacing.md,
+    },
+    verificationTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#fde68a' : '#92400E' },
+    verificationText: { fontSize: FontSizes.xs, color: isDark ? '#fde68a' : '#92400E', marginTop: 2 },
+    topIconRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginBottom: Spacing.md },
+    iconBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: CustomerColors.primary, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+    iconBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  });

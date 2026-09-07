@@ -6,16 +6,19 @@ import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { sellerOrderApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
+import { useTheme } from '../../context/ThemeContext';
 
 const ORDER_STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'] as const;
-const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
-  Processing: { bg: '#FFFBEB', fg: '#B45309' },
-  Shipped: { bg: '#EFF6FF', fg: '#1D4ED8' },
-  Delivered: { bg: '#F0FDF4', fg: '#15803D' },
-  Cancelled: { bg: '#FEF2F2', fg: '#FF0000' },
+const STATUS_STYLE: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
+  Processing: { bg: '#FFFBEB', fg: '#B45309', darkBg: 'rgba(217, 119, 6, 0.15)', darkFg: '#FBBF24' },
+  Shipped: { bg: '#EFF6FF', fg: '#1D4ED8', darkBg: 'rgba(37, 99, 235, 0.15)', darkFg: '#60A5FA' },
+  Delivered: { bg: '#F0FDF4', fg: '#15803D', darkBg: 'rgba(22, 163, 74, 0.15)', darkFg: '#4ADE80' },
+  Cancelled: { bg: '#FEF2F2', fg: '#FF0000', darkBg: 'rgba(239, 68, 68, 0.15)', darkFg: '#F87171' },
 };
 
 export default function SellerOrdersScreen() {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { orders, refresh, loading, markOrdersAsSeen } = useSellerDashboard();
   const [filter, setFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -33,7 +36,6 @@ export default function SellerOrdersScreen() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filter]);
-
 
   const counts: Record<string, number> = { all: orders.length };
   ORDER_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.orderStatus === s).length; });
@@ -79,7 +81,7 @@ export default function SellerOrdersScreen() {
         contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl, gap: Spacing.sm }}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <ShoppingBag size={36} color="#E5E7EB" />
+            <ShoppingBag size={36} color={isDark ? '#374151' : '#E5E7EB'} />
             <Text style={styles.emptyTitle}>No orders yet</Text>
             <Text style={styles.emptySub}>Orders placed by store owners will show up here.</Text>
           </View>
@@ -93,60 +95,23 @@ export default function SellerOrdersScreen() {
           />
         }
         renderItem={({ item: o }) => {
-
-          const st = STATUS_STYLE[o.orderStatus] || { bg: '#F3F4F6', fg: '#4B5563' };
+          const st = STATUS_STYLE[o.orderStatus] || { bg: '#F3F4F6', fg: '#4B5563', darkBg: '#1F2937', darkFg: '#9CA3AF' };
+          const badgeBg = isDark ? st.darkBg : st.bg;
+          const badgeFg = isDark ? st.darkFg : st.fg;
           return (
             <View style={styles.card}>
               <View style={styles.cardTop}>
                 <View style={{ flex: 1 }}>
                   <View style={styles.orderIdRow}>
-                    <Text style={styles.orderId}>{o.orderId}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                      <Text style={[styles.statusBadgeText, { color: st.fg }]}>{o.orderStatus}</Text>
+                    <Text style={styles.orderId}>
+                      {(o as any).shippingAddress?.fullName || 'Store Buyer'}
+                    </Text>
+                    <View style={[styles.statusBadge, { backgroundColor: badgeBg }]}>
+                      <Text style={[styles.statusBadgeText, { color: badgeFg }]}>{o.orderStatus}</Text>
                     </View>
-                    <View style={[
-                      styles.statusBadge,
-                      o.paymentStatus === 'SUCCESS'
-                        ? { backgroundColor: '#F0FDF4' }
-                        : o.paymentStatus === 'FAILED'
-                          ? { backgroundColor: '#FEF2F2' }
-                          : { backgroundColor: '#FFFBEB' }
-                    ]}>
-                      <Text style={[
-                        styles.statusBadgeText,
-                        o.paymentStatus === 'SUCCESS'
-                          ? { color: '#15803D' }
-                          : o.paymentStatus === 'FAILED'
-                            ? { color: '#DC2626' }
-                            : { color: '#B45309' }
-                      ]}>
-                        Payment: {o.paymentStatus || 'PENDING'}
-                      </Text>
-                    </View>
-                    {o.vendorTransfers?.[0] ? (
-                      <View style={[
-                        styles.statusBadge,
-                        o.vendorTransfers[0].transferStatus === 'processed'
-                          ? { backgroundColor: '#F0FDFA' }
-                          : o.vendorTransfers[0].transferStatus === 'failed'
-                            ? { backgroundColor: '#FEF2F2' }
-                            : { backgroundColor: '#EFF6FF' }
-                      ]}>
-                        <Text style={[
-                          styles.statusBadgeText,
-                          o.vendorTransfers[0].transferStatus === 'processed'
-                            ? { color: '#0F766E' }
-                            : o.vendorTransfers[0].transferStatus === 'failed'
-                              ? { color: '#DC2626' }
-                              : { color: '#1D4ED8' }
-                        ]}>
-                          Route: {o.vendorTransfers[0].transferStatus.toUpperCase()}
-                        </Text>
-                      </View>
-                    ) : null}
                   </View>
-                  {o.contactEmail ? <Text style={styles.email}>{o.contactEmail}</Text> : null}
-                  {o.items?.map((it, i) => (
+                  <Text style={styles.email}>{(o as any).user?.email || (o as any).shippingAddress?.phone}</Text>
+                  {o.items?.map((it: any, i: number) => (
                     <Text key={i} style={styles.itemLine}>
                       {it.quantity}× {it.title} {it.tierLabel ? `(${it.tierLabel})` : ''} — ₹{it.price}/unit
                     </Text>
@@ -155,7 +120,7 @@ export default function SellerOrdersScreen() {
                     <View style={styles.settlementBox}>
                       <Text style={styles.settlementText}>
                         Settlement: <Text style={{ fontWeight: '800', color: CustomerColors.teal700 }}>₹{o.vendorTransfers[0].vendorAmount}</Text>
-                        <Text style={{ color: '#9CA3AF' }}> (Gross ₹{o.vendorTransfers[0].grossAmount} − Fee ₹{o.vendorTransfers[0].commissionAmount})</Text>
+                        <Text style={{ color: isDark ? '#9CA3AF' : '#9CA3AF' }}> (Gross ₹{o.vendorTransfers[0].grossAmount} − Fee ₹{o.vendorTransfers[0].commissionAmount})</Text>
                       </Text>
                     </View>
                   ) : null}
@@ -190,31 +155,61 @@ export default function SellerOrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: 8 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: CustomerColors.steelBorder },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+  },
   filterChipActive: { backgroundColor: CustomerColors.teal700, borderColor: CustomerColors.teal700 },
-  filterChipText: { fontSize: 11, fontWeight: '700', color: '#4B5563' },
+  filterChipText: { fontSize: 11, fontWeight: '700', color: isDark ? '#9CA3AF' : '#4B5563' },
   filterChipTextActive: { color: '#fff' },
   emptyBox: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: 6 },
-  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: '#374151' },
-  emptySub: { fontSize: FontSizes.sm, color: '#9CA3AF', textAlign: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.md },
+  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#F9FAFB' : '#374151' },
+  emptySub: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : '#9CA3AF', textAlign: 'center' },
+  card: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    padding: Spacing.md,
+  },
   cardTop: { flexDirection: 'row', gap: Spacing.sm },
   orderIdRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  orderId: { fontWeight: '800', color: CustomerColors.black, fontSize: FontSizes.sm },
+  orderId: { fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, fontSize: FontSizes.sm },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
   statusBadgeText: { fontSize: 9, fontWeight: '700' },
-  email: { fontSize: FontSizes.xs, color: '#6B7280', marginTop: 2 },
-  itemLine: { fontSize: 11, color: '#6B7280', marginTop: 2 },
-  date: { fontSize: 10, color: '#9CA3AF', marginTop: 4 },
+  email: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 },
+  itemLine: { fontSize: 11, color: isDark ? '#D1D5DB' : '#6B7280', marginTop: 2 },
+  date: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF', marginTop: 4 },
   amount: { fontSize: FontSizes.md, fontWeight: '800', color: CustomerColors.teal700 },
-  cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5' },
-  orderShortId: { fontSize: 10, color: '#9CA3AF' },
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: isDark ? '#1F2937' : '#F5F5F5',
+  },
+  orderShortId: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF' },
   statusPicker: { flexDirection: 'row', gap: 4, flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  statusOption: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: '#F5F5F5' },
-  statusOptionText: { fontSize: 10, fontWeight: '700', color: '#4B5563' },
-  settlementBox: { backgroundColor: '#F0FDFA', borderWidth: 1, borderColor: '#CCFBF1', borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 4, marginTop: 4, alignSelf: 'flex-start' },
-  settlementText: { fontSize: 10, color: CustomerColors.teal700 },
+  statusOption: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: isDark ? '#1F2937' : '#F5F5F5' },
+  statusOptionText: { fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : '#4B5563' },
+  settlementBox: {
+    backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+    borderWidth: 1,
+    borderColor: isDark ? '#115E59' : '#CCFBF1',
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  settlementText: { fontSize: 10, color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
 });

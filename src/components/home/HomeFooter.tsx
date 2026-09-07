@@ -2,39 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking, TextInput, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Phone, MapPin, Shield, CreditCard, Truck, Mail, Send } from 'lucide-react-native';
-import Svg, { Path } from 'react-native-svg';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
-
-// lucide-react-native 1.0 dropped all brand/logo icons (Twitter, Instagram,
-// Facebook, Youtube, etc.), so the social icons below are small inline SVGs
-// built on react-native-svg (already a dependency of lucide-react-native) —
-// no extra icon package needed.
-const TwitterXIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </Svg>
-);
-
-const InstagramIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
-    <Path d="M17 2H7a5 5 0 0 0-5 5v10a5 5 0 0 0 5 5h10a5 5 0 0 0 5-5V7a5 5 0 0 0-5-5z" />
-    <Path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <Path d="M17.5 6.5h.01" />
-  </Svg>
-);
-
-const FacebookIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <Path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z" />
-  </Svg>
-);
-
-const YoutubeIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: string }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
-    <Path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17z" />
-    <Path d="m10 15 5-3-5-3z" fill={color} />
-  </Svg>
-);
+import { newsletterApi } from '../../api/newsletterApi';
 
 // Compact mobile counterpart of client/app/components-sections/Footer.tsx.
 // Web's link columns (Company/Support/Shop) mostly point at '#' (no real
@@ -43,7 +12,7 @@ const YoutubeIcon = ({ size = 15, color = '#9CA3AF' }: { size?: number; color?: 
 // a real destination (About Us, Our Services, Help Center, Nearby Offers,
 // My Orders) are wired to the matching registered screens. The legal links
 // (Privacy Policy, Terms of Use, Sitemap) are also wired to their screens
-// in screens/customer/. Social icons are decorative (no real destination).
+// in screens/customer/.
 
 const QUICK_LINKS = [
   { label: 'New Arrivals', route: 'NewArrivals' },
@@ -62,15 +31,6 @@ const LEGAL_LINKS = [
   { label: 'Terms of Use', route: 'TermsOfUse' },
   { label: 'Sitemap', route: 'Sitemap' },
 ];
-
-const SOCIAL_ICONS = [
-  { key: 'X', Icon: TwitterXIcon },
-  { key: 'IG', Icon: InstagramIcon },
-  { key: 'FB', Icon: FacebookIcon },
-  { key: 'YT', Icon: YoutubeIcon },
-];
-
-import { newsletterApi } from '../../api/newsletterApi';
 
 export default function HomeFooter() {
   const navigation = useNavigation<any>();
@@ -113,10 +73,10 @@ export default function HomeFooter() {
       if (data?.success) {
         if (data.isDuplicate) {
           setHasInputError(true);
-          setStatusMessage({ type: 'duplicate', text: 'This email is already subscribed' });
+          setStatusMessage({ type: 'duplicate', text: data?.message || 'This email is already subscribed' });
         } else {
           setHasInputError(false);
-          setStatusMessage({ type: 'success', text: 'Thanks for subscribing! Check your inbox to confirm.' });
+          setStatusMessage({ type: 'success', text: data?.message || 'Thanks for subscribing! Check your inbox to confirm.' });
           setEmail('');
         }
       } else {
@@ -124,8 +84,8 @@ export default function HomeFooter() {
         setStatusMessage({ type: 'error', text: data?.message || 'Something went wrong. Please try again.' });
       }
     } catch (err: any) {
-      console.error('Newsletter error in HomeFooter:', err);
-      const msg = err.response?.data?.message || 'Something went wrong. Please try again.';
+      console.warn('Newsletter subscribe error:', err?.response?.data || err?.message || err);
+      const msg = err?.response?.data?.message || 'Unable to subscribe right now. Please try again later.';
       setHasInputError(true);
       setStatusMessage({ type: 'error', text: msg });
     } finally {
@@ -220,14 +180,6 @@ export default function HomeFooter() {
           <Text style={styles.contactText}>Coimbatore, Tamil Nadu, India</Text>
         </View>
 
-        <View style={styles.socialRow}>
-          {SOCIAL_ICONS.map(({ key, Icon }) => (
-            <View key={key} style={styles.socialIcon}>
-              <Icon size={15} color="#9CA3AF" />
-            </View>
-          ))}
-        </View>
-
         <View style={styles.divider} />
 
         <Text style={styles.sectionLabel}>Quick Links</Text>
@@ -307,9 +259,6 @@ const styles = StyleSheet.create({
   tagline: { fontSize: FontSizes.xs, color: '#9CA3AF', lineHeight: 18, marginBottom: Spacing.md },
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   contactText: { fontSize: FontSizes.xs, color: '#9CA3AF' },
-  socialRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  socialIcon: { width: 30, height: 30, borderRadius: BorderRadius.sm, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
-  socialIconText: { fontSize: 10, fontWeight: '700', color: '#9CA3AF' },
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: Spacing.lg },
   sectionLabel: { fontSize: FontSizes.sm, fontWeight: '800', color: '#fff', marginBottom: Spacing.sm },
   linksGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },

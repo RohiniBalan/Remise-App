@@ -72,6 +72,10 @@ export interface ExtractedProductFields {
   category?: string;
   subcategory?: string;
   attributes?: Record<string, any>;
+  specifications?: Array<{ label: string; value: string }>;
+  aboutFeatures?: string[];
+  aboutDescription?: string;
+  idealFor?: string[];
   price?: number;
   discountedPrice?: number;
   storePrice?: number;

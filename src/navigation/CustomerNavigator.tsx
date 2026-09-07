@@ -43,6 +43,7 @@ import { CustomerColors } from '../styles/theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { useTheme } from '../context/ThemeContext';
 
 export type CustomerTabParamList = {
   Home: undefined;
@@ -125,16 +126,17 @@ function CustomerTabs() {
   const { user } = useAuth();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const { isDark } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: CustomerColors.primary,
-        tabBarInactiveTintColor: CustomerColors.textSecondary,
+        tabBarInactiveTintColor: isDark ? '#94A3B8' : CustomerColors.textSecondary,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E2E8F0',
+          backgroundColor: isDark ? '#0B1120' : '#FFFFFF',
+          borderTopColor: isDark ? '#1E293B' : '#E2E8F0',
           height: 60,
           paddingBottom: 6,
           paddingTop: 4,

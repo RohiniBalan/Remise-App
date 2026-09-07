@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Trash2, ImageIcon, Plus, CheckCircle2 } from 'lucide-react-native';
 import { storeProductApi } from '../../api/storeProductApi';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   CustomerColors,
   Spacing,
@@ -31,18 +32,11 @@ export interface BulkProductRow extends ProductFormFields {
 
 type Step = 'review' | 'saving' | 'done';
 
-// New, separate entry point from the existing single-photo "Scan Paper" flow
-// (StoreProductFormScreen) — reached via StoreProductsScreen's new "Scan
-// Grocery List" button, which does the picking + scanBulkProducts() call and
-// hands the resulting rows here as route params. Renders one editable card
-// per detected product (same ProductFieldsForm used by the single form),
-// then "Add All Products" loops storeProductApi.create() per card via the
-// existing single-create endpoint, continuing past individual failures —
-// same continue-on-failure idea as web's BulkSmartUploadModal, just without
-// a backend bulk endpoint (none exists, none is needed).
 export default function StoreBulkProductScanScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store, categories, refresh } = useStoreDashboard();
 
   const [rows, setRows] = useState<BulkProductRow[]>(
@@ -94,7 +88,7 @@ export default function StoreBulkProductScanScreen() {
     return (
       <View style={styles.doneContainer}>
         <View style={styles.doneIcon}>
-          <CheckCircle2 size={32} color={CustomerColors.success} />
+          <CheckCircle2 size={32} color={isDark ? '#34D399' : CustomerColors.success} />
         </View>
         <Text style={styles.doneTitle}>
           {summary.added} product{summary.added === 1 ? '' : 's'} added
@@ -157,7 +151,7 @@ export default function StoreBulkProductScanScreen() {
                     }
                   />
                 ) : (
-                  <ImageIcon size={20} color="#D1D5DB" />
+                  <ImageIcon size={20} color={isDark ? '#4B5563' : '#D1D5DB'} />
                 )}
               </View>
               <Text style={styles.cardHeaderTitle} numberOfLines={1}>
@@ -201,31 +195,31 @@ export default function StoreBulkProductScanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   banner: {
-    backgroundColor: CustomerColors.mint,
+    backgroundColor: isDark ? '#134e4a' : CustomerColors.mint,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#115e59' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     margin: Spacing.md,
     padding: Spacing.md,
   },
   bannerText: {
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
     fontSize: FontSizes.xs,
     fontWeight: '700',
   },
   list: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   emptyText: {
     textAlign: 'center',
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: Spacing.xxl,
   },
   card: {
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     marginBottom: Spacing.md,
@@ -241,8 +235,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    backgroundColor: CustomerColors.bg,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -252,14 +246,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   removeBtn: { padding: Spacing.xs },
   footer: {
     padding: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: CustomerColors.steelBorder,
-    backgroundColor: CustomerColors.white,
+    borderTopColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
   },
   addAllBtn: {
     flexDirection: 'row',
@@ -273,7 +267,7 @@ const styles = StyleSheet.create({
   addAllBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
   doneContainer: {
     flex: 1,
-    backgroundColor: CustomerColors.bg,
+    backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
@@ -283,7 +277,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: isDark ? '#064E3B' : '#D1FAE5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
@@ -291,26 +285,26 @@ const styles = StyleSheet.create({
   doneTitle: {
     fontSize: FontSizes.base,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
     textAlign: 'center',
   },
   doneSubtitle: {
     fontSize: FontSizes.sm,
-    color: '#D97706',
+    color: isDark ? '#FBBF24' : '#D97706',
     textAlign: 'center',
   },
   failedBox: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: isDark ? '#78350F' : '#FFFBEB',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: isDark ? '#92400E' : '#FDE68A',
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     width: '100%',
     gap: Spacing.xs,
   },
-  failedText: { fontSize: FontSizes.xs, color: '#B45309' },
+  failedText: { fontSize: FontSizes.xs, color: isDark ? '#FDE68A' : '#B45309' },
   doneBtn: {
-    backgroundColor: CustomerColors.teal600,
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,

@@ -15,7 +15,6 @@ import {
   ShoppingCart,
   Zap,
   Truck,
-  CheckCircle,
   ArrowLeft,
   Store,
   ShieldCheck,
@@ -27,8 +26,8 @@ import {
 import { productApi, Product, productImage } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useTheme, ThemeColors } from '../../context/ThemeContext';
 import {
-  GoldColors,
   CustomerColors,
   Spacing,
   FontSizes,
@@ -50,9 +49,11 @@ export default function ProductDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { productId: routeProductId } = route.params;
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted: checkWishlisted, toggleWishlist } = useWishlist();
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => getStyles(isDark, colors), [isDark, colors]);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -181,7 +182,7 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={GoldColors.gold} />
+        <ActivityIndicator size="large" color={CustomerColors.primary} />
       </View>
     );
   }
@@ -260,7 +261,7 @@ export default function ProductDetailScreen() {
           style={styles.headerBtn}
           onPress={() => navigation.goBack()}
         >
-          <ArrowLeft size={20} color={CustomerColors.black} />
+          <ArrowLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {product.title}
@@ -269,7 +270,7 @@ export default function ProductDetailScreen() {
           style={styles.headerBtn}
           onPress={() => navigation.navigate('Cart')}
         >
-          <ShoppingCart size={20} color={CustomerColors.black} />
+          <ShoppingCart size={20} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -279,7 +280,7 @@ export default function ProductDetailScreen() {
           {activeImage ? (
             <Image source={{ uri: activeImage }} style={styles.mainImage} />
           ) : (
-            <Package size={48} color={CustomerColors.textSecondary} />
+            <Package size={48} color={colors.textSecondary} />
           )}
 
           {/* Stock status badge */}
@@ -386,7 +387,7 @@ export default function ProductDetailScreen() {
           {/* Store Info Card */}
           <View style={styles.storeCard}>
             <View style={styles.storeIconBox}>
-              <Store size={18} color={GoldColors.gold} />
+              <Store size={18} color={CustomerColors.teal700} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.storeName}>
@@ -440,7 +441,7 @@ export default function ProductDetailScreen() {
             >
               <Heart
                 size={20}
-                color={isItemWishlisted ? '#DC2626' : CustomerColors.textSecondary}
+                color={isItemWishlisted ? '#DC2626' : colors.textSecondary}
                 fill={isItemWishlisted ? '#DC2626' : 'none'}
               />
             </TouchableOpacity>
@@ -448,7 +449,7 @@ export default function ProductDetailScreen() {
 
           {/* Delivery Note */}
           <View style={styles.deliveryNote}>
-            <Truck size={14} color={GoldColors.gold} />
+            <Truck size={14} color={CustomerColors.teal700} />
             <Text style={styles.deliveryText}>
               Est. delivery in {product.deliveryTime || '3–7 Business Days'}
             </Text>
@@ -524,7 +525,7 @@ export default function ProductDetailScreen() {
                 {Array.isArray(product.idealFor) && product.idealFor.length > 0 ? (
                   product.idealFor.map((item, idx) => (
                     <View key={idx} style={styles.highlightItem}>
-                      <Sparkles size={14} color={GoldColors.gold} />
+                      <Sparkles size={14} color={CustomerColors.teal700} />
                       <Text style={styles.highlightText}>{item}</Text>
                     </View>
                   ))
@@ -582,7 +583,7 @@ export default function ProductDetailScreen() {
                       {img ? (
                         <Image source={{ uri: img }} style={styles.similarImg} />
                       ) : (
-                        <Package size={24} color={CustomerColors.textSecondary} />
+                        <Package size={24} color={colors.textSecondary} />
                       )}
                     </View>
                     <Text style={styles.similarBrand} numberOfLines={1}>
@@ -609,7 +610,7 @@ export default function ProductDetailScreen() {
           onPress={handleAddToCart}
           disabled={isOutOfStock}
         >
-          <ShoppingCart size={18} color={GoldColors.gold} />
+          <ShoppingCart size={18} color={CustomerColors.teal700} />
           <Text style={styles.cartBtnText}>Add to Cart</Text>
         </TouchableOpacity>
 
@@ -618,7 +619,7 @@ export default function ProductDetailScreen() {
           onPress={handleBuyNow}
           disabled={isOutOfStock}
         >
-          <Zap size={18} color="#000" />
+          <Zap size={18} color="#FFFFFF" />
           <Text style={styles.buyBtnText}>Buy Now</Text>
         </TouchableOpacity>
       </View>
@@ -626,258 +627,422 @@ export default function ProductDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070707' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.sm,
-    backgroundColor: '#111',
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    backgroundColor: '#222',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-    color: '#fff',
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: Spacing.sm,
-  },
-  scrollContent: { paddingBottom: 100 },
-  center: {
-    flex: 1,
-    backgroundColor: '#070707',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.lg,
-  },
-  notFoundTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: '#fff', marginBottom: Spacing.xs },
-  notFoundSubtitle: { fontSize: FontSizes.sm, color: '#888', marginBottom: Spacing.lg },
-  backBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: GoldColors.gold,
-    borderRadius: BorderRadius.md,
-  },
-  backBtnText: { color: '#000', fontSize: FontSizes.xs, fontWeight: '800', textTransform: 'uppercase' },
-  imageStage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 0.85,
-    backgroundColor: '#111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  mainImage: { width: '85%', height: '85%', resizeMode: 'contain' },
-  stockBadgeContainer: { position: 'absolute', top: Spacing.md, left: Spacing.md },
-  stockBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.pill },
-  stockBadgeIn: { backgroundColor: '#15803D' },
-  stockBadgeLow: { backgroundColor: '#B45309' },
-  stockBadgeOut: { backgroundColor: '#B91C1C' },
-  stockBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  thumbnailRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, backgroundColor: '#0D0D0D' },
-  thumbnailBox: {
-    width: 54,
-    height: 54,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: '#222',
-    backgroundColor: '#161616',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  thumbnailActive: { borderColor: GoldColors.gold, borderWidth: 2 },
-  thumbnailImg: { width: '100%', height: '100%', resizeMode: 'cover' },
-  infoCard: {
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#1F1F1F',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    margin: Spacing.md,
-  },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm },
-  brandBadge: { backgroundColor: '#222', paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.sm },
-  brandBadgeText: { color: GoldColors.gold, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  categoryBadge: { borderWidth: 1, borderColor: '#333', paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.sm },
-  categoryBadgeText: { color: '#9CA3AF', fontSize: 10, fontWeight: '600' },
-  subcategoryBadge: { borderWidth: 1, borderColor: GoldColors.gold, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.sm },
-  subcategoryBadgeText: { color: GoldColors.goldLight, fontSize: 10, fontWeight: '700' },
-  title: { fontSize: FontSizes.lg, fontWeight: '800', color: '#fff', lineHeight: 26, marginBottom: Spacing.xs },
-  ratingBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md },
-  ratingChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(245, 158, 11, 0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.sm },
-  ratingText: { color: '#F59E0B', fontSize: 11, fontWeight: '800' },
-  ratingCount: { color: '#888', fontSize: 11 },
-  dotSeparator: { color: '#444' },
-  verifiedText: { color: CustomerColors.teal700, fontSize: 11, fontWeight: '700' },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: Spacing.sm,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#262626',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  price: { fontSize: 28, fontWeight: '900', color: GoldColors.gold },
-  originalPrice: { fontSize: FontSizes.sm, color: '#777', textDecorationLine: 'line-through' },
-  discountBadge: { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.sm },
-  discountText: { color: '#EF4444', fontSize: 10, fontWeight: '800' },
-  storeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#262626',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  storeIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    backgroundColor: '#222',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  storeName: { fontSize: FontSizes.xs, fontWeight: '800', color: '#fff' },
-  storeSub: { fontSize: 10, color: '#888' },
-  offerBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: 'rgba(20, 184, 166, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(20, 184, 166, 0.3)',
-    borderStyle: 'dashed',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  offerTitle: { fontSize: FontSizes.xs, fontWeight: '700', color: '#2DD4BF' },
-  offerSubtitle: { fontSize: 10, color: '#99F6E4' },
-  qtyWishlistRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
-  qtySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#262626',
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-  },
-  qtyBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  qtyBtnText: { color: '#fff', fontSize: FontSizes.base, fontWeight: '800' },
-  qtyText: { color: GoldColors.gold, fontSize: FontSizes.sm, fontWeight: '800', minWidth: 28, textAlign: 'center' },
-  wishlistBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: '#262626',
-    backgroundColor: '#161616',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wishlistBtnActive: { borderColor: '#DC2626', backgroundColor: 'rgba(220, 38, 38, 0.1)' },
-  deliveryNote: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
-  deliveryText: { fontSize: 11, color: '#888' },
-  tabsCard: {
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#1F1F1F',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  tabsHeader: { borderBottomWidth: 1, borderBottomColor: '#222', paddingBottom: Spacing.xs },
-  tabBtn: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.sm, borderRadius: BorderRadius.sm },
-  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: GoldColors.gold },
-  tabBtnText: { color: '#888', fontSize: FontSizes.xs, fontWeight: '700', textTransform: 'uppercase' },
-  tabBtnTextActive: { color: GoldColors.gold },
-  tabBody: { paddingTop: Spacing.md },
-  tabHeading: { fontSize: FontSizes.sm, fontWeight: '800', color: GoldColors.gold, marginBottom: Spacing.xs },
-  descriptionText: { fontSize: FontSizes.xs, color: '#BBB', lineHeight: 20 },
-  specsTable: { borderWidth: 1, borderColor: '#222', borderRadius: BorderRadius.md, overflow: 'hidden' },
-  specRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' },
-  specRowAlt: { backgroundColor: '#161616' },
-  specLabel: { width: '45%', fontSize: FontSizes.xs, fontWeight: '700', color: '#888', textTransform: 'uppercase' },
-  specValue: { flex: 1, fontSize: FontSizes.xs, fontWeight: '600', color: '#fff' },
-  emptyTabText: { color: '#666', fontSize: FontSizes.xs, textAlign: 'center', paddingVertical: Spacing.md },
-  highlightItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
-  highlightText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '600' },
-  policyCard: { backgroundColor: '#161616', padding: Spacing.sm, borderRadius: BorderRadius.md },
-  policyTitle: { fontSize: FontSizes.xs, fontWeight: '800', color: GoldColors.gold, marginBottom: 2 },
-  policyBody: { fontSize: 10, color: '#AAA', lineHeight: 15 },
-  similarSection: { marginHorizontal: Spacing.md, marginBottom: Spacing.xl },
-  similarTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#fff', marginBottom: Spacing.md },
-  similarCard: {
-    width: 140,
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#1F1F1F',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.sm,
-  },
-  similarImgBox: { width: '100%', height: 100, backgroundColor: '#161616', borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: Spacing.xs },
-  similarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
-  similarBrand: { fontSize: 9, fontWeight: '700', color: GoldColors.gold, textTransform: 'uppercase' },
-  similarName: { fontSize: 11, fontWeight: '700', color: '#fff', marginTop: 2, marginBottom: 4, height: 28 },
-  similarPrice: { fontSize: FontSizes.xs, fontWeight: '900', color: '#fff' },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#111',
-    borderTopWidth: 1,
-    borderTopColor: '#222',
-    flexDirection: 'row',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  cartBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: GoldColors.gold,
-    borderRadius: BorderRadius.xl,
-    paddingVertical: 12,
-  },
-  cartBtnText: { color: GoldColors.gold, fontSize: FontSizes.xs, fontWeight: '800', textTransform: 'uppercase' },
-  buyBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: GoldColors.gold,
-    borderRadius: BorderRadius.xl,
-    paddingVertical: 12,
-  },
-  buyBtnText: { color: '#000', fontSize: FontSizes.xs, fontWeight: '800', textTransform: 'uppercase' },
-  btnDisabled: { opacity: 0.5 },
-});
+const getStyles = (isDark: boolean, colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#0A0F1D' : '#F8FAFC',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.xl,
+      paddingBottom: Spacing.sm,
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
+    },
+    headerBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      flex: 1,
+      textAlign: 'center',
+      marginHorizontal: Spacing.sm,
+    },
+    scrollContent: { paddingBottom: 100 },
+    center: {
+      flex: 1,
+      backgroundColor: isDark ? '#0A0F1D' : '#F8FAFC',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: Spacing.lg,
+    },
+    notFoundTitle: {
+      fontSize: FontSizes.lg,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginBottom: Spacing.xs,
+    },
+    notFoundSubtitle: {
+      fontSize: FontSizes.sm,
+      color: colors.textSecondary,
+      marginBottom: Spacing.lg,
+    },
+    backBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: Spacing.lg,
+      backgroundColor: CustomerColors.primary,
+      borderRadius: BorderRadius.md,
+    },
+    backBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    imageStage: {
+      width: SCREEN_WIDTH,
+      height: SCREEN_WIDTH * 0.85,
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
+    },
+    mainImage: { width: '85%', height: '85%', resizeMode: 'contain' },
+    stockBadgeContainer: { position: 'absolute', top: Spacing.md, left: Spacing.md },
+    stockBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.pill },
+    stockBadgeIn: { backgroundColor: '#15803D' },
+    stockBadgeLow: { backgroundColor: '#B45309' },
+    stockBadgeOut: { backgroundColor: '#B91C1C' },
+    stockBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+    thumbnailRow: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      backgroundColor: isDark ? '#0F172A' : '#F1F5F9',
+    },
+    thumbnailBox: {
+      width: 56,
+      height: 56,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#CBD5E1',
+      backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    thumbnailActive: {
+      borderColor: CustomerColors.primary,
+      borderWidth: 2,
+    },
+    thumbnailImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+    infoCard: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.md,
+      margin: Spacing.md,
+      ...Shadows.card,
+    },
+    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm },
+    brandBadge: {
+      backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.sm,
+    },
+    brandBadgeText: {
+      color: CustomerColors.teal700,
+      fontSize: 10,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    categoryBadge: {
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.sm,
+    },
+    categoryBadgeText: { color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
+    subcategoryBadge: {
+      borderWidth: 1,
+      borderColor: CustomerColors.primary,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: isDark ? 'rgba(255,0,0,0.1)' : '#FEF2F2',
+    },
+    subcategoryBadgeText: { color: CustomerColors.primary, fontSize: 10, fontWeight: '700' },
+    title: {
+      fontSize: FontSizes.lg,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      lineHeight: 26,
+      marginBottom: Spacing.xs,
+    },
+    ratingBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md },
+    ratingChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: BorderRadius.sm,
+    },
+    ratingText: { color: '#F59E0B', fontSize: 11, fontWeight: '800' },
+    ratingCount: { color: colors.textSecondary, fontSize: 11 },
+    dotSeparator: { color: isDark ? '#4B5563' : '#CBD5E1' },
+    verifiedText: { color: CustomerColors.teal700, fontSize: 11, fontWeight: '700' },
+    priceContainer: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: Spacing.sm,
+      backgroundColor: isDark ? '#1E1B1B' : '#FEF2F2',
+      borderWidth: 1,
+      borderColor: isDark ? '#3B1C1C' : '#FEE2E2',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.md,
+      marginBottom: Spacing.md,
+    },
+    price: { fontSize: 28, fontWeight: '900', color: CustomerColors.primary },
+    originalPrice: { fontSize: FontSizes.sm, color: colors.textSecondary, textDecorationLine: 'line-through' },
+    discountBadge: {
+      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+      borderWidth: 1,
+      borderColor: '#EF4444',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: BorderRadius.sm,
+    },
+    discountText: { color: '#EF4444', fontSize: 10, fontWeight: '800' },
+    storeCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.sm,
+      marginBottom: Spacing.sm,
+    },
+    storeIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+    },
+    storeName: { fontSize: FontSizes.xs, fontWeight: '800', color: colors.textPrimary },
+    storeSub: { fontSize: 10, color: colors.textSecondary },
+    offerBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+      borderWidth: 1,
+      borderColor: isDark ? '#134E48' : '#CCFBF1',
+      borderStyle: 'dashed',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.sm,
+      marginBottom: Spacing.md,
+    },
+    offerTitle: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.teal700 },
+    offerSubtitle: { fontSize: 10, color: isDark ? '#99F6E4' : '#0F766E' },
+    qtyWishlistRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
+    qtySelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#CBD5E1',
+      borderRadius: BorderRadius.md,
+      overflow: 'hidden',
+    },
+    qtyBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+    qtyBtnText: { color: colors.textPrimary, fontSize: FontSizes.base, fontWeight: '800' },
+    qtyText: {
+      color: CustomerColors.primary,
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      minWidth: 28,
+      textAlign: 'center',
+    },
+    wishlistBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    wishlistBtnActive: { borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
+    deliveryNote: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
+    deliveryText: { fontSize: 11, color: colors.textSecondary },
+    tabsCard: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.md,
+      marginHorizontal: Spacing.md,
+      marginBottom: Spacing.lg,
+      ...Shadows.card,
+    },
+    tabsHeader: {
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
+      paddingBottom: Spacing.xs,
+    },
+    tabBtn: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.sm, borderRadius: BorderRadius.sm },
+    tabBtnActive: { borderBottomWidth: 2, borderBottomColor: CustomerColors.primary },
+    tabBtnText: {
+      color: colors.textSecondary,
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    tabBtnTextActive: { color: CustomerColors.primary },
+    tabBody: { paddingTop: Spacing.md },
+    tabHeading: {
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginBottom: Spacing.xs,
+    },
+    descriptionText: { fontSize: FontSizes.xs, color: colors.textSecondary, lineHeight: 20 },
+    specsTable: {
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      borderRadius: BorderRadius.md,
+      overflow: 'hidden',
+    },
+    specRow: {
+      flexDirection: 'row',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F1F5F9',
+    },
+    specRowAlt: { backgroundColor: isDark ? '#1E293B' : '#F8FAFC' },
+    specLabel: {
+      width: '45%',
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+    },
+    specValue: { flex: 1, fontSize: FontSizes.xs, fontWeight: '600', color: colors.textPrimary },
+    emptyTabText: {
+      color: colors.textSecondary,
+      fontSize: FontSizes.xs,
+      textAlign: 'center',
+      paddingVertical: Spacing.md,
+    },
+    highlightItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+    highlightText: { color: colors.textPrimary, fontSize: FontSizes.xs, fontWeight: '600' },
+    policyCard: {
+      backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+      padding: Spacing.sm,
+      borderRadius: BorderRadius.md,
+    },
+    policyTitle: {
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+      color: CustomerColors.teal700,
+      marginBottom: 2,
+    },
+    policyBody: { fontSize: 10, color: colors.textSecondary, lineHeight: 15 },
+    similarSection: { marginHorizontal: Spacing.md, marginBottom: Spacing.xl },
+    similarTitle: {
+      fontSize: FontSizes.base,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginBottom: Spacing.md,
+    },
+    similarCard: {
+      width: 140,
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.sm,
+      ...Shadows.card,
+    },
+    similarImgBox: {
+      width: '100%',
+      height: 100,
+      backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      marginBottom: Spacing.xs,
+    },
+    similarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+    similarBrand: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: CustomerColors.teal700,
+      textTransform: 'uppercase',
+    },
+    similarName: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 2,
+      marginBottom: 4,
+      height: 28,
+    },
+    similarPrice: { fontSize: FontSizes.xs, fontWeight: '900', color: CustomerColors.primary },
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#1F2937' : '#E2E8F0',
+      flexDirection: 'row',
+      gap: Spacing.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      ...Shadows.card,
+    },
+    cartBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+      borderWidth: 1.5,
+      borderColor: CustomerColors.teal700,
+      borderRadius: BorderRadius.xl,
+      paddingVertical: 12,
+    },
+    cartBtnText: {
+      color: CustomerColors.teal700,
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    buyBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      backgroundColor: CustomerColors.primary,
+      borderRadius: BorderRadius.xl,
+      paddingVertical: 12,
+    },
+    buyBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    btnDisabled: { opacity: 0.5 },
+  });

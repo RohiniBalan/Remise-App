@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Store } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useSupplierCart } from '../../context/SupplierCartContext';
+import { useTheme } from '../../context/ThemeContext';
 import { orderApi } from '../../api/orderApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 
-// Ported from web's SupplierCartOrderModal — groups cart lines by supplier
-// store, shows the prefilled delivery/contact form (from `store` profile,
-// same fields web prefills), places one order per supplier on submit.
 export default function StoreSupplierCartScreen() {
   const navigation = useNavigation<any>();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store } = useStoreDashboard();
   const { cart, cartTotal, clearCart } = useSupplierCart();
   const [placing, setPlacing] = useState(false);
@@ -67,7 +67,12 @@ export default function StoreSupplierCartScreen() {
             ].map(([key, label]) => (
               <View key={key} style={{ marginBottom: Spacing.sm }}>
                 <Text style={styles.label}>{label}</Text>
-                <TextInput style={styles.input} value={(form as any)[key]} onChangeText={v => set(key, v)} />
+                <TextInput
+                  style={styles.input}
+                  value={(form as any)[key]}
+                  onChangeText={v => set(key, v)}
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                />
               </View>
             ))}
             <Text style={[styles.sectionTitle, { marginTop: Spacing.md }]}>Order Summary</Text>
@@ -76,7 +81,7 @@ export default function StoreSupplierCartScreen() {
         renderItem={({ item: g }) => (
           <View style={styles.supplierGroup}>
             <View style={styles.supplierHeader}>
-              <Store size={14} color={CustomerColors.teal700} />
+              <Store size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
               <Text style={styles.supplierName}>{g.storeName}</Text>
             </View>
             {g.items.map((i: any) => (
@@ -104,22 +109,22 @@ export default function StoreSupplierCartScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black, marginBottom: Spacing.sm },
-  label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 4 },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 10, fontSize: FontSizes.sm },
-  supplierGroup: { backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.sm },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+  sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.sm },
+  label: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 4 },
+  input: { backgroundColor: isDark ? '#1F2937' : CustomerColors.white, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 10, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+  supplierGroup: { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.sm },
   supplierHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  supplierName: { fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.black },
+  supplierName: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
-  itemTitle: { fontSize: FontSizes.xs, color: '#374151', flex: 1, paddingRight: 6 },
-  itemMeta: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
-  supplierTotal: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.teal700, marginTop: 6, textAlign: 'right' },
+  itemTitle: { fontSize: FontSizes.xs, color: isDark ? '#E5E7EB' : '#374151', flex: 1, paddingRight: 6 },
+  itemMeta: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+  supplierTotal: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginTop: 6, textAlign: 'right' },
   footer: { marginTop: Spacing.md },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#E5E7EB', marginBottom: Spacing.md },
-  totalLabel: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
-  totalValue: { fontSize: FontSizes.lg, fontWeight: '800', color: CustomerColors.teal700 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#E5E7EB', marginBottom: Spacing.md },
+  totalLabel: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  totalValue: { fontSize: FontSizes.lg, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   placeBtn: { backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center' },
   placeBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
 });

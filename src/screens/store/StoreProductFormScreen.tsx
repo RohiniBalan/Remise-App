@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ import {
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useTheme } from '../../context/ThemeContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { sellerAiApi } from '../../api/sellerApi';
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
@@ -40,6 +41,7 @@ import {
   getCategories,
   getSubcategories,
   getCategoryAttributes,
+  matchExtractedToAttributes,
   normalizeSpecifications,
 } from '../../utils/categoryAttributes';
 import { AVAILABILITY_OPTIONS } from '../../utils/productForm';
@@ -47,6 +49,8 @@ import { AVAILABILITY_OPTIONS } from '../../utils/productForm';
 export default function StoreProductFormScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const product = route.params?.product;
   const initialTitle = route.params?.initialTitle;
   const initialCategory = route.params?.initialCategory;
@@ -111,6 +115,29 @@ export default function StoreProductFormScreen() {
   const dynamicFields = useMemo(() => {
     return getCategoryAttributes(form.category, form.subcategory);
   }, [form.category, form.subcategory]);
+
+  // Automatically map existing attributes to active schema fields if not already populated
+  useEffect(() => {
+    if (dynamicFields.length > 0 && Object.keys(dynamicAttributes).length > 0) {
+      const remapped = matchExtractedToAttributes(dynamicFields, {
+        brand: form.brand,
+        attributes: dynamicAttributes,
+      });
+      let hasChange = false;
+      for (const field of dynamicFields) {
+        if (remapped[field.key] && !dynamicAttributes[field.key]) {
+          hasChange = true;
+          break;
+        }
+      }
+      if (hasChange) {
+        setDynamicAttributes(prev => ({
+          ...prev,
+          ...remapped,
+        }));
+      }
+    }
+  }, [form.category, form.subcategory, dynamicFields, form.brand]);
 
   const handleCategorySelect = (selectedCat: string) => {
     setForm(f => ({
@@ -190,23 +217,31 @@ export default function StoreProductFormScreen() {
       const data = res.data;
       if (!data.success) throw new Error(data.message || 'Could not detect product details.');
 
-      const ext = data.extracted;
+      const ext = data.extracted || {};
+      const targetCat = ext.category || form.category;
+      const targetSub = ext.subcategory || form.subcategory;
+      const schema = getCategoryAttributes(targetCat, targetSub);
+      const matched = matchExtractedToAttributes(schema, ext);
+
       setForm(f => ({
         ...f,
         title: ext.productName || f.title,
-        category: ext.category || f.category,
-        subcategory: ext.subcategory || f.subcategory,
-        brand: ext.brand || f.brand,
+        category: targetCat || f.category,
+        subcategory: targetSub || f.subcategory,
+        brand: ext.brand || matched.brand || f.brand,
         price: ext.price ? String(ext.price) : f.price,
         discountedPrice: ext.discountedPrice ? String(ext.discountedPrice) : f.discountedPrice,
         description: ext.description || f.description,
       }));
 
-      if (ext.attributes && typeof ext.attributes === 'object') {
-        setDynamicAttributes(prev => ({
-          ...prev,
-          ...ext.attributes,
-        }));
+      setDynamicAttributes(prev => ({
+        ...prev,
+        ...matched,
+      }));
+
+      if (ext.imageUrl) {
+        setImageAsset(null);
+        setImageUrl(ext.imageUrl);
       }
 
       setAiSuccessMsg('✨ Product details auto-filled! Please review and edit before saving.');
@@ -228,10 +263,11 @@ export default function StoreProductFormScreen() {
     if (res.didCancel || res.errorCode) return;
     const asset = res.assets?.[0];
     if (asset) {
-      setImageAsset(asset);
-      setImageUrl('');
       if (autoScan) {
         handleAiAutoFill(asset);
+      } else {
+        setImageAsset(asset);
+        setImageUrl('');
       }
     }
   };
@@ -247,6 +283,7 @@ export default function StoreProductFormScreen() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => {
+        if (k === 'imageUrl') return;
         if (v !== '') fd.append(k, String(v));
       });
       if (store?._id) fd.append('storeId', store._id);
@@ -289,7 +326,7 @@ export default function StoreProductFormScreen() {
       {/* AI Auto-Fill Card */}
       <View style={styles.aiCard}>
         <View style={styles.aiCardHeader}>
-          <Sparkles size={18} color={CustomerColors.teal700} />
+          <Sparkles size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
           <Text style={styles.aiCardTitle}>✨ Auto-fill Product Details</Text>
         </View>
         <Text style={styles.aiCardSubtitle}>
@@ -325,7 +362,7 @@ export default function StoreProductFormScreen() {
 
       {aiSuccessMsg ? (
         <View style={styles.successBanner}>
-          <Check size={16} color={CustomerColors.teal700} />
+          <Check size={16} color={isDark ? '#34D399' : CustomerColors.teal700} />
           <Text style={styles.successText}>{aiSuccessMsg}</Text>
         </View>
       ) : null}
@@ -376,7 +413,7 @@ export default function StoreProductFormScreen() {
             </>
           ) : (
             <>
-              <Mic size={15} color={CustomerColors.black} style={{ marginRight: Spacing.xs }} />
+              <Mic size={15} color={isDark ? '#F9FAFB' : CustomerColors.black} style={{ marginRight: Spacing.xs }} />
               <Text style={styles.voiceButtonTextInactive}>Speak product details</Text>
             </>
           )}
@@ -414,7 +451,7 @@ export default function StoreProductFormScreen() {
               <Image source={{ uri: preview }} style={styles.imagePreview} />
             ) : (
               <View style={styles.imagePlaceholder}>
-                <ImageIcon size={28} color={CustomerColors.textSecondary} />
+                <ImageIcon size={28} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
                 <Text style={styles.imagePlaceholderText}>Add Photo</Text>
               </View>
             )}
@@ -423,6 +460,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="Or paste image URL"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={imageUrl}
               onChangeText={v => {
                 setImageUrl(v);
@@ -441,6 +479,7 @@ export default function StoreProductFormScreen() {
         <TextInput
           style={styles.input}
           placeholder="e.g. Organic Face Moisturizer / Galaxy S24"
+          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
           value={form.title}
           onChangeText={v => set('title', v)}
         />
@@ -449,6 +488,7 @@ export default function StoreProductFormScreen() {
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Provide product highlights, features, and key specifications..."
+          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
           multiline
           numberOfLines={3}
           value={form.description}
@@ -461,6 +501,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="0.00"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               keyboardType="numeric"
               value={form.price}
               onChangeText={v => set('price', v)}
@@ -471,6 +512,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="0.00"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               keyboardType="numeric"
               value={form.discountedPrice}
               onChangeText={v => set('discountedPrice', v)}
@@ -489,7 +531,7 @@ export default function StoreProductFormScreen() {
               <Text style={form.category ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
                 {form.category || 'Select Category'}
               </Text>
-              <ChevronDown size={16} color={CustomerColors.textSecondary} />
+              <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -507,7 +549,7 @@ export default function StoreProductFormScreen() {
               <Text style={form.subcategory ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
                 {form.subcategory || (form.category ? 'Select Subcategory' : 'Select Category first')}
               </Text>
-              <ChevronDown size={16} color={CustomerColors.textSecondary} />
+              <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -518,6 +560,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. Apple, Organic India"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={form.brand}
               onChangeText={v => set('brand', v)}
             />
@@ -527,6 +570,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. 50"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               keyboardType="numeric"
               value={form.totalStock}
               onChangeText={v => set('totalStock', v)}
@@ -561,6 +605,7 @@ export default function StoreProductFormScreen() {
         <TextInput
           style={styles.input}
           placeholder="e.g. bestseller, trending, fast-delivery"
+          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
           value={form.tags}
           onChangeText={v => set('tags', v)}
         />
@@ -570,7 +615,7 @@ export default function StoreProductFormScreen() {
       {dynamicFields.length > 0 && (
         <View style={styles.section}>
           <View style={styles.dynamicHeader}>
-            <Sliders size={16} color={CustomerColors.teal700} />
+            <Sliders size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
             <Text style={styles.dynamicTitle}>
               {form.subcategory ? `${form.subcategory} Specifications` : `${form.category} Specifications`}
             </Text>
@@ -586,7 +631,15 @@ export default function StoreProductFormScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                  value={dynamicAttributes[field.key] || ''}
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  value={
+                    dynamicAttributes[field.key] ??
+                    dynamicAttributes[field.key.toLowerCase()] ??
+                    dynamicAttributes[field.label] ??
+                    dynamicAttributes[field.label.toLowerCase()] ??
+                    (field.key.toLowerCase() === 'brand' ? form.brand : '') ??
+                    ''
+                  }
                   onChangeText={v => handleAttributeChange(field.key, v)}
                 />
               </View>
@@ -623,7 +676,7 @@ export default function StoreProductFormScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Category</Text>
               <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
-                <X size={20} color={CustomerColors.black} />
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -645,7 +698,7 @@ export default function StoreProductFormScreen() {
                   >
                     {item}
                   </Text>
-                  {form.category === item && <Check size={16} color={CustomerColors.teal700} />}
+                  {form.category === item && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
                 </TouchableOpacity>
               )}
             />
@@ -660,7 +713,7 @@ export default function StoreProductFormScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Subcategory</Text>
               <TouchableOpacity onPress={() => setSubcategoryModalVisible(false)}>
-                <X size={20} color={CustomerColors.black} />
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -682,7 +735,7 @@ export default function StoreProductFormScreen() {
                   >
                     {item}
                   </Text>
-                  {form.subcategory === item && <Check size={16} color={CustomerColors.teal700} />}
+                  {form.subcategory === item && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
                 </TouchableOpacity>
               )}
             />
@@ -693,22 +746,22 @@ export default function StoreProductFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : '#F8FAFC' },
   content: { padding: Spacing.md, paddingBottom: Spacing.xxl * 2 },
 
   aiCard: {
-    backgroundColor: '#F0FDFA',
+    backgroundColor: isDark ? '#134e4a' : '#F0FDFA',
     borderWidth: 1,
-    borderColor: '#99F6E4',
+    borderColor: isDark ? '#115e59' : '#99F6E4',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.card,
   },
   aiCardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: 4 },
-  aiCardTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#115E59' },
-  aiCardSubtitle: { fontSize: FontSizes.xs, color: '#0F766E', marginBottom: Spacing.sm },
+  aiCardTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#2DD4BF' : '#115E59' },
+  aiCardSubtitle: { fontSize: FontSizes.xs, color: isDark ? '#99F6E4' : '#0F766E', marginBottom: Spacing.sm },
   aiButton: {
     backgroundColor: CustomerColors.teal700,
     flexDirection: 'row',
@@ -721,9 +774,9 @@ const styles = StyleSheet.create({
   aiButtonText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
 
   errorBanner: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? '#7F1D1D' : '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: isDark ? '#991B1B' : '#FCA5A5',
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     flexDirection: 'row',
@@ -731,12 +784,12 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
-  errorText: { color: '#DC2626', fontSize: FontSizes.xs, flex: 1 },
+  errorText: { color: isDark ? '#FCA5A5' : '#DC2626', fontSize: FontSizes.xs, flex: 1 },
 
   successBanner: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? '#064E3B' : '#ECFDF5',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: isDark ? '#065F46' : '#A7F3D0',
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     flexDirection: 'row',
@@ -744,13 +797,13 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
-  successText: { color: '#065F46', fontSize: FontSizes.xs, flex: 1 },
+  successText: { color: isDark ? '#6EE7B7' : '#065F46', fontSize: FontSizes.xs, flex: 1 },
 
   voiceSection: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#111827' : '#fff',
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? '#1F2937' : '#E2E8F0',
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },
@@ -759,17 +812,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BorderRadius.pill,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? '#374151' : '#E2E8F0',
   },
   voiceLangChipActive: { backgroundColor: CustomerColors.teal700, borderColor: CustomerColors.teal700 },
-  voiceLangText: { fontSize: 11, fontWeight: '600', color: CustomerColors.textSecondary },
+  voiceLangText: { fontSize: 11, fontWeight: '600', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
   voiceLangTextActive: { color: '#fff' },
   voiceButton: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: isDark ? '#374151' : '#CBD5E1',
     borderRadius: BorderRadius.md,
     paddingVertical: 8,
     flexDirection: 'row',
@@ -778,23 +831,23 @@ const styles = StyleSheet.create({
   },
   voiceButtonListening: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
   voiceButtonText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
-  voiceButtonTextInactive: { color: CustomerColors.black, fontSize: FontSizes.xs, fontWeight: '600' },
-  voiceTranscript: { fontSize: 11, color: CustomerColors.teal700, marginTop: 4 },
+  voiceButtonTextInactive: { color: isDark ? '#F9FAFB' : CustomerColors.black, fontSize: FontSizes.xs, fontWeight: '600' },
+  voiceTranscript: { fontSize: 11, color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginTop: 4 },
   voiceErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   voiceErrorText: { fontSize: 11, color: '#DC2626' },
 
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#111827' : '#fff',
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? '#1F2937' : '#E2E8F0',
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     letterSpacing: 0.5,
     marginBottom: Spacing.sm,
   },
@@ -805,27 +858,27 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: BorderRadius.md,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: isDark ? '#374151' : '#CBD5E1',
     borderStyle: 'dashed',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   imagePreview: { width: '100%', height: '100%' },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  imagePlaceholderText: { fontSize: 10, color: CustomerColors.textSecondary, marginTop: 2 },
+  imagePlaceholderText: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
 
-  inputLabel: { fontSize: FontSizes.xs, fontWeight: '600', color: CustomerColors.black, marginBottom: 4, marginTop: Spacing.xs },
+  inputLabel: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: 4, marginTop: Spacing.xs },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#1F2937' : '#fff',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: isDark ? '#374151' : '#CBD5E1',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
     fontSize: FontSizes.sm,
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   textArea: { height: 70, textAlignVertical: 'top' },
 
@@ -833,9 +886,9 @@ const styles = StyleSheet.create({
   col: { flex: 1 },
 
   selector: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#1F2937' : '#fff',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: isDark ? '#374151' : '#CBD5E1',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
@@ -843,26 +896,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  selectorDisabled: { backgroundColor: '#F1F5F9', opacity: 0.7 },
-  selectorValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },
-  selectorPlaceholder: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, flex: 1 },
+  selectorDisabled: { backgroundColor: isDark ? '#111827' : '#F1F5F9', opacity: 0.7 },
+  selectorValue: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
+  selectorPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, flex: 1 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 4 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.pill,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? '#374151' : '#E2E8F0',
   },
   chipActive: { backgroundColor: CustomerColors.teal700, borderColor: CustomerColors.teal700 },
-  chipText: { fontSize: 11, fontWeight: '600', color: CustomerColors.textSecondary },
+  chipText: { fontSize: 11, fontWeight: '600', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
   chipTextActive: { color: '#fff' },
 
   dynamicHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: 2 },
-  dynamicTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.teal700 },
-  dynamicSubtitle: { fontSize: 11, color: CustomerColors.textSecondary, marginBottom: Spacing.sm },
+  dynamicTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+  dynamicSubtitle: { fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginBottom: Spacing.sm },
   dynamicFieldsGrid: { gap: Spacing.xs },
   dynamicFieldItem: { marginBottom: Spacing.xs },
 
@@ -881,11 +934,11 @@ const styles = StyleSheet.create({
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#111827' : '#fff',
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
     padding: Spacing.md,
@@ -897,18 +950,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
   },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: isDark ? '#1F2937' : '#F1F5F9',
   },
-  modalItemActive: { backgroundColor: '#F0FDFA' },
-  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
-  modalItemTextActive: { fontWeight: '700', color: CustomerColors.teal700 },
+  modalItemActive: { backgroundColor: isDark ? '#134e4a' : '#F0FDFA' },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#E5E7EB' : CustomerColors.black },
+  modalItemTextActive: { fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
 });

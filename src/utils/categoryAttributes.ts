@@ -499,6 +499,100 @@ export function getCategoryAttributes(
 }
 
 /**
+ * Automatically maps extracted specifications/attributes from scan to match
+ * the schema fields of the selected category/subcategory (handling case differences,
+ * common synonyms, and label variations).
+ */
+export function matchExtractedToAttributes(
+  schemaFields: AttributeField[],
+  extracted: {
+    brand?: string;
+    model?: string;
+    attributes?: Record<string, any>;
+    specifications?: Array<{ label: string; value: string }>;
+    [key: string]: any;
+  },
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (!extracted) return result;
+
+  const rawEntries: Array<{ label: string; value: string }> = [];
+
+  if (extracted.brand) {
+    rawEntries.push({ label: 'brand', value: String(extracted.brand).trim() });
+    rawEntries.push({ label: 'Brand', value: String(extracted.brand).trim() });
+  }
+
+  if (extracted.attributes && typeof extracted.attributes === 'object') {
+    for (const [k, v] of Object.entries(extracted.attributes)) {
+      if (v !== undefined && v !== null && String(v).trim()) {
+        rawEntries.push({ label: k, value: String(v).trim() });
+      }
+    }
+  }
+
+  if (Array.isArray(extracted.specifications)) {
+    for (const spec of extracted.specifications) {
+      if (spec && (spec.label || (spec as any).key) && (spec.value || (spec as any).val)) {
+        rawEntries.push({
+          label: String(spec.label || (spec as any).key).trim(),
+          value: String(spec.value || (spec as any).val).trim(),
+        });
+      }
+    }
+  }
+
+  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  for (const field of schemaFields) {
+    const fKeyNorm = clean(field.key);
+    const fLabelNorm = clean(field.label);
+
+    // 1. Direct key match in extracted.attributes
+    if (extracted.attributes && extracted.attributes[field.key]) {
+      result[field.key] = String(extracted.attributes[field.key]).trim();
+      continue;
+    }
+
+    // 2. Exact or normalized matching from rawEntries
+    let found = false;
+    for (const entry of rawEntries) {
+      const eNorm = clean(entry.label);
+      if (
+        eNorm === fKeyNorm ||
+        eNorm === fLabelNorm ||
+        (fKeyNorm.length >= 4 && eNorm.includes(fKeyNorm)) ||
+        (fLabelNorm.length >= 4 && eNorm.includes(fLabelNorm)) ||
+        (eNorm.length >= 4 && fKeyNorm.includes(eNorm)) ||
+        (eNorm.length >= 4 && fLabelNorm.includes(eNorm))
+      ) {
+        result[field.key] = entry.value;
+        found = true;
+        break;
+      }
+    }
+
+    // 3. Fallback for brand
+    if (!found && fKeyNorm === 'brand' && extracted.brand) {
+      result[field.key] = extracted.brand;
+    }
+  }
+
+  // Also include all original raw entries with their original and lowercase keys
+  for (const entry of rawEntries) {
+    if (!result[entry.label]) {
+      result[entry.label] = entry.value;
+    }
+    const lowerKey = entry.label.toLowerCase();
+    if (!result[lowerKey]) {
+      result[lowerKey] = entry.value;
+    }
+  }
+
+  return result;
+}
+
+/**
  * Normalizes an attributes dictionary + existing specifications array into a clean
  * list of { label: string, value: string } specifications, filtering out empty values.
  */

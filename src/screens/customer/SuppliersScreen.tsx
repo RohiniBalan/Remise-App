@@ -45,6 +45,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { requireAuthForPurchase } from '../../utils/authGuard';
 import { mergeCategories } from '../../utils/storeCategories';
+import HomeFooter from '../../components/home/HomeFooter';
 
 const API_BASE = 'YOUR_API_BASE_URL';
 
@@ -352,6 +353,7 @@ export default function SuppliersScreen() {
               })}
             </View>
           )}
+          <HomeFooter />
         </ScrollView>
       ) : (
         <ScrollView
@@ -391,6 +393,7 @@ export default function SuppliersScreen() {
               </View>
             ))
           )}
+          <HomeFooter />
         </ScrollView>
       )}
 

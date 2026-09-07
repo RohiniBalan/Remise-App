@@ -8,23 +8,24 @@ import {
 } from '../../utils/sellerAnalytics';
 import { MiniLineChart, MiniBarChart } from './MiniCharts';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
-
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
-const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  PENDING: { bg: '#FFFBEB', fg: '#B45309' },
-  PAID: { bg: '#F0FDF4', fg: '#15803D' },
-  FAILED: { bg: '#FEF2F2', fg: '#FF0000' },
+const STATUS_COLORS: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
+  PENDING: { bg: '#FFFBEB', fg: '#B45309', darkBg: 'rgba(217, 119, 6, 0.15)', darkFg: '#FBBF24' },
+  PAID: { bg: '#F0FDF4', fg: '#15803D', darkBg: 'rgba(22, 163, 74, 0.15)', darkFg: '#4ADE80' },
+  FAILED: { bg: '#FEF2F2', fg: '#FF0000', darkBg: 'rgba(239, 68, 68, 0.15)', darkFg: '#F87171' },
 };
 
 export default function SellerOverviewScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store, orders, products, storeNameByOwnerId, loading, refresh } = useSellerDashboard();
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   const isWholesaler = user?.role === 'whole_saler' || user?.role === 'wholesaler';
-  const roleLabel = isWholesaler ? 'Wholesale Business' : 'Home Business';
 
   const lineItems = useMemo(() => extractSellerLineItems(orders, products), [orders, products]);
   const analytics = useMemo(() => computeSellerAnalytics(lineItems), [lineItems]);
@@ -175,12 +176,14 @@ export default function SellerOverviewScreen() {
         <Text style={styles.sectionTitle}>Payment Status Overview</Text>
         <View style={styles.paymentGrid}>
           {Object.entries(payments.statusCounts).map(([status, count]) => {
-            const c = STATUS_COLORS[status] || { bg: '#F3F4F6', fg: '#4B5563' };
+            const c = STATUS_COLORS[status] || { bg: '#F3F4F6', fg: '#4B5563', darkBg: '#1F2937', darkFg: '#9CA3AF' };
+            const bg = isDark ? c.darkBg : c.bg;
+            const fg = isDark ? c.darkFg : c.fg;
             return (
-              <View key={status} style={[styles.paymentCard, { backgroundColor: c.bg }]}>
-                <Text style={[styles.paymentCount, { color: c.fg }]}>{count}</Text>
-                <Text style={[styles.paymentStatus, { color: c.fg }]}>{status}</Text>
-                <Text style={[styles.paymentAmount, { color: c.fg }]}>₹{(payments.statusAmounts[status] || 0).toLocaleString('en-IN')}</Text>
+              <View key={status} style={[styles.paymentCard, { backgroundColor: bg }]}>
+                <Text style={[styles.paymentCount, { color: fg }]}>{count}</Text>
+                <Text style={[styles.paymentStatus, { color: fg }]}>{status}</Text>
+                <Text style={[styles.paymentAmount, { color: fg }]}>₹{(payments.statusAmounts[status] || 0).toLocaleString('en-IN')}</Text>
               </View>
             );
           })}
@@ -228,14 +231,14 @@ export default function SellerOverviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   roleBanner: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#111827' : '#fff',
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.card,
@@ -243,46 +246,76 @@ const styles = StyleSheet.create({
   roleBannerText: {
     fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   roleBannerSub: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: 3,
   },
-  targetCard: { backgroundColor: '#fff', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.md, ...Shadows.card },
-
+  targetCard: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    ...Shadows.card,
+  },
   targetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  targetTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
+  targetTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
   targetAmounts: { fontSize: FontSizes.md, fontWeight: '800', color: CustomerColors.teal700, marginTop: 6 },
-  targetOf: { fontSize: FontSizes.xs, fontWeight: '600', color: '#6B7280' },
-  progressTrack: { height: 8, borderRadius: 4, backgroundColor: '#F5F5F5', marginTop: Spacing.sm, overflow: 'hidden' },
+  targetOf: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#9CA3AF' : '#6B7280' },
+  progressTrack: { height: 8, borderRadius: 4, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', marginTop: Spacing.sm, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: CustomerColors.teal600 },
-  targetPct: { fontSize: FontSizes.xs, color: '#6B7280', marginTop: 6 },
-  targetEmpty: { fontSize: FontSizes.xs, color: '#6B7280', marginTop: 4 },
+  targetPct: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 6 },
+  targetEmpty: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 4 },
   link: { fontSize: FontSizes.xs, color: CustomerColors.teal600, fontWeight: '700' },
   statsGrid: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  statCard: { flex: 1, minHeight: 92, backgroundColor: '#fff', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.sm, ...Shadows.card },
+  statCard: {
+    flex: 1,
+    minHeight: 92,
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    padding: Spacing.sm,
+    ...Shadows.card,
+  },
   statValue: { fontSize: FontSizes.md, fontWeight: '800', marginTop: 4 },
-  statLabel: { fontSize: 10, color: '#6B7280', marginTop: 2 },
-  section: { backgroundColor: '#fff', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.md },
+  statLabel: { fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 },
+  section: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black, marginBottom: Spacing.sm },
+  sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.sm },
   granRow: { flexDirection: 'row', gap: 4 },
-  granChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#F5F5F5' },
+  granChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: isDark ? '#1F2937' : '#F5F5F5' },
   granChipActive: { backgroundColor: CustomerColors.teal600 },
-  granChipText: { fontSize: 10, fontWeight: '700', color: '#4B5563' },
+  granChipText: { fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : '#4B5563' },
   granChipTextActive: { color: '#fff' },
-  tableSection: { backgroundColor: '#fff', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, marginBottom: Spacing.md, overflow: 'hidden' },
-  sectionTitleInset: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black, padding: Spacing.md, paddingBottom: Spacing.sm },
+  tableSection: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  sectionTitleInset: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, padding: Spacing.md, paddingBottom: Spacing.sm },
   sectionHeaderIconRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
   tableHeaderRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingBottom: 6 },
   tableHeaderText: { fontSize: 9, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase' },
-  tableRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#F5F5F5' },
-  tableCell: { fontSize: 11, color: '#374151' },
+  tableRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingVertical: 8, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F5F5F5' },
+  tableCell: { fontSize: 11, color: isDark ? '#E5E7EB' : '#374151' },
   emptyText: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, padding: Spacing.lg },
-  buyerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5' },
-  buyerName: { fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.black },
+  buyerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F5F5F5' },
+  buyerName: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
   buyerSub: { fontSize: 10, color: '#9CA3AF' },
   buyerRevenue: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.teal700 },
   paymentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.sm },
@@ -290,11 +323,11 @@ const styles = StyleSheet.create({
   paymentCount: { fontSize: FontSizes.md, fontWeight: '800' },
   paymentStatus: { fontSize: 10, fontWeight: '700', marginTop: 2 },
   paymentAmount: { fontSize: 10, marginTop: 2 },
-  paymentStatLine: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.xs, borderTopWidth: 1, borderTopColor: '#F5F5F5' },
-  paymentStatLabel: { fontSize: 11, color: '#6B7280' },
-  paymentStatValue: { fontSize: 11, fontWeight: '700', color: '#374151' },
+  paymentStatLine: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.xs, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F5F5F5' },
+  paymentStatLabel: { fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280' },
+  paymentStatValue: { fontSize: 11, fontWeight: '700', color: isDark ? '#E5E7EB' : '#374151' },
   agingBadge: { flexDirection: 'row', gap: 4, alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  agingBadgeWarn: { backgroundColor: '#FFFBEB' },
-  agingBadgeUrgent: { backgroundColor: '#FEF2F2' },
-  agingText: { fontSize: 9, fontWeight: '700', color: '#B45309' },
+  agingBadgeWarn: { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FFFBEB' },
+  agingBadgeUrgent: { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2' },
+  agingText: { fontSize: 9, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' },
 });

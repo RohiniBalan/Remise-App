@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ import {
   ShieldCheck,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
+import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { GATEWAY_URL } from '../../api/endpoints';
 
@@ -45,6 +46,9 @@ export default function DeliveryFlowModal({
   onClose,
   onRefresh,
 }: DeliveryFlowModalProps) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
+
   const [stage, setStage] = useState<
     'initial' | 'has_person' | 'no_person' | 'link_generated' | 'network_joined' | 'self_arranged'
   >('initial');
@@ -157,7 +161,6 @@ export default function DeliveryFlowModal({
     }
   };
 
-
   const handleShare = async () => {
     if (!deliveryUrl) return;
     try {
@@ -178,7 +181,7 @@ export default function DeliveryFlowModal({
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
               <View style={styles.iconCircle}>
-                <Truck size={18} color={CustomerColors.teal700} />
+                <Truck size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
               </View>
               <View>
                 <Text style={styles.headerTitle}>Manage Delivery</Text>
@@ -186,7 +189,7 @@ export default function DeliveryFlowModal({
               </View>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <X size={18} color="#6B7280" />
+              <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
@@ -222,7 +225,7 @@ export default function DeliveryFlowModal({
                         Generate a unique link to share with them.
                       </Text>
                     </View>
-                    <ArrowRight size={16} color={CustomerColors.teal700} />
+                    <ArrowRight size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -230,7 +233,7 @@ export default function DeliveryFlowModal({
                     onPress={() => setStage('no_person')}
                   >
                     <View style={styles.optionIconSecondary}>
-                      <Users size={20} color="#4B5563" />
+                      <Users size={20} color={isDark ? '#9CA3AF' : '#4B5563'} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.optionTitleSecondary}>NO, I don't have one</Text>
@@ -238,7 +241,7 @@ export default function DeliveryFlowModal({
                         Join Remise Delivery Portal or arrange yourself.
                       </Text>
                     </View>
-                    <ArrowRight size={16} color="#9CA3AF" />
+                    <ArrowRight size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -251,7 +254,7 @@ export default function DeliveryFlowModal({
                   style={styles.backBtn}
                   onPress={() => setStage('initial')}
                 >
-                  <ChevronLeft size={14} color="#6B7280" />
+                  <ChevronLeft size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
                   <Text style={styles.backBtnText}>Back</Text>
                 </TouchableOpacity>
 
@@ -267,7 +270,7 @@ export default function DeliveryFlowModal({
                     value={deliveryPersonName}
                     onChangeText={setDeliveryPersonName}
                     placeholder="e.g. Ramesh"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   />
                 </View>
 
@@ -279,7 +282,7 @@ export default function DeliveryFlowModal({
                     onChangeText={setDeliveryPersonPhone}
                     placeholder="e.g. 9876543210"
                     keyboardType="phone-pad"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   />
                 </View>
 
@@ -290,7 +293,7 @@ export default function DeliveryFlowModal({
                     value={notes}
                     onChangeText={setNotes}
                     placeholder="e.g. Collect cash, call upon arrival"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     multiline
                   />
                 </View>
@@ -338,7 +341,7 @@ export default function DeliveryFlowModal({
                     style={styles.openPortalBtn}
                     onPress={() => Linking.openURL(deliveryUrl)}
                   >
-                    <ExternalLink size={16} color="#374151" />
+                    <ExternalLink size={16} color={isDark ? '#E5E7EB' : '#374151'} />
                     <Text style={styles.openPortalBtnText}>Open Portal</Text>
                   </TouchableOpacity>
                 </View>
@@ -361,12 +364,12 @@ export default function DeliveryFlowModal({
                   style={styles.backBtn}
                   onPress={() => setStage('initial')}
                 >
-                  <ChevronLeft size={14} color="#6B7280" />
+                  <ChevronLeft size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
                   <Text style={styles.backBtnText}>Back</Text>
                 </TouchableOpacity>
 
                 <View style={styles.centerIconWrap}>
-                  <Sparkles size={28} color="#4F46E5" />
+                  <Sparkles size={28} color={isDark ? '#818CF8' : '#4F46E5'} />
                 </View>
                 <Text style={styles.promptTitle}>Join Remise Delivery Portal?</Text>
                 <Text style={styles.promptSub}>
@@ -403,7 +406,7 @@ export default function DeliveryFlowModal({
             {stage === 'network_joined' && (
               <View style={styles.stageWrap}>
                 <View style={styles.centerIconWrap}>
-                  <ShieldCheck size={32} color="#15803D" />
+                  <ShieldCheck size={32} color={isDark ? '#34D399' : '#15803D'} />
                 </View>
                 <Text style={styles.promptTitle}>Enrolled in Delivery Network!</Text>
                 <Text style={styles.promptSub}>
@@ -459,10 +462,10 @@ export default function DeliveryFlowModal({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (isDark: boolean) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.md,
@@ -470,7 +473,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: isDark ? '#111827' : '#FFFFFF',
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     ...Shadows.card,
@@ -483,9 +486,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: '#DFF1F1',
+    backgroundColor: isDark ? '#1F2937' : '#DFF1F1',
     borderBottomWidth: 1,
-    borderBottomColor: CustomerColors.steelBorder,
+    borderBottomColor: isDark ? '#374151' : CustomerColors.steelBorder,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -496,25 +499,25 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: BorderRadius.md,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: isDark ? '#111827' : '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   headerSub: {
     fontSize: FontSizes.xs - 1,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     fontFamily: 'monospace',
   },
   closeBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -522,15 +525,15 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   errorBox: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? '#7F1D1D' : '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: isDark ? '#991B1B' : '#FECACA',
     padding: Spacing.sm,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.md,
   },
   errorText: {
-    color: '#DC2626',
+    color: isDark ? '#FCA5A5' : '#DC2626',
     fontSize: FontSizes.xs,
     fontWeight: '600',
   },
@@ -539,7 +542,7 @@ const styles = StyleSheet.create({
   },
   badgeWrap: {
     alignSelf: 'center',
-    backgroundColor: CustomerColors.mint,
+    backgroundColor: isDark ? '#134e4a' : CustomerColors.mint,
     paddingHorizontal: Spacing.md,
     paddingVertical: 3,
     borderRadius: BorderRadius.pill,
@@ -547,17 +550,17 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   promptTitle: {
     fontSize: FontSizes.base,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
     textAlign: 'center',
   },
   promptSub: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
@@ -571,25 +574,25 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 2,
-    borderColor: CustomerColors.teal600,
-    backgroundColor: '#F0FDFA',
+    borderColor: isDark ? '#0f766e' : CustomerColors.teal600,
+    backgroundColor: isDark ? '#134e4a' : '#F0FDFA',
   },
   optionIconPrimary: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.md,
-    backgroundColor: CustomerColors.teal600,
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionTitlePrimary: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   optionSubPrimary: {
     fontSize: 11,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: 2,
   },
   optionCardSecondary: {
@@ -599,25 +602,25 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    backgroundColor: '#FFFFFF',
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
   },
   optionIconSecondary: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.md,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? '#374151' : '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionTitleSecondary: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   optionSubSecondary: {
     fontSize: 11,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: 2,
   },
   backBtn: {
@@ -628,17 +631,17 @@ const styles = StyleSheet.create({
   },
   backBtnText: {
     fontSize: FontSizes.xs,
-    color: '#6B7280',
+    color: isDark ? '#9CA3AF' : '#6B7280',
     fontWeight: '600',
   },
   sectionTitle: {
     fontSize: FontSizes.sm + 1,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   sectionSub: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginBottom: Spacing.sm,
   },
   inputGroup: {
@@ -647,17 +650,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
-    color: '#374151',
+    color: isDark ? '#E5E7EB' : '#374151',
   },
   textInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     fontSize: FontSizes.xs,
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   primaryActionBtn: {
     backgroundColor: CustomerColors.primary,
@@ -675,33 +678,33 @@ const styles = StyleSheet.create({
   successBanner: {
     flexDirection: 'row',
     gap: 10,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: isDark ? '#064E3B' : '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: isDark ? '#065F46' : '#BBF7D0',
     padding: Spacing.md,
     borderRadius: BorderRadius.lg,
   },
   successBannerTitle: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: '#15803D',
+    color: isDark ? '#6EE7B7' : '#15803D',
   },
   successBannerSub: {
     fontSize: 11,
-    color: '#166534',
+    color: isDark ? '#A7F3D0' : '#166534',
     marginTop: 2,
   },
   urlBox: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
   },
   urlText: {
     fontSize: 11,
     fontFamily: 'monospace',
-    color: '#374151',
+    color: isDark ? '#E5E7EB' : '#374151',
   },
   shareButtonsRow: {
     flexDirection: 'row',
@@ -728,14 +731,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     paddingVertical: 12,
     borderRadius: BorderRadius.md,
   },
   openPortalBtnText: {
-    color: '#374151',
+    color: isDark ? '#F9FAFB' : '#374151',
     fontSize: FontSizes.xs,
     fontWeight: '700',
   },
@@ -745,15 +748,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: isDark ? '#1F2937' : '#F3F4F6',
   },
   statusLabel: {
     fontSize: FontSizes.xs,
-    color: '#4B5563',
+    color: isDark ? '#9CA3AF' : '#4B5563',
     fontWeight: '600',
   },
   statusBadge: {
-    backgroundColor: CustomerColors.mint,
+    backgroundColor: isDark ? '#134e4a' : CustomerColors.mint,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
     borderRadius: BorderRadius.pill,
@@ -761,13 +764,13 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   centerIconWrap: {
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: isDark ? '#312E81' : '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -786,19 +789,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   selfArrangeBtn: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
     paddingVertical: 12,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selfArrangeBtnText: {
-    color: '#374151',
+    color: isDark ? '#E5E7EB' : '#374151',
     fontSize: FontSizes.xs,
     fontWeight: '600',
   },
   doneBtn: {
-    backgroundColor: '#111827',
+    backgroundColor: isDark ? '#0f766e' : '#111827',
     paddingVertical: 12,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
@@ -820,10 +823,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
   },
   milestoneBtnActive: {
     backgroundColor: CustomerColors.teal600,
@@ -832,7 +835,7 @@ const styles = StyleSheet.create({
   milestoneBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4B5563',
+    color: isDark ? '#9CA3AF' : '#4B5563',
   },
   milestoneBtnTextActive: {
     color: '#FFFFFF',

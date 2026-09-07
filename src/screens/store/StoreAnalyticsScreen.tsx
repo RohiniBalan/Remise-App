@@ -15,6 +15,7 @@ import {
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import { TrendingUp, ChevronDown, X } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   CustomerColors,
   Spacing,
@@ -30,18 +31,6 @@ import {
   DateRangeKey,
 } from './analytics';
 import { mergeCategories } from '../../utils/storeCategories';
-
-// Ported from client/app/store/dashboard/page.tsx's OverviewTab — everything
-// BELOW the 6 stat tiles / Recent Orders / Product Stock, which already live
-// in StoreOverviewScreen. This screen owns: the date/category/product filter
-// bar, Total Products Sold, the sales trend chart, top/least selling tables,
-// brand-wise revenue, category-wise pie, revenue-by-month, and best sales day.
-//
-// NOTE: assumes useStoreDashboard() also exposes `categories` (same shape as
-// web's separate `categories` prop). If your StoreDashboardContext doesn't
-// load categories yet, add that fetch there the same way products/offers
-// are already loaded — the category filter below has nothing to show
-// without it.
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const OUTER_PADDING = Spacing.md * 2 + Spacing.md * 2;
@@ -77,8 +66,6 @@ const GRANULARITY_OPTIONS: {
   { key: 'monthly', label: 'Monthly' },
 ];
 
-// Modal-based dropdown since RN has no native <select>. Same pattern as
-// the one used on the Store Settings screen (State/City pickers).
 function SelectField({
   label,
   value,
@@ -86,6 +73,8 @@ function SelectField({
   options,
   disabled,
   onSelect,
+  isDark,
+  styles,
 }: {
   label: string;
   value: string;
@@ -93,6 +82,8 @@ function SelectField({
   options: { key: string; label: string }[];
   disabled?: boolean;
   onSelect: (key: string, label: string) => void;
+  isDark: boolean;
+  styles: any;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -106,7 +97,7 @@ function SelectField({
         <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
           {value || placeholder}
         </Text>
-        <ChevronDown size={16} color={CustomerColors.textSecondary} />
+        <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -115,7 +106,7 @@ function SelectField({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{label}</Text>
               <TouchableOpacity onPress={() => setOpen(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -145,6 +136,8 @@ function SelectField({
 }
 
 export default function StoreAnalyticsScreen() {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const {
     orders,
     products,
@@ -243,7 +236,7 @@ export default function StoreAnalyticsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={CustomerColors.primary} />
+        <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.primary} />
       </View>
     );
   }
@@ -255,7 +248,7 @@ export default function StoreAnalyticsScreen() {
         padding: Spacing.md,
         paddingBottom: Spacing.xxl,
       }}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}
+      refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={isDark ? '#2DD4BF' : undefined} />}
     >
       {/* ── Filter bar ── */}
       <View style={styles.filterCard}>
@@ -284,12 +277,14 @@ export default function StoreAnalyticsScreen() {
             <TextInput
               style={styles.dateInput}
               placeholder="From (YYYY-MM-DD)"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={custom.from}
               onChangeText={v => setCustom(c => ({ ...c, from: v }))}
             />
             <TextInput
               style={styles.dateInput}
               placeholder="To (YYYY-MM-DD)"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={custom.to}
               onChangeText={v => setCustom(c => ({ ...c, to: v }))}
             />
@@ -304,6 +299,8 @@ export default function StoreAnalyticsScreen() {
             placeholder="All"
             options={categoryOptions}
             onSelect={key => setCategory(key)}
+            isDark={isDark}
+            styles={styles}
           />
           <SelectField
             label="Product"
@@ -311,6 +308,8 @@ export default function StoreAnalyticsScreen() {
             placeholder="All"
             options={productOptions}
             onSelect={key => setProductFilter(key)}
+            isDark={isDark}
+            styles={styles}
           />
         </View>
       </View>
@@ -325,7 +324,7 @@ export default function StoreAnalyticsScreen() {
         <>
           {/* ── Total products sold ── */}
           <View style={styles.statCard}>
-            <TrendingUp size={20} color="#7C3AED" />
+            <TrendingUp size={20} color={isDark ? '#A78BFA' : '#7C3AED'} />
             <Text style={styles.statValue}>{analytics.totalProductsSold}</Text>
             <Text style={styles.statLabel}>Total Products Sold</Text>
           </View>
@@ -363,18 +362,19 @@ export default function StoreAnalyticsScreen() {
                 data={lineData}
                 width={CHART_WIDTH}
                 height={180}
-                color="#0d9488"
+                color={isDark ? '#2DD4BF' : '#0d9488'}
                 thickness={2}
                 hideDataPoints
                 curved
                 xAxisLabelTextStyle={{
                   fontSize: 9,
-                  color: CustomerColors.textSecondary,
+                  color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
                 }}
                 yAxisTextStyle={{
                   fontSize: 9,
-                  color: CustomerColors.textSecondary,
+                  color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
                 }}
+                rulesColor={isDark ? '#1F2937' : '#E5E7EB'}
                 noOfSections={4}
                 yAxisLabelWidth={Y_AXIS_LABEL_WIDTH}
                 initialSpacing={8}
@@ -422,10 +422,11 @@ export default function StoreAnalyticsScreen() {
                 horizontal
                 width={HBAR_CHART_WIDTH}
                 height={Math.max(180, brandBarData.length * 36)}
-                frontColor="#0d9488"
+                frontColor={isDark ? '#2DD4BF' : '#0d9488'}
                 barBorderRadius={4}
-                yAxisTextStyle={{ fontSize: 10, color: CustomerColors.textSecondary }}
-                xAxisLabelTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
+                yAxisTextStyle={{ fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
+                xAxisLabelTextStyle={{ fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
+                rulesColor={isDark ? '#1F2937' : '#E5E7EB'}
                 yAxisLabelWidth={CATEGORY_LABEL_WIDTH}
                 initialSpacing={8}
                 spacing={20}
@@ -472,10 +473,11 @@ export default function StoreAnalyticsScreen() {
                 data={monthBarData}
                 width={CHART_WIDTH}
                 height={180}
-                frontColor="#0d9488"
+                frontColor={isDark ? '#2DD4BF' : '#0d9488'}
                 barBorderRadius={4}
-                xAxisLabelTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
-                yAxisTextStyle={{ fontSize: 9, color: CustomerColors.textSecondary }}
+                xAxisLabelTextStyle={{ fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
+                yAxisTextStyle={{ fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
+                rulesColor={isDark ? '#1F2937' : '#E5E7EB'}
                 yAxisLabelWidth={Y_AXIS_LABEL_WIDTH}
                 initialSpacing={8}
                 endSpacing={8}
@@ -506,20 +508,20 @@ export default function StoreAnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: CustomerColors.bg,
+    backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
   },
 
   filterCard: {
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.card,
@@ -527,7 +529,7 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginBottom: Spacing.xs,
   },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
@@ -537,16 +539,16 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    backgroundColor: CustomerColors.bg,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
   },
   pillActive: {
-    backgroundColor: CustomerColors.teal600,
-    borderColor: CustomerColors.teal600,
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
+    borderColor: isDark ? '#0f766e' : CustomerColors.teal600,
   },
   pillText: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     fontWeight: '600',
   },
   pillTextActive: { color: CustomerColors.white },
@@ -554,23 +556,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: BorderRadius.pill,
-    backgroundColor: CustomerColors.bg,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
   },
   smallPillText: {
     fontSize: 10,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     fontWeight: '700',
   },
   customRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
   dateInput: {
     flex: 1,
-    backgroundColor: CustomerColors.bg,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 8,
     fontSize: FontSizes.xs,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
 
   // ── Category / Product dropdown row ──
@@ -583,19 +586,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: CustomerColors.bg,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 10,
   },
   selectDisabled: { opacity: 0.5 },
-  selectValue: { fontSize: FontSizes.xs, color: CustomerColors.black, flex: 1 },
-  selectPlaceholder: { fontSize: FontSizes.xs, color: '#9CA3AF', flex: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  selectValue: { fontSize: FontSizes.xs, color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
+  selectPlaceholder: { fontSize: FontSizes.xs, color: isDark ? '#6B7280' : '#9CA3AF', flex: 1 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#111827' : '#fff',
     borderTopLeftRadius: BorderRadius.lg,
     borderTopRightRadius: BorderRadius.lg,
     maxHeight: '70%',
@@ -608,24 +611,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
   },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
   modalItem: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
   },
-  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
-  modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '700' },
-  modalEmpty: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#E5E7EB' : CustomerColors.black },
+  modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' },
+  modalEmpty: { textAlign: 'center', color: isDark ? '#6B7280' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
 
   statCard: {
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.card,
@@ -633,20 +636,20 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: FontSizes.lg,
     fontWeight: '800',
-    color: '#7C3AED',
+    color: isDark ? '#A78BFA' : '#7C3AED',
     marginTop: 4,
   },
   statLabel: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: 2,
   },
 
   section: {
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     overflow: 'hidden',
@@ -661,7 +664,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
     marginBottom: Spacing.sm,
   },
 
@@ -670,26 +673,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    borderTopColor: isDark ? '#1F2937' : '#F5F5F5',
   },
   productRowTitle: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   productRowSub: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
   },
   productRowQty: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginRight: Spacing.sm,
   },
   productRowRevenue: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
 
   legendWrap: {
@@ -701,30 +704,30 @@ const styles = StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
+  legendText: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
 
   bestDayDate: {
     fontSize: FontSizes.lg,
     fontWeight: '800',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   bestDaySub: {
     fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: 2,
   },
 
   emptyCard: {
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     padding: Spacing.lg,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     textAlign: 'center',
     paddingVertical: Spacing.sm,
   },

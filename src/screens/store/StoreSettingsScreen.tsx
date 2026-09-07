@@ -3,6 +3,7 @@ import { View, Text, TextInput, Image, ScrollView, TouchableOpacity, StyleSheet,
 import { QrCode, Save, CheckCircle, RefreshCw, LogOut, ChevronDown, X } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { storeApi } from '../../api/storeApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { indianStates, getCities } from '../../utils/indiaLocation';
@@ -16,6 +17,8 @@ const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '
 export default function StoreSettingsScreen() {
   const { store, loading, refresh, categories } = useStoreDashboard();
   const { logout } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const [form, setForm] = useState({
     name: store?.name || '', description: store?.description || '', phone: store?.phone || '', email: store?.email || '',
@@ -38,15 +41,14 @@ export default function StoreSettingsScreen() {
   const [error, setError] = useState('');
   const [fssai, setFssai] = useState(store?.fssai || '');
 
-  
   const categoryOptions = useMemo(
-  () =>
-    mergeCategories(categories || []).map(c => ({
-      key: c.name,
-      label: c.name,
-    })),
-  [categories]
-);
+    () =>
+      mergeCategories(categories || []).map(c => ({
+        key: c.name,
+        label: c.name,
+      })),
+    [categories]
+  );
 
   // ── State/City dropdown support ──
   const [cities, setCities] = useState<any[]>([]);
@@ -86,7 +88,7 @@ export default function StoreSettingsScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={CustomerColors.teal700} /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.teal700} /></View>;
   }
 
   const handleSignOut = async () => {
@@ -157,37 +159,49 @@ export default function StoreSettingsScreen() {
       <Text style={styles.sectionTitle}>Store Profile</Text>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <Field label="Store Name *" value={form.name} onChangeText={v => set('name', v)} />
+      <Field label="Store Name *" value={form.name} onChangeText={v => set('name', v)} styles={styles} isDark={isDark} />
       <Field
         label="Monthly Revenue Target (₹)"
         value={form.targetRevenue}
         onChangeText={v => set('targetRevenue', v)}
         keyboardType="numeric"
         placeholder="e.g. 100000"
+        styles={styles}
+        isDark={isDark}
       />
       <Text style={styles.label}>Description</Text>
-      <TextInput style={[styles.input, { height: 70 }]} multiline value={form.description} onChangeText={v => set('description', v)} />
-      <Field label="Phone" value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" />
-      <Field label="Email" value={form.email} onChangeText={v => set('email', v)} keyboardType="email-address" />
+      <TextInput
+        style={[styles.input, { height: 70 }]}
+        multiline
+        value={form.description}
+        onChangeText={v => set('description', v)}
+        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+      />
+      <Field label="Phone" value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" styles={styles} isDark={isDark} />
+      <Field label="Email" value={form.email} onChangeText={v => set('email', v)} keyboardType="email-address" styles={styles} isDark={isDark} />
 
       <SelectField
-  label="Category"
-  value={form.category}
-  placeholder="Select Category"
-  options={categoryOptions}
-  onSelect={(key) => set('category', key)}
-/>
+        label="Category"
+        value={form.category}
+        placeholder="Select Category"
+        options={categoryOptions}
+        onSelect={(key) => set('category', key)}
+        styles={styles}
+        isDark={isDark}
+      />
 
       {form.category === 'Food & Beverages' && (
-  <Field
-    label="FSSAI License Number"
-    value={fssai}
-    onChangeText={setFssai}
-    keyboardType="number-pad"
-    maxLength={14}
-    placeholder="14-digit FSSAI number"
-  />
-)}
+        <Field
+          label="FSSAI License Number"
+          value={fssai}
+          onChangeText={setFssai}
+          keyboardType="number-pad"
+          maxLength={14}
+          placeholder="14-digit FSSAI number"
+          styles={styles}
+          isDark={isDark}
+        />
+      )}
 
       <Field
         label="PAN Number * (Mandatory)"
@@ -196,6 +210,8 @@ export default function StoreSettingsScreen() {
         placeholder="e.g. ABCDE1234F"
         maxLength={10}
         autoCapitalize="characters"
+        styles={styles}
+        isDark={isDark}
       />
       <Field
         label="GSTIN Number (Optional)"
@@ -204,9 +220,11 @@ export default function StoreSettingsScreen() {
         placeholder="e.g. 22AAAAA0000A1Z5"
         maxLength={15}
         autoCapitalize="characters"
+        styles={styles}
+        isDark={isDark}
       />
 
-      <Field label="Street" value={form.street} onChangeText={v => set('street', v)} />
+      <Field label="Street" value={form.street} onChangeText={v => set('street', v)} styles={styles} isDark={isDark} />
 
       <SelectField
         label="State"
@@ -214,6 +232,8 @@ export default function StoreSettingsScreen() {
         placeholder="Select State"
         options={stateOptions}
         onSelect={handleStateSelect}
+        styles={styles}
+        isDark={isDark}
       />
       <SelectField
         label="City"
@@ -222,20 +242,29 @@ export default function StoreSettingsScreen() {
         options={cityOptions}
         disabled={!form.state}
         onSelect={handleCitySelect}
+        styles={styles}
+        isDark={isDark}
       />
 
-      <Field label="Pin Code" value={form.pinCode} onChangeText={v => set('pinCode', v)} keyboardType="numeric" />
+      <Field label="Pin Code" value={form.pinCode} onChangeText={v => set('pinCode', v)} keyboardType="numeric" styles={styles} isDark={isDark} />
 
       <View style={styles.qrSection}>
         <Text style={styles.qrTitle}>UPI Payment QR Code</Text>
         <Text style={styles.qrSubtitle}>Enter your UPI ID to generate a scannable QR code. Customers who choose QR payment will see this.</Text>
         <View style={styles.qrRow}>
           <View style={styles.qrPreviewBox}>
-            {store?.qrCodeImage ? <Image source={{ uri: store.qrCodeImage }} style={styles.qrPreviewImage} /> : <QrCode size={22} color="#D1D5DB" />}
+            {store?.qrCodeImage ? <Image source={{ uri: store.qrCodeImage }} style={styles.qrPreviewImage} /> : <QrCode size={22} color={isDark ? '#6B7280' : '#D1D5DB'} />}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>UPI ID</Text>
-            <TextInput style={styles.input} value={upiId} onChangeText={setUpiId} placeholder="merchant@upi" autoCapitalize="none" />
+            <TextInput
+              style={styles.input}
+              value={upiId}
+              onChangeText={setUpiId}
+              placeholder="merchant@upi"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              autoCapitalize="none"
+            />
             {upiError ? <Text style={styles.errorText}>{upiError}</Text> : null}
           </View>
         </View>
@@ -286,6 +315,8 @@ export default function StoreSettingsScreen() {
           value={form.legalBusinessName}
           onChangeText={v => set('legalBusinessName', v)}
           placeholder="e.g. John Doe Enterprises"
+          styles={styles}
+          isDark={isDark}
         />
         <Field
           label="Bank Account Number"
@@ -293,6 +324,8 @@ export default function StoreSettingsScreen() {
           onChangeText={v => set('bankAccountNumber', v)}
           placeholder="Account Number"
           keyboardType="numeric"
+          styles={styles}
+          isDark={isDark}
         />
         <Field
           label="Bank IFSC Code"
@@ -300,6 +333,8 @@ export default function StoreSettingsScreen() {
           onChangeText={v => set('bankIfsc', v.toUpperCase())}
           placeholder="e.g. HDFC0001234"
           autoCapitalize="characters"
+          styles={styles}
+          isDark={isDark}
         />
 
         <TouchableOpacity
@@ -326,30 +361,43 @@ export default function StoreSettingsScreen() {
         {store?.isVerified ? (
           <View style={styles.verifiedBanner}><CheckCircle size={16} color={CustomerColors.success} /><Text style={styles.verifiedText}>Your store is verified</Text></View>
         ) : (
-          <View style={styles.pendingBanner}><RefreshCw size={16} color="#D97706" /><Text style={styles.pendingText}>Verification pending — our team typically verifies stores within 24–48 hours.</Text></View>
+          <View style={styles.pendingBanner}><RefreshCw size={16} color={isDark ? '#FBBF24' : '#D97706'} /><Text style={styles.pendingText}>Verification pending — our team typically verifies stores within 24–48 hours.</Text></View>
         )}
       </View>
 
       <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-        <LogOut size={16} color={CustomerColors.primary} />
+        <LogOut size={16} color={isDark ? '#F87171' : CustomerColors.primary} />
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-function Field({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
+function Field({
+  label,
+  styles,
+  isDark,
+  ...props
+}: {
+  label: string;
+  styles: any;
+  isDark?: boolean;
+} & React.ComponentProps<typeof TextInput>) {
   return (
     <View style={{ marginBottom: Spacing.md }}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} {...props} />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+        {...props}
+      />
     </View>
   );
 }
 
 // Modal-based dropdown since RN has no native <select>.
 function SelectField({
-  label, value, placeholder, options, disabled, onSelect,
+  label, value, placeholder, options, disabled, onSelect, styles, isDark,
 }: {
   label: string;
   value: string;
@@ -357,6 +405,8 @@ function SelectField({
   options: { key: string; label: string }[];
   disabled?: boolean;
   onSelect: (key: string, label: string) => void;
+  styles: any;
+  isDark?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -370,7 +420,7 @@ function SelectField({
         <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
           {value || placeholder}
         </Text>
-        <ChevronDown size={16} color={CustomerColors.textSecondary} />
+        <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -379,7 +429,7 @@ function SelectField({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{label}</Text>
               <TouchableOpacity onPress={() => setOpen(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -405,58 +455,138 @@ function SelectField({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
-  sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black, marginBottom: Spacing.md },
-  errorText: { color: CustomerColors.primary, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
-  label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm, marginBottom: Spacing.md },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.md },
-  chip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  chipActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
-  chipText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, fontWeight: '600' },
-  chipTextActive: { color: '#fff' },
-  qrSection: { borderTopWidth: 1, borderTopColor: '#F5F5F5', paddingTop: Spacing.md, marginTop: Spacing.sm },
-  qrTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: '#374151' },
-  qrSubtitle: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 2, marginBottom: Spacing.md },
-  qrRow: { flexDirection: 'row', gap: Spacing.md },
-  qrPreviewBox: { width: 72, height: 72, borderRadius: BorderRadius.md, borderWidth: 2, borderColor: CustomerColors.steelBorder, borderStyle: 'dashed', backgroundColor: CustomerColors.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  qrPreviewImage: { width: '100%', height: '100%' },
-  saveBtn: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg },
-  saveBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
-  verificationCard: { backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.lg, marginTop: Spacing.lg },
-  verificationTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black, marginBottom: Spacing.sm },
-  verifiedBanner: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', backgroundColor: CustomerColors.successBg, padding: Spacing.md, borderRadius: BorderRadius.md },
-  verifiedText: { fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.success },
-  pendingBanner: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start', backgroundColor: '#FFFBEB', padding: Spacing.md, borderRadius: BorderRadius.md },
-  pendingText: { flex: 1, fontSize: FontSizes.xs, color: '#92400E' },
-  signOutBtn: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', marginTop: Spacing.xl, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, backgroundColor: CustomerColors.dangerBg },
-  signOutText: { color: CustomerColors.primary, fontWeight: '700', fontSize: FontSizes.sm },
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.md },
+    errorText: { color: isDark ? '#F87171' : CustomerColors.primary, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
+    label: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
+    input: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      fontSize: FontSizes.sm,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginBottom: Spacing.md,
+    },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.md },
+    chip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder },
+    chipActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
+    chipText: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
+    chipTextActive: { color: '#fff' },
+    qrSection: { borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F5F5F5', paddingTop: Spacing.md, marginTop: Spacing.sm },
+    qrTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : '#374151' },
+    qrSubtitle: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2, marginBottom: Spacing.md },
+    qrRow: { flexDirection: 'row', gap: Spacing.md },
+    qrPreviewBox: {
+      width: 72,
+      height: 72,
+      borderRadius: BorderRadius.md,
+      borderWidth: 2,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderStyle: 'dashed',
+      backgroundColor: isDark ? '#111827' : CustomerColors.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    qrPreviewImage: { width: '100%', height: '100%' },
+    saveBtn: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg },
+    saveBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
+    verificationCard: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      padding: Spacing.lg,
+      marginTop: Spacing.lg,
+    },
+    verificationTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.sm },
+    verifiedBanner: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', backgroundColor: isDark ? '#064e3b' : CustomerColors.successBg, padding: Spacing.md, borderRadius: BorderRadius.md },
+    verifiedText: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#34D399' : CustomerColors.success },
+    pendingBanner: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+      alignItems: 'flex-start',
+      backgroundColor: isDark ? '#451a03' : '#FFFBEB',
+      padding: Spacing.md,
+      borderRadius: BorderRadius.md,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? '#78350f' : 'transparent',
+    },
+    pendingText: { flex: 1, fontSize: FontSizes.xs, color: isDark ? '#fde68a' : '#92400E' },
+    signOutBtn: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: Spacing.xl,
+      paddingVertical: Spacing.md,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#450a0a' : CustomerColors.dangerBg,
+    },
+    signOutText: { color: isDark ? '#F87171' : CustomerColors.primary, fontWeight: '700', fontSize: FontSizes.sm },
 
-  // ── SelectField / modal ──
-  selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  selectDisabled: { opacity: 0.5 },
-  selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },
-  selectPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF', flex: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, maxHeight: '70%', paddingBottom: Spacing.lg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
-  modalItem: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
-  modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '700' },
-  modalEmpty: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
-  routeBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.pill, borderWidth: 1 },
-  routeBadgeActive: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
-  routeBadgePending: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
-  routeBadgeNone: { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
-  routeBadgeText: { fontSize: 10, fontWeight: '700' },
-  routeBadgeTextActive: { color: '#15803D' },
-  routeBadgeTextPending: { color: '#B45309' },
-  routeBadgeTextNone: { color: '#6B7280' },
-  routeInfoBox: { backgroundColor: '#F0FDFA', borderWidth: 1, borderColor: '#CCFBF1', borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.sm, gap: 2 },
-  routeInfoText: { fontSize: FontSizes.xs, color: CustomerColors.teal700 },
-  routeBtn: { backgroundColor: CustomerColors.teal700, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center', marginTop: Spacing.xs, marginBottom: Spacing.sm },
-  routeBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
-});
+    // ── SelectField / modal ──
+    selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    selectDisabled: { opacity: 0.5 },
+    selectValue: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
+    selectPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#6B7280' : '#9CA3AF', flex: 1 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    modalSheet: {
+      backgroundColor: isDark ? '#111827' : '#fff',
+      borderTopLeftRadius: BorderRadius.lg,
+      borderTopRightRadius: BorderRadius.lg,
+      maxHeight: '70%',
+      paddingBottom: Spacing.lg,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? '#1F2937' : 'transparent',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+    },
+    modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    modalItem: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F5F5F5' },
+    modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+    modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' },
+    modalEmpty: { textAlign: 'center', color: isDark ? '#6B7280' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
+    routeBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.pill, borderWidth: 1 },
+    routeBadgeActive: { backgroundColor: isDark ? '#064e3b' : '#F0FDF4', borderColor: isDark ? '#059669' : '#BBF7D0' },
+    routeBadgePending: { backgroundColor: isDark ? '#451a03' : '#FFFBEB', borderColor: isDark ? '#78350f' : '#FDE68A' },
+    routeBadgeNone: { backgroundColor: isDark ? '#1F2937' : '#F3F4F6', borderColor: isDark ? '#374151' : '#E5E7EB' },
+    routeBadgeText: { fontSize: 10, fontWeight: '700' },
+    routeBadgeTextActive: { color: isDark ? '#34D399' : '#15803D' },
+    routeBadgeTextPending: { color: isDark ? '#FBBF24' : '#B45309' },
+    routeBadgeTextNone: { color: isDark ? '#9CA3AF' : '#6B7280' },
+    routeInfoBox: {
+      backgroundColor: isDark ? '#134e4a' : '#F0FDFA',
+      borderWidth: 1,
+      borderColor: isDark ? '#115e59' : '#CCFBF1',
+      borderRadius: BorderRadius.md,
+      padding: Spacing.sm,
+      marginBottom: Spacing.sm,
+      gap: 2,
+    },
+    routeInfoText: { fontSize: FontSizes.xs, color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    routeBtn: {
+      backgroundColor: CustomerColors.teal700,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: Spacing.xs,
+      marginBottom: Spacing.sm,
+    },
+    routeBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
+  });

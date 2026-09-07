@@ -13,6 +13,7 @@ import {
   Platform,
   ActivityIndicator,
   ToastAndroid,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
@@ -71,6 +72,7 @@ import { Product, productId, productImage } from '../../api/productApi';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
@@ -128,13 +130,12 @@ const ICON_MAP: Record<string, any> = {
 const CATEGORY_TINTS = ['#10B981', '#EC4899', '#F97316', '#8B5CF6', '#0FA3B1', '#3B82F6'];
 
 export default function HomeScreen() {
-  console.log('HOME SCREEN MOUNTED');
-  
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
   const { cart, cartCount, addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { unreadCount } = useUnreadNotifications();
+  const { theme, toggleTheme, isDark, colors } = useTheme();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -254,17 +255,17 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
       <ScrollView showsVerticalScrollIndicator={false}>
         {!user && (
-          <View style={styles.guestLoginCard}>
+          <View style={[styles.guestLoginCard, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
             <View style={styles.guestLoginIconBg}>
               <LogIn size={18} color={CustomerColors.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.guestLoginTitle}>Welcome to REmise</Text>
-              <Text style={styles.guestLoginSubtitle}>Sign in for offers, wishlist & faster checkout</Text>
+              <Text style={[styles.guestLoginTitle, isDark && { color: '#FFFFFF' }]}>Welcome to REmise</Text>
+              <Text style={[styles.guestLoginSubtitle, isDark && { color: '#9CA3AF' }]}>Sign in for offers, wishlist & faster checkout</Text>
             </View>
             <TouchableOpacity
               style={styles.guestLoginBtn}
@@ -278,11 +279,11 @@ export default function HomeScreen() {
         <HeroCarousel />
 
         {/* ── Deal Strip ── */}
-        <View style={styles.dealStrip}>
+        <View style={[styles.dealStrip, isDark && { backgroundColor: '#111827', borderBottomColor: '#1e293b' }]}>
           {DEAL_STRIP.map(deal => (
             <TouchableOpacity
               key={deal.title}
-              style={styles.dealCard}
+              style={[styles.dealCard, isDark && { backgroundColor: '#1e293b', borderColor: '#374151' }]}
               onPress={() => navigation.navigate(deal.route)}
               activeOpacity={0.8}
             >
@@ -290,21 +291,21 @@ export default function HomeScreen() {
                 <deal.icon size={15} color="#FFFFFF" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.dealTitle} numberOfLines={1}>{deal.title}</Text>
-                <Text style={styles.dealSubtitle} numberOfLines={1}>{deal.subtitle}</Text>
+                <Text style={[styles.dealTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{deal.title}</Text>
+                <Text style={[styles.dealSubtitle, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>{deal.subtitle}</Text>
               </View>
               <ChevronRight size={13} color="#9CA3AF" />
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={styles.infoStrip}>
+        <View style={[styles.infoStrip, isDark && { backgroundColor: '#111827', borderBottomColor: '#1e293b' }]}>
           {INFO_STRIP.map(item => (
             <View key={item.title} style={styles.infoItem}>
               <item.icon size={16} color={CustomerColors.teal600} />
               <View style={styles.infoTextWrap}>
-                <Text style={styles.infoTitle}>{item.title}</Text>
-                <Text style={styles.infoSubtitle}>{item.subtitle}</Text>
+                <Text style={[styles.infoTitle, isDark && { color: '#FFFFFF' }]}>{item.title}</Text>
+                <Text style={[styles.infoSubtitle, isDark && { color: '#9CA3AF' }]}>{item.subtitle}</Text>
               </View>
             </View>
           ))}
@@ -457,31 +458,39 @@ export default function HomeScreen() {
               const discount = original > price ? Math.round(((original - price) / original) * 100) : 0;
               const rating = item.rating ?? 4.0;
               return (
-                <TouchableOpacity style={styles.sellerCard} onPress={() => navigation.navigate('ProductDetail', { productId: String(item.id) })}>
-                  <View style={styles.sellerImageWrap}>
-                    <Image source={{ uri: resolveImage(item.img) }} style={styles.sellerImage} />
-                    {item.badge && (
-                      <View style={styles.sellerBadge}><Text style={styles.sellerBadgeText}>{item.badge}</Text></View>
-                    )}
-                    {discount > 0 && (
-                      <View style={styles.sellerDiscount}><Text style={styles.sellerDiscountText}>-{discount}%</Text></View>
-                    )}
-                  </View>
-                  <View style={styles.sellerBody}>
-                    <Text style={styles.sellerBrand}>Remise</Text>
-                    <Text style={styles.sellerName} numberOfLines={2}>{item.name}</Text>
-                    <View style={styles.ratingRow}>
-                      <View style={styles.ratingPill}>
-                        <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-                        <Star size={8} color="#fff" fill="#fff" />
+                <View style={styles.sellerCard}>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('ProductDetail', { productId: String(item.id) })}
+                  >
+                    <View style={styles.sellerImageWrap}>
+                      <Image source={{ uri: resolveImage(item.img) }} style={styles.sellerImage} />
+                      {item.badge && (
+                        <View style={styles.sellerBadge}><Text style={styles.sellerBadgeText}>{item.badge}</Text></View>
+                      )}
+                      {discount > 0 && (
+                        <View style={styles.sellerDiscount}><Text style={styles.sellerDiscountText}>-{discount}%</Text></View>
+                      )}
+                    </View>
+                    <View style={styles.sellerBody}>
+                      <Text style={styles.sellerBrand}>Remise</Text>
+                      <Text style={styles.sellerName} numberOfLines={2}>{item.name}</Text>
+                      <View style={styles.ratingRow}>
+                        <View style={styles.ratingPill}>
+                          <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+                          <Star size={8} color="#fff" fill="#fff" />
+                        </View>
+                      </View>
+                      <View style={styles.sellerPriceRow}>
+                        <Text style={styles.sellerPrice}>₹{price.toLocaleString()}</Text>
+                        {discount > 0 && <Text style={styles.sellerOriginal}>₹{original.toLocaleString()}</Text>}
                       </View>
                     </View>
-                    <View style={styles.sellerPriceRow}>
-                      <Text style={styles.sellerPrice}>₹{price.toLocaleString()}</Text>
-                      {discount > 0 && <Text style={styles.sellerOriginal}>₹{original.toLocaleString()}</Text>}
-                    </View>
+                  </TouchableOpacity>
+                  <View style={{ paddingHorizontal: Spacing.xs, paddingBottom: Spacing.xs }}>
                     <TouchableOpacity
                       style={styles.sellerCartBtn}
+                      activeOpacity={0.7}
                       onPress={() => {
                         addToCart({
                           id: String(item.id),
@@ -489,9 +498,12 @@ export default function HomeScreen() {
                           price: price,
                           quantity: 1,
                           image: item.img,
+                          totalStock: item.totalStock ?? 999,
                         });
                         if (Platform.OS === 'android') {
                           ToastAndroid.show('Added to cart ✓', ToastAndroid.SHORT);
+                        } else {
+                          Alert.alert('Success', 'Added to cart ✓');
                         }
                       }}
                     >
@@ -499,7 +511,7 @@ export default function HomeScreen() {
                       <Text style={styles.sellerCartText}>Add to Cart</Text>
                     </TouchableOpacity>
                   </View>
-                </TouchableOpacity>
+                </View>
               );
             }}
           />
@@ -522,49 +534,54 @@ export default function HomeScreen() {
                 const isWished = isWishlisted(productId(item));
 
                 return (
-                  <TouchableOpacity
-                    style={styles.newArrivalCard}
-                    onPress={() => navigation.navigate('ProductDetail', { productId: productId(item) })}
-                  >
-                    <View style={styles.newArrivalImageWrap}>
-                      <Image source={{ uri: img ? resolveImage(img) : undefined }} style={styles.newArrivalImage} />
-                      <View style={styles.newArrivalNewBadge}>
-                        <Sparkles size={8} color="#fff" />
-                        <Text style={styles.newArrivalNewBadgeText}>NEW</Text>
-                      </View>
-                      {discount > 0 && (
-                        <View style={styles.newArrivalDiscount}>
-                          <Text style={styles.newArrivalDiscountText}>-{discount}%</Text>
+                  <View style={styles.newArrivalCard}>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => navigation.navigate('ProductDetail', { productId: productId(item) })}
+                    >
+                      <View style={styles.newArrivalImageWrap}>
+                        <Image source={{ uri: img ? resolveImage(img) : undefined }} style={styles.newArrivalImage} />
+                        <View style={styles.newArrivalNewBadge}>
+                          <Sparkles size={8} color="#fff" />
+                          <Text style={styles.newArrivalNewBadgeText}>NEW</Text>
                         </View>
-                      )}
-                      <TouchableOpacity
-                        style={[styles.newArrivalWishBtn, isWished && styles.newArrivalWishBtnActive]}
-                        onPress={() => toggleWishlist(item)}
-                      >
-                        <Heart
-                          size={11}
-                          color={isWished ? '#FF0000' : CustomerColors.textSecondary}
-                          fill={isWished ? '#FF0000' : 'none'}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.newArrivalBody}>
-                      {item.category && (
-                        <Text style={styles.newArrivalCategory} numberOfLines={1}>
-                          {item.category}
-                        </Text>
-                      )}
-                      <Text style={styles.newArrivalTitle} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-                      <View style={styles.newArrivalPriceRow}>
-                        <Text style={styles.newArrivalPrice}>₹{price?.toLocaleString()}</Text>
-                        {original && (
-                          <Text style={styles.newArrivalOriginal}>₹{original.toLocaleString()}</Text>
+                        {discount > 0 && (
+                          <View style={styles.newArrivalDiscount}>
+                            <Text style={styles.newArrivalDiscountText}>-{discount}%</Text>
+                          </View>
                         )}
+                        <TouchableOpacity
+                          style={[styles.newArrivalWishBtn, isWished && styles.newArrivalWishBtnActive]}
+                          onPress={() => toggleWishlist(item)}
+                        >
+                          <Heart
+                            size={11}
+                            color={isWished ? '#FF0000' : CustomerColors.textSecondary}
+                            fill={isWished ? '#FF0000' : 'none'}
+                          />
+                        </TouchableOpacity>
                       </View>
+                      <View style={styles.newArrivalBody}>
+                        {item.category && (
+                          <Text style={styles.newArrivalCategory} numberOfLines={1}>
+                            {item.category}
+                          </Text>
+                        )}
+                        <Text style={styles.newArrivalTitle} numberOfLines={2}>
+                          {item.title}
+                        </Text>
+                        <View style={styles.newArrivalPriceRow}>
+                          <Text style={styles.newArrivalPrice}>₹{price?.toLocaleString()}</Text>
+                          {original && (
+                            <Text style={styles.newArrivalOriginal}>₹{original.toLocaleString()}</Text>
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                    <View style={{ paddingHorizontal: Spacing.xs, paddingBottom: Spacing.xs }}>
                       <TouchableOpacity
                         style={styles.newArrivalCartBtn}
+                        activeOpacity={0.7}
                         onPress={() => {
                           addToCart({
                             id: productId(item),
@@ -572,10 +589,12 @@ export default function HomeScreen() {
                             price: price,
                             quantity: 1,
                             image: img,
-                            totalStock: item.totalStock,
+                            totalStock: item.totalStock ?? 999,
                           });
                           if (Platform.OS === 'android') {
                             ToastAndroid.show('Added to cart ✓', ToastAndroid.SHORT);
+                          } else {
+                            Alert.alert('Success', 'Added to cart ✓');
                           }
                         }}
                       >
@@ -583,7 +602,7 @@ export default function HomeScreen() {
                         <Text style={styles.newArrivalCartText}>Add to Cart</Text>
                       </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 );
               }}
             />
@@ -598,10 +617,11 @@ export default function HomeScreen() {
 }
 
 function Section({ title, onViewAll, children }: { title: string; onViewAll: () => void; children: React.ReactNode }) {
+  const { isDark } = useTheme();
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={[styles.sectionTitle, isDark && { color: '#F1F5F9' }]}>{title}</Text>
         <TouchableOpacity style={styles.viewAllBtn} onPress={onViewAll}>
           <Text style={styles.viewAllText}>View All</Text>
           <ChevronRight size={14} color={CustomerColors.teal600} />

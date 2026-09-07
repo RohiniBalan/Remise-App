@@ -16,6 +16,7 @@ import {
     Linking,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../context/ThemeContext";
 import Svg, {
     Defs,
     LinearGradient as SvgLinearGradient,
@@ -454,9 +455,7 @@ function HeroIllustration() {
 export default function HelpCenterScreen() {
     const navigation = useNavigation<any>();
 
-    const [theme, setTheme] = useState<"dark" | "light">("light");
-    const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
-    const isLight = theme === "light";
+    const { theme, toggleTheme, isLight } = useTheme();
 
     const [query, setQuery] = useState("");
     const [openId, setOpenId] = useState<string | null>("getting-started-0");

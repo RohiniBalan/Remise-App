@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Layers, Plus, Trash2 } from 'lucide-react-native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { mergeCategories } from '../../utils/storeCategories';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function SellerCategoriesScreen() {
   const { categories, products, loading, refresh } = useSellerDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -58,7 +61,13 @@ export default function SellerCategoriesScreen() {
       <View style={styles.addForm}>
         <Text style={styles.formTitle}>Add New Category</Text>
         <View style={styles.addRow}>
-          <TextInput style={[styles.input, { flex: 1 }]} value={name} onChangeText={setName} placeholder="e.g. Skincare" />
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Skincare"
+            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          />
           <TouchableOpacity style={styles.addBtn} onPress={handleAdd} disabled={saving || !name.trim()}>
             {saving ? <ActivityIndicator size="small" color="#fff" /> : <Plus size={15} color="#fff" />}
           </TouchableOpacity>
@@ -104,24 +113,50 @@ export default function SellerCategoriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
-  addForm: { backgroundColor: CustomerColors.white, margin: Spacing.md, padding: Spacing.lg, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  formTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black, marginBottom: Spacing.md },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+  addForm: {
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
+    margin: Spacing.md,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+  },
+  formTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.md },
   addRow: { flexDirection: 'row', gap: Spacing.sm },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm },
+  input: {
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontSize: FontSizes.sm,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+  },
   addBtn: { width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, borderRadius: BorderRadius.md },
   errorText: { color: CustomerColors.primary, fontSize: FontSizes.xs, marginTop: Spacing.sm },
-  listHeader: { fontSize: FontSizes.xs, fontWeight: '800', color: CustomerColors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginHorizontal: Spacing.md, marginBottom: Spacing.xs },
+  listHeader: { fontSize: FontSizes.xs, fontWeight: '800', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginHorizontal: Spacing.md, marginBottom: Spacing.xs },
   list: { paddingHorizontal: Spacing.md },
-  emptyText: { textAlign: 'center', color: CustomerColors.textSecondary, paddingVertical: Spacing.xl },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: '#F5F5F5', padding: Spacing.md, marginBottom: Spacing.xs },
-  rowIcon: { width: 28, height: 28, borderRadius: BorderRadius.sm, backgroundColor: CustomerColors.mint, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { textAlign: 'center', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, paddingVertical: Spacing.xl },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : '#F5F5F5',
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  rowIcon: { width: 28, height: 28, borderRadius: BorderRadius.sm, backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : CustomerColors.mint, alignItems: 'center', justifyContent: 'center' },
   rowNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  rowName: { fontSize: FontSizes.sm, fontWeight: '700', color: CustomerColors.black },
-  defaultBadge: { backgroundColor: '#F5F5F5', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
-  defaultBadgeText: { fontSize: 9, fontWeight: '700', color: CustomerColors.textSecondary },
-  countBadge: { alignSelf: 'flex-start', backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1, marginTop: 2 },
-  countBadgeText: { fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 },
-})
+  rowName: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  defaultBadge: { backgroundColor: isDark ? '#1F2937' : '#F5F5F5', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
+  defaultBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+  countBadge: { alignSelf: 'flex-start', backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : CustomerColors.mint, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1, marginTop: 2 },
+  countBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+});

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, TextInput,
   ActivityIndicator,
@@ -13,13 +13,7 @@ import { storeProductApi } from '../../api/storeProductApi';
 import { sellerAiApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { requestCameraPermission } from '../../utils/permissions';
-
-// Ported from client/app/store/seller/page.tsx's SellerBulkSmartUploadModal
-// + its shared createOneSellerProduct helper (reimplemented as
-// createOneProduct below since it needs RN FormData semantics).
-//
-// Uses react-native-image-picker (not expo-image-picker), matching this
-// app's actual installed library.
+import { useTheme } from '../../context/ThemeContext';
 
 type Row = {
   id: string; title: string; category: string; price: string; discountedPrice: string;
@@ -37,6 +31,8 @@ const blankRow = (overrides: Partial<Row> = {}): Row => ({
 
 export default function SellerBulkScanUploadScreen() {
   const navigation = useNavigation<any>();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store, refresh } = useSellerDashboard();
   const { token } = useAuth();
 
@@ -99,104 +95,125 @@ export default function SellerBulkScanUploadScreen() {
     const existing = (catList.data.data || []).find((c: any) => c.name.toLowerCase() === row.category.toLowerCase());
     if (!existing && row.category) await storeProductApi.createCategory(row.category);
 
-    const fd = new FormData();
-    fd.append('title', row.title);
-    fd.append('category', row.category);
-    fd.append('price', row.price);
-    fd.append('discountedPrice', String(Number(row.discountedPrice) || Number(row.price)));
-    fd.append('description', row.description);
-    fd.append('brand', row.brand);
-    fd.append('storeId', store._id);
-    fd.append('availability', row.availability);
-    fd.append('totalStock', String(Number(row.totalStock) || 0));
-    fd.append('moq', String(Number(row.moq) || 1));
-    if (tags.length) fd.append('tags', JSON.stringify(tags));
-    if (row.imageUrl) fd.append('imageUrl', row.imageUrl);
-    await storeProductApi.create(fd);
+    const payload: any = {
+      title: row.title,
+      price: +row.price,
+      discountedPrice: row.discountedPrice ? +row.discountedPrice : +row.price,
+      category: row.category || 'General',
+      brand: row.brand || 'Generic',
+      description: row.description || '',
+      imageUrl: row.imageUrl || '',
+      totalStock: row.totalStock ? +row.totalStock : 0,
+      availability: row.availability,
+      tags,
+      moq: row.moq ? +row.moq : 1,
+    };
+    return storeProductApi.create(payload);
   };
 
   const handleAddAll = async () => {
+    const valid = rows.filter(r => r.title && +r.price > 0);
+    if (valid.length === 0) return;
     setStep('saving');
     let added = 0;
     const failed: FailedItem[] = [];
-    for (const row of rows) {
-      if (!row.title || !row.price) {
-        failed.push({ name: row.title || '(unnamed)', reason: 'Missing name or price.' });
-        continue;
-      }
+    for (const r of valid) {
       try {
-        await createOneProduct(row);
+        await createOneProduct(r);
         added++;
       } catch (err: any) {
-        failed.push({ name: row.title, reason: err?.response?.data?.message || err.message || 'Failed to create product.' });
+        failed.push({ name: r.title, reason: err?.response?.data?.message || 'Failed' });
       }
     }
-    setSummary({ added, failed: [...failedItems, ...failed] });
+    setSummary({ added, failed });
     setStep('done');
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}>
-      {(step === 'idle' || step === 'scanning' || step === 'error') && (
+      {step === 'idle' && (
         <>
-          <View style={styles.dropZone}>
-            {asset?.uri ? (
+          <TouchableOpacity style={styles.dropZone} onPress={() => pickImage(false)}>
+            {asset ? (
               <Image source={{ uri: asset.uri }} style={styles.dropImage} resizeMode="contain" />
             ) : (
-              <View style={{ alignItems: 'center', gap: 8 }}>
-                <ListChecks size={26} color={CustomerColors.teal600} />
-                <Text style={styles.dropTitle}>Photograph a product list, invoice, or catalog sheet</Text>
-              </View>
+              <>
+                <ListChecks size={36} color={CustomerColors.teal600} />
+                <Text style={styles.dropTitle}>Tap to select invoice, bill, or product list photo</Text>
+              </>
             )}
-          </View>
+          </TouchableOpacity>
+
           <View style={styles.pickRow}>
             <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(true)}>
-              <Camera size={15} color={CustomerColors.teal700} />
-              <Text style={styles.pickBtnText}>Take Photo</Text>
+              <Camera size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Text style={styles.pickBtnText}>Camera</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(false)}>
-              <ImageIcon size={15} color={CustomerColors.teal700} />
-              <Text style={styles.pickBtnText}>Choose from Gallery</Text>
+              <ImageIcon size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Text style={styles.pickBtnText}>Gallery</Text>
             </TouchableOpacity>
           </View>
 
-          {step === 'scanning' && (
-            <View style={styles.infoBanner}><RefreshCw size={16} color={CustomerColors.teal700} /><Text style={styles.infoBannerText}>Reading your list…</Text></View>
+          {asset && (
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleScan}>
+              <Sparkles size={16} color="#fff" />
+              <Text style={styles.primaryBtnText}>Scan Product List</Text>
+            </TouchableOpacity>
           )}
-          {step === 'error' && (
-            <View style={styles.errorBanner}><AlertCircle size={16} color="#FF0000" /><Text style={styles.errorBannerText}>{errMsg}</Text></View>
-          )}
-          <TouchableOpacity style={[styles.primaryBtn, !asset && styles.btnDisabled]} disabled={!asset || step === 'scanning'} onPress={handleScan}>
-            {step === 'scanning' ? <ActivityIndicator color="#fff" size="small" /> : <><Sparkles size={15} color="#fff" /><Text style={styles.primaryBtnText}>Scan & Extract Products</Text></>}
-          </TouchableOpacity>
         </>
+      )}
+
+      {step === 'scanning' && (
+        <View style={styles.infoBanner}>
+          <RefreshCw size={18} color={CustomerColors.teal700} />
+          <Text style={styles.infoBannerText}>Extracting multiple products from list…</Text>
+        </View>
+      )}
+
+      {step === 'error' && (
+        <View style={styles.errorBanner}>
+          <AlertCircle size={18} color="#FF0000" />
+          <Text style={styles.errorBannerText}>{errMsg}</Text>
+          <TouchableOpacity onPress={reset}><Text style={styles.warnAddText}>Try again</Text></TouchableOpacity>
+        </View>
       )}
 
       {(step === 'review' || step === 'saving') && (
         <>
           <View style={styles.reviewBanner}>
-            <CheckCircle2 size={14} color={CustomerColors.teal700} />
-            <Text style={styles.reviewBannerText}>{rows.length} product{rows.length === 1 ? '' : 's'} detected — review, set price/MOQ, then add all</Text>
+            <Sparkles size={14} color={CustomerColors.teal700} />
+            <Text style={styles.reviewBannerText}>Extracted {rows.length} product{rows.length === 1 ? '' : 's'} — fill in missing prices</Text>
           </View>
 
-          {rows.map(row => (
+          {rows.map((row, idx) => (
             <View key={row.id} style={styles.rowCard}>
               <View style={styles.rowThumb}>
-                {row.imageUrl ? <Image source={{ uri: row.imageUrl }} style={styles.rowThumbImg} /> : <ImageIcon size={16} color="#CBD5E1" />}
+                {row.imageUrl ? (
+                  <Image source={{ uri: row.imageUrl }} style={styles.rowThumbImg} />
+                ) : (
+                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF' }}>#{idx + 1}</Text>
+                )}
               </View>
               <View style={{ flex: 1, gap: 6 }}>
                 <View style={styles.rowTitleLine}>
-                  <TextInput style={[styles.smallInput, { flex: 1, fontWeight: '700' }]} value={row.title} onChangeText={(v: string) => setRow(row.id, 'title', v)} placeholder="Product name *" placeholderTextColor="#9CA3AF" />
-                  <TouchableOpacity onPress={() => removeRow(row.id)}><Trash2 size={15} color="#9CA3AF" /></TouchableOpacity>
+                  <TextInput
+                    style={[styles.smallInput, { flex: 1, fontWeight: '700' }]}
+                    value={row.title}
+                    onChangeText={(v: string) => setRow(row.id, 'title', v)}
+                    placeholder="Product Title *"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  />
+                  <TouchableOpacity onPress={() => removeRow(row.id)}><Trash2 size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} /></TouchableOpacity>
                 </View>
                 <View style={styles.rowGrid}>
-                  <TextInput style={styles.smallInput} value={row.price} onChangeText={(v: string) => setRow(row.id, 'price', v)} placeholder="Price ₹ *" keyboardType="numeric" placeholderTextColor="#9CA3AF" />
-                  <TextInput style={styles.smallInput} value={row.totalStock} onChangeText={(v: string) => setRow(row.id, 'totalStock', v)} placeholder="Stock qty" keyboardType="numeric" placeholderTextColor="#9CA3AF" />
-                  <TextInput style={styles.smallInput} value={row.moq} onChangeText={(v: string) => setRow(row.id, 'moq', v)} placeholder="MOQ" keyboardType="numeric" placeholderTextColor="#9CA3AF" />
+                  <TextInput style={styles.smallInput} value={row.price} onChangeText={(v: string) => setRow(row.id, 'price', v)} placeholder="Price ₹ *" keyboardType="numeric" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <TextInput style={styles.smallInput} value={row.totalStock} onChangeText={(v: string) => setRow(row.id, 'totalStock', v)} placeholder="Stock qty" keyboardType="numeric" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <TextInput style={styles.smallInput} value={row.moq} onChangeText={(v: string) => setRow(row.id, 'moq', v)} placeholder="MOQ" keyboardType="numeric" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
                 </View>
                 <View style={styles.rowGrid}>
-                  <TextInput style={styles.smallInput} value={row.category} onChangeText={(v: string) => setRow(row.id, 'category', v)} placeholder="Category" placeholderTextColor="#9CA3AF" />
-                  <TextInput style={styles.smallInput} value={row.brand} onChangeText={(v: string) => setRow(row.id, 'brand', v)} placeholder="Brand" placeholderTextColor="#9CA3AF" />
+                  <TextInput style={styles.smallInput} value={row.category} onChangeText={(v: string) => setRow(row.id, 'category', v)} placeholder="Category" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <TextInput style={styles.smallInput} value={row.brand} onChangeText={(v: string) => setRow(row.id, 'brand', v)} placeholder="Brand" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
                 </View>
               </View>
             </View>
@@ -249,40 +266,126 @@ export default function SellerBulkScanUploadScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  dropZone: { minHeight: 160, borderRadius: BorderRadius.lg, borderWidth: 2, borderColor: CustomerColors.steelBorder, borderStyle: 'dashed', backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', padding: Spacing.md, marginBottom: Spacing.sm },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+  dropZone: {
+    minHeight: 160,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 2,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    borderStyle: 'dashed',
+    backgroundColor: isDark ? '#111827' : '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
   dropImage: { width: '100%', height: 160, borderRadius: BorderRadius.md },
-  dropTitle: { fontSize: FontSizes.sm, fontWeight: '600', color: '#374151', textAlign: 'center' },
+  dropTitle: { fontSize: FontSizes.sm, fontWeight: '600', color: isDark ? '#F9FAFB' : '#374151', textAlign: 'center' },
   pickRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  pickBtn: { flex: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingVertical: 10, alignItems: 'center' },
-
-  pickBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: '#374151' },
-  infoBanner: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#F0FDFA', borderWidth: 1, borderColor: '#99F6E4', borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.sm },
-  infoBannerText: { color: CustomerColors.teal700, fontWeight: '700', fontSize: FontSizes.sm },
-  errorBanner: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.sm },
+  pickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: isDark ? '#111827' : '#fff',
+  },
+  pickBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : '#374151' },
+  infoBanner: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+    borderWidth: 1,
+    borderColor: isDark ? '#115E59' : '#99F6E4',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  infoBannerText: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700', fontSize: FontSizes.sm },
+  errorBanner: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+    borderWidth: 1,
+    borderColor: isDark ? '#991B1B' : '#FECACA',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
   errorBannerText: { color: '#FF0000', fontSize: FontSizes.sm, flex: 1 },
   primaryBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF0000', paddingVertical: 13, borderRadius: BorderRadius.md },
   primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
   btnDisabled: { opacity: 0.5 },
-  reviewBanner: { flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: '#F0FDFA', borderWidth: 1, borderColor: '#99F6E4', borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm },
-  reviewBannerText: { flex: 1, fontSize: 11, fontWeight: '700', color: CustomerColors.teal700 },
-  rowCard: { flexDirection: 'row', gap: Spacing.sm, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.sm, backgroundColor: '#fff' },
-  rowThumb: { width: 56, height: 56, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: CustomerColors.steelBorder, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  reviewBanner: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+    backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+    borderWidth: 1,
+    borderColor: isDark ? '#115E59' : '#99F6E4',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  reviewBannerText: { flex: 1, fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+  rowCard: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    backgroundColor: isDark ? '#111827' : '#fff',
+  },
+  rowThumb: { width: 56, height: 56, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   rowThumbImg: { width: '100%', height: '100%' },
   rowTitleLine: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   rowGrid: { flexDirection: 'row', gap: 6 },
-  smallInput: { flex: 1, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 12, color: CustomerColors.black },
-  emptyText: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
-  warnBox: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: BorderRadius.md, padding: Spacing.sm, gap: 6, marginBottom: Spacing.sm },
-  warnTitle: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+  smallInput: {
+    flex: 1,
+    backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+  },
+  emptyText: { textAlign: 'center', color: isDark ? '#9CA3AF' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
+  warnBox: {
+    backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FFFBEB',
+    borderWidth: 1,
+    borderColor: isDark ? '#92400E' : '#FDE68A',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    gap: 6,
+    marginBottom: Spacing.sm,
+  },
+  warnTitle: { fontSize: 11, fontWeight: '700', color: isDark ? '#FBBF24' : '#92400E' },
   warnRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, alignItems: 'center' },
-  warnRowText: { flex: 1, fontSize: 11, color: '#92400E' },
+  warnRowText: { flex: 1, fontSize: 11, color: isDark ? '#FBBF24' : '#92400E' },
   warnAddText: { fontSize: 11, fontWeight: '700', color: CustomerColors.teal700 },
-  warnText: { fontSize: FontSizes.sm, color: '#D97706', fontWeight: '600' },
+  warnText: { fontSize: FontSizes.sm, color: isDark ? '#FBBF24' : '#D97706', fontWeight: '600' },
   actionsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
-  secondaryBtn: { paddingHorizontal: 18, paddingVertical: 13, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  secondaryBtnText: { color: '#374151', fontWeight: '700', fontSize: FontSizes.sm },
-  successCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center' },
-  successText: { fontWeight: '800', color: CustomerColors.black, fontSize: FontSizes.md, textAlign: 'center' },
+  secondaryBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#111827' : 'transparent',
+  },
+  secondaryBtnText: { color: isDark ? '#F9FAFB' : '#374151', fontWeight: '700', fontSize: FontSizes.sm },
+  successCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7', alignItems: 'center', justifyContent: 'center' },
+  successText: { fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, fontSize: FontSizes.md, textAlign: 'center' },
 });

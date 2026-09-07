@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ShoppingCart, User, Package, Percent, Settings as SettingsIcon, LogOut } from 'lucide-react-native';
+import { Bell, ShoppingCart, User, Package, Percent, Settings as SettingsIcon, LogOut, Sun, Moon } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
@@ -17,6 +18,7 @@ export default function CustomerHeader() {
   const { user, logout } = useAuth();
   const { cartCount } = useCart();
   const { unreadCount } = useUnreadNotifications();
+  const { theme, toggleTheme, isDark } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -39,11 +41,39 @@ export default function CustomerHeader() {
 
   return (
     <>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
-        <Text style={styles.logo}>REmise</Text>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + Spacing.sm,
+            backgroundColor: isDark ? '#0f172a' : CustomerColors.white,
+            borderBottomColor: isDark ? '#1e293b' : CustomerColors.border,
+          },
+        ]}
+      >
+        <TouchableOpacity onPress={() => navigation.navigate('Home')} activeOpacity={0.8}>
+          <Text style={styles.logo}>
+            <Text style={{ color: CustomerColors.primary }}>RE</Text>
+            <Text style={{ color: isDark ? '#FFFFFF' : CustomerColors.primary }}>mise</Text>
+          </Text>
+        </TouchableOpacity>
+
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={toggleTheme}
+            activeOpacity={0.7}
+            accessibilityLabel="Toggle Theme"
+          >
+            {isDark ? (
+              <Sun size={20} color="#FBBF24" />
+            ) : (
+              <Moon size={20} color={CustomerColors.black} />
+            )}
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
-            <Bell size={20} color={CustomerColors.black} />
+            <Bell size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
             {unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -51,7 +81,7 @@ export default function CustomerHeader() {
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Cart')}>
-            <ShoppingCart size={20} color={CustomerColors.black} />
+            <ShoppingCart size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
             {cartCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>

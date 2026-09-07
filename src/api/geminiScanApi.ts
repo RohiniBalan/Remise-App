@@ -8,11 +8,11 @@ import { GOOGLE_AI_API_KEY } from './endpoints';
 // IndicTrans2 stage (mobile-unreachable, localhost-only) and its
 // imageKeyword/auto-generated-image step (the store owner picks/keeps
 // their own product photo on StoreProductFormScreen, same as manual entry).
-const VISION_PROMPT = `This image contains a product label or product-related text. Extract and translate ALL text into English.
-Do NOT describe the image, the paper, the ink color, or the handwriting — only extract product data.
-The productName field must never be empty: use the main text/word shown, translated to English, even if no other product details (price, brand, etc.) are visible.
+const VISION_PROMPT = `This image contains comprehensive product details (such as About & Details, Specifications, Highlights, Features, Pricing, Brand, Model). Extract and translate ALL text into English.
+Do NOT describe the image, the paper, the ink color, or the handwriting — extract all structured product data, specifications, features, and highlights.
+The productName field must never be empty.
 Reply ONLY with a raw JSON object — no markdown, no code fences:
-{"productName":"<product name>","category":"<one of: Groceries, Dairy, Beverages, Snacks, Beauty & Skincare, Household, Electronics, Clothing, Vegetables, Fruits, Medicine, Stationery, General>","price":<MRP as number>,"discountedPrice":<sale price as number, same as price if not shown>,"validTill":"<YYYY-MM-DD or null>","description":"<2-3 sentence description of the PRODUCT ITSELF, not the image or paper, in English>","brand":"<brand name or empty string>"}`;
+{"productName":"<product name>","category":"<one of: Groceries, Dairy, Beverages, Snacks, Beauty & Skincare, Household, Electronics, Clothing, Vegetables, Fruits, Medicine, Stationery, General>","subcategory":"<appropriate subcategory or empty string>","price":<MRP as number, 0 if not shown>,"discountedPrice":<sale price as number, same as price if not shown>,"validTill":"<YYYY-MM-DD or null>","description":"<2-4 sentence rich overview of the product in English>","aboutDescription":"<description paragraph or empty string>","aboutFeatures":["<feature bullet 1>","<feature bullet 2>"],"brand":"<brand name or empty string>","attributes":{"<key>":"<value>"},"specifications":[{"label":"<spec label>","value":"<spec value>"}],"idealFor":["<highlight/suitable for bullet 1>","<highlight/suitable for bullet 2>"]}`;
 
 // Tried in order, same fallback idea as the web route trying multiple models.
 const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
@@ -20,10 +20,16 @@ const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 export interface ScannedProduct {
   productName: string;
   category: string;
+  subcategory?: string;
   price: number;
   discountedPrice: number;
   validTill: string;
   description: string;
+  aboutDescription?: string;
+  aboutFeatures?: string[];
+  attributes?: Record<string, any>;
+  specifications?: Array<{ label: string; value: string }>;
+  idealFor?: string[];
   brand: string;
 }
 
@@ -76,13 +82,32 @@ async function callGeminiText(prompt: string): Promise<string> {
 export async function scanProductImage(base64: string, mimeType: string): Promise<ScannedProduct> {
   const cleaned = await callGeminiVision(base64, mimeType, VISION_PROMPT);
   const parsed = JSON.parse(cleaned);
+
+  const specifications: Array<{ label: string; value: string }> = Array.isArray(parsed.specifications)
+    ? parsed.specifications.filter((s: any) => s && s.label && s.value).map((s: any) => ({ label: String(s.label).trim(), value: String(s.value).trim() }))
+    : [];
+
+  const attributes: Record<string, any> = (parsed.attributes && typeof parsed.attributes === 'object') ? parsed.attributes : {};
+  for (const spec of specifications) {
+    if (!attributes[spec.label]) attributes[spec.label] = spec.value;
+  }
+
+  const aboutFeatures: string[] = Array.isArray(parsed.aboutFeatures) ? parsed.aboutFeatures.map((f: any) => String(f).trim()).filter(Boolean) : [];
+  const idealFor: string[] = Array.isArray(parsed.idealFor) ? parsed.idealFor.map((h: any) => String(h).trim()).filter(Boolean) : [];
+
   return {
     productName: parsed.productName || '',
     category: parsed.category || 'General',
+    subcategory: parsed.subcategory || '',
     price: Number(parsed.price) || 0,
     discountedPrice: Number(parsed.discountedPrice) || Number(parsed.price) || 0,
     validTill: parsed.validTill && parsed.validTill !== 'null' ? parsed.validTill : '',
-    description: parsed.description || '',
+    description: parsed.description || parsed.aboutDescription || '',
+    aboutDescription: parsed.aboutDescription || parsed.description || '',
+    aboutFeatures: aboutFeatures.length > 0 ? aboutFeatures : idealFor,
+    attributes,
+    specifications,
+    idealFor: idealFor.length > 0 ? idealFor : aboutFeatures,
     brand: parsed.brand || '',
   };
 }

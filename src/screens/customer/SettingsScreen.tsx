@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useRoute } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { authApi } from '../../api/authApi';
 import {
   CustomerColors,
@@ -67,6 +68,8 @@ const TABS: {
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const route = useRoute<any>();
   const [activeTab, setActiveTab] = useState<Tab>(route.params?.initialTab || 'account');
 
@@ -95,7 +98,7 @@ export default function SettingsScreen() {
             {tab.icon(
               activeTab === tab.id
                 ? CustomerColors.primary
-                : CustomerColors.textSecondary,
+                : (isDark ? '#9CA3AF' : CustomerColors.textSecondary),
             )}
             <Text
               style={[
@@ -132,6 +135,8 @@ export default function SettingsScreen() {
 
 function AccountTab() {
   const { user, updateUser } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [fullname, setFullname] = useState(user?.fullname ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [mobilenumber, setMobilenumber] = useState(user?.mobilenumber ?? '');
@@ -221,7 +226,10 @@ function AccountTab() {
 }
 
 function PreferencesTab() {
-  const [darkMode, setDarkMode] = useState(false);
+  const { setTheme, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
+  const darkMode = isDark;
+  const setDarkMode = (val: boolean) => setTheme(val ? 'dark' : 'light');
   const [newsletter, setNewsletter] = useState(true);
   const [language, setLanguage] = useState('en');
   const [currency, setCurrency] = useState('INR');
@@ -312,6 +320,8 @@ function PreferencesTab() {
 }
 
 function SecurityTab() {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [current, setCurrent] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -348,7 +358,7 @@ function SecurityTab() {
   return (
     <View>
       <View style={styles.infoBanner}>
-        <Shield size={16} color={CustomerColors.teal700} />
+        <Shield size={16} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
         <Text style={styles.infoBannerText}>
           Keep your account secure by using a strong, unique password.
         </Text>
@@ -408,6 +418,8 @@ function SecurityTab() {
 }
 
 function NotificationsTab() {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [prefs, setPrefs] = useState({
     orderUpdates: true,
     promotions: true,
@@ -490,10 +502,16 @@ function Field({
   label,
   ...inputProps
 }: { label: string } & React.ComponentProps<typeof TextInput>) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={{ marginBottom: Spacing.md }}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} {...inputProps} />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+        {...inputProps}
+      />
     </View>
   );
 }
@@ -511,21 +529,24 @@ function PasswordField({
   show: boolean;
   onToggleShow: () => void;
 }) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={{ marginBottom: Spacing.md }}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.passwordRow}>
         <TextInput
           style={[styles.input, { flex: 1 }]}
+          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={!show}
         />
         <TouchableOpacity style={styles.eyeBtn} onPress={onToggleShow}>
           {show ? (
-            <EyeOff size={16} color={CustomerColors.textSecondary} />
+            <EyeOff size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           ) : (
-            <Eye size={16} color={CustomerColors.textSecondary} />
+            <Eye size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           )}
         </TouchableOpacity>
       </View>
@@ -546,6 +567,8 @@ function ToggleRow({
   onChange: (v: boolean) => void;
   last?: boolean;
 }) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={[styles.toggleRow, !last && styles.toggleRowBorder]}>
       <View style={{ flex: 1 }}>
@@ -562,229 +585,240 @@ function ToggleRow({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  tabBar: {
-    backgroundColor: CustomerColors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: CustomerColors.border,
-    flexGrow: 0,
-  },
-  tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabItemActive: { borderBottomColor: CustomerColors.primary },
-  tabLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: CustomerColors.textSecondary,
-  },
-  tabLabelActive: { color: CustomerColors.primary },
-  content: { flex: 1 },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: CustomerColors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { color: '#fff', fontSize: FontSizes.lg, fontWeight: '800' },
-  avatarName: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: CustomerColors.black,
-  },
-  avatarEmail: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
-  verifiedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: CustomerColors.successBg,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.pill,
-    marginTop: 4,
-  },
-  verifiedPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: CustomerColors.success,
-  },
-  unverifiedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: CustomerColors.warningBg,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.pill,
-    marginTop: 4,
-  },
-  unverifiedPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: CustomerColors.warning,
-  },
-  label: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-    marginBottom: Spacing.xs,
-  },
-  input: {
-    backgroundColor: CustomerColors.white,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-  },
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
-  eyeBtn: { position: 'absolute', right: Spacing.md },
-  saveBtn: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: CustomerColors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginTop: Spacing.sm,
-  },
-  saveBtnDisabled: { opacity: 0.4 },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
-  card: {
-    backgroundColor: CustomerColors.white,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  groupLabel: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-    marginBottom: Spacing.sm,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
-  },
-  chip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    backgroundColor: CustomerColors.white,
-  },
-  chipActive: {
-    backgroundColor: CustomerColors.teal600,
-    borderColor: CustomerColors.teal600,
-  },
-  chipText: {
-    fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
-    fontWeight: '600',
-  },
-  chipTextActive: { color: '#fff' },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  toggleRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  toggleLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: CustomerColors.black,
-  },
-  toggleDesc: {
-    fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
-    marginTop: 2,
-  },
-  switch: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E5E7EB',
-    padding: 2,
-  },
-  switchActive: { backgroundColor: CustomerColors.primary },
-  switchThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-  },
-  switchThumbActive: { transform: [{ translateX: 20 }] },
-  infoBanner: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'flex-start',
-    backgroundColor: CustomerColors.mint,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  infoBannerText: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color: CustomerColors.teal700,
-  },
-  errorText: {
-    color: CustomerColors.primary,
-    fontSize: FontSizes.sm,
-    marginBottom: Spacing.sm,
-  },
-  fieldError: {
-    color: CustomerColors.primary,
-    fontSize: FontSizes.xs,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
-  },
-  successText: {
-    color: CustomerColors.success,
-    fontSize: FontSizes.sm,
-    marginBottom: Spacing.sm,
-  },
-  signOutBtn: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: CustomerColors.dangerBg,
-  },
-  signOutText: {
-    color: CustomerColors.primary,
-    fontWeight: '700',
-    fontSize: FontSizes.sm,
-  },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
+    },
+    tabBar: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : CustomerColors.border,
+      flexGrow: 0,
+    },
+    tabItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.md,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    tabItemActive: { borderBottomColor: CustomerColors.primary },
+    tabLabel: {
+      fontSize: FontSizes.sm,
+      fontWeight: '600',
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    },
+    tabLabelActive: { color: CustomerColors.primary },
+    content: { flex: 1 },
+    avatarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      marginBottom: Spacing.lg,
+    },
+    avatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: CustomerColors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: { color: '#fff', fontSize: FontSizes.lg, fontWeight: '800' },
+    avatarName: {
+      fontSize: FontSizes.base,
+      fontWeight: '700',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    avatarEmail: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    },
+    verifiedPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : CustomerColors.successBg,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: BorderRadius.pill,
+      marginTop: 4,
+    },
+    verifiedPillText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: CustomerColors.success,
+    },
+    unverifiedPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? 'rgba(234, 179, 8, 0.15)' : CustomerColors.warningBg,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: BorderRadius.pill,
+      marginTop: 4,
+    },
+    unverifiedPillText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: CustomerColors.warning,
+    },
+    label: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textTransform: 'uppercase',
+      marginBottom: Spacing.xs,
+    },
+    input: {
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      fontSize: FontSizes.base,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    passwordRow: { flexDirection: 'row', alignItems: 'center' },
+    eyeBtn: { position: 'absolute', right: Spacing.md },
+    saveBtn: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: CustomerColors.primary,
+      paddingVertical: Spacing.md,
+      borderRadius: BorderRadius.md,
+      marginTop: Spacing.sm,
+    },
+    saveBtnDisabled: { opacity: 0.4 },
+    saveBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+    card: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      padding: Spacing.md,
+      marginBottom: Spacing.lg,
+    },
+    groupLabel: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textTransform: 'uppercase',
+      marginBottom: Spacing.sm,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.xs,
+      marginBottom: Spacing.md,
+    },
+    chip: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 8,
+      borderRadius: BorderRadius.pill,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    },
+    chipActive: {
+      backgroundColor: CustomerColors.teal600,
+      borderColor: CustomerColors.teal600,
+    },
+    chipText: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      fontWeight: '600',
+    },
+    chipTextActive: { color: '#fff' },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: Spacing.sm,
+    },
+    toggleRowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+    },
+    toggleLabel: {
+      fontSize: FontSizes.sm,
+      fontWeight: '600',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    toggleDesc: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginTop: 2,
+    },
+    switch: {
+      width: 44,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: isDark ? '#374151' : '#E5E7EB',
+      padding: 2,
+    },
+    switchActive: { backgroundColor: CustomerColors.primary },
+    switchThumb: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: '#fff',
+    },
+    switchThumbActive: { transform: [{ translateX: 20 }] },
+    infoBanner: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+      alignItems: 'flex-start',
+      backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : CustomerColors.mint,
+      borderWidth: 1,
+      borderColor: isDark ? '#0F766E' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.md,
+      marginBottom: Spacing.lg,
+    },
+    infoBannerText: {
+      flex: 1,
+      fontSize: FontSizes.sm,
+      color: isDark ? '#5EEAD4' : CustomerColors.teal700,
+    },
+    errorText: {
+      color: CustomerColors.primary,
+      fontSize: FontSizes.sm,
+      marginBottom: Spacing.sm,
+    },
+    fieldError: {
+      color: CustomerColors.primary,
+      fontSize: FontSizes.xs,
+      marginTop: Spacing.xs,
+      marginBottom: Spacing.sm,
+    },
+    successText: {
+      color: CustomerColors.success,
+      fontSize: FontSizes.sm,
+      marginBottom: Spacing.sm,
+    },
+    signOutBtn: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: Spacing.xl,
+      paddingVertical: Spacing.md,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : CustomerColors.dangerBg,
+    },
+    signOutText: {
+      color: CustomerColors.primary,
+      fontWeight: '700',
+      fontSize: FontSizes.sm,
+    },
+  });

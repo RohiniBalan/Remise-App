@@ -20,6 +20,7 @@ import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
+import HomeFooter from '../../components/home/HomeFooter';
 import {
   CustomerColors,
   Spacing,
@@ -126,7 +127,17 @@ export default function OrdersScreen() {
               ? smartRes.value.data.data
               : [];
 
-          const merged = [...legacyOrders, ...smartOrders].sort(
+          // Deduplicate orders by orderId / _id
+          const seenOrderIds = new Set<string>();
+          const uniqueOrders = [...legacyOrders, ...smartOrders].filter(order => {
+            const id = order.orderId || order._id || (order as any).id;
+            if (!id) return true;
+            if (seenOrderIds.has(id)) return false;
+            seenOrderIds.add(id);
+            return true;
+          });
+
+          const merged = uniqueOrders.sort(
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           );
@@ -158,20 +169,24 @@ export default function OrdersScreen() {
   );
 
   const displayItems: DisplayItem[] = useMemo(() => {
-    return orders.flatMap(order =>
-      order.items.map((item, idx) => {
-        const orderDateObj = new Date(order.createdAt);
+    return orders.flatMap((order, orderIdx) =>
+      (order.items || []).map((item, idx) => {
+        const orderDateObj = new Date(order.createdAt || Date.now());
         const deliveryDateObj = new Date(orderDateObj);
         deliveryDateObj.setDate(deliveryDateObj.getDate() + 5);
         const fmt = (d: Date) =>
-          d.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
+          isNaN(d.getTime())
+            ? ''
+            : d.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              });
+        const orderIdentifier = order._id || order.orderId || `ord-${orderIdx}`;
+        const itemIdentifier = item.productId || (item as any)._id || idx;
         return {
-          key: `${order.orderId}-${idx}`,
-          orderId: order.orderId,
+          key: `${orderIdentifier}-${orderIdx}-${idx}-${itemIdentifier}`,
+          orderId: order.orderId || order._id || '',
           paymentStatus: order.paymentStatus || 'PENDING',
           paymentMethod: order.paymentMethod,
           deliveryStatus: order.deliveryStatus,
@@ -183,8 +198,6 @@ export default function OrdersScreen() {
           orderDate: fmt(orderDateObj),
           deliveryDate: fmt(deliveryDateObj),
         };
-
-
       }),
     );
   }, [orders]);
@@ -269,6 +282,11 @@ export default function OrdersScreen() {
         data={filteredItems}
         keyExtractor={item => item.key}
         contentContainerStyle={styles.list}
+        ListFooterComponent={
+          <View style={{ marginHorizontal: -Spacing.md, marginBottom: -Spacing.md, marginTop: Spacing.md }}>
+            <HomeFooter />
+          </View>
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <PackageX size={56} color="#D1D5DB" />

@@ -54,6 +54,7 @@ import {
 } from '../../styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
+import HomeFooter from '../../components/home/HomeFooter';
 
 const RADIUS_OPTIONS = [2, 5, 10, 20];
 
@@ -258,6 +259,7 @@ export default function NearbyOffersScreen() {
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.list}
+          ListFooterComponent={<HomeFooter />}
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={styles.emptyEmoji}>🔍</Text>

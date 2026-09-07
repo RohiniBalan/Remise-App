@@ -22,6 +22,7 @@ import {
 import { indianStates, getCities } from '../../utils/indiaLocation';
 import { normalizeLoc, lookupPincode } from '../../components/common/LocationSelectField';
 import { mergeCategories } from '../../utils/storeCategories';
+import { useTheme } from '../../context/ThemeContext';
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const STORE_CATEGORIES = [
@@ -39,6 +40,8 @@ const STORE_CATEGORIES = [
 
 export default function SellerSettingsScreen() {
   const { store, refresh, categories } = useSellerDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [form, setForm] = useState({
     name: store?.name || '',
     description: store?.description || '',
@@ -443,6 +446,8 @@ export default function SellerSettingsScreen() {
 }
 
 function Field({ label, style, ...props }: any) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={[{ marginBottom: Spacing.sm }, style]}>
       <Text style={styles.label}>{label}</Text>
@@ -469,6 +474,8 @@ function SelectField({
   style?: any;
   onSelect: (key: string, label: string) => void;
 }) {
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [open, setOpen] = useState(false);
   return (
     <View style={[{ marginBottom: Spacing.md }, style]}>
@@ -516,70 +523,76 @@ function SelectField({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    padding: Spacing.md,
-  },
-  cardTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: '800',
-    color: CustomerColors.black,
-    marginBottom: Spacing.sm,
-  },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   errorBox: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: isDark ? '#EF4444' : '#FECACA',
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  errorText: { color: '#FF0000', fontSize: FontSizes.sm },
+  errorText: {
+    color: '#EF4444',
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  },
+  card: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  cardTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    marginBottom: Spacing.md,
+  },
+  field: { marginBottom: Spacing.sm },
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6B7280',
+    color: isDark ? '#9CA3AF' : '#6B7280',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     marginBottom: 4,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#1F2937' : '#fff',
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: FontSizes.sm,
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   row2: { flexDirection: 'row', gap: Spacing.sm },
   divider: {
     height: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: isDark ? '#1F2937' : '#F5F5F5',
     marginVertical: Spacing.md,
   },
   sectionLabel: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: '#374151',
+    color: isDark ? '#F9FAFB' : '#374151',
     marginBottom: 4,
   },
-  sectionHint: { fontSize: 11, color: '#9CA3AF', marginBottom: Spacing.sm },
+  sectionHint: { fontSize: 11, color: isDark ? '#9CA3AF' : '#9CA3AF', marginBottom: Spacing.sm },
   upiRow: { flexDirection: 'row', gap: Spacing.sm },
   qrBox: {
     width: 96,
     height: 96,
     borderRadius: BorderRadius.md,
     borderWidth: 2,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderStyle: 'dashed',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: isDark ? '#1F2937' : '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -616,7 +629,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : 'transparent',
   },
   chipActive: {
     backgroundColor: CustomerColors.teal600,
@@ -624,71 +638,71 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     fontWeight: '600',
   },
   chipTextActive: { color: '#fff' },
   selectInput: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-},
-selectDisabled: {
-  opacity: 0.5,
-},
-selectValue: {
-  fontSize: FontSizes.sm,
-  color: CustomerColors.black,
-  flex: 1,
-},
-selectPlaceholder: {
-  fontSize: FontSizes.sm,
-  color: '#9CA3AF',
-  flex: 1,
-},
-modalOverlay: {
-  flex: 1,
-  backgroundColor: 'rgba(0,0,0,0.4)',
-  justifyContent: 'flex-end',
-},
-modalSheet: {
-  backgroundColor: '#fff',
-  borderTopLeftRadius: BorderRadius.lg,
-  borderTopRightRadius: BorderRadius.lg,
-  maxHeight: '70%',
-  paddingBottom: Spacing.lg,
-},
-modalHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingHorizontal: Spacing.lg,
-  paddingVertical: Spacing.md,
-  borderBottomWidth: 1,
-  borderBottomColor: '#F5F5F5',
-},
-modalTitle: {
-  fontSize: FontSizes.base,
-  fontWeight: '800',
-  color: CustomerColors.black,
-},
-modalItem: {
-  paddingHorizontal: Spacing.lg,
-  paddingVertical: Spacing.md,
-  borderBottomWidth: 1,
-  borderBottomColor: '#F5F5F5',
-},
-modalItemText: {
-  fontSize: FontSizes.sm,
-  color: CustomerColors.black,
-},
-modalItemTextActive: {
-  color: CustomerColors.teal700,
-  fontWeight: '700',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectDisabled: {
+    opacity: 0.5,
+  },
+  selectValue: {
+    fontSize: FontSizes.sm,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    flex: 1,
+  },
+  selectPlaceholder: {
+    fontSize: FontSizes.sm,
+    color: isDark ? '#6B7280' : '#9CA3AF',
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderTopLeftRadius: BorderRadius.lg,
+    borderTopRightRadius: BorderRadius.lg,
+    maxHeight: '70%',
+    paddingBottom: Spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+  },
+  modalTitle: {
+    fontSize: FontSizes.base,
+    fontWeight: '800',
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+  },
+  modalItem: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+  },
+  modalItemText: {
+    fontSize: FontSizes.sm,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+  },
+  modalItemTextActive: {
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+    fontWeight: '700',
+  },
   modalEmpty: {
     textAlign: 'center',
-    color: '#9CA3AF',
+    color: isDark ? '#9CA3AF' : '#9CA3AF',
     fontSize: FontSizes.sm,
     paddingVertical: Spacing.lg,
   },
@@ -699,34 +713,34 @@ modalItemTextActive: {
     borderWidth: 1,
   },
   routeBadgeActive: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#F0FDF4',
+    borderColor: isDark ? '#166534' : '#BBF7D0',
   },
   routeBadgePending: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
+    backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FFFBEB',
+    borderColor: isDark ? '#92400E' : '#FDE68A',
   },
   routeBadgeNone: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+    borderColor: isDark ? '#374151' : '#E5E7EB',
   },
   routeBadgeText: {
     fontSize: 10,
     fontWeight: '700',
   },
   routeBadgeTextActive: {
-    color: '#15803D',
+    color: isDark ? '#4ADE80' : '#15803D',
   },
   routeBadgeTextPending: {
-    color: '#B45309',
+    color: isDark ? '#FBBF24' : '#B45309',
   },
   routeBadgeTextNone: {
-    color: '#6B7280',
+    color: isDark ? '#9CA3AF' : '#6B7280',
   },
   routeInfoBox: {
-    backgroundColor: '#F0FDFA',
+    backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
     borderWidth: 1,
-    borderColor: '#CCFBF1',
+    borderColor: isDark ? '#115E59' : '#CCFBF1',
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
@@ -734,7 +748,7 @@ modalItemTextActive: {
   },
   routeInfoText: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   routeBtn: {
     backgroundColor: CustomerColors.teal700,

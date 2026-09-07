@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
 import { GATEWAY_URL } from '../../api/endpoints';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useSupplierCart } from '../../context/SupplierCartContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   CustomerColors,
   Spacing,
@@ -33,9 +34,6 @@ import { orderApi } from '../../api/orderApi';
 import { groupByTitle, TitleGroup } from '../../utils/supplierTypes';
 import { mergeCategories } from '../../utils/storeCategories';
 
-// This was left as a literal placeholder string, which is a bug — it's used
-// below to resolve relative product image paths, so those images would
-// have been broken. Matches the pattern StoreOverviewScreen already uses.
 const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -49,12 +47,11 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 const getStatusColors = (status: string) =>
   STATUS_COLORS[status] || { bg: '#F3F4F6', text: '#4B5563' };
 
-// Ported from client/app/store/dashboard/page.tsx's SuppliersTab. Web's cart
-// sidebar becomes a floating "Cart (n)" pill here since there's no persistent
-// sidebar on mobile; tapping it opens StoreSupplierCart.
 export default function StoreSuppliersScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store, categories } = useStoreDashboard();
   const { cartCount, cartTotal } = useSupplierCart();
 
@@ -62,10 +59,6 @@ export default function StoreSuppliersScreen() {
     route.params?.initialView || 'browse',
   );
 
-  // The dropdown's "My Orders" navigates here with { initialView: 'orders' }.
-  // If this screen is already mounted (already on top of the stack) when
-  // that happens, React Navigation updates params without remounting, so
-  // this effect is what actually flips the toggle in that case.
   useEffect(() => {
     if (route.params?.initialView) setView(route.params.initialView);
   }, [route.params?.initialView]);
@@ -120,9 +113,6 @@ export default function StoreSuppliersScreen() {
         })),
       );
     } catch (err) {
-      // TODO: remove this once the underlying fetch issue is found — it was
-      // being swallowed silently before, which is why the cause wasn't
-      // visible anywhere.
       console.error('loadGroups failed:', err);
       setError('Could not load suppliers right now. Try again shortly.');
     } finally {
@@ -136,7 +126,7 @@ export default function StoreSuppliersScreen() {
       const res = await orderApi.getMyWholesaleOrders(store.ownerId);
       setMyOrders(res.data.data || []);
     } catch (err) {
-      console.error('loadMyOrders failed:', err); // TODO: remove once diagnosed
+      console.error('loadMyOrders failed:', err);
     }
   }, [store]);
 
@@ -160,10 +150,7 @@ export default function StoreSuppliersScreen() {
     label: category,
   }));
   const titleGroups: TitleGroup[] = groupByTitle(groups);
-  // FlatList's numColumns=2 + flex:1 cards means an odd-length last row
-  // stretches its single real card to fill the whole row width instead of
-  // matching the width of every other card. Padding with an invisible
-  // filler keeps every card the same size.
+
   const gridData: any[] =
     titleGroups.length % 2 !== 0
       ? [...titleGroups, { titleKey: '__filler__', __filler: true }]
@@ -260,17 +247,20 @@ export default function StoreSuppliersScreen() {
               placeholder="Select Category"
               options={categoryOptions}
               onSelect={key => setCategoryFilter(key)}
+              isDark={isDark}
+              styles={styles}
             />
           </View>
 
           <View style={styles.searchBox}>
-            <Search size={14} color={CustomerColors.textSecondary} />
+            <Search size={14} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             <TextInput
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
               onSubmitEditing={loadGroups}
               placeholder="Search products…"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
             />
           </View>
 
@@ -278,7 +268,7 @@ export default function StoreSuppliersScreen() {
             <ActivityIndicator
               style={{ marginTop: Spacing.xl }}
               size="large"
-              color={CustomerColors.teal700}
+              color={isDark ? '#2DD4BF' : CustomerColors.teal700}
             />
           ) : (
             <FlatList
@@ -289,7 +279,7 @@ export default function StoreSuppliersScreen() {
               contentContainerStyle={styles.list}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Package size={36} color="#E5E7EB" />
+                  <Package size={36} color={isDark ? '#374151' : '#E5E7EB'} />
                   <Text style={styles.emptyText}>
                     {categoryFilter
                       ? 'No products in this category.'
@@ -311,7 +301,7 @@ export default function StoreSuppliersScreen() {
                       {img ? (
                         <Image source={{ uri: img }} style={styles.image} />
                       ) : (
-                        <Package size={24} color="#E5E7EB" />
+                        <Package size={24} color={isDark ? '#4B5563' : '#E5E7EB'} />
                       )}
                     </View>
                     <View style={{ padding: Spacing.sm }}>
@@ -349,7 +339,7 @@ export default function StoreSuppliersScreen() {
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <ShoppingBag size={36} color="#E5E7EB" />
+              <ShoppingBag size={36} color={isDark ? '#374151' : '#E5E7EB'} />
               <Text style={styles.emptyText}>No supplier orders yet.</Text>
             </View>
           }
@@ -415,6 +405,8 @@ function SelectField({
   options,
   disabled,
   onSelect,
+  isDark,
+  styles,
 }: {
   label: string;
   value: string;
@@ -422,6 +414,8 @@ function SelectField({
   options: { key: string; label: string }[];
   disabled?: boolean;
   onSelect: (key: string, label: string) => void;
+  isDark: boolean;
+  styles: any;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -441,7 +435,7 @@ function SelectField({
           {value || placeholder}
         </Text>
 
-        <ChevronDown size={16} color={CustomerColors.textSecondary} />
+        <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
       </TouchableOpacity>
 
       <Modal
@@ -463,7 +457,7 @@ function SelectField({
               <Text style={styles.modalTitle}>{label}</Text>
 
               <TouchableOpacity onPress={() => setOpen(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -496,11 +490,11 @@ function SelectField({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   errorText: {
     color: CustomerColors.primary,
-    backgroundColor: CustomerColors.dangerBg,
+    backgroundColor: isDark ? '#7F1D1D' : CustomerColors.dangerBg,
     margin: Spacing.md,
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
@@ -511,9 +505,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     borderRadius: BorderRadius.md,
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
   },
   toggleBtnActive: {
     backgroundColor: CustomerColors.primary,
@@ -522,7 +516,7 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
   },
   toggleTextActive: { color: '#fff' },
   filterRow: {
@@ -536,19 +530,19 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    backgroundColor: CustomerColors.white,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
   typeBtnActive: {
-    backgroundColor: CustomerColors.teal600,
-    borderColor: CustomerColors.teal600,
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
+    borderColor: isDark ? '#0f766e' : CustomerColors.teal600,
   },
   typeBtnText: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
   },
   typeBtnTextActive: { color: '#fff' },
   chipScroll: { marginBottom: Spacing.sm },
@@ -556,53 +550,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
     borderRadius: BorderRadius.pill,
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
   },
   catChipActive: {
-    backgroundColor: CustomerColors.teal600,
-    borderColor: CustomerColors.teal600,
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
+    borderColor: isDark ? '#0f766e' : CustomerColors.teal600,
   },
   catChipText: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
   },
   catChipTextActive: { color: '#fff' },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.md,
   },
-  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm },
+  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
   list: { paddingHorizontal: Spacing.md, paddingBottom: 90 },
   empty: {
     alignItems: 'center',
     paddingVertical: Spacing.xxl,
     gap: Spacing.sm,
   },
-  emptyText: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary },
+  emptyText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
   card: {
     flex: 1,
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     overflow: 'hidden',
     marginBottom: Spacing.sm,
   },
   cardFiller: { backgroundColor: 'transparent', borderWidth: 0 },
   imageWrap: {
     aspectRatio: 4 / 3,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: isDark ? '#1F2937' : '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -610,22 +604,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
   subText: {
     fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     marginTop: 2,
   },
-  startingFrom: { fontSize: 10, color: '#9CA3AF', marginTop: 4 },
+  startingFrom: { fontSize: 10, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 4 },
   price: {
     fontSize: FontSizes.base,
     fontWeight: '800',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   viewBrandsBtn: {
     marginTop: Spacing.sm,
-    backgroundColor: CustomerColors.teal600,
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
     paddingVertical: 8,
     borderRadius: BorderRadius.sm,
     alignItems: 'center',
@@ -636,10 +630,10 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
   },
   orderCard: {
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
@@ -653,9 +647,9 @@ const styles = StyleSheet.create({
   orderStore: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
-  orderId: { fontSize: FontSizes.xs, color: '#9CA3AF' },
+  orderId: { fontSize: FontSizes.xs, color: isDark ? '#6B7280' : '#9CA3AF' },
   statusPill: {
     alignSelf: 'flex-start',
     borderRadius: BorderRadius.pill,
@@ -663,11 +657,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   statusPillText: { fontSize: 10, fontWeight: '700' },
-  orderItem: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
+  orderItem: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
   orderTotal: {
     fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
     marginTop: 4,
   },
   cartPill: {
@@ -687,15 +681,15 @@ const styles = StyleSheet.create({
   selectLabel: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: CustomerColors.textSecondary,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
     textTransform: 'uppercase',
     marginBottom: Spacing.xs,
   },
 
   selectInput: {
-    backgroundColor: CustomerColors.white,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
@@ -710,24 +704,24 @@ const styles = StyleSheet.create({
 
   selectValue: {
     fontSize: FontSizes.sm,
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
     flex: 1,
   },
 
   selectPlaceholder: {
     fontSize: FontSizes.sm,
-    color: '#9CA3AF',
+    color: isDark ? '#6B7280' : '#9CA3AF',
     flex: 1,
   },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
 
   modalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? '#111827' : '#fff',
     borderTopLeftRadius: BorderRadius.lg,
     borderTopRightRadius: BorderRadius.lg,
     maxHeight: '70%',
@@ -741,29 +735,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
   },
 
   modalTitle: {
     fontSize: FontSizes.base,
     fontWeight: '800',
-    color: CustomerColors.black,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
   },
 
   modalItem: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
   },
 
   modalItemText: {
     fontSize: FontSizes.sm,
-    color: CustomerColors.black,
+    color: isDark ? '#E5E7EB' : CustomerColors.black,
   },
 
   modalItemTextActive: {
-    color: CustomerColors.teal700,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
     fontWeight: '700',
   },
 });

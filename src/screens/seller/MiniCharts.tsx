@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Svg, { Polyline, Circle, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { CustomerColors, FontSizes } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 // Small dependency-light chart components. No new packages needed —
 // react-native-svg ships as a peer dependency of lucide-react-native,
@@ -36,7 +37,7 @@ function xLabelIndices(count: number, maxLabels = 6): number[] {
   return idxs;
 }
 
-function YAxis({ max, plotLeft, plotRight, plotBottom, plotTop }: { max: number; plotLeft: number; plotRight: number; plotBottom: number; plotTop: number }) {
+function YAxis({ max, plotLeft, plotRight, plotBottom, plotTop, isDark }: { max: number; plotLeft: number; plotRight: number; plotBottom: number; plotTop: number; isDark: boolean }) {
   const ticks = buildTicks(max);
   return (
     <>
@@ -49,10 +50,10 @@ function YAxis({ max, plotLeft, plotRight, plotBottom, plotTop }: { max: number;
               y1={y}
               x2={plotRight}
               y2={y}
-              stroke="#F0F0F0"
+              stroke={isDark ? '#1F2937' : '#F0F0F0'}
               strokeWidth={1}
             />
-            <SvgText x={plotLeft - 8} y={y + 3} fontSize={9} fill="#9CA3AF" textAnchor="end">
+            <SvgText x={plotLeft - 8} y={y + 3} fontSize={9} fill={isDark ? '#9CA3AF' : '#9CA3AF'} textAnchor="end">
               {formatAxisValue(t)}
             </SvgText>
           </React.Fragment>
@@ -63,6 +64,7 @@ function YAxis({ max, plotLeft, plotRight, plotBottom, plotTop }: { max: number;
 }
 
 export function MiniLineChart({ data }: { data: { label: string; revenue: number; topProduct?: string }[] }) {
+  const { isDark } = useTheme();
   const [width, setWidth] = useState(0);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
@@ -87,15 +89,15 @@ export function MiniLineChart({ data }: { data: { label: string; revenue: number
     <View onLayout={onLayout}>
       {width > 0 && (
         <Svg width={width} height={HEIGHT}>
-          <YAxis max={max} plotLeft={plotLeft} plotRight={plotRight} plotBottom={plotBottom} plotTop={plotTop} />
-          <Line x1={plotLeft} y1={plotBottom} x2={plotRight} y2={plotBottom} stroke="#E5E7EB" strokeWidth={1} />
+          <YAxis max={max} plotLeft={plotLeft} plotRight={plotRight} plotBottom={plotBottom} plotTop={plotTop} isDark={isDark} />
+          <Line x1={plotLeft} y1={plotBottom} x2={plotRight} y2={plotBottom} stroke={isDark ? '#374151' : '#E5E7EB'} strokeWidth={1} />
           <Polyline points={points.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke="#0d9488" strokeWidth={2} />
           {points.map((p, i) => (
             <Circle key={i} cx={p.x} cy={p.y} r={activeIdx === i ? 5 : 3} fill="#0d9488" onPress={() => setActiveIdx(activeIdx === i ? null : i)} />
           ))}
           {points.map((p, i) =>
             labelIdxs.has(i) ? (
-              <SvgText key={`lbl-${i}`} x={p.x} y={HEIGHT - 10} fontSize={8} fill="#9CA3AF" textAnchor="middle">
+              <SvgText key={`lbl-${i}`} x={p.x} y={HEIGHT - 10} fontSize={8} fill={isDark ? '#9CA3AF' : '#9CA3AF'} textAnchor="middle">
                 {p.d.label.length > 8 ? `${p.d.label.slice(0, 7)}…` : p.d.label}
               </SvgText>
             ) : null,
@@ -103,10 +105,10 @@ export function MiniLineChart({ data }: { data: { label: string; revenue: number
         </Svg>
       )}
       {activeIdx !== null && points[activeIdx] && (
-        <View style={styles.tooltip}>
-          <Text style={styles.tooltipLabel}>{points[activeIdx].d.label}</Text>
+        <View style={[styles.tooltip, isDark && styles.tooltipDark]}>
+          <Text style={[styles.tooltipLabel, isDark && styles.textWhite]}>{points[activeIdx].d.label}</Text>
           <Text style={styles.tooltipValue}>revenue: ₹{points[activeIdx].d.revenue.toLocaleString('en-IN')}</Text>
-          {points[activeIdx].d.topProduct ? <Text style={styles.tooltipSub}>Top product: {points[activeIdx].d.topProduct}</Text> : null}
+          {points[activeIdx].d.topProduct ? <Text style={[styles.tooltipSub, isDark && styles.textMuted]}>Top product: {points[activeIdx].d.topProduct}</Text> : null}
         </View>
       )}
     </View>
@@ -114,6 +116,7 @@ export function MiniLineChart({ data }: { data: { label: string; revenue: number
 }
 
 export function MiniBarChart({ data, dataKey = 'revenue' }: { data: { month?: string; label?: string; revenue: number; topProduct?: string }[]; dataKey?: string }) {
+  const { isDark } = useTheme();
   const [width, setWidth] = useState(0);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
@@ -133,8 +136,8 @@ export function MiniBarChart({ data, dataKey = 'revenue' }: { data: { month?: st
     <View onLayout={onLayout}>
       {width > 0 && (
         <Svg width={width} height={HEIGHT}>
-          <YAxis max={max} plotLeft={plotLeft} plotRight={plotRight} plotBottom={plotBottom} plotTop={plotTop} />
-          <Line x1={plotLeft} y1={plotBottom} x2={plotRight} y2={plotBottom} stroke="#E5E7EB" strokeWidth={1} />
+          <YAxis max={max} plotLeft={plotLeft} plotRight={plotRight} plotBottom={plotBottom} plotTop={plotTop} isDark={isDark} />
+          <Line x1={plotLeft} y1={plotBottom} x2={plotRight} y2={plotBottom} stroke={isDark ? '#374151' : '#E5E7EB'} strokeWidth={1} />
           {data.map((d, i) => {
             const h = (d.revenue / max) * (plotBottom - plotTop);
             const x = plotLeft + i * (barW + gap);
@@ -147,7 +150,7 @@ export function MiniBarChart({ data, dataKey = 'revenue' }: { data: { month?: st
                   fill={activeIdx === i ? '#0f766e' : '#0d9488'}
                   onPress={() => setActiveIdx(activeIdx === i ? null : i)}
                 />
-                <SvgText x={x + barW / 2} y={HEIGHT - 10} fontSize={8} fill="#9CA3AF" textAnchor="middle">
+                <SvgText x={x + barW / 2} y={HEIGHT - 10} fontSize={8} fill={isDark ? '#9CA3AF' : '#9CA3AF'} textAnchor="middle">
                   {label.length > 8 ? `${label.slice(0, 7)}…` : label}
                 </SvgText>
               </React.Fragment>
@@ -156,10 +159,10 @@ export function MiniBarChart({ data, dataKey = 'revenue' }: { data: { month?: st
         </Svg>
       )}
       {activeIdx !== null && data[activeIdx] && (
-        <View style={styles.tooltip}>
-          <Text style={styles.tooltipLabel}>{data[activeIdx].month || data[activeIdx].label}</Text>
+        <View style={[styles.tooltip, isDark && styles.tooltipDark]}>
+          <Text style={[styles.tooltipLabel, isDark && styles.textWhite]}>{data[activeIdx].month || data[activeIdx].label}</Text>
           <Text style={styles.tooltipValue}>revenue: ₹{data[activeIdx].revenue.toLocaleString('en-IN')}</Text>
-          {data[activeIdx].topProduct ? <Text style={styles.tooltipSub}>Top product: {data[activeIdx].topProduct}</Text> : null}
+          {data[activeIdx].topProduct ? <Text style={[styles.tooltipSub, isDark && styles.textMuted]}>Top product: {data[activeIdx].topProduct}</Text> : null}
         </View>
       )}
     </View>
@@ -176,7 +179,10 @@ function EmptyChart({ onLayout }: { onLayout: (e: LayoutChangeEvent) => void }) 
 
 const styles = StyleSheet.create({
   tooltip: { marginTop: 6, backgroundColor: '#fff', borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  tooltipDark: { backgroundColor: '#111827', borderColor: '#374151' },
   tooltipLabel: { fontSize: 11, fontWeight: '700', color: '#374151' },
   tooltipValue: { fontSize: 11, color: CustomerColors.teal700, fontWeight: '600', marginTop: 2 },
   tooltipSub: { fontSize: 10, color: '#6B7280', marginTop: 2 },
+  textWhite: { color: '#F9FAFB' },
+  textMuted: { color: '#9CA3AF' },
 });

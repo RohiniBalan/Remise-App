@@ -1,16 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, FlatList } from 'react-native';
 import { ChevronDown, X } from 'lucide-react-native';
+import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { AVAILABILITY_OPTIONS, ProductFormFields } from '../../utils/productForm';
 import { mergeCategories } from '../../utils/storeCategories';
 import { getSubcategories } from '../../utils/categoryAttributes';
 
-// Extracted from StoreProductFormScreen so both the single manual/scan form
-// and each card in StoreBulkProductScanScreen render the identical field
-// set (everything ProductModal on web has, minus the image picker, which
-// stays screen-specific since single-form uses a gallery/camera picker and
-// bulk cards just show/edit the AI-generated image URL).
 export default function ProductFieldsForm({
   form, set, categories,
 }: {
@@ -18,9 +14,9 @@ export default function ProductFieldsForm({
   set: (k: keyof ProductFormFields, v: string) => void;
   categories: any[];
 }) {
-  // Default (built-in) categories + whatever the store has added itself —
-  // same merge used on the Categories tab and the Analytics filters, so the
-  // picker here isn't limited to only the store's custom entries.
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
+
   const categoryOptions = useMemo(
     () => mergeCategories(categories || []).map(c => ({ key: c.name, label: c.name })),
     [categories],
@@ -33,12 +29,19 @@ export default function ProductFieldsForm({
 
   return (
     <>
-      <Field label="Product Title *" value={form.title} onChangeText={v => set('title', v)} placeholder="e.g. Organic Face Moisturizer" />
+      <Field label="Product Title *" value={form.title} onChangeText={v => set('title', v)} placeholder="e.g. Organic Face Moisturizer" isDark={isDark} styles={styles} />
       <Text style={styles.label}>Description</Text>
-      <TextInput style={[styles.input, { height: 80 }]} multiline value={form.description} onChangeText={v => set('description', v)} placeholder="Describe the product…" />
+      <TextInput
+        style={[styles.input, { height: 80 }]}
+        multiline
+        value={form.description}
+        onChangeText={v => set('description', v)}
+        placeholder="Describe the product…"
+        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+      />
       <View style={styles.row2}>
-        <Field label="Price (₹) *" value={form.price} onChangeText={v => set('price', v)} keyboardType="numeric" style={{ flex: 1 }} />
-        <Field label="Discounted Price (₹)" value={form.discountedPrice} onChangeText={v => set('discountedPrice', v)} keyboardType="numeric" style={{ flex: 1 }} />
+        <Field label="Price (₹) *" value={form.price} onChangeText={v => set('price', v)} keyboardType="numeric" style={{ flex: 1 }} isDark={isDark} styles={styles} />
+        <Field label="Discounted Price (₹)" value={form.discountedPrice} onChangeText={v => set('discountedPrice', v)} keyboardType="numeric" style={{ flex: 1 }} isDark={isDark} styles={styles} />
       </View>
 
       <SelectField
@@ -50,6 +53,8 @@ export default function ProductFieldsForm({
           set('category', key);
           set('subcategory', '');
         }}
+        isDark={isDark}
+        styles={styles}
       />
 
       <SelectField
@@ -59,10 +64,12 @@ export default function ProductFieldsForm({
         options={subcategoryOptions}
         disabled={!form.category || subcategoryOptions.length === 0}
         onSelect={key => set('subcategory', key)}
+        isDark={isDark}
+        styles={styles}
       />
 
-      <Field label="Brand" value={form.brand} onChangeText={v => set('brand', v)} placeholder="e.g. Nivea" />
-      <Field label="Stock Quantity" value={form.totalStock} onChangeText={v => set('totalStock', v)} keyboardType="numeric" />
+      <Field label="Brand" value={form.brand} onChangeText={v => set('brand', v)} placeholder="e.g. Nivea" isDark={isDark} styles={styles} />
+      <Field label="Stock Quantity" value={form.totalStock} onChangeText={v => set('totalStock', v)} keyboardType="numeric" isDark={isDark} styles={styles} />
 
       <Text style={styles.label}>Availability</Text>
       <View style={styles.chipRow}>
@@ -73,24 +80,26 @@ export default function ProductFieldsForm({
         ))}
       </View>
 
-      <Field label="Tags (comma-separated)" value={form.tags} onChangeText={v => set('tags', v)} placeholder="e.g. skincare, organic" />
+      <Field label="Tags (comma-separated)" value={form.tags} onChangeText={v => set('tags', v)} placeholder="e.g. skincare, organic" isDark={isDark} styles={styles} />
     </>
   );
 }
 
-function Field({ label, style, ...props }: { label: string; style?: any } & React.ComponentProps<typeof TextInput>) {
+function Field({ label, style, isDark, styles, ...props }: { label: string; style?: any; isDark: boolean; styles: any } & React.ComponentProps<typeof TextInput>) {
   return (
     <View style={[{ marginBottom: Spacing.md }, style]}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} {...props} />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+        {...props}
+      />
     </View>
   );
 }
 
-// Modal-based dropdown since RN has no native <select>. Same pattern used
-// on the Store Settings screen (State/City) and the Analytics filters.
 function SelectField({
-  label, value, placeholder, options, disabled, onSelect,
+  label, value, placeholder, options, disabled, onSelect, isDark, styles,
 }: {
   label: string;
   value: string;
@@ -98,6 +107,8 @@ function SelectField({
   options: { key: string; label: string }[];
   disabled?: boolean;
   onSelect: (key: string, label: string) => void;
+  isDark: boolean;
+  styles: any;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -111,7 +122,7 @@ function SelectField({
         <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
           {value || placeholder}
         </Text>
-        <ChevronDown size={16} color={CustomerColors.textSecondary} />
+        <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -120,7 +131,7 @@ function SelectField({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{label}</Text>
               <TouchableOpacity onPress={() => setOpen(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -146,27 +157,43 @@ function SelectField({
   );
 }
 
-const styles = StyleSheet.create({
-  label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  label: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
+  input: {
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontSize: FontSizes.sm,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+  },
   row2: { flexDirection: 'row', gap: Spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.md },
-  chip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  chipActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
-  chipText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, fontWeight: '600' },
+  chip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
+  },
+  chipActive: { backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600, borderColor: isDark ? '#0f766e' : CustomerColors.teal600 },
+  chipText: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
   chipTextActive: { color: '#fff' },
 
   // ── Category dropdown ──
   selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   selectDisabled: { opacity: 0.5 },
-  selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },
-  selectPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF', flex: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, maxHeight: '70%', paddingBottom: Spacing.lg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
-  modalItem: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
-  modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '700' },
-  modalEmpty: { textAlign: 'center', color: '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
+  selectValue: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
+  selectPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#6B7280' : '#9CA3AF', flex: 1 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: isDark ? '#111827' : '#fff', borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, maxHeight: '70%', paddingBottom: Spacing.lg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F5F5F5' },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  modalItem: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F5F5F5' },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#E5E7EB' : CustomerColors.black },
+  modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' },
+  modalEmpty: { textAlign: 'center', color: isDark ? '#6B7280' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
 });

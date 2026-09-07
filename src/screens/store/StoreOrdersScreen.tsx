@@ -1,26 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { Search, Store, Truck, QrCode, Wallet, ShoppingBag, AlertCircle, FileText, CreditCard } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useTheme } from '../../context/ThemeContext';
 import { offersApi } from '../../api/offersApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
-
-// Ported from client/app/store/dashboard/page.tsx's OrdersTab — same merge
-// of OfferOrder + smart-order sources, same search + status filter, same
-// delivery-method/payment-method chips for smart orders, same
-// status-update-only-for-OfferOrder-sourced-orders restriction (smart
-// orders show a read-only status badge — no status-change UI exists for
-// that source on web either).
-const ORDER_STATUSES = ['Pending', 'Confirmed', 'Ready', 'Out for Delivery', 'Delivered', 'Cancelled'];
-
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
+
+const ORDER_STATUSES = ['Pending', 'Confirmed', 'Ready', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
 export default function StoreOrdersScreen() {
   const navigation = useNavigation<any>();
   const { orders, loading, refresh } = useStoreDashboard();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
+
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,7 +46,6 @@ export default function StoreOrdersScreen() {
     currentPage * ITEMS_PER_PAGE
   );
 
-
   const handleStatus = async (orderId: string, status: string) => {
     setUpdating(orderId);
     try {
@@ -63,15 +59,25 @@ export default function StoreOrdersScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={CustomerColors.teal700} /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.topActionBar}>
         <View style={styles.searchRow}>
-          <Search size={14} color={CustomerColors.textSecondary} />
-          <TextInput style={styles.searchInput} value={search} onChangeText={setSearch} placeholder="Search by customer or offer…" />
+          <Search size={14} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search by customer or offer…"
+            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          />
         </View>
         <TouchableOpacity
           style={styles.deliveryLogsNavBtn}
@@ -84,7 +90,6 @@ export default function StoreOrdersScreen() {
 
       <View style={styles.filterRow}>
         {['all', ...ORDER_STATUSES].map(s => (
-
           <TouchableOpacity key={s} style={[styles.filterChip, filter === s && styles.filterChipActive]} onPress={() => setFilter(s)}>
             <Text style={[styles.filterChipText, filter === s && styles.filterChipTextActive]}>
               {s === 'all' ? `All (${counts.all})` : `${s} (${counts[s] || 0})`}
@@ -99,7 +104,7 @@ export default function StoreOrdersScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <ShoppingBag size={40} color="#E5E7EB" />
+            <ShoppingBag size={40} color={isDark ? '#374151' : '#E5E7EB'} />
             <Text style={styles.emptyTitle}>No orders found</Text>
           </View>
         }
@@ -112,7 +117,6 @@ export default function StoreOrdersScreen() {
           />
         }
         renderItem={({ item: o }) => (
-
           <View style={styles.card}>
             <View style={styles.orderHeaderRow}>
               <Text style={styles.orderTitle} numberOfLines={1}>{o.offerTitle}</Text>
@@ -132,16 +136,16 @@ export default function StoreOrdersScreen() {
             {o._source === 'smartOrder' && o.deliveryMethod && (
               <View style={styles.chipRow}>
                 <View style={styles.metaChip}>
-                  {o.deliveryMethod === 'pickup' ? <Store size={10} color="#6B7280" /> : <Truck size={10} color="#6B7280" />}
+                  {o.deliveryMethod === 'pickup' ? <Store size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : <Truck size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />}
                   <Text style={styles.metaChipText}>{o.deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}</Text>
                 </View>
                 <View style={styles.metaChip}>
-                  {o.paymentMethod === 'razorpay' ? <CreditCard size={10} color="#6B7280" /> : o.paymentMethod === 'qr' ? <QrCode size={10} color="#6B7280" /> : <Wallet size={10} color="#6B7280" />}
+                  {o.paymentMethod === 'razorpay' ? <CreditCard size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : o.paymentMethod === 'qr' ? <QrCode size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : <Wallet size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />}
                   <Text style={styles.metaChipText}>{o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR' : 'Cash'} · {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'}</Text>
                 </View>
                 {o.vendorTransfers?.[0] ? (
-                  <View style={[styles.metaChip, { backgroundColor: '#F0FDFA' }]}>
-                    <Text style={[styles.metaChipText, { color: CustomerColors.teal700, fontWeight: '700' }]}>
+                  <View style={[styles.metaChip, { backgroundColor: isDark ? '#134e4a' : '#F0FDFA' }]}>
+                    <Text style={[styles.metaChipText, { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' }]}>
                       Route: {o.vendorTransfers[0].transferStatus?.toUpperCase()} (Net ₹{o.vendorTransfers[0].vendorAmount})
                     </Text>
                   </View>
@@ -154,7 +158,7 @@ export default function StoreOrdersScreen() {
             <View style={styles.footerRow}>
               <View style={styles.footerTop}>
                 <Text style={styles.orderId}>#{o._id.slice(-6).toUpperCase()}</Text>
-                {updating === o._id && <ActivityIndicator size="small" color={CustomerColors.teal700} style={{ marginLeft: 6 }} />}
+                {updating === o._id && <ActivityIndicator size="small" color={isDark ? '#2DD4BF' : CustomerColors.teal700} style={{ marginLeft: 6 }} />}
               </View>
               <Text style={styles.orderAmount}>₹{o.totalAmount}</Text>
 
@@ -168,7 +172,7 @@ export default function StoreOrdersScreen() {
                       style={styles.deliveryFlowBtn}
                       onPress={() => setSelectedDeliveryOrder(o)}
                     >
-                      <Truck size={12} color={CustomerColors.teal700} />
+                      <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                       <Text style={styles.deliveryFlowBtnText}>
                         {o.deliveryToken ? 'View Delivery Link' : 'Manage Delivery'}
                       </Text>
@@ -180,7 +184,6 @@ export default function StoreOrdersScreen() {
                 ) : (
                   <View style={styles.statusChipRow}>
                     {ORDER_STATUSES.map(s => (
-
                       <TouchableOpacity key={s} style={[styles.statusOption, o.status === s && styles.statusOptionActive]} onPress={() => handleStatus(o._id, s)} disabled={updating === o._id}>
                         <Text style={[styles.statusOptionText, o.status === s && styles.statusOptionTextActive]}>{s}</Text>
                       </TouchableOpacity>
@@ -223,58 +226,116 @@ export default function StoreOrdersScreen() {
   );
 }
 
-
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.bg },
-  topActionBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.md, marginTop: Spacing.md },
-  searchRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.white, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-
-  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm },
-  deliveryLogsNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: CustomerColors.teal700, paddingHorizontal: 12, paddingVertical: 10, borderRadius: BorderRadius.md },
-  deliveryLogsNavBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, paddingHorizontal: Spacing.md, marginTop: Spacing.sm },
-  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.pill, backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  filterChipActive: { backgroundColor: CustomerColors.mint, borderColor: CustomerColors.teal600 },
-  filterChipText: { fontSize: 10, color: CustomerColors.textSecondary, fontWeight: '600' },
-  filterChipTextActive: { color: CustomerColors.teal700 },
-  list: { padding: Spacing.md },
-  empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
-  emptyTitle: { fontSize: FontSizes.base, fontWeight: '700', color: '#374151' },
-  card: { backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.sm },
-  orderTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
-  orderCustomer: { fontSize: FontSizes.xs, color: '#4B5563', marginTop: 2 },
-  orderAddress: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 2 },
-  chipRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs, flexWrap: 'wrap' },
-  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CustomerColors.bg, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.pill },
-  metaChipText: { fontSize: 10, color: '#6B7280', fontWeight: '600' },
-  footerRow: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F5F5F5' },
-  orderAmount: { fontSize: FontSizes.md, fontWeight: '800', color: CustomerColors.teal700, marginBottom: Spacing.xs },
-  orderHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6 },
-  deliveryBadge: { backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
-  deliveryBadgeText: { fontSize: 9, fontWeight: '700', color: CustomerColors.teal700 },
-  actionButtonsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  deliveryFlowBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingHorizontal: 10, paddingVertical: 6, borderRadius: BorderRadius.md },
-  deliveryFlowBtnText: { fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 },
-  statusBadge: { alignSelf: 'flex-start', backgroundColor: CustomerColors.mint, paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.pill },
-  statusBadgeText: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.teal700 },
-  statusChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  statusOption: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.pill, backgroundColor: CustomerColors.bg, borderWidth: 1, borderColor: CustomerColors.steelBorder },
-  statusOptionActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
-  statusOptionText: { fontSize: 9, color: CustomerColors.textSecondary, fontWeight: '600' },
-  statusOptionTextActive: { color: '#fff' },
-  orderNotes: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, fontStyle: 'italic', marginTop: 2 },
-  orderDate: { fontSize: 10, color: '#9CA3AF', marginTop: 4 },
-  footerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  orderId: { fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace' },
-  errorModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: Spacing.md },
-  errorModalCard: { width: '100%', maxWidth: 360, backgroundColor: '#fff', borderRadius: BorderRadius.lg, padding: Spacing.lg, alignItems: 'center', gap: Spacing.xs },
-  errorModalIconWrap: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  errorModalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
-  errorModalMsg: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm },
-  errorModalBtn: { width: '100%', backgroundColor: CustomerColors.black, paddingVertical: 12, borderRadius: BorderRadius.md, alignItems: 'center' },
-  errorModalBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    topActionBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.md, marginTop: Spacing.md },
+    searchRow: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      paddingHorizontal: Spacing.md,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    },
+    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+    deliveryLogsNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: CustomerColors.teal700, paddingHorizontal: 12, paddingVertical: 10, borderRadius: BorderRadius.md },
+    deliveryLogsNavBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+    filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, paddingHorizontal: Spacing.md, marginTop: Spacing.sm },
+    filterChip: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.pill,
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    },
+    filterChipActive: { backgroundColor: isDark ? '#134e4a' : CustomerColors.mint, borderColor: isDark ? '#2DD4BF' : CustomerColors.teal600 },
+    filterChipText: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
+    filterChipTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    list: { padding: Spacing.md },
+    empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
+    emptyTitle: { fontSize: FontSizes.base, fontWeight: '700', color: isDark ? '#9CA3AF' : '#374151' },
+    card: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      padding: Spacing.md,
+      marginBottom: Spacing.sm,
+    },
+    orderTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    orderCustomer: { fontSize: FontSizes.xs, color: isDark ? '#D1D5DB' : '#4B5563', marginTop: 2 },
+    orderAddress: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
+    chipRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs, flexWrap: 'wrap' },
+    metaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: BorderRadius.pill,
+    },
+    metaChipText: { fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', fontWeight: '600' },
+    footerRow: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F5F5F5' },
+    orderAmount: { fontSize: FontSizes.md, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginBottom: Spacing.xs },
+    orderHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6 },
+    deliveryBadge: { backgroundColor: isDark ? '#134e4a' : CustomerColors.mint, borderWidth: 1, borderColor: isDark ? '#115e59' : CustomerColors.steelBorder, paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
+    deliveryBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    actionButtonsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+    deliveryFlowBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? '#134e4a' : CustomerColors.mint,
+      borderWidth: 1,
+      borderColor: isDark ? '#115e59' : CustomerColors.steelBorder,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+    },
+    deliveryFlowBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    statusBadge: { alignSelf: 'flex-start', backgroundColor: isDark ? '#134e4a' : CustomerColors.mint, paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.pill },
+    statusBadgeText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    statusChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    statusOption: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: BorderRadius.pill,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    },
+    statusOptionActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
+    statusOptionText: { fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
+    statusOptionTextActive: { color: '#fff' },
+    orderNotes: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontStyle: 'italic', marginTop: 2 },
+    orderDate: { fontSize: 10, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 4 },
+    footerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    orderId: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF', fontFamily: 'monospace' },
+    errorModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.md },
+    errorModalCard: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: isDark ? '#111827' : '#fff',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      alignItems: 'center',
+      gap: Spacing.xs,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? '#1F2937' : 'transparent',
+    },
+    errorModalIconWrap: { width: 50, height: 50, borderRadius: 25, backgroundColor: isDark ? '#450a0a' : '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+    errorModalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    errorModalMsg: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm },
+    errorModalBtn: { width: '100%', backgroundColor: CustomerColors.primary, paddingVertical: 12, borderRadius: BorderRadius.md, alignItems: 'center' },
+    errorModalBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
+  });
 

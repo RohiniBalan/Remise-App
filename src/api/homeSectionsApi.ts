@@ -29,6 +29,8 @@ export interface BestSellerItem {
   reviews?: number;
   soldCount?: number;
   badge?: string;
+  totalStock?: number;
+  raw?: any;
 }
 
 // ── Constants ported from web's ShopByCategorySection.tsx ──────────────────
@@ -105,6 +107,8 @@ export function mapProduct(p: any): BestSellerItem {
     reviews: typeof p.reviews === 'number' ? p.reviews : undefined,
     soldCount: p.soldCount,
     badge: 'Best Seller',
+    totalStock: p.totalStock,
+    raw: p,
   };
 }
 

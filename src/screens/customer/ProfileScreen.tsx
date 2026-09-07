@@ -36,6 +36,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { authApi } from '../../api/authApi';
 import {
   CustomerColors,
@@ -122,10 +123,23 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user, updateUser, logout } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState<{
+    visible: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
   const [form, setForm] = useState<{
     fullname: string;
     email: string;
@@ -279,12 +293,19 @@ export default function ProfileScreen() {
       const payload = nextForm || form;
       await authApi.updateProfile(payload);
       await updateUser({ ...payload, profileData: payload.profileData });
-      Alert.alert('Saved', 'Profile updated.');
+      setFeedbackModal({
+        visible: true,
+        type: 'success',
+        title: 'Profile Updated',
+        message: 'Your profile details and changes have been saved successfully.',
+      });
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Unable to save profile.',
-      );
+      setFeedbackModal({
+        visible: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: error.response?.data?.message || 'Unable to save profile details. Please try again.',
+      });
     } finally {
       setSaving(false);
     }
@@ -292,7 +313,12 @@ export default function ProfileScreen() {
 
   const handlePasswordChange = async () => {
     if (security.newPassword !== security.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      setFeedbackModal({
+        visible: true,
+        type: 'error',
+        title: 'Password Mismatch',
+        message: 'New password and confirm password do not match.',
+      });
       return;
     }
     try {
@@ -300,17 +326,24 @@ export default function ProfileScreen() {
         security.currentPassword,
         security.newPassword,
       );
-      Alert.alert('Success', 'Password updated.');
+      setFeedbackModal({
+        visible: true,
+        type: 'success',
+        title: 'Password Updated',
+        message: 'Your account password has been changed securely.',
+      });
       setSecurity({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Unable to change password.',
-      );
+      setFeedbackModal({
+        visible: true,
+        type: 'error',
+        title: 'Password Change Failed',
+        message: error.response?.data?.message || 'Unable to change password.',
+      });
     }
   };
 
@@ -748,10 +781,10 @@ export default function ProfileScreen() {
               style={[
                 styles.saveBtn,
                 {
-                  backgroundColor: '#FFF5F5',
+                  backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : '#FFF5F5',
                   marginTop: Spacing.md,
                   borderWidth: 1,
-                  borderColor: '#FFD0D0',
+                  borderColor: isDark ? 'rgba(255, 0, 0, 0.3)' : '#FFD0D0',
                 },
               ]}
               onPress={() => setLogoutModalOpen(true)}
@@ -1062,337 +1095,463 @@ export default function ProfileScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ── Beautiful Profile Feedback / Alert Modal ────────────────── */}
+      <Modal
+        visible={feedbackModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+        >
+          <Pressable style={styles.feedbackCard} onPress={() => {}}>
+            <View
+              style={[
+                styles.feedbackIconWrap,
+                feedbackModal.type === 'success'
+                  ? styles.feedbackSuccessIconWrap
+                  : styles.feedbackErrorIconWrap,
+              ]}
+            >
+              {feedbackModal.type === 'success' ? (
+                <CheckCircle size={32} color="#16A34A" />
+              ) : (
+                <AlertCircle size={32} color="#DC2626" />
+              )}
+            </View>
+
+            <Text style={styles.feedbackTitle}>{feedbackModal.title}</Text>
+            <Text style={styles.feedbackSubtitle}>{feedbackModal.message}</Text>
+
+            <TouchableOpacity
+              style={[
+                styles.feedbackActionBtn,
+                feedbackModal.type === 'success'
+                  ? { backgroundColor: CustomerColors.primary }
+                  : { backgroundColor: '#DC2626' },
+              ]}
+              onPress={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.feedbackActionBtnText}>OK</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CustomerColors.bg },
-  heading: {
-    fontSize: FontSizes.xl,
-    fontWeight: '800',
-    color: CustomerColors.black,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: CustomerColors.primary,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
-  secondaryBtn: {
-    backgroundColor: CustomerColors.white,
-    borderColor: CustomerColors.steelBorder,
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  secondaryBtnText: {
-    color: CustomerColors.textSecondary,
-    fontWeight: '700',
-    fontSize: FontSizes.xs,
-  },
-  profileCard: {
-    backgroundColor: CustomerColors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    marginBottom: Spacing.md,
-  },
-  avatarRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: CustomerColors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.lg },
-  avatarName: {
-    fontSize: FontSizes.base,
-    fontWeight: '800',
-    color: CustomerColors.black,
-  },
-  avatarEmail: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary },
-  verifiedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-    gap: 4,
-  },
-  verifiedPillText: {
-    color: CustomerColors.success,
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-  },
-  tabBar: { paddingVertical: Spacing.sm, gap: Spacing.sm },
-  tab: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.pill,
-    backgroundColor: CustomerColors.white,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-  },
-  tabActive: { backgroundColor: CustomerColors.teal600 },
-  tabText: { color: CustomerColors.textSecondary, fontWeight: '700' },
-  tabTextActive: { color: '#fff' },
-  cardSection: {
-    backgroundColor: CustomerColors.white,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  sectionTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '800',
-    color: CustomerColors.black,
-    marginBottom: Spacing.sm,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    marginBottom: Spacing.sm,
-    fontSize: FontSizes.sm,
-    color: CustomerColors.black,
-    backgroundColor: CustomerColors.white,
-  },
-  label: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    marginBottom: Spacing.xs,
-    textTransform: 'uppercase',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  inlineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  inlineInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-  },
-  smallActionBtn: {
-    backgroundColor: CustomerColors.primary,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-  },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chipPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: CustomerColors.bg,
-    borderRadius: BorderRadius.pill,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-  },
-  chipText: { color: CustomerColors.textSecondary, fontSize: FontSizes.xs },
-  addressCard: {
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  addressTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-    color: CustomerColors.black,
-  },
-  addressText: {
-    fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
-    marginTop: 2,
-  },
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
-  eyeBtn: { marginLeft: Spacing.sm, padding: Spacing.xs },
-  dobInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dobValue: { fontSize: FontSizes.sm, color: CustomerColors.black },
-  dobPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF' },
-  logoutBtn: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: '#FFD0D0',
-    backgroundColor: '#FFF5F5',
-  },
-  logoutBtnText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.primary,
-  },
-  // ── Logout Modal ──────────────────────────────────────────────────────────
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-    paddingBottom: 36,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 20,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E2E8F0',
-    marginBottom: Spacing.lg,
-  },
-  modalIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFF0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#FFD0D0',
-  },
-  modalTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: '800',
-    color: '#1A1A2E',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.xl,
-    paddingHorizontal: Spacing.sm,
-  },
-  modalConfirmBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: CustomerColors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: 14,
-    width: '100%',
-    marginBottom: Spacing.sm,
-    shadowColor: CustomerColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  modalConfirmBtnText: {
-    color: '#FFFFFF',
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  modalCancelBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: 14,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  modalCancelBtnText: {
-    color: CustomerColors.textSecondary,
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-  },
-  guestContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-    marginTop: 40,
-  },
-  guestAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-  },
-  guestTitle: {
-    fontSize: FontSizes.xl,
-    fontWeight: '800',
-    color: CustomerColors.black,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
-  },
-  guestSubtitle: {
-    fontSize: FontSizes.sm,
-    color: CustomerColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.xl,
-    maxWidth: 280,
-  },
-  guestLoginActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: CustomerColors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: BorderRadius.pill,
-    shadowColor: CustomerColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  guestLoginActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-  },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
+    },
+    heading: {
+      fontSize: FontSizes.xl,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: Spacing.md,
+    },
+    saveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      backgroundColor: CustomerColors.primary,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+    },
+    saveBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+    secondaryBtn: {
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderWidth: 1,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: Spacing.xs,
+    },
+    secondaryBtnText: {
+      color: isDark ? '#D1D5DB' : CustomerColors.textSecondary,
+      fontWeight: '700',
+      fontSize: FontSizes.xs,
+    },
+    profileCard: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      marginBottom: Spacing.md,
+    },
+    avatarRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
+    avatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: CustomerColors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.lg },
+    avatarName: {
+      fontSize: FontSizes.base,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    avatarEmail: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    },
+    verifiedPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: Spacing.xs,
+      gap: 4,
+    },
+    verifiedPillText: {
+      color: CustomerColors.success,
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+    },
+    tabBar: { paddingVertical: Spacing.sm, gap: Spacing.sm },
+    tab: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 8,
+      borderRadius: BorderRadius.pill,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    },
+    tabActive: {
+      backgroundColor: CustomerColors.teal600,
+      borderColor: CustomerColors.teal600,
+    },
+    tabText: {
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      fontWeight: '700',
+    },
+    tabTextActive: { color: '#fff' },
+    cardSection: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.lg,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      padding: Spacing.md,
+      marginTop: Spacing.md,
+    },
+    sectionTitle: {
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginBottom: Spacing.sm,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      marginBottom: Spacing.sm,
+      fontSize: FontSizes.sm,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    },
+    label: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginBottom: Spacing.xs,
+      textTransform: 'uppercase',
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: Spacing.sm,
+    },
+    inlineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+    inlineInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: Spacing.sm,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    },
+    smallActionBtn: {
+      backgroundColor: CustomerColors.primary,
+      borderRadius: BorderRadius.md,
+      padding: Spacing.sm,
+    },
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+    chipPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
+      borderRadius: BorderRadius.pill,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 6,
+    },
+    chipText: {
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      fontSize: FontSizes.xs,
+    },
+    addressCard: {
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      padding: Spacing.md,
+      marginTop: Spacing.sm,
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+    },
+    addressTitle: {
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    addressText: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginTop: 2,
+    },
+    passwordRow: { flexDirection: 'row', alignItems: 'center' },
+    eyeBtn: { marginLeft: Spacing.sm, padding: Spacing.xs },
+    dobInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    dobValue: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    dobPlaceholder: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#6B7280' : '#9CA3AF',
+    },
+    logoutBtn: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 0, 0, 0.3)' : '#FFD0D0',
+      backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : '#FFF5F5',
+    },
+    logoutBtnText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: CustomerColors.primary,
+    },
+    // ── Logout Modal ──────────────────────────────────────────────────────────
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.md,
+      paddingBottom: 36,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      elevation: 20,
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDark ? '#374151' : '#E2E8F0',
+      marginBottom: Spacing.lg,
+    },
+    modalIconWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : '#FFF0F0',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.md,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 0, 0, 0.3)' : '#FFD0D0',
+    },
+    modalTitle: {
+      fontSize: FontSizes.xl,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : '#1A1A2E',
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    modalSubtitle: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: Spacing.xl,
+      paddingHorizontal: Spacing.sm,
+    },
+    modalConfirmBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: CustomerColors.primary,
+      borderRadius: BorderRadius.lg,
+      paddingVertical: 14,
+      width: '100%',
+      marginBottom: Spacing.sm,
+      shadowColor: CustomerColors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    modalConfirmBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.base,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+    },
+    modalCancelBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+      borderRadius: BorderRadius.lg,
+      paddingVertical: 14,
+      width: '100%',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+    },
+    modalCancelBtnText: {
+      color: isDark ? '#D1D5DB' : CustomerColors.textSecondary,
+      fontSize: FontSizes.base,
+      fontWeight: '600',
+    },
+    guestContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: Spacing.xl,
+      marginTop: 40,
+    },
+    guestAvatar: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : '#FEE2E2',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.lg,
+    },
+    guestTitle: {
+      fontSize: FontSizes.xl,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginBottom: Spacing.xs,
+      textAlign: 'center',
+    },
+    guestSubtitle: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: Spacing.xl,
+      maxWidth: 280,
+    },
+    guestLoginActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: CustomerColors.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 14,
+      borderRadius: BorderRadius.pill,
+      shadowColor: CustomerColors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    guestLoginActionBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.base,
+      fontWeight: '700',
+    },
+    feedbackCard: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.xl,
+      alignItems: 'center',
+      width: '85%',
+      maxWidth: 340,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E5E7EB',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: isDark ? 0.4 : 0.15,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    feedbackIconWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.md,
+    },
+    feedbackSuccessIconWrap: {
+      backgroundColor: isDark ? 'rgba(22, 163, 74, 0.15)' : '#DCFCE7',
+    },
+    feedbackErrorIconWrap: {
+      backgroundColor: isDark ? 'rgba(220, 38, 38, 0.15)' : '#FEE2E2',
+    },
+    feedbackTitle: {
+      fontSize: FontSizes.lg,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginBottom: Spacing.xs,
+      textAlign: 'center',
+    },
+    feedbackSubtitle: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: Spacing.lg,
+    },
+    feedbackActionBtn: {
+      width: '100%',
+      paddingVertical: 12,
+      borderRadius: BorderRadius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    feedbackActionBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.base,
+      fontWeight: '700',
+    },
+  });
