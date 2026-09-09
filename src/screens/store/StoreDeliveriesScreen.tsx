@@ -342,7 +342,7 @@ export default function StoreDeliveriesScreen() {
                     {o.offerTitle}
                   </Text>
                   <Text style={styles.paymentInfoText}>
-                    ₹{o.totalAmount} · {o.paymentMethod === 'qr' ? 'QR Payment' : 'Cash on Delivery'} (
+                    ₹{o.totalAmount} · {o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR Payment' : o.paymentMethod === 'cod' ? 'Cash on Delivery' : (o.paymentMethod || 'Online')} (
                     {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'})
                   </Text>
                 </View>

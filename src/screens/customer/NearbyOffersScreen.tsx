@@ -13,11 +13,8 @@ import {
   Platform,
   Alert,
   Linking,
-  ScrollView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import {
   MapPin,
   Clock,
@@ -26,25 +23,17 @@ import {
   X,
   Truck,
   Store,
-  Wallet,
   CreditCard,
-  QrCode,
   ShieldCheck,
   Smartphone,
   Building2,
   Lock,
   CheckCircle2,
   ChevronRight,
-  Upload,
   Check,
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { offersApi } from '../../api/offersApi';
-import { storeApi } from '../../api/storeApi';
-import { requireAuthForPurchase } from '../../utils/authGuard';
-import { requestCameraPermission } from '../../utils/permissions';
-import { LocationSelectField, lookupPincode } from '../../components/common/LocationSelectField';
-import { indianStates, getCities } from '../../utils/indiaLocation';
 import { GATEWAY_URL } from '../../api/endpoints';
 import {
   CustomerColors,
@@ -54,34 +43,35 @@ import {
 } from '../../styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
-import HomeFooter from '../../components/home/HomeFooter';
+import { Offer } from '../../types';
+
+interface OrderModalProps {
+  offer: Offer;
+  onClose: () => void;
+}
 
 const RADIUS_OPTIONS = [2, 5, 10, 20];
-
-interface Offer {
-  _id: string;
-  title: string;
-  description: string;
-  image: string;
-  storeName: string;
-  storeId: string;
-  originalPrice: number;
-  offerPrice: number;
-  discountPercent: number;
-  validUntil: string;
-  distanceKm: number;
-}
 
 async function requestLocationPermission(): Promise<
   'granted' | 'denied' | 'blocked'
 > {
   if (Platform.OS !== 'android') return 'granted';
-  const result = await PermissionsAndroid.request(
-    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-  );
-  if (result === PermissionsAndroid.RESULTS.GRANTED) return 'granted';
-  if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) return 'blocked';
-  return 'denied';
+  try {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      {
+        title: 'Location Permission',
+        message: 'Remise needs your location to show nearby offers.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Deny',
+      },
+    );
+    if (granted === PermissionsAndroid.RESULTS.GRANTED) return 'granted';
+    if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) return 'blocked';
+    return 'denied';
+  } catch {
+    return 'denied';
+  }
 }
 
 const resolveImage = (img?: string) => {
@@ -259,7 +249,6 @@ export default function NearbyOffersScreen() {
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.list}
-          ListFooterComponent={<HomeFooter />}
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={styles.emptyEmoji}>🔍</Text>
@@ -389,15 +378,9 @@ function OrderModal({
 
   const [step, setStep] = useState<Step>('details');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup' | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'qr' | 'razorpay' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
-  const [storeQr, setStoreQr] = useState<string | null>(null);
-  const [storeUpiId, setStoreUpiId] = useState<string | null>(null);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [utrNumber, setUtrNumber] = useState('');
-  const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
   const [orderId, setOrderId] = useState('');
-  const [copiedUpi, setCopiedUpi] = useState(false);
   const [selectedStateCode, setSelectedStateCode] = useState('');
 
   const [form, setForm] = useState({
@@ -421,34 +404,6 @@ function OrderModal({
     if (!selectedStateCode) return [];
     return getCities(selectedStateCode) || [];
   }, [selectedStateCode]);
-
-  // Load store QR code and UPI when QR payment is selected
-  useEffect(() => {
-    if (paymentMethod !== 'qr' || !offer.storeId) return;
-    let cancelled = false;
-    setQrLoading(true);
-    storeApi
-      .getById(offer.storeId)
-      .then(res => {
-        if (!cancelled) {
-          const s = res.data?.data;
-          setStoreQr(s?.qrCodeImage || null);
-          setStoreUpiId(s?.upiId || s?.phone ? `${s?.phone || ''}@upi` : null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStoreQr(null);
-          setStoreUpiId(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setQrLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentMethod, offer.storeId]);
 
   const total = (offer.offerPrice * (parseInt(form.quantity, 10) || 1)).toFixed(0);
 
@@ -500,31 +455,7 @@ function OrderModal({
     setStep('payment');
   };
 
-  const pickScreenshot = () => {
-    Alert.alert('Payment Proof', 'Take a photo of your payment or choose from gallery.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const granted = await requestCameraPermission();
-          if (!granted) return;
-          const res = await launchCamera({ mediaType: 'photo', quality: 0.8 });
-          const uri = res.assets?.[0]?.uri;
-          if (uri) setScreenshotUri(uri);
-        },
-      },
-      {
-        text: 'Choose from Gallery',
-        onPress: async () => {
-          const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
-          const uri = res.assets?.[0]?.uri;
-          if (uri) setScreenshotUri(uri);
-        },
-      },
-    ]);
-  };
-
-  const handlePlaceOrder = async (overrideMethod?: 'razorpay' | 'cod' | 'qr') => {
+  const handlePlaceOrder = async () => {
     if (
       !requireAuthForPurchase({
         navigation,
@@ -534,13 +465,7 @@ function OrderModal({
     )
       return;
 
-    const methodToUse = (typeof overrideMethod === 'string' && (overrideMethod === 'razorpay' || overrideMethod === 'cod' || overrideMethod === 'qr'))
-      ? overrideMethod
-      : paymentMethod;
-    if (!deliveryMethod || !methodToUse) return;
-    if (typeof overrideMethod === 'string') {
-      setPaymentMethod(overrideMethod);
-    }
+    if (!deliveryMethod) return;
 
     setStep('placing');
     setError('');
@@ -554,10 +479,8 @@ function OrderModal({
         state: form.state,
         pinCode: form.pinCode,
         deliveryMethod,
-        paymentMethod: methodToUse === 'razorpay' ? 'razorpay' : methodToUse === 'qr' ? 'qr' : 'cod',
-        paymentStatus: methodToUse === 'razorpay' ? 'Completed' : 'Pending',
-        utrNumber: utrNumber.trim() || undefined,
-        screenshot: screenshotUri || undefined,
+        paymentMethod: 'razorpay',
+        paymentStatus: 'Completed',
         quantity: parseInt(form.quantity, 10) || 1,
       });
 
@@ -868,197 +791,50 @@ function OrderModal({
               <View>
                 <Text style={styles.fieldSectionLabel}>3. Payment Method</Text>
                 <Text style={styles.stepSubtitle}>
-                  Choose how you'd like to pay for your order:
+                  Pay securely for {offer.storeName}:
                 </Text>
               </View>
 
-              {/* No specific payment method selected yet */}
-              {!paymentMethod && (
-                <View style={{ gap: Spacing.sm }}>
-                  {/* 1. Razorpay Online Payment */}
-                  <TouchableOpacity
-                    style={[styles.optionCard, styles.razorpayOptionCard]}
-                    onPress={() => handlePlaceOrder('razorpay')}
-                  >
-                    <View style={styles.razorpayIconBox}>
-                      <CreditCard size={20} color="#FFFFFF" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
-                        <Text style={styles.optionTitle}>Online Payment (Razorpay)</Text>
-                        <View style={styles.instantBadge}>
-                          <Text style={styles.instantBadgeText}>INSTANT · SECURE</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.optionDesc}>
-                        UPI (GPay, PhonePe, Paytm), Debit/Credit Cards, Net Banking & Wallets.
-                      </Text>
-                      <View style={styles.pillRow}>
-                        <View style={styles.pill}><Text style={styles.pillText}>⚡ UPI</Text></View>
-                        <View style={styles.pill}><Text style={styles.pillText}>💳 Cards</Text></View>
-                        <View style={styles.pill}><Text style={styles.pillText}>🏦 NetBanking</Text></View>
-                        <View style={styles.pill}><Text style={styles.pillText}>👛 Wallets</Text></View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* 2. QR Code Payment */}
-                  <TouchableOpacity
-                    style={styles.optionCard}
-                    onPress={() => setPaymentMethod('qr')}
-                  >
-                    <QrCode size={20} color={CustomerColors.teal600} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.optionTitle}>Store QR Code Payment</Text>
-                      <Text style={styles.optionDesc}>
-                        Scan {offer.storeName}'s QR code and pay directly via UPI.
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* 3. Cash Payment */}
-                  <TouchableOpacity
-                    style={styles.optionCard}
-                    onPress={() => setPaymentMethod('cod')}
-                  >
-                    <Wallet size={20} color={CustomerColors.teal600} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.optionTitle}>
-                        {deliveryMethod === 'pickup' ? 'Pay at Store' : 'Cash on Delivery'}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => setStep('delivery')} style={{ alignSelf: 'flex-start', marginTop: Spacing.xs }}>
-                    <Text style={styles.linkText}>← Back to Delivery</Text>
-                  </TouchableOpacity>
+              {/* Razorpay Online Payment Card */}
+              <TouchableOpacity
+                style={[styles.optionCard, styles.razorpayOptionCard]}
+                onPress={() => handlePlaceOrder()}
+              >
+                <View style={styles.razorpayIconBox}>
+                  <CreditCard size={20} color="#FFFFFF" />
                 </View>
-              )}
-
-              {/* ── Sub-view: QR Code Payment ── */}
-              {paymentMethod === 'qr' && (
-                <View style={{ gap: Spacing.md }}>
-                  {qrLoading ? (
-                    <View style={{ alignItems: 'center', paddingVertical: Spacing.lg }}>
-                      <ActivityIndicator size="small" color={CustomerColors.teal600} />
-                      <Text style={[styles.stepSubtitle, { marginTop: Spacing.xs }]}>
-                        Loading {offer.storeName}'s QR code…
-                      </Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+                    <Text style={styles.optionTitle}>Online Payment (Razorpay)</Text>
+                    <View style={styles.instantBadge}>
+                      <Text style={styles.instantBadgeText}>INSTANT · SECURE</Text>
                     </View>
-                  ) : null}
-
-                  {!qrLoading && storeQr ? (
-                    <View style={styles.qrBox}>
-                      <Image source={{ uri: storeQr }} style={styles.qrImage} />
-                      <Text style={styles.qrCaption}>
-                        Scan with any UPI app to pay {offer.storeName} ₹{total}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {!qrLoading && !storeQr && (
-                    <View style={styles.warningBox}>
-                      <Text style={styles.warningBoxText}>
-                        This shop hasn't set up QR payment image yet. You can use their UPI ID below, or choose Cash / Razorpay instead.
-                      </Text>
-                    </View>
-                  )}
-
-                  {storeUpiId ? (
-                    <View style={styles.upiCopyCard}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.upiCopyLabel}>Store UPI ID</Text>
-                        <Text style={styles.upiCopyValue}>{storeUpiId}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.copyBtn}
-                        onPress={() => {
-                          setCopiedUpi(true);
-                          setTimeout(() => setCopiedUpi(false), 2500);
-                        }}
-                      >
-                        {copiedUpi ? (
-                          <Check size={14} color={CustomerColors.teal700} />
-                        ) : (
-                          <Text style={styles.copyBtnText}>Copy</Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
-
-                  {/* UTR / Ref Number Input */}
-                  <View>
-                    <Text style={styles.inputLabel}>UTR / Transaction Reference (optional)</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="e.g. 423891238910"
-                      placeholderTextColor="#9CA3AF"
-                      value={utrNumber}
-                      onChangeText={setUtrNumber}
-                    />
                   </View>
-
-                  {/* Screenshot upload */}
-                  <TouchableOpacity
-                    style={styles.screenshotBtn}
-                    onPress={pickScreenshot}
-                  >
-                    <Upload size={16} color={CustomerColors.teal700} />
-                    <Text style={styles.screenshotBtnText}>
-                      {screenshotUri
-                        ? 'Screenshot selected ✓'
-                        : 'Upload payment screenshot (optional)'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.secondaryBtn}
-                      onPress={() => setPaymentMethod(null)}
-                    >
-                      <Text style={styles.secondaryBtnText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.primaryBtn, { flex: 1 }]}
-                      onPress={() => handlePlaceOrder()}
-                    >
-                      <CheckCircle2 size={16} color="#fff" />
-                      <Text style={styles.primaryBtnText}>
-                        I've Completed Payment
-                      </Text>
-                    </TouchableOpacity>
+                  <Text style={styles.optionDesc}>
+                    UPI (GPay, PhonePe, Paytm), Debit/Credit Cards, Net Banking & Wallets.
+                  </Text>
+                  <View style={styles.pillRow}>
+                    <View style={styles.pill}><Text style={styles.pillText}>⚡ UPI</Text></View>
+                    <View style={styles.pill}><Text style={styles.pillText}>💳 Cards</Text></View>
+                    <View style={styles.pill}><Text style={styles.pillText}>🏦 NetBanking</Text></View>
+                    <View style={styles.pill}><Text style={styles.pillText}>👛 Wallets</Text></View>
                   </View>
                 </View>
-              )}
+              </TouchableOpacity>
 
-              {/* ── Sub-view: Cash on Delivery / Pay at Store ── */}
-              {paymentMethod === 'cod' && (
-                <View style={{ gap: Spacing.md }}>
-                  <View style={styles.infoBox}>
-                    <Text style={styles.infoBoxText}>
-                      {deliveryMethod === 'pickup'
-                        ? `You will pay in cash (₹${total}) when you pick up your order directly from ${offer.storeName}.`
-                        : `You will pay in cash (₹${total}) to the delivery agent upon receiving your order.`}
-                    </Text>
-                  </View>
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.secondaryBtn}
-                      onPress={() => setPaymentMethod(null)}
-                    >
-                      <Text style={styles.secondaryBtnText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.primaryBtn, { flex: 1 }]}
-                      onPress={() => handlePlaceOrder()}
-                    >
-                      <Text style={styles.primaryBtnText}>
-                        Confirm & Order — ₹{total}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+              <TouchableOpacity
+                style={[styles.primaryBtn, { marginTop: Spacing.xs }]}
+                onPress={() => handlePlaceOrder()}
+              >
+                <Lock size={16} color="#fff" />
+                <Text style={styles.primaryBtnText}>
+                  Pay ₹{total} via Razorpay
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setStep('delivery')} style={{ alignSelf: 'flex-start', marginTop: Spacing.xs }}>
+                <Text style={styles.linkText}>← Back to Delivery</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -1081,7 +857,7 @@ function OrderModal({
                 <Text style={styles.successTitle}>Order & Payment Confirmed!</Text>
                 <Text style={styles.successSubtitle}>
                   Your order from <Text style={{ fontWeight: '700' }}>{offer.storeName}</Text> has been placed via{' '}
-                  {paymentMethod === 'razorpay' ? 'Online Payment (Razorpay - Verified)' : paymentMethod === 'qr' ? 'Store UPI / QR Code' : 'Cash on Delivery'} (
+                  Online Payment (Razorpay - Verified) (
                   {deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}).
                 </Text>
               </View>
@@ -1114,7 +890,7 @@ function OrderModal({
                 <View style={styles.billRow}>
                   <Text style={styles.billLabel}>Payment Mode:</Text>
                   <Text style={[styles.billValue, { color: CustomerColors.teal700 }]}>
-                    {paymentMethod === 'razorpay' ? 'Online Payment (Razorpay)' : paymentMethod === 'qr' ? 'UPI / QR Payment' : 'Cash on Delivery'}
+                    Online Payment (Razorpay)
                   </Text>
                 </View>
 

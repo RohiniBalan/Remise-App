@@ -85,7 +85,17 @@ export default function HomeFooter() {
       }
     } catch (err: any) {
       console.warn('Newsletter subscribe error:', err?.response?.data || err?.message || err);
-      const msg = err?.response?.data?.message || 'Unable to subscribe right now. Please try again later.';
+      let msg = err?.response?.data?.message || err?.message || 'Unable to subscribe right now. Please try again later.';
+      if (
+        typeof msg === 'string' &&
+        (msg.includes('http://') ||
+          msg.includes('503') ||
+          msg.includes('502') ||
+          msg.includes('content-service') ||
+          msg.includes('Service temporarily unavailable'))
+      ) {
+        msg = 'Unable to subscribe right now. Please try again later.';
+      }
       setHasInputError(true);
       setStatusMessage({ type: 'error', text: msg });
     } finally {

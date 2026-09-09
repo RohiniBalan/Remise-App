@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
-import { Search, Store, Truck, QrCode, Wallet, ShoppingBag, AlertCircle, FileText, CreditCard } from 'lucide-react-native';
+import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -140,8 +140,8 @@ export default function StoreOrdersScreen() {
                   <Text style={styles.metaChipText}>{o.deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}</Text>
                 </View>
                 <View style={styles.metaChip}>
-                  {o.paymentMethod === 'razorpay' ? <CreditCard size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : o.paymentMethod === 'qr' ? <QrCode size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : <Wallet size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />}
-                  <Text style={styles.metaChipText}>{o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR' : 'Cash'} · {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'}</Text>
+                  <CreditCard size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  <Text style={styles.metaChipText}>{o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR' : o.paymentMethod === 'cod' ? 'Cash' : (o.paymentMethod || 'Online')} · {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'}</Text>
                 </View>
                 {o.vendorTransfers?.[0] ? (
                   <View style={[styles.metaChip, { backgroundColor: isDark ? '#134e4a' : '#F0FDFA' }]}>

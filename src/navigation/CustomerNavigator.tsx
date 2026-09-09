@@ -262,10 +262,22 @@ function CustomerTabs() {
 }
 
 export default function CustomerNavigator() {
+  const { isDark } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: {
+          backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+        },
+        headerTintColor: isDark ? '#FFFFFF' : CustomerColors.black,
+        headerTitleStyle: {
+          fontWeight: '700',
+        },
+      }}
+    >
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
-      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: true, title: 'Product' }} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BestSellers" component={BestSellersScreen} options={{ headerShown: true, title: 'Best Sellers' }} />
       <Stack.Screen name="NewArrivals" component={NewArrivalsScreen} options={{ headerShown: true, title: 'New Arrivals' }} />
       <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, title: 'Your Cart' }} />
@@ -282,7 +294,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="CompareStores" component={CompareStoresScreen} options={{ headerShown: false, presentation: 'transparentModal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="BulkPurchase" component={BulkPurchaseScreen} options={{ headerShown: true, title: 'Bulk Purchase' }} />
       <Stack.Screen name="Nearby" component={NearbyOffersScreen} options={{ headerShown: true, title: 'Nearby Offers' }} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: 'Notifications' }} />
       <Stack.Screen name="Suppliers" component={SuppliersScreen} options={{ headerShown: true, title: 'Suppliers' }} />
       <Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: 'My Offers' }} />
       <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ headerShown: false }} />

@@ -138,7 +138,12 @@ export default function RazorpayWebViewScreen() {
           const verifyRes = await paymentApi.verify(verifyPayload);
 
           if (verifyRes.data?.success) {
-            navigation.replace('PaymentStatus', { orderId, status: 'SUCCESS' });
+            route.params?.onSuccess?.();
+            navigation.replace('PaymentStatus', {
+              orderId,
+              status: 'SUCCESS',
+              returnScreen: route.params?.returnScreen,
+            });
           } else {
             Alert.alert('Payment Verification Failed', verifyRes.data?.message || 'Payment could not be verified');
             navigation.goBack();

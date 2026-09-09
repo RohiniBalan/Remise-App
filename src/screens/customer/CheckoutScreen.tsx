@@ -19,13 +19,11 @@ import {
   Plus,
   Minus,
   Trash2,
-  QrCode,
   ChevronLeft,
   Store,
   Lock,
   Truck,
   Check,
-  Wallet,
 } from 'lucide-react-native';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -34,8 +32,6 @@ import {
   PAYMENT_RETURN_SENTINEL,
   AddressData,
 } from '../../api/paymentApi';
-import { smartOrderApi } from '../../api/smartOrderApi';
-import { storeApi } from '../../api/storeApi';
 import AddressFormFields from '../../components/common/AddressFormFields';
 import BrandHeader from '../../components/common/BrandHeader';
 import {
@@ -86,15 +82,7 @@ export default function CheckoutScreen() {
   });
   const [billingAddress, setBillingAddress] = useState<AddressData>(emptyAddress());
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'qr' | 'cod'>('razorpay');
-  const [storeUpiInfo, setStoreUpiInfo] = useState<{
-    storeName: string;
-    upiId: string;
-    qrCodeImage: string | null;
-  } | null>(null);
-  const [storeQrLoading, setStoreQrLoading] = useState(false);
-  const [utrNumber, setUtrNumber] = useState('');
-  const [copiedUpi, setCopiedUpi] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
@@ -121,48 +109,6 @@ export default function CheckoutScreen() {
       billingAddress.phone.trim() !== '');
 
   const isFormValid = isShippingValid && isBillingValid;
-
-  useEffect(() => {
-    if (paymentMethod !== 'qr') return;
-    const firstItem: any = itemsToCheckout[0];
-    const storeId = firstItem?.storeId || null;
-    if (!storeId) {
-      setStoreUpiInfo({
-        storeName: 'Verified Store Merchant',
-        upiId: 'rohinibalan529@oksbi',
-        qrCodeImage: null,
-      });
-      return;
-    }
-    let cancelled = false;
-    setStoreQrLoading(true);
-    storeApi
-      .getById(storeId)
-      .then(res => {
-        if (!cancelled && res.data?.data) {
-          setStoreUpiInfo({
-            storeName: res.data.data.name || 'Merchant Store',
-            upiId: res.data.data.upiId || 'rohinibalan529@oksbi',
-            qrCodeImage: res.data.data.qrCodeImage || null,
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStoreUpiInfo({
-            storeName: 'Verified Store Merchant',
-            upiId: 'rohinibalan529@oksbi',
-            qrCodeImage: null,
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setStoreQrLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentMethod, itemsToCheckout]);
 
   const handlePayment = async () => {
     if (
@@ -200,48 +146,29 @@ export default function CheckoutScreen() {
         billingAddress: billingSameAsShipping
           ? shippingAddress
           : billingAddress,
-        paymentMethod,
+        paymentMethod: 'razorpay',
       });
 
       const data = res.data;
-      if (data.success) {
-        if (paymentMethod === 'cod' || paymentMethod === 'qr' || data.isCod || data.isQr) {
-          if ((paymentMethod === 'qr' || data.isQr) && utrNumber) {
-            try {
-              await smartOrderApi.confirmQrPayment(data.orderId, null, utrNumber);
-            } catch (qrErr) {
-              console.warn('QR proof upload note:', qrErr);
-            }
-          }
-          if (!buyNowItem) clearCart();
-          navigation.replace('PaymentStatus', {
-            orderId: data.orderId,
-            status: 'SUCCESS',
-          });
-          return;
-        }
-
-        if (paymentMethod === 'razorpay' && (data.razorpayOrderId || data.orderId)) {
-          const options = {
-            provider: 'razorpay',
-            order_id: data.razorpayOrderId || data.orderId,
-            razorpayOrderId: data.razorpayOrderId,
-            keyId: data.keyId,
-            amount: data.amount,
-            amountPaise: data.amountPaise || Math.round(subtotal * 100),
-            currency: data.currency || 'INR',
-            name: data.name || 'Remise Marketplace',
-            description: data.description || `Order #${data.orderId}`,
-            storeUpiId: storeUpiInfo?.upiId,
-            customer: {
-              name: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() || data.customer?.name,
-              email: contactEmail || data.customer?.email,
-              contact: shippingAddress.phone || data.customer?.contact,
-            },
-          };
-          navigation.navigate('RazorpayWebView', { options, orderId: data.orderId });
-          return;
-        }
+      if (data.success && (data.razorpayOrderId || data.orderId)) {
+        const options = {
+          provider: 'razorpay',
+          order_id: data.razorpayOrderId || data.orderId,
+          razorpayOrderId: data.razorpayOrderId,
+          keyId: data.keyId,
+          amount: data.amount,
+          amountPaise: data.amountPaise || Math.round(subtotal * 100),
+          currency: data.currency || 'INR',
+          name: data.name || 'Remise Marketplace',
+          description: data.description || `Order #${data.orderId}`,
+          customer: {
+            name: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() || data.customer?.name,
+            email: contactEmail || data.customer?.email,
+            contact: shippingAddress.phone || data.customer?.contact,
+          },
+        };
+        navigation.navigate('RazorpayWebView', { options, orderId: data.orderId });
+        return;
       }
 
       setError(data.message || 'Failed to initialize payment gateway.');
@@ -249,8 +176,8 @@ export default function CheckoutScreen() {
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
-        err.message ||
-        'Server unreachable. Please check your connection.'
+          err.message ||
+          'Payment initiation failed. Please try again.',
       );
       setIsProcessing(false);
     }
@@ -441,106 +368,6 @@ export default function CheckoutScreen() {
             </View>
             <CreditCard size={18} color={CustomerColors.teal600} />
           </TouchableOpacity>
-
-          {/* 2. Store QR */}
-          <TouchableOpacity
-            style={[
-              styles.paymentCard,
-              paymentMethod === 'qr' && styles.paymentCardActive,
-              { marginTop: Spacing.sm },
-            ]}
-            onPress={() => setPaymentMethod('qr')}
-          >
-            <View
-              style={[
-                styles.radio,
-                paymentMethod === 'qr' && styles.radioActive,
-              ]}
-            >
-              {paymentMethod === 'qr' && <View style={styles.radioDot} />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.paymentTitle}>Direct Store QR Code</Text>
-              <Text style={styles.paymentSubtitle}>
-                Scan merchant's QR and pay via any UPI app
-              </Text>
-            </View>
-            <QrCode size={18} color={CustomerColors.teal600} />
-          </TouchableOpacity>
-
-          {paymentMethod === 'qr' && (
-            <View style={styles.qrContainer}>
-              {storeQrLoading ? (
-                <ActivityIndicator color={CustomerColors.teal600} />
-              ) : (
-                <>
-                  <View style={styles.qrHeader}>
-                    <Text style={styles.qrStoreName}>
-                      {storeUpiInfo?.storeName || 'Verified Store Merchant'}
-                    </Text>
-                    <Text style={styles.qrAmount}>
-                      ₹{subtotal.toLocaleString()}
-                    </Text>
-                  </View>
-
-                  <View style={styles.qrImageBox}>
-                    <Image
-                      source={{
-                        uri:
-                          storeUpiInfo?.qrCodeImage ||
-                          `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                            `upi://pay?pa=${storeUpiInfo?.upiId || 'rohinibalan529@oksbi'}&pn=${encodeURIComponent(storeUpiInfo?.storeName || 'Store Merchant')}&am=${subtotal.toFixed(2)}&cu=INR&tn=Remise_Order`
-                          )}&margin=4`,
-                      }}
-                      style={styles.qrImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-
-                  <View style={styles.vpaPill}>
-                    <Text style={styles.vpaLabel}>UPI ID:</Text>
-                    <Text style={styles.vpaValue}>
-                      {storeUpiInfo?.upiId || 'rohinibalan529@oksbi'}
-                    </Text>
-                  </View>
-
-                  <TextInput
-                    style={styles.utrInput}
-                    value={utrNumber}
-                    onChangeText={setUtrNumber}
-                    placeholder="UPI Reference / UTR Number (Optional)"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </>
-              )}
-            </View>
-          )}
-
-          {/* 3. Cash on Delivery */}
-          <TouchableOpacity
-            style={[
-              styles.paymentCard,
-              paymentMethod === 'cod' && styles.paymentCardActive,
-              { marginTop: Spacing.sm },
-            ]}
-            onPress={() => setPaymentMethod('cod')}
-          >
-            <View
-              style={[
-                styles.radio,
-                paymentMethod === 'cod' && styles.radioActive,
-              ]}
-            >
-              {paymentMethod === 'cod' && <View style={styles.radioDot} />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.paymentTitle}>Cash on Delivery (COD)</Text>
-              <Text style={styles.paymentSubtitle}>
-                Pay cash to delivery person upon arrival
-              </Text>
-            </View>
-            <Wallet size={18} color={CustomerColors.teal600} />
-          </TouchableOpacity>
         </View>
 
         {/* 5. Billing Address */}
@@ -582,11 +409,7 @@ export default function CheckoutScreen() {
             <>
               <Lock size={16} color="#fff" />
               <Text style={styles.payBtnText}>
-                {paymentMethod === 'razorpay'
-                  ? `Pay ₹${subtotal.toLocaleString()} via Razorpay`
-                  : paymentMethod === 'qr'
-                  ? `Place Order via Store QR · ₹${subtotal.toLocaleString()}`
-                  : `Confirm Order (COD) · ₹${subtotal.toLocaleString()}`}
+                Pay ₹{subtotal.toLocaleString()} via Razorpay
               </Text>
             </>
           )}

@@ -22,11 +22,13 @@ import {
   Tag,
   Sparkles,
   Package,
+  Bell,
 } from 'lucide-react-native';
 import { productApi, Product, productImage } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useTheme, ThemeColors } from '../../context/ThemeContext';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import {
   CustomerColors,
   Spacing,
@@ -50,8 +52,9 @@ export default function ProductDetailScreen() {
   const route = useRoute<any>();
   const { productId: routeProductId } = route.params;
   const { user } = useAuth();
-  const { addToCart, setBuyNowItem } = useCart();
+  const { addToCart, setBuyNowItem, cartCount } = useCart();
   const { isWishlisted: checkWishlisted, toggleWishlist } = useWishlist();
+  const { unreadCount } = useUnreadNotifications();
   const { isDark, colors } = useTheme();
   const styles = useMemo(() => getStyles(isDark, colors), [isDark, colors]);
 
@@ -260,18 +263,46 @@ export default function ProductDetailScreen() {
         <TouchableOpacity
           style={styles.headerBtn}
           onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+          accessibilityLabel="Go back"
         >
           <ArrowLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {product.title}
         </Text>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => navigation.navigate('Cart')}
-        >
-          <ShoppingCart size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => navigation.navigate('Notifications')}
+            activeOpacity={0.7}
+            accessibilityLabel="Notifications"
+          >
+            <Bell size={19} color={colors.textPrimary} />
+            {unreadCount > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => navigation.navigate('Cart')}
+            activeOpacity={0.7}
+            accessibilityLabel="Shopping Cart"
+          >
+            <ShoppingCart size={19} color={colors.textPrimary} />
+            {cartCount > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>
+                  {cartCount > 99 ? '99+' : cartCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -651,6 +682,29 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
       alignItems: 'center',
       justifyContent: 'center',
+      position: 'relative',
+    },
+    headerRightActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+    },
+    headerBadge: {
+      position: 'absolute',
+      top: -3,
+      right: -3,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      paddingHorizontal: 3,
+      backgroundColor: CustomerColors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 9,
+      fontWeight: '800',
     },
     headerTitle: {
       fontSize: FontSizes.sm,

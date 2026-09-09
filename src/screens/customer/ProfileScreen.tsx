@@ -32,11 +32,13 @@ import {
   Plus,
   Trash2,
   Calendar,
+  Bell,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { authApi } from '../../api/authApi';
 import {
   CustomerColors,
@@ -124,6 +126,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { user, updateUser, logout } = useAuth();
   const { isDark } = useTheme();
+  const { unreadCount } = useUnreadNotifications();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [saving, setSaving] = useState(false);
@@ -381,15 +384,33 @@ export default function ProfileScreen() {
       >
         <View style={styles.headerRow}>
           <Text style={styles.heading}>My Profile</Text>
-          <TouchableOpacity
-            style={styles.saveBtn}
-            onPress={() => saveProfile()}
-          >
-            <Save size={15} color="#fff" />
-            <Text style={styles.saveBtnText}>
-              {saving ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.notifBtn}
+              onPress={() => navigation.navigate('Notifications')}
+              activeOpacity={0.7}
+              accessibilityLabel="Notifications"
+            >
+              <Bell size={18} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={() => saveProfile()}
+              activeOpacity={0.8}
+            >
+              <Save size={15} color="#fff" />
+              <Text style={styles.saveBtnText}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.profileCard}>
@@ -1161,6 +1182,36 @@ const getStyles = (isDark: boolean) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: Spacing.md,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    notifBtn: {
+      padding: 8,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    notifBadge: {
+      position: 'absolute',
+      top: -3,
+      right: -3,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      paddingHorizontal: 3,
+      backgroundColor: CustomerColors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    notifBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 9,
+      fontWeight: '800',
     },
     saveBtn: {
       flexDirection: 'row',

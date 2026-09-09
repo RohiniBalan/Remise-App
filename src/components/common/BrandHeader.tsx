@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Sun, Moon } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing } from '../../styles/theme';
 
 export default function BrandHeader() {
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { theme, toggleTheme, isDark } = useTheme();
 
@@ -20,10 +22,16 @@ export default function BrandHeader() {
         },
       ]}
     >
-      <Text style={styles.logo}>
-        <Text style={styles.logoRed}>RE</Text>
-        <Text style={{ color: isDark ? '#FFFFFF' : CustomerColors.black }}>mise</Text>
-      </Text>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Home')}
+        activeOpacity={0.8}
+        accessibilityLabel="Go to Home"
+      >
+        <Text style={styles.logo}>
+          <Text style={styles.logoRed}>RE</Text>
+          <Text style={{ color: isDark ? '#FFFFFF' : CustomerColors.black }}>mise</Text>
+        </Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         onPress={toggleTheme}
@@ -63,10 +71,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   themeToggleBtn: {
-    padding: 6,
+    padding: 7,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
+
+
 

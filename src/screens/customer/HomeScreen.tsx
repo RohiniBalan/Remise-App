@@ -104,8 +104,8 @@ type NearbyStatus = 'idle' | 'locating' | 'loading' | 'done' | 'denied' | 'error
 const DEAL_STRIP = [
   { icon: Percent, title: 'Up to 50% Off', subtitle: 'On select products', color: '#FF0000', route: 'Categories' },
   { icon: MapPin, title: 'Nearby Offers', subtitle: 'Deals around you', color: '#0FA3B1', route: 'Nearby' },
-  { icon: ShoppingBasket, title: 'Monthly / Bulk Buy', subtitle: 'Scan your purchase list', color: '#0d9488', route: 'BulkPurchase' },
-  { icon: Clock, title: 'Flash Sales', subtitle: 'Limited time deals', color: '#9333ea', route: 'Categories' },
+  { icon: Bell, title: 'Notifications', subtitle: 'Alerts & updates', color: '#EA580C', route: 'Notifications', isNotification: true },
+  { icon: ShoppingBasket, title: 'Monthly / Bulk', subtitle: 'Smart grocery list', color: '#0d9488', route: 'BulkPurchase' },
 ];
 
 const INFO_STRIP = [
@@ -280,23 +280,36 @@ export default function HomeScreen() {
 
         {/* ── Deal Strip ── */}
         <View style={[styles.dealStrip, isDark && { backgroundColor: '#111827', borderBottomColor: '#1e293b' }]}>
-          {DEAL_STRIP.map(deal => (
-            <TouchableOpacity
-              key={deal.title}
-              style={[styles.dealCard, isDark && { backgroundColor: '#1e293b', borderColor: '#374151' }]}
-              onPress={() => navigation.navigate(deal.route)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.dealIconBox, { backgroundColor: deal.color }]}>
-                <deal.icon size={15} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.dealTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{deal.title}</Text>
-                <Text style={[styles.dealSubtitle, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>{deal.subtitle}</Text>
-              </View>
-              <ChevronRight size={13} color="#9CA3AF" />
-            </TouchableOpacity>
-          ))}
+          {DEAL_STRIP.map(deal => {
+            const hasUnread = deal.isNotification && unreadCount > 0;
+            return (
+              <TouchableOpacity
+                key={deal.title}
+                style={[styles.dealCard, isDark && { backgroundColor: '#1e293b', borderColor: '#374151' }]}
+                onPress={() => navigation.navigate(deal.route)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dealIconBox, { backgroundColor: deal.color }]}>
+                  <deal.icon size={15} color="#FFFFFF" />
+                  {hasUnread && (
+                    <View style={styles.dealBadge}>
+                      <Text style={styles.dealBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={[styles.dealTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{deal.title}</Text>
+                    {hasUnread && <View style={styles.dealDot} />}
+                  </View>
+                  <Text style={[styles.dealSubtitle, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>
+                    {deal.isNotification && unreadCount > 0 ? `${unreadCount} unread update${unreadCount > 1 ? 's' : ''}` : deal.subtitle}
+                  </Text>
+                </View>
+                <ChevronRight size={13} color="#9CA3AF" />
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={[styles.infoStrip, isDark && { backgroundColor: '#111827', borderBottomColor: '#1e293b' }]}>
@@ -711,6 +724,31 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     color: CustomerColors.textSecondary,
     marginTop: 1,
+  },
+  dealBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 7,
+    minWidth: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  dealBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  dealDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
   },
 
   infoStrip: {

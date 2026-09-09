@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { CheckCircle, XCircle, RefreshCw, ShoppingBag, Download, FileText } from 'lucide-react-native';
+import { CheckCircle, XCircle, RefreshCw, ShoppingBag, Download, FileText, ArrowLeft } from 'lucide-react-native';
 import { paymentApi } from '../../api/paymentApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { useCart } from '../../context/CartContext';
@@ -14,6 +14,7 @@ export default function PaymentStatusScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const orderId: string | undefined = route.params?.orderId;
+  const returnScreen: string | undefined = route.params?.returnScreen;
   const { setBuyNowItem } = useCart();
 
   const [status, setStatus] = useState<Status>('LOADING');
@@ -96,10 +97,30 @@ export default function PaymentStatusScreen() {
               </View>
             ) : null}
 
-            <TouchableOpacity style={styles.continueShoppingBtn} onPress={() => navigation.navigate('CustomerTabs', { screen: 'Categories' })}>
-              <ShoppingBag size={18} color="#FFFFFF" />
-              <Text style={styles.continueShoppingBtnText}>Continue Shopping</Text>
-            </TouchableOpacity>
+            {returnScreen === 'BulkPurchase' ? (
+              <View style={styles.actionColumn}>
+                <TouchableOpacity
+                  style={styles.backToBulkBtn}
+                  onPress={() => navigation.navigate('CustomerTabs', { screen: 'BulkPurchase' })}
+                >
+                  <ArrowLeft size={16} color="#FFFFFF" />
+                  <Text style={styles.backToBulkBtnText}>Back to Bulk Purchase</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryActionBtn}
+                  onPress={() => navigation.navigate('CustomerTabs', { screen: 'Orders' })}
+                >
+                  <ShoppingBag size={16} color="#1F2937" />
+                  <Text style={styles.secondaryActionBtnText}>View My Orders</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.continueShoppingBtn} onPress={() => navigation.navigate('CustomerTabs', { screen: 'Categories' })}>
+                <ShoppingBag size={18} color="#FFFFFF" />
+                <Text style={styles.continueShoppingBtnText}>Continue Shopping</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -171,5 +192,10 @@ const styles = StyleSheet.create({
   downloadBillBtnText: { color: '#FFFFFF', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
   viewInvoiceBtn: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
   viewInvoiceBtnText: { color: CustomerColors.teal700, fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
+  actionColumn: { width: '100%', gap: Spacing.sm },
+  backToBulkBtn: { width: '100%', flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.teal600, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
+  backToBulkBtnText: { color: '#FFFFFF', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
+  secondaryActionBtn: { width: '100%', flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
+  secondaryActionBtnText: { color: '#1F2937', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
 });
 

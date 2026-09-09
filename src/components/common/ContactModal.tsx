@@ -42,11 +42,25 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
   }, [visible]);
 
   const handleSubmit = async () => {
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
+      setNotification({ type: 'error', message: 'Please fill in Name, Email and Message.' });
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) {
+      setNotification({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
     setSubmitting(true);
     setNotification(null);
     try {
-      const res = await contactApi.sendMessage(form);
-      if (res.data.success) {
+      const res = await contactApi.sendMessage({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        message: form.message.trim(),
+      });
+      if (res.data?.success) {
         setNotification({ type: 'success', message: 'Message sent successfully!' });
         setForm({ name: '', email: '', phone: '', message: '' });
         setTimeout(() => {
@@ -54,7 +68,7 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
           setNotification(null);
         }, 2000);
       } else {
-        setNotification({ type: 'error', message: res.data.message || 'Failed to send message.' });
+        setNotification({ type: 'error', message: res.data?.message || 'Failed to send message.' });
       }
     } catch (err: any) {
       setNotification({ type: 'error', message: err.response?.data?.message || 'Failed to connect to server.' });

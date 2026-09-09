@@ -20,7 +20,6 @@ import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
-import HomeFooter from '../../components/home/HomeFooter';
 import {
   CustomerColors,
   Spacing,
@@ -282,11 +281,6 @@ export default function OrdersScreen() {
         data={filteredItems}
         keyExtractor={item => item.key}
         contentContainerStyle={styles.list}
-        ListFooterComponent={
-          <View style={{ marginHorizontal: -Spacing.md, marginBottom: -Spacing.md, marginTop: Spacing.md }}>
-            <HomeFooter />
-          </View>
-        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <PackageX size={56} color="#D1D5DB" />

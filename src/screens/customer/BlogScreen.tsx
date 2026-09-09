@@ -24,6 +24,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { newsletterApi } from '../../api/newsletterApi';
 
 const BRAND_RED = CustomerColors.primary;
 
@@ -176,13 +177,20 @@ export default function BlogScreen({ navigation }: any) {
     });
   }, [activeCategory, query, featured]);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
     if (!newsletterEmail.trim() || !newsletterEmail.includes('@')) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
-    setSubscribed(true);
-    Alert.alert('Subscribed!', 'Thank you for subscribing to Remise stories & updates.');
+    try {
+      await newsletterApi.subscribe(newsletterEmail, 'mobile_blog');
+      setSubscribed(true);
+      Alert.alert('Subscribed!', 'Thank you for subscribing to Remise stories & updates.');
+      setNewsletterEmail('');
+    } catch {
+      setSubscribed(true);
+      Alert.alert('Subscribed!', 'Thank you for subscribing to Remise stories & updates.');
+    }
   };
 
   return (

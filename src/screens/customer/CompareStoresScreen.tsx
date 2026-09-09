@@ -16,14 +16,10 @@ import {
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { requestCameraPermission } from '../../utils/permissions';
 import {
   MapPin,
   Store,
   Truck,
-  QrCode,
-  Wallet,
   CreditCard,
   ShieldCheck,
   Smartphone,
@@ -42,7 +38,6 @@ import {
   StoreResult,
   SmartOrderCartItem,
 } from '../../api/smartOrderApi';
-import { storeApi } from '../../api/storeApi';
 import { useAuth } from '../../context/AuthContext';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import {
@@ -63,12 +58,8 @@ import {
 // Ported from client/app/(root)/bulk-purchase/CompareModal.tsx — same step
 // machine (radius -> searching -> results -> confirming -> delivery ->
 // payment -> placing -> success/error), same nearby-store matching call
-// sequence, same delivery method (Self Pickup / Home Delivery) and payment
-// method (QR / Cash) options, same QR-fetch-scoped-to-chosen-store
-// behavior (storeApi.getById(chosen.storeId) — never any other store's
-// QR), same optional payment-screenshot upload. `cod`/`qr` here never
-// trigger any external redirect (see smartOrderApi.ts), so unlike the main
-// Checkout flow this never needs a WebView.
+// sequence, same delivery method (Self Pickup / Home Delivery), secure online
+// payment via Razorpay.
 const RADIUS_OPTIONS = [2, 5, 10, 15, 20];
 type Step =
   | 'radius'
@@ -122,11 +113,8 @@ export default function CompareStoresScreen() {
   const [deliveryMethod, setDeliveryMethod] = useState<
     'pickup' | 'delivery' | null
   >(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'qr' | 'razorpay' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
-  const [storeQr, setStoreQr] = useState<string | null>(null);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
   const [orderId, setOrderId] = useState('');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
@@ -176,26 +164,6 @@ export default function CompareStoresScreen() {
     if (pin) setField('pinCode', pin);
   };
   // ─────────────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (paymentMethod !== 'qr' || !chosen) return;
-    let cancelled = false;
-    setQrLoading(true);
-    storeApi
-      .getById(chosen.storeId)
-      .then(res => {
-        if (!cancelled) setStoreQr(res.data?.data?.qrCodeImage || null);
-      })
-      .catch(() => {
-        if (!cancelled) setStoreQr(null);
-      })
-      .finally(() => {
-        if (!cancelled) setQrLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentMethod, chosen]);
 
   const effectiveRadius = customRadius ? parseFloat(customRadius) : radius;
 
@@ -355,32 +323,7 @@ export default function CompareStoresScreen() {
     setStep('delivery');
   };
 
-  const pickScreenshot = () => {
-    Alert.alert('Payment Proof', 'Take a photo of your payment or choose from gallery.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const granted = await requestCameraPermission();
-          if (!granted) return;
-          const res = await launchCamera({ mediaType: 'photo', quality: 0.8 });
-          const uri = res.assets?.[0]?.uri;
-          if (uri) setScreenshotUri(uri);
-        },
-      },
-      {
-        text: 'Choose from Gallery',
-        onPress: async () => {
-          const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
-          const uri = res.assets?.[0]?.uri;
-          if (uri) setScreenshotUri(uri);
-        },
-      },
-    ]);
-  };
-
-
-  const handlePlaceOrder = async (overrideMethod?: 'razorpay' | 'cod' | 'qr') => {
+  const handlePlaceOrder = async () => {
     if (
       !requireAuthForPurchase({
         navigation,
@@ -389,13 +332,7 @@ export default function CompareStoresScreen() {
       })
     )
       return;
-    const methodToUse = (typeof overrideMethod === 'string' && (overrideMethod === 'razorpay' || overrideMethod === 'cod' || overrideMethod === 'qr'))
-      ? overrideMethod
-      : paymentMethod;
-    if (!chosen || !deliveryMethod || !methodToUse) return;
-    if (typeof overrideMethod === 'string') {
-      setPaymentMethod(overrideMethod);
-    }
+    if (!chosen || !deliveryMethod) return;
     setStep('placing');
     setErrorMsg('');
     try {
@@ -415,48 +352,39 @@ export default function CompareStoresScreen() {
         storeId: chosen.storeId,
         storeName: chosen.storeName,
         deliveryMethod,
-        paymentMethod: methodToUse,
+        paymentMethod: 'razorpay',
       });
 
       if (!res.data.success)
         throw new Error(res.data.message || 'Order failed.');
 
-      if (methodToUse === 'razorpay') {
-        const data = res.data;
-        if (!data.razorpayOrderId && !data.keyId) {
-          throw new Error('Failed to initialize Razorpay payment session.');
-        }
-
-        const options = {
-          provider: 'razorpay',
-          order_id: data.razorpayOrderId || data.orderId,
-          key: data.keyId || data.key,
-          amount: data.amountPaise || Math.round(data.amount * 100),
-          currency: data.currency || 'INR',
-          name: data.name || chosen.storeName || 'Remise Marketplace',
-          description: data.description || `Order #${data.orderId}`,
-          customer: {
-            name: `${form.firstName} ${form.lastName}`.trim() || data.customer?.name,
-            email: form.contactEmail || data.customer?.email,
-            contact: form.phone || data.customer?.contact,
-          },
-        };
-
-        setStep('payment');
-        navigation.navigate('RazorpayWebView', { options, orderId: data.orderId });
-        return;
+      const data = res.data;
+      if (!data.razorpayOrderId && !data.keyId) {
+        throw new Error('Failed to initialize Razorpay payment session.');
       }
 
-      const match = (res.data.url || '').match(/orderId=([^&]+)/);
-      const placedOrderId = match ? match[1] : (res.data.orderId || '');
-      setOrderId(placedOrderId);
+      const options = {
+        provider: 'razorpay',
+        order_id: data.razorpayOrderId || data.orderId,
+        key: data.keyId || data.key,
+        amount: data.amountPaise || Math.round(data.amount * 100),
+        currency: data.currency || 'INR',
+        name: data.name || chosen.storeName || 'Remise Marketplace',
+        description: data.description || `Order #${data.orderId}`,
+        customer: {
+          name: `${form.firstName} ${form.lastName}`.trim() || data.customer?.name,
+          email: form.contactEmail || data.customer?.email,
+          contact: form.phone || data.customer?.contact,
+        },
+      };
 
-      if (paymentMethod === 'qr' && placedOrderId) {
-        await smartOrderApi.confirmQrPayment(placedOrderId, screenshotUri);
-      }
-
-      setStep('success');
-      route.params?.onSuccess?.();
+      setStep('payment');
+      navigation.navigate('RazorpayWebView', {
+        options,
+        orderId: data.orderId,
+        returnScreen: 'BulkPurchase',
+        onSuccess: route.params?.onSuccess,
+      });
     } catch (err: any) {
       setErrorMsg(
         err.response?.data?.message ||
@@ -779,165 +707,50 @@ export default function CompareStoresScreen() {
 
           {step === 'payment' && chosen && (
             <View style={{ gap: Spacing.sm }}>
-              {!paymentMethod && (
-                <>
-                  <Text style={styles.stepText}>
-                    How would you like to pay?
+              <Text style={styles.stepText}>
+                Complete payment to place your order:
+              </Text>
+
+              {/* Razorpay Online Payment Card */}
+              <TouchableOpacity
+                style={[styles.optionCard, styles.razorpayOptionCard]}
+                onPress={() => handlePlaceOrder()}
+              >
+                <View style={styles.razorpayIconBox}>
+                  <CreditCard size={20} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+                    <Text style={styles.optionTitle}>Online Payment (Razorpay)</Text>
+                    <View style={styles.instantBadge}>
+                      <Text style={styles.instantBadgeText}>INSTANT · SECURE</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.optionDesc}>
+                    UPI (GPay, PhonePe, Paytm), Debit/Credit Cards, Net Banking & Wallets.
                   </Text>
-
-                  {/* 1. Razorpay Option */}
-                  <TouchableOpacity
-                    style={[styles.optionCard, styles.razorpayOptionCard]}
-                    onPress={() => handlePlaceOrder('razorpay')}
-                  >
-                    <View style={styles.razorpayIconBox}>
-                      <CreditCard size={20} color="#FFFFFF" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
-                        <Text style={styles.optionTitle}>Online Payment (Razorpay)</Text>
-                        <View style={styles.instantBadge}>
-                          <Text style={styles.instantBadgeText}>INSTANT · SECURE</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.optionDesc}>
-                        UPI (GPay, PhonePe, Paytm), Debit/Credit Cards, Net Banking & Wallets.
-                      </Text>
-                      <View style={styles.pillRow}>
-                        <View style={styles.pill}><Text style={styles.pillText}>⚡ UPI</Text></View>
-                        <View style={styles.pill}><Text style={styles.pillText}>💳 Cards</Text></View>
-                        <View style={styles.pill}><Text style={styles.pillText}>🏦 NetBanking</Text></View>
-                        <View style={styles.pill}><Text style={styles.pillText}>👛 Wallets</Text></View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* 2. QR Code Option */}
-                  <TouchableOpacity
-                    style={styles.optionCard}
-                    onPress={() => setPaymentMethod('qr')}
-                  >
-                    <QrCode size={20} color={CustomerColors.teal600} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.optionTitle}>QR Code Payment</Text>
-                      <Text style={styles.optionDesc}>
-                        Scan {chosen.storeName}'s QR code and pay instantly.
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* 3. Cash Option */}
-                  <TouchableOpacity
-                    style={styles.optionCard}
-                    onPress={() => setPaymentMethod('cod')}
-                  >
-                    <Wallet size={20} color={CustomerColors.teal600} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.optionTitle}>Cash</Text>
-                      <Text style={styles.optionDesc}>
-                        {deliveryMethod === 'pickup'
-                          ? 'Pay at the shop when you collect your order.'
-                          : 'Pay cash on delivery.'}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => setStep('delivery')}>
-                    <Text style={styles.linkText}>← Back</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {/* ── Cash Step ── */}
-              {paymentMethod === 'cod' && (
-                <View style={{ gap: Spacing.md }}>
-                  <View style={styles.infoBox}>
-                    <Text style={styles.infoBoxText}>
-                      {deliveryMethod === 'pickup'
-                        ? 'You will pay in cash when you pick up your order at the shop.'
-                        : 'You will pay in cash to the delivery person (Cash on Delivery).'}
-                    </Text>
-                  </View>
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.secondaryBtn}
-                      onPress={() => setPaymentMethod(null)}
-                    >
-                      <Text style={styles.secondaryBtnText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.primaryBtn, { flex: 1 }]}
-                      onPress={() => handlePlaceOrder()}
-                    >
-                      <Text style={styles.primaryBtnText}>
-                        Confirm & Order — ₹{chosen.totalAmount.toFixed(0)}
-                      </Text>
-                    </TouchableOpacity>
+                  <View style={styles.pillRow}>
+                    <View style={styles.pill}><Text style={styles.pillText}>⚡ UPI</Text></View>
+                    <View style={styles.pill}><Text style={styles.pillText}>💳 Cards</Text></View>
+                    <View style={styles.pill}><Text style={styles.pillText}>🏦 NetBanking</Text></View>
+                    <View style={styles.pill}><Text style={styles.pillText}>👛 Wallets</Text></View>
                   </View>
                 </View>
-              )}
+              </TouchableOpacity>
 
-              {/* ── QR Step ── */}
-              {paymentMethod === 'qr' && (
-                <View style={{ gap: Spacing.md }}>
-                  {qrLoading && (
-                    <Text style={styles.stepText}>
-                      Loading {chosen.storeName}'s QR code…
-                    </Text>
-                  )}
-                  {!qrLoading && storeQr && (
-                    <View style={styles.qrBox}>
-                      <Image source={{ uri: storeQr }} style={styles.qrImage} />
-                      <Text style={styles.qrCaption}>
-                        Scan with any UPI app to pay {chosen.storeName} ₹
-                        {chosen.totalAmount.toFixed(0)}
-                      </Text>
-                    </View>
-                  )}
-                  {!qrLoading && !storeQr && (
-                    <View style={styles.warningBox}>
-                      <Text style={styles.warningBoxText}>
-                        This shop hasn't set up QR payment yet. Please go back
-                        and choose Cash or Razorpay Online Payment instead.
-                      </Text>
-                    </View>
-                  )}
-                  {storeQr && (
-                    <TouchableOpacity
-                      style={styles.screenshotBtn}
-                      onPress={pickScreenshot}
-                    >
-                      <Text style={styles.screenshotBtnText}>
-                        {screenshotUri
-                          ? 'Screenshot selected ✓'
-                          : 'Upload payment screenshot (optional)'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.secondaryBtn}
-                      onPress={() => setPaymentMethod(null)}
-                    >
-                      <Text style={styles.secondaryBtnText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryBtn,
-                        { flex: 1 },
-                        !storeQr && styles.primaryBtnDisabled,
-                      ]}
-                      onPress={() => handlePlaceOrder()}
-                      disabled={!storeQr}
-                    >
-                      <CheckCircle2 size={16} color="#fff" />
-                      <Text style={styles.primaryBtnText}>
-                        I've Completed Payment
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+              <TouchableOpacity
+                style={[styles.primaryBtn, { marginTop: Spacing.xs }]}
+                onPress={() => handlePlaceOrder()}
+              >
+                <Lock size={16} color="#fff" />
+                <Text style={styles.primaryBtnText}>
+                  Pay ₹{chosen.totalAmount.toFixed(0)} via Razorpay
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setStep('delivery')}>
+                <Text style={styles.linkText}>← Back to Delivery Choice</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -958,7 +771,7 @@ export default function CompareStoresScreen() {
                 <Text style={styles.successTitle}>Order & Payment Confirmed!</Text>
                 <Text style={styles.successText}>
                   Your order from <Text style={{ fontWeight: '700' }}>{chosen.storeName}</Text> has been
-                  placed via {paymentMethod === 'razorpay' ? 'Online Payment (Razorpay - Verified)' : paymentMethod === 'qr' ? 'Store UPI / QR Code' : 'Cash on Delivery'} (
+                  placed via Online Payment (Razorpay - Verified) (
                   {deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}).
                 </Text>
               </View>
@@ -986,7 +799,7 @@ export default function CompareStoresScreen() {
                 <View style={styles.billRow}>
                   <Text style={styles.billLabel}>Payment Mode:</Text>
                   <Text style={[styles.billValue, { color: CustomerColors.teal700 }]}>
-                    {paymentMethod === 'razorpay' ? 'Online Payment (Razorpay)' : paymentMethod === 'qr' ? 'UPI / QR Payment' : 'Cash on Delivery'}
+                    {'Online Payment (Razorpay)'}
                   </Text>
                 </View>
 
@@ -1029,7 +842,7 @@ export default function CompareStoresScreen() {
                   style={styles.doneBtn}
                   onPress={() => navigation.goBack()}
                 >
-                  <Text style={styles.doneBtnText}>Done</Text>
+                  <Text style={styles.doneBtnText}>Back to Bulk Purchase</Text>
                 </TouchableOpacity>
               </View>
             </View>
