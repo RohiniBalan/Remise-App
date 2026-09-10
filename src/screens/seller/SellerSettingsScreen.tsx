@@ -165,6 +165,8 @@ export default function SellerSettingsScreen() {
       const res = await storeApi.onboardRazorpay({
         legalBusinessName: form.legalBusinessName || store?.businessDetails?.legalBusinessName || form.name,
         businessType: 'individual',
+        pan: form.pan || store?.businessDetails?.pan || store?.pan,
+        gstin: form.gstin || store?.businessDetails?.gstin || store?.gstin,
         bankAccount: {
           accountNumber: form.bankAccountNumber || store?.businessDetails?.bankAccount?.accountNumber,
           ifscCode: form.bankIfsc || store?.businessDetails?.bankAccount?.ifscCode,

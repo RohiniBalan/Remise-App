@@ -8,6 +8,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Dimensions,
+  Modal,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
@@ -23,8 +28,20 @@ import {
   Sparkles,
   Package,
   Bell,
+  X,
+  CheckCircle,
+  Check,
+  Edit3,
+  ThumbsUp,
+  MessageSquare,
 } from 'lucide-react-native';
-import { productApi, Product, productImage } from '../../api/productApi';
+import {
+  productApi,
+  Product,
+  productImage,
+  ProductReview,
+  ReviewStats,
+} from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useTheme, ThemeColors } from '../../context/ThemeContext';
@@ -42,7 +59,7 @@ import { normalizeSpecifications } from '../../utils/categoryAttributes';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const TABS = ['About', 'Specifications', 'Highlights', 'Shipping'] as const;
+const TABS = ['About', 'Specifications', 'Highlights', 'Shipping', 'Reviews'] as const;
 
 // Roles that see store-owner pricing instead of the direct-customer price
 const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
@@ -64,6 +81,28 @@ export default function ProductDetailScreen() {
   const [activeImage, setActiveImage] = useState<string | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<(typeof TABS)[number]>('About');
+
+  // Reviews State
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStats>({
+    averageRating: 0,
+    totalReviews: 0,
+    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    recommendPercent: 100,
+  });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewForm, setReviewForm] = useState({
+    rating: 0,
+    title: '',
+    comment: '',
+    userName: '',
+    userEmail: '',
+    recommend: true,
+  });
+
+
 
   useEffect(() => {
     let isMounted = true;
@@ -143,6 +182,110 @@ export default function ProductDetailScreen() {
       isMounted = false;
     };
   }, [routeProductId]);
+
+  const targetProductId = useMemo(() => {
+    return String(product?._id || product?.id || routeProductId || '');
+  }, [product, routeProductId]);
+
+  const fetchReviews = async (pId: string) => {
+    if (!pId) return;
+    setReviewsLoading(true);
+    try {
+      const res = await productApi.getReviews(pId);
+      const data = res.data;
+      if (data && data.success) {
+        setReviews(Array.isArray(data.reviews) ? data.reviews : []);
+        if (data.stats) {
+          setReviewStats(data.stats);
+        }
+      }
+    } catch (err) {
+      console.log('Failed to fetch reviews:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (targetProductId) {
+      fetchReviews(targetProductId);
+    }
+  }, [targetProductId]);
+
+  const handleOpenReviewModal = () => {
+    setReviewForm(prev => ({
+      ...prev,
+      userName: prev.userName || user?.name || (user as any)?.username || '',
+      userEmail: prev.userEmail || user?.email || '',
+      rating: 0,
+    }));
+    setReviewModalVisible(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewForm.rating || reviewForm.rating < 1) {
+      Alert.alert('Validation Error', 'Please select a rating between 1 and 5 stars.');
+      return;
+    }
+    if (!reviewForm.comment.trim()) {
+      Alert.alert('Validation Error', 'Please write a review comment.');
+      return;
+    }
+    if (!reviewForm.userName.trim()) {
+      Alert.alert('Validation Error', 'Please provide your name.');
+      return;
+    }
+
+    if (!targetProductId) {
+      Alert.alert('Error', 'Product ID is missing.');
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      await productApi.addReview(targetProductId, {
+        rating: Number(reviewForm.rating),
+        title: reviewForm.title.trim(),
+        comment: reviewForm.comment.trim(),
+        userName: reviewForm.userName.trim(),
+        userEmail: reviewForm.userEmail.trim(),
+        recommend: reviewForm.recommend,
+      });
+
+      setReviewModalVisible(false);
+      setReviewForm({
+        rating: 0,
+        title: '',
+        comment: '',
+        userName: user?.name || '',
+        userEmail: user?.email || '',
+        recommend: true,
+      });
+
+
+      Alert.alert('Thank You!', 'Your review has been submitted successfully.');
+      setTab('Reviews');
+      fetchReviews(targetProductId);
+    } catch (err: any) {
+      console.log('Error submitting review:', err);
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to submit review. Please try again.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleVoteHelpful = async (reviewId: string) => {
+    if (!reviewId || !targetProductId) return;
+    try {
+      productApi.voteReviewHelpful(targetProductId, reviewId).catch(() => {});
+      setReviews(prev =>
+        prev.map(r => (r._id === reviewId ? { ...r, helpfulCount: (r.helpfulCount || 0) + 1 } : r))
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
 
   const gallery = useMemo(() => {
     if (!product) return [];
@@ -387,16 +530,29 @@ export default function ProductDetailScreen() {
           <Text style={styles.title}>{product.title}</Text>
 
           {/* Rating Summary */}
-          <View style={styles.ratingBar}>
+          <TouchableOpacity
+            onPress={() => setTab('Reviews')}
+            activeOpacity={0.7}
+            style={styles.ratingBar}
+          >
             <View style={styles.ratingChip}>
               <Star size={13} color="#F59E0B" fill="#F59E0B" />
-              <Text style={styles.ratingText}>4.8</Text>
+              <Text style={styles.ratingText}>
+                {reviewStats.totalReviews > 0
+                  ? reviewStats.averageRating.toFixed(1)
+                  : '5.0'}
+              </Text>
             </View>
-            <Text style={styles.ratingCount}>128 Ratings</Text>
+            <Text style={styles.ratingCount}>
+              {reviewStats.totalReviews > 0
+                ? `${reviewStats.totalReviews} Ratings`
+                : 'No reviews yet'}
+            </Text>
             <Text style={styles.dotSeparator}>·</Text>
             <ShieldCheck size={14} color={CustomerColors.teal700} />
             <Text style={styles.verifiedText}>Verified Genuine</Text>
-          </View>
+          </TouchableOpacity>
+
 
           {/* Price Box */}
           <View style={styles.priceContainer}>
@@ -584,6 +740,148 @@ export default function ProductDetailScreen() {
                 </View>
               </View>
             )}
+
+            {/* REVIEWS TAB */}
+            {tab === 'Reviews' && (
+              <View style={{ gap: Spacing.md }}>
+                {/* Rating Card Overview */}
+                <View style={styles.reviewOverviewCard}>
+                  <View style={styles.reviewScoreBox}>
+                    <Text style={styles.reviewScoreText}>
+                      {reviewStats.totalReviews > 0 ? reviewStats.averageRating.toFixed(1) : '5.0'}
+                    </Text>
+                    <View style={styles.starsRow}>
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star
+                          key={s}
+                          size={15}
+                          color="#F59E0B"
+                          fill={
+                            s <= Math.round(reviewStats.totalReviews > 0 ? reviewStats.averageRating : 5)
+                              ? '#F59E0B'
+                              : 'transparent'
+                          }
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.reviewScoreSub}>
+                      {reviewStats.totalReviews} rating{reviewStats.totalReviews === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+
+                  {/* Distribution bars */}
+                  <View style={styles.reviewBarsBox}>
+                    {[5, 4, 3, 2, 1].map(starVal => {
+                      const count = reviewStats.distribution[starVal] || 0;
+                      const pct = reviewStats.totalReviews > 0
+                        ? (count / reviewStats.totalReviews) * 100
+                        : 0;
+                      return (
+                        <View key={starVal} style={styles.reviewBarRow}>
+                          <Text style={styles.reviewBarLabel}>{starVal}★</Text>
+                          <View style={styles.reviewBarTrack}>
+                            <View style={[styles.reviewBarFill, { width: `${pct}%` }]} />
+                          </View>
+                          <Text style={styles.reviewBarCount}>{count}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Write Review Button CTA */}
+                <TouchableOpacity
+                  style={styles.writeReviewBtn}
+                  onPress={handleOpenReviewModal}
+                  activeOpacity={0.8}
+                >
+                  <Edit3 size={15} color="#FFFFFF" />
+                  <Text style={styles.writeReviewBtnText}>Write a Customer Review</Text>
+                </TouchableOpacity>
+
+                {/* Reviews List */}
+                {reviewsLoading ? (
+                  <View style={{ paddingVertical: Spacing.xl, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={CustomerColors.teal700} />
+                    <Text style={[styles.emptyTabText, { marginTop: Spacing.xs }]}>
+                      Loading reviews…
+                    </Text>
+                  </View>
+                ) : reviews.length === 0 ? (
+                  <View style={styles.emptyReviewsBox}>
+                    <Star size={26} color="#F59E0B" fill="#F59E0B" />
+                    <Text style={styles.emptyReviewsTitle}>No reviews yet</Text>
+                    <Text style={styles.emptyReviewsSub}>
+                      Be the first to share your thoughts on this product!
+                    </Text>
+                  </View>
+                ) : (
+                  reviews.map(rev => (
+                    <View key={rev._id || rev.id} style={styles.reviewCard}>
+                      <View style={styles.reviewHeaderRow}>
+                        <View style={styles.reviewAvatar}>
+                          <Text style={styles.reviewAvatarText}>
+                            {rev.userName ? rev.userName.charAt(0).toUpperCase() : 'U'}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.reviewAuthor}>{rev.userName || 'Customer'}</Text>
+                            {rev.verified !== false && (
+                              <View style={styles.verifiedBadge}>
+                                <Check size={10} color="#059669" />
+                                <Text style={styles.verifiedBadgeText}>Verified</Text>
+                              </View>
+                            )}
+                          </View>
+                          <View style={styles.reviewStarsRow}>
+                            {[1, 2, 3, 4, 5].map(st => (
+                              <Star
+                                key={st}
+                                size={11}
+                                color="#F59E0B"
+                                fill={st <= (rev.rating || 5) ? '#F59E0B' : 'transparent'}
+                              />
+                            ))}
+                            <Text style={styles.reviewDate}>
+                              {rev.createdAt
+                                ? new Date(rev.createdAt).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })
+                                : 'Recent'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {rev.title ? <Text style={styles.reviewTitleText}>{rev.title}</Text> : null}
+                      <Text style={styles.reviewBodyText}>{rev.comment}</Text>
+
+                      <View style={styles.reviewFooterRow}>
+                        {rev.recommend !== false && (
+                          <View style={styles.recommendPill}>
+                            <CheckCircle size={11} color={CustomerColors.teal700} />
+                            <Text style={styles.recommendPillText}>Recommends</Text>
+                          </View>
+                        )}
+                        <TouchableOpacity
+                          style={styles.helpfulBtn}
+                          onPress={() => handleVoteHelpful(rev._id)}
+                          activeOpacity={0.7}
+                        >
+                          <ThumbsUp size={12} color={colors.textSecondary} />
+                          <Text style={styles.helpfulBtnText}>
+                            Helpful {rev.helpfulCount ? `(${rev.helpfulCount})` : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
           </View>
         </View>
 
@@ -654,9 +952,165 @@ export default function ProductDetailScreen() {
           <Text style={styles.buyBtnText}>Buy Now</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ─── WRITE REVIEW MODAL (APP) ────────────────────────────────────── */}
+      <Modal
+        visible={reviewModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => !submittingReview && setReviewModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => !submittingReview && setReviewModalVisible(false)}
+          />
+          <View style={styles.modalContent}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Write a Customer Review</Text>
+                <Text style={styles.modalSub} numberOfLines={1}>
+                  {product?.title}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => !submittingReview && setReviewModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
+              {/* Star Rating Picker */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalFieldLabel}>Overall Rating *</Text>
+                <View style={styles.modalStarPicker}>
+                  {[1, 2, 3, 4, 5].map(st => {
+                    const isSelected = st <= reviewForm.rating;
+                    return (
+                      <TouchableOpacity
+                        key={st}
+                        onPress={() => setReviewForm(f => ({ ...f, rating: st }))}
+                        style={{ padding: 4 }}
+                      >
+                        <Star
+                          size={28}
+                          color={isSelected ? '#F59E0B' : (isDark ? '#4B5563' : '#CBD5E1')}
+                          fill={isSelected ? '#F59E0B' : 'transparent'}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <Text style={styles.modalStarScore}>
+                    {reviewForm.rating === 0
+                      ? 'Select a rating'
+                      : reviewForm.rating === 1
+                      ? '1 - Poor'
+                      : reviewForm.rating === 2
+                      ? '2 - Fair'
+                      : reviewForm.rating === 3
+                      ? '3 - Average'
+                      : reviewForm.rating === 4
+                      ? '4 - Good'
+                      : '5 - Outstanding!'}
+                  </Text>
+                </View>
+              </View>
+
+
+              {/* Review Title */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalFieldLabel}>Review Headline</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. Exceptional quality & durable"
+                  placeholderTextColor={colors.textSecondary}
+                  value={reviewForm.title}
+                  onChangeText={t => setReviewForm(f => ({ ...f, title: t }))}
+                />
+              </View>
+
+              {/* Reviewer Name */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalFieldLabel}>Your Name *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Your Name"
+                  placeholderTextColor={colors.textSecondary}
+                  value={reviewForm.userName}
+                  onChangeText={t => setReviewForm(f => ({ ...f, userName: t }))}
+                />
+              </View>
+
+              {/* Review Comment */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalFieldLabel}>Detailed Review *</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.modalTextArea]}
+                  placeholder="Share details about what you liked or disliked..."
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  value={reviewForm.comment}
+                  onChangeText={t => setReviewForm(f => ({ ...f, comment: t }))}
+                />
+              </View>
+
+              {/* Recommend Checkbox */}
+              <TouchableOpacity
+                style={styles.modalRecommendRow}
+                onPress={() => setReviewForm(f => ({ ...f, recommend: !f.recommend }))}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    reviewForm.recommend && styles.checkboxActive,
+                  ]}
+                >
+                  {reviewForm.recommend && <Check size={12} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.modalRecommendText}>
+                  I recommend this product to others
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setReviewModalVisible(false)}
+                disabled={submittingReview}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSubmitBtn}
+                onPress={handleSubmitReview}
+                disabled={submittingReview}
+              >
+                {submittingReview ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>Submit Review</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
+
 
 const getStyles = (isDark: boolean, colors: ThemeColors) =>
   StyleSheet.create({
@@ -1099,4 +1553,371 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       textTransform: 'uppercase',
     },
     btnDisabled: { opacity: 0.5 },
+
+    // Review Overview & Cards Styles
+    reviewOverviewCard: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderRadius: BorderRadius.xl,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      padding: Spacing.md,
+      flexDirection: 'row',
+      gap: Spacing.md,
+      alignItems: 'center',
+    },
+    reviewScoreBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingRight: Spacing.md,
+      borderRightWidth: 1,
+      borderRightColor: isDark ? '#1F2937' : '#E2E8F0',
+      minWidth: 100,
+    },
+    reviewScoreText: {
+      fontSize: 32,
+      fontWeight: '900',
+      color: colors.textPrimary,
+    },
+    starsRow: {
+      flexDirection: 'row',
+      gap: 2,
+      marginVertical: 4,
+    },
+    reviewScoreSub: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    reviewBarsBox: {
+      flex: 1,
+      gap: 4,
+    },
+    reviewBarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    reviewBarLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      width: 22,
+    },
+    reviewBarTrack: {
+      flex: 1,
+      height: 6,
+      backgroundColor: isDark ? '#1F2937' : '#E2E8F0',
+      borderRadius: BorderRadius.pill,
+      overflow: 'hidden',
+    },
+    reviewBarFill: {
+      height: '100%',
+      backgroundColor: '#F59E0B',
+      borderRadius: BorderRadius.pill,
+    },
+    reviewBarCount: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      width: 18,
+      textAlign: 'right',
+    },
+    writeReviewBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      backgroundColor: CustomerColors.primary,
+      paddingVertical: 12,
+      borderRadius: BorderRadius.lg,
+      ...Shadows.card,
+    },
+    writeReviewBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    emptyReviewsBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: Spacing.xl,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: isDark ? '#374151' : '#CBD5E1',
+      borderRadius: BorderRadius.xl,
+      backgroundColor: isDark ? '#111827' : '#F8FAFC',
+      gap: Spacing.xs,
+    },
+    emptyReviewsTitle: {
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginTop: Spacing.xs,
+    },
+    emptyReviewsSub: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    reviewCard: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderRadius: BorderRadius.xl,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      padding: Spacing.md,
+      gap: Spacing.xs,
+    },
+    reviewHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    reviewAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.2)' : '#E6FFFA',
+      borderWidth: 1,
+      borderColor: CustomerColors.teal700,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reviewAvatarText: {
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      color: CustomerColors.teal700,
+    },
+    reviewAuthor: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    verifiedBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      borderRadius: BorderRadius.pill,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      borderWidth: 1,
+      borderColor: '#A7F3D0',
+    },
+    verifiedBadgeText: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: '#059669',
+    },
+    reviewStarsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      marginTop: 2,
+    },
+    reviewDate: {
+      fontSize: 10,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginLeft: 4,
+    },
+    reviewTitleText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 2,
+    },
+    reviewBodyText: {
+      fontSize: 11,
+      fontWeight: '400',
+      color: colors.textSecondary,
+      lineHeight: 16,
+    },
+    reviewFooterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: Spacing.xs,
+      paddingTop: Spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#1F2937' : '#F1F5F9',
+    },
+    recommendPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: BorderRadius.sm,
+    },
+    recommendPillText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: CustomerColors.teal700,
+    },
+    helpfulBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+    },
+    helpfulBtnText: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+
+    // Review Modal Styles
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    },
+    modalContent: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderTopLeftRadius: BorderRadius.xxl,
+      borderTopRightRadius: BorderRadius.xxl,
+      padding: Spacing.lg,
+      maxHeight: '85%',
+      borderTopWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      ...Shadows.card,
+    },
+
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      paddingBottom: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
+      marginBottom: Spacing.md,
+    },
+    modalTitle: {
+      fontSize: FontSizes.md,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    modalSub: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    modalCloseBtn: {
+      padding: Spacing.xs,
+    },
+    modalField: {
+      marginBottom: Spacing.md,
+    },
+    modalFieldLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    modalStarPicker: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    modalStarScore: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginLeft: Spacing.sm,
+    },
+    modalInput: {
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#CBD5E1',
+      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+      borderRadius: BorderRadius.lg,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 10,
+      fontSize: FontSizes.xs,
+      color: colors.textPrimary,
+    },
+    modalTextArea: {
+      height: 80,
+    },
+    modalRecommendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+      padding: Spacing.sm,
+      borderRadius: BorderRadius.lg,
+      borderWidth: 1,
+      borderColor: isDark ? '#134E4A' : '#CCFBF1',
+      marginBottom: Spacing.lg,
+    },
+    checkbox: {
+      width: 18,
+      height: 18,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: CustomerColors.teal700,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxActive: {
+      backgroundColor: CustomerColors.teal700,
+    },
+    modalRecommendText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: CustomerColors.teal700,
+    },
+    modalActionsRow: {
+      flexDirection: 'row',
+      gap: Spacing.md,
+      paddingTop: Spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#1F2937' : '#E2E8F0',
+    },
+    modalCancelBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: BorderRadius.lg,
+      backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalCancelText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+    },
+    modalSubmitBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: BorderRadius.lg,
+      backgroundColor: CustomerColors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...Shadows.card,
+    },
+    modalSubmitText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      textTransform: 'uppercase',
+    },
   });

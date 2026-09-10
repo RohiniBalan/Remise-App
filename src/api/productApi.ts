@@ -55,6 +55,29 @@ export interface Product {
   storeId?: string;
 }
 
+export interface ProductReview {
+  _id: string;
+  id?: string;
+  productId: string;
+  userId?: string;
+  userName: string;
+  userEmail?: string;
+  rating: number;
+  title?: string;
+  comment: string;
+  recommend?: boolean;
+  verified?: boolean;
+  helpfulCount?: number;
+  createdAt?: string;
+}
+
+export interface ReviewStats {
+  averageRating: number;
+  totalReviews: number;
+  distribution: Record<number, number>;
+  recommendPercent: number;
+}
+
 export const productApi = {
   getAll: (params?: Record<string, string | number>) => legacyProductClient.get('/admin/products', { params }),
   getById: (id: string) => legacyProductClient.get(`/products/${id}`),
@@ -70,6 +93,14 @@ export const productApi = {
   getCategoriesViaGateway: () =>
     gatewayClient.get('/api/categories'),
 
+  // Product Reviews
+  getReviews: (productId: string) =>
+    gatewayClient.get(`/api/products/${productId}/reviews`),
+  addReview: (productId: string, data: { rating: number; title?: string; comment: string; userName: string; userEmail?: string; recommend?: boolean }, token?: string) =>
+    gatewayClient.post(`/api/products/${productId}/reviews`, data, token ? { headers: auth(token) } : undefined),
+  voteReviewHelpful: (productId: string, reviewId: string) =>
+    gatewayClient.post(`/api/products/${productId}/reviews/${reviewId}/helpful`),
+
   // FIX: web's client/app/api-services/productApi.ts uses NEXT_PUBLIC_API_URL
   // (the gateway) for this call, not the legacy render.com product host — same
   // pattern as the wholesale-orders fix. Was on legacyProductClient, which is
@@ -83,6 +114,7 @@ export const productApi = {
   createCategory: (name: string, token: string) => legacyProductClient.post('/categories', { name }, { headers: auth(token) }),
   deleteCategory: (id: string, token: string) => legacyProductClient.delete(`/categories/${id}`, { headers: auth(token) }),
 };
+
 
 export function productImage(p: Product): string | undefined {
   return p.images && p.images.length > 0 ? p.images[0] : p.imageUrl;
