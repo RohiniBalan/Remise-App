@@ -20,17 +20,19 @@ import AdminTestimonialsScreen from '../screens/admin/AdminTestimonialsScreen';
 import AdminHotDropsScreen from '../screens/admin/AdminHotDropsScreen';
 import AdminStudioScreen from '../screens/admin/AdminStudioScreen';
 import AdminRalleyzScreen from '../screens/admin/AdminRalleyzScreen';
+import AdminStoresScreen from '../screens/admin/AdminStoresScreen';
 
-// Mirrors client/app/admin/layout/sidebar.tsx's nav structure: Dashboard, a
-// "Portfolio" group of 14 marketing-content editor pages, then Product /
-// Order History / User Management / Dynamic Content. (The web sidebar's
-// "Settings" link is a dead route — no page exists for it — so it is
+// Mirrors client/app/admin/layout/sidebar.tsx's nav structure: Dashboard,
+// Stores, a "Portfolio" group of 14 marketing-content editor pages, then
+// Product / Order History / User Management / Dynamic Content. (The web
+// sidebar's "Settings" link is a dead route — no page exists for it — so it is
 // intentionally NOT reproduced here.) The custom AdminHeader component
 // renders the slide-in side menu (see its file for why this isn't
 // @react-navigation/drawer).
 
 export type AdminDrawerParamList = {
   AdminDashboard: undefined;
+  AdminStores: undefined;
   AdminHero: undefined;
   AdminHotDrops: undefined;
   AdminStudio: undefined;
@@ -76,6 +78,7 @@ export default function AdminNavigator() {
   return (
     <Stack.Navigator screenOptions={{ header: props => <AdminHeader {...props} /> }}>
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ title: 'Dashboard' }} />
+      <Stack.Screen name="AdminStores" component={AdminStoresScreen} options={{ title: 'Store Management' }} />
       {PORTFOLIO_GROUP.map(([name, title, Component]) => (
         <Stack.Screen key={name} name={name} component={Component} options={{ title }} />
       ))}

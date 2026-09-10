@@ -59,9 +59,12 @@ export const storage = {
   setUser: (user: StoredUser) => setItem(STORAGE_KEYS.USER, user),
   removeUser: () => removeItem(STORAGE_KEYS.USER),
 
-  getCart: <T>() => getItem<T>(STORAGE_KEYS.CART),
-  setCart: (cart: unknown) => setItem(STORAGE_KEYS.CART, cart),
-  removeCart: () => removeItem(STORAGE_KEYS.CART),
+  getCart: <T>(userId?: string | null) =>
+    getItem<T>(userId ? `${STORAGE_KEYS.CART}_${userId}` : STORAGE_KEYS.CART),
+  setCart: (cart: unknown, userId?: string | null) =>
+    setItem(userId ? `${STORAGE_KEYS.CART}_${userId}` : STORAGE_KEYS.CART, cart),
+  removeCart: (userId?: string | null) =>
+    removeItem(userId ? `${STORAGE_KEYS.CART}_${userId}` : STORAGE_KEYS.CART),
 
   getTheme: () => AsyncStorage.getItem(STORAGE_KEYS.THEME),
   setTheme: (theme: 'dark' | 'light') => AsyncStorage.setItem(STORAGE_KEYS.THEME, theme),

@@ -45,6 +45,7 @@ import SellerSettingsScreen from '../screens/seller/SellerSettingsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
+import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../styles/theme';
 
@@ -80,6 +81,7 @@ export type HomeBusinessStackParamList = {
     | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
     | undefined;
   StoreRegister: undefined;
+  ProductDetail: { productId: string };
 };
 
 const Tab = createBottomTabNavigator<HomeBusinessTabParamList>();
@@ -381,6 +383,11 @@ export default function HomeBusinessNavigator() {
             name="AccountSettings"
             component={AccountSettingsScreen}
             options={{ headerShown: true, title: 'Settings' }}
+          />
+          <Stack.Screen
+            name="ProductDetail"
+            component={ProductDetailScreen}
+            options={{ headerShown: false }}
           />
         </Stack.Navigator>
       </HomeBusinessDashboardGate>

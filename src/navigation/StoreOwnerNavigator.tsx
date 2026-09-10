@@ -53,6 +53,7 @@ import NewOfferScreen from '../screens/store/NewOfferScreen';
 
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
+import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 import PhonePeWebViewScreen from '../screens/customer/PhonePeWebViewScreen';
 import RazorpayWebViewScreen from '../screens/customer/RazorpayWebViewScreen';
 import PaymentStatusScreen from '../screens/customer/PaymentStatusScreen';
@@ -118,6 +119,7 @@ export type StoreOwnerStackParamList = {
   SupplierCompare: { group: any };
   SupplierCart: undefined;
   StoreRegister: undefined;
+  ProductDetail: { productId: string };
 };
 
 const Tab = createBottomTabNavigator<StoreOwnerTabParamList>();
@@ -578,6 +580,11 @@ export default function StoreOwnerNavigator() {
               name="StoreRegister"
               component={StoreRegisterScreen}
               options={{ ...stackHeaderOptions, title: 'Register Your Store' }}
+            />
+            <Stack.Screen
+              name="ProductDetail"
+              component={ProductDetailScreen}
+              options={{ headerShown: false }}
             />
           </Stack.Navigator>
         </DashboardGate>

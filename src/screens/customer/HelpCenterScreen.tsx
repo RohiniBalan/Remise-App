@@ -14,6 +14,7 @@ import {
     Animated,
     Easing,
     Linking,
+    Keyboard,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
@@ -545,6 +546,35 @@ export default function HelpCenterScreen() {
         Linking.openURL("mailto:support@remise.app").catch(() => { });
     };
 
+    const handleSearch = () => {
+        Keyboard.dismiss();
+        const q = query.trim().toLowerCase();
+        if (!q) return;
+
+        for (const sec of filteredFaqSections) {
+            if (sec.items.length > 0) {
+                setOpenId(`${sec.id}-0`);
+                break;
+            }
+        }
+
+        const targetSectionId =
+            gettingStartedSection ? "getting-started" :
+            findingProductsSection ? "finding-products" :
+            comparingStoresSection ? "comparing-stores" :
+            ordersVisible ? "orders" :
+            deliveryVisible ? "delivery" :
+            paymentsVisible ? "payments" :
+            sellersVisible ? "sellers" :
+            accountSection ? "account-security" : null;
+
+        if (targetSectionId && sectionOffsets.current[targetSectionId] !== undefined) {
+            scrollTo(targetSectionId);
+        } else {
+            scrollViewRef.current?.scrollTo({ y: 350, animated: true });
+        }
+    };
+
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: bg }}>
             <StatusBar
@@ -632,6 +662,8 @@ export default function HelpCenterScreen() {
                             onChangeText={setQuery}
                             placeholder='Search for a topic, e.g. "cancel order"'
                             placeholderTextColor="#6b7280"
+                            returnKeyType="search"
+                            onSubmitEditing={handleSearch}
                             style={styles.searchInput}
                         />
                         {query.length > 0 && (
@@ -639,7 +671,7 @@ export default function HelpCenterScreen() {
                                 <Text style={styles.clearBtnText}>Clear</Text>
                             </TouchableOpacity>
                         )}
-                        <TouchableOpacity style={styles.searchBtn} activeOpacity={0.85}>
+                        <TouchableOpacity style={styles.searchBtn} onPress={handleSearch} activeOpacity={0.85}>
                             <Search size={18} color="#ffffff" />
                         </TouchableOpacity>
                     </View>

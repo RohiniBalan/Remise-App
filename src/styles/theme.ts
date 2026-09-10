@@ -38,15 +38,12 @@ export const GoldColors = {
   cream: '#F0EAD6',
 };
 
-// Admin CMS chrome — ported from client/app/admin/layout/Layout.css's
-// "Crisp Indigo" custom-property palette. Deliberately distinct from the
-// Customer/Store Owner palette above, matching the web admin's own
-// separate visual identity (never shared, per plan).
+// Admin CMS chrome — matching website's brand color theme
 export const AdminColors = {
-  primary: '#4338ca',
-  primaryLight: '#e0e7ff',
-  gradientStart: '#4f46e5',
-  gradientEnd: '#4338ca',
+  primary: '#FF0000',
+  primaryLight: '#FEE2E2',
+  gradientStart: '#FF3333',
+  gradientEnd: '#CC0000',
   bg: '#f8fafc',
   sidebarBg: '#ffffff',
   textPrimary: '#0f172a',

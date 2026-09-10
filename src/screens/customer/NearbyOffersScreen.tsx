@@ -5,6 +5,7 @@ import {
   TextInput,
   Image,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   Modal,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
 import {
   MapPin,
@@ -43,7 +45,27 @@ import {
 } from '../../styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
-import { Offer } from '../../types';
+import {
+  LocationSelectField,
+  lookupPincode,
+} from '../../components/common/LocationSelectField';
+import { indianStates, getCities } from '../../utils/indiaLocation';
+import { requireAuthForPurchase } from '../../utils/authGuard';
+
+export interface Offer {
+  _id: string;
+  title: string;
+  description: string;
+  image: string;
+  storeName: string;
+  storeId: string;
+  category: string;
+  originalPrice: number;
+  offerPrice: number;
+  discountPercent: number;
+  validUntil: string;
+  distanceKm?: number;
+}
 
 interface OrderModalProps {
   offer: Offer;
@@ -615,7 +637,7 @@ function OrderModal({
                 value={form.state}
                 placeholder="Select State"
                 options={indianStates.map(s => ({ key: s.isoCode, label: s.name }))}
-                onSelect={(stateCode, stateName) => {
+                onSelect={(stateCode: string, stateName: string) => {
                   setSelectedStateCode(stateCode);
                   set('state', stateName);
                   set('city', '');
@@ -630,7 +652,7 @@ function OrderModal({
                 placeholder={selectedStateCode ? 'Select City' : 'Select State First'}
                 disabled={!selectedStateCode}
                 options={cities.map(c => ({ key: c.name, label: c.name }))}
-                onSelect={async (_, cityName) => {
+                onSelect={async (_: string, cityName: string) => {
                   set('city', cityName);
                   const pin = await lookupPincode(cityName);
                   if (pin) {

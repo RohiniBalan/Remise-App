@@ -29,3 +29,13 @@ export const adminStatsApi = {
   getDashboardStats: () => legacyProductClient.get(`/admin/stats?t=${Date.now()}`),
 };
 
+export const adminStoreApi = {
+  getAll: () => legacyProductClient.get(`/stores?t=${Date.now()}`),
+  getById: (id: string) => legacyProductClient.get(`/stores/${id}`),
+  getAnalytics: (id: string) => legacyProductClient.get(`/stores/${id}/analytics?range=all`),
+  getProductsByStore: (storeId: string) => legacyProductClient.get(`/products/store/${storeId}`),
+  updateStatus: (id: string, status: string, isActive: boolean) => legacyProductClient.patch(`/stores/${id}/status`, { status, isActive }),
+  toggleVerify: (id: string, isVerified: boolean) => legacyProductClient.patch(`/stores/${id}/verify`, { isVerified }),
+  updateStore: (id: string, data: any) => legacyProductClient.put(`/stores/${id}`, data),
+};
+

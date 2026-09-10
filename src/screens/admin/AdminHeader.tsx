@@ -76,6 +76,7 @@ export default function AdminHeader({ navigation, options, route }: any) {
               </View>
 
               <MenuItem label="Dashboard" onPress={() => go('AdminDashboard')} />
+              <MenuItem label="Stores" onPress={() => go('AdminStores')} />
 
               <Text style={styles.groupLabel}>Portfolio</Text>
               {PORTFOLIO_GROUP.map(([name, label]) => (

@@ -23,16 +23,20 @@ import {
 import { adminStatsApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
-const REVENUE_DATA = [
-  { label: 'Mon', value: 12500 }, { label: 'Tue', value: 18200 }, { label: 'Wed', value: 15400 },
-  { label: 'Thu', value: 24600 }, { label: 'Fri', value: 21800 }, { label: 'Sat', value: 35500 }, { label: 'Sun', value: 28900 },
-];
+const formatCompactINR = (val: number = 0) => {
+  if (!val || isNaN(val)) return '₹0';
+  if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
+  if (val >= 100000) return `₹${(val / 100000).toFixed(2)} L`;
+  if (val >= 10000) return `₹${(val / 1000).toFixed(1)}k`;
+  return `₹${val.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+};
 
-const TOP_PRODUCTS = [
-  { name: 'AI Smart Companion Bot', category: 'Tech Toys', sales: 342, revenue: '₹30,77,658', trend: '+12%' },
-  { name: 'Ferrari F1 Diecast', category: 'Collectibles', sales: 289, revenue: '₹36,12,211', trend: '+8%' },
-  { name: 'LEGO Architecture', category: 'Building Blocks', sales: 256, revenue: '₹25,59,744', trend: '-3%' },
-];
+const DEFAULT_7_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(label => ({
+  label,
+  date: '',
+  value: 0,
+  orders: 0
+}));
 
 const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   Delivered: { bg: '#DCFCE7', text: '#15803D' },
@@ -55,6 +59,8 @@ export default function AdminDashboardScreen() {
     totalHomeBusinesses: 0,
     totalUsers: 0,
     tokensUsed: 0,
+    revenueTrend: [] as any[],
+    topProducts: [] as any[],
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
@@ -73,6 +79,8 @@ export default function AdminDashboardScreen() {
           totalHomeBusinesses: data.totalHomeBusinesses ?? 0,
           totalUsers: data.totalUsers ?? 0,
           tokensUsed: data.tokensUsed ?? 0,
+          revenueTrend: data.revenueTrend ?? [],
+          topProducts: data.topProducts ?? [],
         });
         if (data.recentOrders && Array.isArray(data.recentOrders)) {
           setRecentOrders(data.recentOrders);
@@ -94,8 +102,6 @@ export default function AdminDashboardScreen() {
     setRefreshing(true);
     fetchStats();
   };
-
-  const maxRevenue = Math.max(...REVENUE_DATA.map(d => d.value));
 
   const statCards = [
     {
@@ -206,14 +212,32 @@ export default function AdminDashboardScreen() {
 
       {/* Weekly Revenue Bar Chart */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Weekly Revenue Trend</Text>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Weekly Revenue Trend</Text>
+            <Text style={styles.sectionSub}>Performance over the last 7 days</Text>
+          </View>
+          <View style={styles.tagBadge}>
+            <Text style={styles.tagText}>Last 7 Days</Text>
+          </View>
+        </View>
         <View style={styles.barChart}>
-          {REVENUE_DATA.map(d => (
-            <View key={d.label} style={styles.barCol}>
-              <View style={[styles.bar, { height: 6 + (d.value / maxRevenue) * 90 }]} />
-              <Text style={styles.barLabel}>{d.label}</Text>
-            </View>
-          ))}
+          {(() => {
+            const chartData = stats.revenueTrend && stats.revenueTrend.length > 0 ? stats.revenueTrend : DEFAULT_7_DAYS;
+            const maxVal = Math.max(...chartData.map((d: any) => d.value), 1);
+            return chartData.map((d: any, idx: number) => {
+              const height = Math.max(8, (d.value / maxVal) * 85);
+              return (
+                <View key={d.date || d.label || idx} style={styles.barCol}>
+                  {d.value > 0 ? (
+                    <Text style={styles.barValue}>{formatCompactINR(d.value)}</Text>
+                  ) : null}
+                  <View style={[styles.bar, { height, backgroundColor: d.value > 0 ? AdminColors.primary : '#E5E7EB' }]} />
+                  <Text style={styles.barLabel}>{d.label}</Text>
+                </View>
+              );
+            });
+          })()}
         </View>
       </View>
 
@@ -229,20 +253,29 @@ export default function AdminDashboardScreen() {
             <ExternalLink size={12} color={AdminColors.primary} />
           </TouchableOpacity>
         </View>
-        {TOP_PRODUCTS.map(p => (
-          <View key={p.name} style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>{p.name}</Text>
-              <Text style={styles.rowSub}>{p.category} · {p.sales} sold</Text>
+        {stats.topProducts && stats.topProducts.length > 0 ? (
+          stats.topProducts.map((p: any, i: number) => (
+            <View key={p.id || p.name || i} style={styles.row}>
+              <View style={styles.rankBadgeBox}>
+                <Text style={styles.rankBadgeText}>#{i + 1}</Text>
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 8 }}>
+                <Text style={styles.rowTitle} numberOfLines={1}>{p.name}</Text>
+                <Text style={styles.rowSub}>{p.category} · {p.sales} sold</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.rowAmount}>{formatCompactINR(p.revenue)}</Text>
+                <Text style={[styles.rowTrend, { color: (p.trend || '+5%').startsWith('-') ? '#DC2626' : '#16A34A' }]}>
+                  {p.trend || '+5%'}
+                </Text>
+              </View>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.rowAmount}>{p.revenue}</Text>
-              <Text style={[styles.rowTrend, { color: p.trend.startsWith('-') ? '#DC2626' : '#16A34A' }]}>
-                {p.trend}
-              </Text>
-            </View>
+          ))
+        ) : (
+          <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+            <Text style={styles.emptyRecentText}>No product sales recorded yet</Text>
           </View>
-        ))}
+        )}
       </View>
 
       {/* Recent Orders Table */}
@@ -323,10 +356,13 @@ const styles = StyleSheet.create({
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   linkText: { fontSize: 11, fontWeight: '700', color: AdminColors.primary },
   barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 110, marginTop: Spacing.sm },
-  barCol: { alignItems: 'center', gap: 4 },
-  bar: { width: 18, backgroundColor: AdminColors.primary, borderRadius: 4 },
-  barLabel: { fontSize: 9, color: '#9CA3AF' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
+  barCol: { alignItems: 'center', gap: 4, flex: 1 },
+  barValue: { fontSize: 8, fontWeight: '800', color: AdminColors.primary, marginBottom: 2 },
+  bar: { width: 22, backgroundColor: AdminColors.primary, borderRadius: 4 },
+  barLabel: { fontSize: 9, color: '#9CA3AF', fontWeight: '700' },
+  rankBadgeBox: { width: 32, height: 32, borderRadius: BorderRadius.sm, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
+  rankBadgeText: { fontSize: 11, fontWeight: '800', color: AdminColors.primary },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
   rowTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: '#111827' },
   rowSub: { fontSize: 11, color: '#6B7280', marginTop: 2 },
   rowAmount: { fontSize: FontSizes.sm, fontWeight: '700', color: '#111827' },

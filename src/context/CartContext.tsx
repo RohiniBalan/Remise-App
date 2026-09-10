@@ -26,46 +26,56 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const userId = user?._id || user?.email || null;
   const [cart, setCart] = useState<CartItem[]>([]);
   const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null);
 
-  // Hydrate: immediately load local cart, then sync with backend if logged in
+  // Hydrate: immediately load local cart for current user, then sync with backend if logged in
   useEffect(() => {
+    let isCurrent = true;
     (async () => {
-      const local = await storage.getCart<CartItem[]>();
-      if (local && Array.isArray(local) && local.length > 0) {
-        setCart(local);
+      if (!token || !userId) {
+        // User is logged out or guest: reset cart
+        setCart([]);
+        return;
       }
 
-      if (token) {
+      // Load user-specific cached cart from storage
+      const local = await storage.getCart<CartItem[]>(userId);
+      if (isCurrent && local && Array.isArray(local) && local.length > 0) {
+        setCart(local);
+      } else if (isCurrent) {
+        setCart([]);
+      }
+
+      try {
+        let res;
         try {
-          let res;
-          try {
-            res = await gatewayClient.get('/api/user/cart');
-          } catch {
-            res = await legacyProductClient.get('/user/cart');
-          }
-          const items = res.data?.cart ?? res.data?.data?.items ?? res.data?.items ?? [];
-          if (Array.isArray(items) && items.length > 0) {
-            setCart(items);
-            storage.setCart(items);
-          } else if (local && local.length > 0) {
-            gatewayClient
-              .post('/api/user/cart/sync', { cartItems: local.map(i => ({ id: i.id, quantity: i.quantity })) })
-              .catch(() => {});
-          }
+          res = await gatewayClient.get('/api/user/cart');
         } catch {
-          // keep local cart on failure
+          res = await legacyProductClient.get('/user/cart');
         }
+        if (!isCurrent) return;
+        const items = res.data?.cart ?? res.data?.data?.items ?? res.data?.items ?? [];
+        if (Array.isArray(items)) {
+          setCart(items);
+          await storage.setCart(items, userId);
+        }
+      } catch {
+        // keep local user-specific cart on network failure
       }
     })();
-  }, [token]);
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [token, userId]);
 
   const persist = useCallback(
     (next: CartItem[]) => {
       setCart(next);
-      storage.setCart(next);
+      storage.setCart(next, userId);
       if (token) {
         gatewayClient
           .post('/api/user/cart/sync', { cartItems: next.map(i => ({ id: i.id, quantity: i.quantity })) })
@@ -76,7 +86,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           });
       }
     },
-    [token],
+    [token, userId],
   );
 
   const addToCart = useCallback(

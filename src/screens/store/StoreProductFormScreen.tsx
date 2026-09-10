@@ -27,6 +27,8 @@ import {
   Sliders,
   X,
   Layers,
+  Star,
+  Camera,
 } from 'lucide-react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -45,6 +47,13 @@ import {
   normalizeSpecifications,
 } from '../../utils/categoryAttributes';
 import { AVAILABILITY_OPTIONS } from '../../utils/productForm';
+
+export interface ProductImageItem {
+  id: string;
+  uri: string;
+  asset?: Asset;
+  url?: string;
+}
 
 export default function StoreProductFormScreen() {
   const navigation = useNavigation<any>();
@@ -85,8 +94,29 @@ export default function StoreProductFormScreen() {
     return {};
   });
 
-  const [imageAsset, setImageAsset] = useState<Asset | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>(product?.imageUrl || '');
+  // Multi-image state
+  const [images, setImages] = useState<ProductImageItem[]>(() => {
+    const initialList: ProductImageItem[] = [];
+    const rawList: string[] =
+      Array.isArray(product?.images) && product.images.length > 0
+        ? product.images
+        : product?.imageUrl
+          ? [product.imageUrl]
+          : [];
+
+    rawList.forEach((u: string, idx: number) => {
+      if (u && typeof u === 'string') {
+        initialList.push({
+          id: `existing-${idx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          uri: u,
+          url: u,
+        });
+      }
+    });
+    return initialList;
+  });
+  const [newImageUrl, setNewImageUrl] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [aiAutofilling, setAiAutofilling] = useState(false);
@@ -175,7 +205,17 @@ export default function StoreProductFormScreen() {
         description: x.description || f.description,
         brand: x.brand || f.brand,
       }));
-      if (x.imageUrl) setImageUrl(x.imageUrl);
+      const voiceImg = x.imageUrl;
+      if (voiceImg) {
+        setImages(prev => [
+          {
+            id: `voice-${Date.now()}`,
+            uri: voiceImg,
+            url: voiceImg,
+          },
+          ...prev.filter(i => i.uri !== voiceImg),
+        ]);
+      }
     } catch (err: any) {
       setVoiceError(err.message || 'Could not understand that.');
     } finally {
@@ -186,18 +226,11 @@ export default function StoreProductFormScreen() {
   const voice = useVoiceInput(handleVoiceResult);
 
   // ── AI Auto-Fill ─────────────────────────────────────────────────────────
-  const handleAiAutoFill = async (assetToScan?: Asset) => {
-    const targetAsset = assetToScan || imageAsset;
-    if (!targetAsset?.uri) {
-      Alert.alert(
-        'Upload Image First',
-        'Please take a photo or select an image from your gallery to auto-fill product details.',
-        [
-          { text: 'Camera', onPress: () => pickImage(true, true) },
-          { text: 'Gallery', onPress: () => pickImage(false, true) },
-          { text: 'Cancel', style: 'cancel' },
-        ],
-      );
+  const handleAiAutoFill = async (fileAsset?: Asset) => {
+    const firstAsset = images.find(img => img.asset)?.asset;
+    const targetAsset = fileAsset || firstAsset;
+    if (!targetAsset) {
+      pickImage(false, true);
       return;
     }
 
@@ -239,9 +272,16 @@ export default function StoreProductFormScreen() {
         ...matched,
       }));
 
-      if (ext.imageUrl) {
-        setImageAsset(null);
-        setImageUrl(ext.imageUrl);
+      const aiImg = ext.imageUrl;
+      if (aiImg) {
+        setImages(prev => [
+          {
+            id: `ai-${Date.now()}`,
+            uri: aiImg,
+            url: aiImg,
+          },
+          ...prev.filter(i => i.uri !== aiImg),
+        ]);
       }
 
       setAiSuccessMsg('✨ Product details auto-filled! Please review and edit before saving.');
@@ -259,17 +299,48 @@ export default function StoreProductFormScreen() {
     }
     const res = fromCamera
       ? await launchCamera({ mediaType: 'photo', quality: 0.8 })
-      : await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+      : await launchImageLibrary({ mediaType: 'photo', quality: 0.8, selectionLimit: 0 });
     if (res.didCancel || res.errorCode) return;
-    const asset = res.assets?.[0];
-    if (asset) {
+    const assets = res.assets || [];
+    if (assets.length > 0) {
       if (autoScan) {
-        handleAiAutoFill(asset);
+        handleAiAutoFill(assets[0]);
       } else {
-        setImageAsset(asset);
-        setImageUrl('');
+        const newItems: ProductImageItem[] = assets.map((asset, i) => ({
+          id: `asset-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 4)}`,
+          uri: asset.uri || '',
+          asset,
+        }));
+        setImages(prev => [...prev, ...newItems]);
       }
     }
+  };
+
+  const handleAddUrl = () => {
+    const trimmed = newImageUrl.trim();
+    if (!trimmed) return;
+    setImages(prev => [
+      ...prev,
+      {
+        id: `url-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        uri: trimmed,
+        url: trimmed,
+      },
+    ]);
+    setNewImageUrl('');
+  };
+
+  const handleRemoveImage = (id: string) => {
+    setImages(prev => prev.filter(img => img.id !== id));
+  };
+
+  const handleSetCover = (index: number) => {
+    if (index === 0) return;
+    setImages(prev => {
+      const target = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      return [target, ...rest];
+    });
   };
 
   // ── Submit ───────────────────────────────────────────────────────────────
@@ -297,14 +368,22 @@ export default function StoreProductFormScreen() {
       fd.append('specifications', JSON.stringify(cleanSpecs));
       fd.append('attributes', JSON.stringify(dynamicAttributes));
 
-      if (imageAsset?.uri) {
-        fd.append('image', {
-          uri: imageAsset.uri,
-          name: imageAsset.fileName || 'product.jpg',
-          type: imageAsset.type || 'image/jpeg',
-        } as any);
-      } else if (imageUrl) {
-        fd.append('imageUrl', imageUrl);
+      // Append multiple image assets & retained URLs
+      const retainedUrls: string[] = [];
+      images.forEach(img => {
+        if (img.asset?.uri) {
+          fd.append('images', {
+            uri: img.asset.uri,
+            name: img.asset.fileName || 'product.jpg',
+            type: img.asset.type || 'image/jpeg',
+          } as any);
+        } else if (img.url) {
+          retainedUrls.push(img.url);
+        }
+      });
+      fd.append('images', JSON.stringify(retainedUrls));
+      if (retainedUrls.length > 0) {
+        fd.append('imageUrl', retainedUrls[0]);
       }
 
       if (isEdit) await storeProductApi.update(product._id || product.id, fd);
@@ -318,8 +397,6 @@ export default function StoreProductFormScreen() {
       setSaving(false);
     }
   };
-
-  const preview = imageAsset?.uri || imageUrl;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -346,7 +423,7 @@ export default function StoreProductFormScreen() {
             <>
               <Sparkles size={14} color="#fff" style={{ marginRight: Spacing.xs }} />
               <Text style={styles.aiButtonText}>
-                {imageAsset ? 'Auto-fill from current photo' : 'Upload photo & Auto-fill'}
+                {images.some(img => img.asset) ? 'Auto-fill from current photo' : 'Upload photo & Auto-fill'}
               </Text>
             </>
           )}
@@ -433,42 +510,117 @@ export default function StoreProductFormScreen() {
         ) : null}
       </View>
 
-      {/* Product Image Section */}
+      {/* Product Photos Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>PRODUCT IMAGE</Text>
-        <View style={styles.imageRow}>
+        <View style={styles.photosHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionLabel}>PRODUCT PHOTOS ({images.length})</Text>
+            <Text style={styles.photosSubtext}>First photo is the primary cover photo.</Text>
+          </View>
+          <View style={styles.photoActionsRow}>
+            <TouchableOpacity
+              style={styles.photoActionButton}
+              onPress={() => pickImage(true)}
+            >
+              <Camera size={13} color="#fff" />
+              <Text style={styles.photoActionButtonText}>Camera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.photoActionButton, styles.galleryActionButton]}
+              onPress={() => pickImage(false)}
+            >
+              <ImageIcon size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Text style={[styles.photoActionButtonText, styles.galleryActionButtonText]}>Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* URL Input Row */}
+        <View style={styles.urlInputRow}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder="Or paste image URL (https://...)"
+            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            value={newImageUrl}
+            onChangeText={setNewImageUrl}
+          />
           <TouchableOpacity
-            style={styles.imagePicker}
+            style={[styles.addUrlBtn, !newImageUrl.trim() && { opacity: 0.5 }]}
+            onPress={handleAddUrl}
+            disabled={!newImageUrl.trim()}
+          >
+            <Text style={styles.addUrlBtnText}>+ Add</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Horizontal Thumbnails List */}
+        {images.length === 0 ? (
+          <TouchableOpacity
+            style={styles.emptyPhotoBox}
             onPress={() =>
-              Alert.alert('Product Photo', 'Choose source', [
+              Alert.alert('Add Product Photo', 'Choose source', [
                 { text: 'Camera', onPress: () => pickImage(true) },
                 { text: 'Gallery', onPress: () => pickImage(false) },
                 { text: 'Cancel', style: 'cancel' },
               ])
             }
           >
-            {preview ? (
-              <Image source={{ uri: preview }} style={styles.imagePreview} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <ImageIcon size={28} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-                <Text style={styles.imagePlaceholderText}>Add Photo</Text>
-              </View>
-            )}
+            <ImageIcon size={28} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+            <Text style={styles.emptyPhotoText}>Tap to add product photos</Text>
+            <Text style={styles.emptyPhotoSubtext}>Upload multiple photos from gallery or camera</Text>
           </TouchableOpacity>
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <TextInput
-              style={styles.input}
-              placeholder="Or paste image URL"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              value={imageUrl}
-              onChangeText={v => {
-                setImageUrl(v);
-                if (v) setImageAsset(null);
-              }}
-            />
-          </View>
-        </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.thumbnailsScroll}
+          >
+            {images.map((img, idx) => (
+              <View key={img.id} style={[styles.thumbCard, idx === 0 && styles.coverThumbCard]}>
+                <Image source={{ uri: img.uri }} style={styles.thumbImage} resizeMode="cover" />
+
+                {/* Cover Badge or Set Cover Button */}
+                {idx === 0 ? (
+                  <View style={styles.coverBadge}>
+                    <Star size={9} color="#fff" />
+                    <Text style={styles.coverBadgeText}>Cover</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.setCoverBtn}
+                    onPress={() => handleSetCover(idx)}
+                  >
+                    <Star size={9} color="#D97706" />
+                    <Text style={styles.setCoverBtnText}>Cover</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Remove Button */}
+                <TouchableOpacity
+                  style={styles.removePhotoBtn}
+                  onPress={() => handleRemoveImage(img.id)}
+                >
+                  <Trash2 size={11} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {/* Add More Tile */}
+            <TouchableOpacity
+              style={styles.addMoreTile}
+              onPress={() =>
+                Alert.alert('Add More Photos', 'Choose source', [
+                  { text: 'Camera', onPress: () => pickImage(true) },
+                  { text: 'Gallery', onPress: () => pickImage(false) },
+                  { text: 'Cancel', style: 'cancel' },
+                ])
+              }
+            >
+              <Plus size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Text style={styles.addMoreText}>Add More</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
       </View>
 
       {/* Basic Info */}
@@ -852,22 +1004,116 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
 
-  imageRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
-  imagePicker: {
-    width: 80,
-    height: 80,
+  photosHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  photosSubtext: { fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 1 },
+  photoActionsRow: { flexDirection: 'row', gap: 6 },
+  photoActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: CustomerColors.teal700,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+  },
+  galleryActionButton: {
+    backgroundColor: isDark ? '#1F2937' : '#F0FDFA',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#99F6E4',
+  },
+  photoActionButtonText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  galleryActionButtonText: { color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+
+  urlInputRow: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', marginBottom: Spacing.sm },
+  addUrlBtn: {
+    backgroundColor: isDark ? '#374151' : '#F1F5F9',
+    borderWidth: 1,
+    borderColor: isDark ? '#4B5563' : '#CBD5E1',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addUrlBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+
+  emptyPhotoBox: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: isDark ? '#374151' : '#CBD5E1',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+    marginVertical: 4,
+  },
+  emptyPhotoText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black, marginTop: Spacing.xs },
+  emptyPhotoSubtext: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
+
+  thumbnailsScroll: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
+  thumbCard: {
+    width: 90,
+    height: 90,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#E2E8F0',
+    backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+    position: 'relative',
+  },
+  coverThumbCard: {
+    borderColor: CustomerColors.teal700,
+    borderWidth: 2,
+  },
+  thumbImage: { width: '100%', height: '100%' },
+  coverBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: CustomerColors.teal700,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  coverBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  setCoverBtn: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  setCoverBtnText: { color: '#D97706', fontSize: 9, fontWeight: '700' },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(220,38,38,0.85)',
+    padding: 3,
+    borderRadius: 4,
+  },
+  addMoreTile: {
+    width: 90,
+    height: 90,
     borderRadius: BorderRadius.md,
     borderWidth: 1.5,
-    borderColor: isDark ? '#374151' : '#CBD5E1',
     borderStyle: 'dashed',
+    borderColor: isDark ? '#374151' : '#CBD5E1',
     backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    gap: 2,
   },
-  imagePreview: { width: '100%', height: '100%' },
-  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  imagePlaceholderText: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
+  addMoreText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
 
   inputLabel: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: 4, marginTop: Spacing.xs },
   input: {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, ChevronLeft, ChevronRight, Package } from 'lucide-react-native';
+import { ArrowLeft, ChevronLeft, ChevronRight, Package, Eye } from 'lucide-react-native';
 import { TitleGroup } from '../../utils/supplierTypes';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
@@ -59,9 +59,23 @@ export default function StoreSupplierBrandsScreen() {
                   <Text style={styles.price}>₹{b.lowestPrice}</Text>
                 </View>
 
-                <TouchableOpacity style={styles.compareBtn} onPress={() => navigation.navigate('SupplierCompare', { group: b })}>
-                  <Text style={styles.compareBtnText}>Compare Suppliers</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md }}>
+                  <TouchableOpacity
+                    style={[styles.compareBtn, { flex: 1, marginTop: 0 }]}
+                    onPress={() => navigation.navigate('SupplierCompare', { group: b })}
+                  >
+                    <Text style={styles.compareBtnText}>Compare Suppliers</Text>
+                  </TouchableOpacity>
+                  {cheapest?.productId && (
+                    <TouchableOpacity
+                      style={[styles.compareBtn, { marginTop: 0, paddingHorizontal: 14, backgroundColor: isDark ? '#1F2937' : '#F3F4F6', borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, flexDirection: 'row', gap: 4 }]}
+                      onPress={() => navigation.navigate('ProductDetail', { productId: cheapest.productId })}
+                    >
+                      <Eye size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                      <Text style={{ fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black }}>Details</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               {total > 1 && (

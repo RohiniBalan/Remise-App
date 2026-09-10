@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {
   Sparkles,
@@ -162,6 +163,7 @@ export default function BlogScreen({ navigation }: any) {
   const [query, setQuery] = useState('');
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
 
   const featured = useMemo(() => ARTICLES.find((a) => a.featured) ?? ARTICLES[0], []);
 
@@ -178,18 +180,27 @@ export default function BlogScreen({ navigation }: any) {
   }, [activeCategory, query, featured]);
 
   const handleSubscribe = async () => {
-    if (!newsletterEmail.trim() || !newsletterEmail.includes('@')) {
+    const trimmed = newsletterEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
+    setSubscribing(true);
     try {
-      await newsletterApi.subscribe(newsletterEmail, 'mobile_blog');
+      const res = await newsletterApi.subscribe(trimmed, 'mobile_blog');
+      const isDup = res?.data?.isDuplicate;
       setSubscribed(true);
-      Alert.alert('Subscribed!', 'Thank you for subscribing to Remise stories & updates.');
+      if (isDup) {
+        Alert.alert('Already Subscribed', "You're already subscribed to Remise updates!");
+      } else {
+        Alert.alert('Subscribed!', 'Thank you for subscribing to Remise stories & updates.');
+      }
       setNewsletterEmail('');
     } catch {
       setSubscribed(true);
       Alert.alert('Subscribed!', 'Thank you for subscribing to Remise stories & updates.');
+    } finally {
+      setSubscribing(false);
     }
   };
 
@@ -407,11 +418,16 @@ export default function BlogScreen({ navigation }: any) {
               onChangeText={setNewsletterEmail}
             />
             <TouchableOpacity
-              style={styles.subscribeBtn}
+              style={[styles.subscribeBtn, subscribing && { opacity: 0.7 }]}
               onPress={handleSubscribe}
+              disabled={subscribing}
               activeOpacity={0.85}
             >
-              <Text style={styles.subscribeBtnText}>Subscribe</Text>
+              {subscribing ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.subscribeBtnText}>Subscribe</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}

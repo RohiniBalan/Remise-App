@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Plus, Edit2, Trash2, Package } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Package, Eye } from 'lucide-react-native';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { useAuth } from '../../context/AuthContext';
@@ -78,10 +78,18 @@ export default function SellerManageBrandsScreen() {
           const badgeFg = isDark ? avail.darkFg : avail.fg;
           return (
             <View style={styles.row}>
-              <View style={styles.thumb}>
+              <TouchableOpacity
+                style={styles.thumb}
+                onPress={() => navigation.navigate('ProductDetail', { productId: p._id })}
+                activeOpacity={0.7}
+              >
                 {img ? <Image source={{ uri: img }} style={styles.thumbImg} /> : <Package size={20} color={isDark ? '#4B5563' : '#E5E7EB'} />}
-              </View>
-              <View style={{ flex: 1 }}>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => navigation.navigate('ProductDetail', { productId: p._id })}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.brandName} numberOfLines={1}>{p.brand || 'Unbranded'}</Text>
                 <Text style={styles.price}>₹{p.discountedPrice || p.price}</Text>
                 <Text style={styles.moqText}>MOQ: {p.moq || 1} · {p.bulkPricing?.length || 0} tier{p.bulkPricing?.length === 1 ? '' : 's'}</Text>
@@ -91,8 +99,14 @@ export default function SellerManageBrandsScreen() {
                   </View>
                   <Text style={[styles.stockText, p.totalStock < 5 && { color: '#D97706', fontWeight: '700' }]}>Stock {p.totalStock}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
               <View style={styles.rowActions}>
+                <TouchableOpacity
+                  style={styles.iconBtn}
+                  onPress={() => navigation.navigate('ProductDetail', { productId: p._id })}
+                >
+                  <Eye size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('SellerProductForm', { product: p })}>
                   <Edit2 size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                 </TouchableOpacity>
