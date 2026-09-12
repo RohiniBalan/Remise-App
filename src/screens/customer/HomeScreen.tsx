@@ -68,7 +68,7 @@ import {
   fetchBestSellers,
   fetchNewArrivals,
 } from '../../api/homeSectionsApi';
-import { Product, productId, productImage } from '../../api/productApi';
+import { productApi, Product, productId, productImage } from '../../api/productApi';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -138,8 +138,8 @@ export default function HomeScreen() {
   const { theme, toggleTheme, isDark, colors } = useTheme();
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [bestSellers, setBestSellers] = useState<BestSellerItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>(CATEGORY_FALLBACK);
+  const [bestSellers, setBestSellers] = useState<BestSellerItem[]>(BEST_SELLER_FALLBACK);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
 
   // ── Shop by Offers Nearby — mirrors ShopByOffersNearbySection.tsx's
@@ -155,16 +155,39 @@ export default function HomeScreen() {
     // approach the web's ShopByCategorySection.tsx and BestSellersSection.tsx
     // use (fetches /api/categories + /api/products from product-service).
     buildCategoryItems()
-      .then(items => setCategories(items))
+      .then(items => {
+        if (items && items.length > 0) setCategories(items);
+      })
       .catch(() => setCategories(CATEGORY_FALLBACK));
 
     fetchBestSellers()
-      .then(items => setBestSellers(items))
+      .then(items => {
+        if (items && items.length > 0) setBestSellers(items);
+      })
       .catch(() => setBestSellers(BEST_SELLER_FALLBACK));
 
     fetchNewArrivals()
-      .then(items => setNewArrivals(items.slice(0, 10)))
-      .catch(() => setNewArrivals([]));
+      .then(items => {
+        if (items && items.length > 0) {
+          setNewArrivals(items.slice(0, 10));
+        } else {
+          // Fallback to recent products if no products created in the last 14 days
+          productApi.getProductsViaGateway({ limit: 10, ownerRole: 'store_owner' })
+            .then(res => {
+              const list = Array.isArray(res.data) ? res.data : (res.data?.products || res.data?.data || []);
+              if (list.length > 0) setNewArrivals(list.slice(0, 10));
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {
+        productApi.getProductsViaGateway({ limit: 10, ownerRole: 'store_owner' })
+          .then(res => {
+            const list = Array.isArray(res.data) ? res.data : (res.data?.products || res.data?.data || []);
+            if (list.length > 0) setNewArrivals(list.slice(0, 10));
+          })
+          .catch(() => {});
+      });
   }, []);
 
   const fetchNearbyOffers = useCallback(async (lat?: number, lng?: number) => {
@@ -257,7 +280,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
         {!user && (
           <View style={[styles.guestLoginCard, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
             <View style={styles.guestLoginIconBg}>

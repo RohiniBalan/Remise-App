@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
-  Linking,
   Modal,
   FlatList,
   KeyboardTypeOptions,
@@ -30,21 +29,23 @@ import {
   CreditCard,
   Utensils,
   Check,
-  ChevronRight,
   ChevronDown,
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
+  Lock,
+  RefreshCw,
+  Fingerprint,
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { storeApi } from '../../api/storeApi';
 import SuccessModal from '../../components/common/SuccessModal';
 import {
   CustomerColors,
-  GoldColors,
   Spacing,
   FontSizes,
   BorderRadius,
-  Shadows,
 } from '../../styles/theme';
 import { indianStates, getCities } from '../../utils/indiaLocation';
 
@@ -88,6 +89,7 @@ export default function StoreRegisterScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { user, token, login } = useAuth();
+  const { isDark, colors } = useTheme();
 
   const storeType =
     route.params?.storeType ||
@@ -106,6 +108,7 @@ export default function StoreRegisterScreen() {
     email: user?.email || '',
     category: 'Food & Beverages',
     pan: '',
+    aadhaar: '',
     fssaiNumber: '',
     gstin: '',
     street: '',
@@ -120,8 +123,32 @@ export default function StoreRegisterScreen() {
     ifscCode: '',
   });
 
+  // Cashfree Verification States
   const [panVerified, setPanVerified] = useState(false);
+  const [panData, setPanData] = useState<any>(null);
   const [panError, setPanError] = useState('');
+  const [verifyingPan, setVerifyingPan] = useState(false);
+
+  const [aadhaarVerified, setAadhaarVerified] = useState(false);
+  const [aadhaarData, setAadhaarData] = useState<any>(null);
+  const [aadhaarError, setAadhaarError] = useState('');
+  const [verifyingAadhaar, setVerifyingAadhaar] = useState(false);
+  const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
+  const [aadhaarOtp, setAadhaarOtp] = useState('');
+  const [aadhaarRefId, setAadhaarRefId] = useState('');
+  const [showAadhaarOtpModal, setShowAadhaarOtpModal] = useState(false);
+  const [verifyingAadhaarOtp, setVerifyingAadhaarOtp] = useState(false);
+
+  const [gstinVerified, setGstinVerified] = useState(false);
+  const [gstinData, setGstinData] = useState<any>(null);
+  const [gstinError, setGstinError] = useState('');
+  const [verifyingGstin, setVerifyingGstin] = useState(false);
+
+  const [bankVerified, setBankVerified] = useState(false);
+  const [bankData, setBankData] = useState<any>(null);
+  const [bankError, setBankError] = useState('');
+  const [verifyingBank, setVerifyingBank] = useState(false);
+
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [detecting, setDetecting] = useState(false);
@@ -176,22 +203,245 @@ export default function StoreRegisterScreen() {
     lookupPincode(cityName);
   };
 
-  const verifyPAN = (panVal: string) => {
-    const cleanPan = panVal.trim().toUpperCase();
+  // ── Cashfree Identity Verification Handlers ───────────────────
+  const verifyPANWithCashfree = async () => {
+    const cleanPan = form.pan.trim().toUpperCase();
     const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     if (!cleanPan) {
       setPanError('Please enter a PAN number.');
-      setPanVerified(false);
-      return false;
+      return;
     }
     if (!PAN_REGEX.test(cleanPan)) {
-      setPanError('Invalid PAN format (expected 10 characters e.g. ABCDE1234F).');
-      setPanVerified(false);
-      return false;
+      setPanError('Invalid PAN format (e.g. ABCDE1234F).');
+      return;
     }
+    setVerifyingPan(true);
     setPanError('');
-    setPanVerified(true);
-    return true;
+    try {
+      const res = await storeApi.verifyPan(
+        cleanPan,
+        form.legalBusinessName || user?.fullname || form.name,
+      );
+      const data = res.data;
+      if (data?.valid) {
+        // If live API was used and name doesn't match PAN records — block
+        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+          setPanVerified(false);
+          const registeredName = data.registeredName ? `"${data.registeredName}"` : 'the PAN card holder';
+          setPanError(`Name mismatch: PAN records show the name as ${registeredName}. Please enter your legal name exactly as it appears on your PAN card.`);
+          return;
+        }
+        setPanVerified(true);
+        setPanData(data);
+      } else {
+        setPanVerified(false);
+        setPanError(data?.message || 'PAN verification failed.');
+      }
+    } catch (err: any) {
+      setPanError(
+        err?.response?.data?.message || 'Could not verify PAN with Cashfree.',
+      );
+    } finally {
+      setVerifyingPan(false);
+    }
+  };
+
+  const sendAadhaarOtpWithCashfree = async () => {
+    const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
+    if (cleanAadhaar.length !== 12) {
+      setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
+      return;
+    }
+    setVerifyingAadhaar(true);
+    setAadhaarError('');
+    try {
+      const res = await storeApi.generateAadhaarOtp(cleanAadhaar);
+      const data = res.data;
+      if (data?.success && data?.refId) {
+        setAadhaarRefId(data.refId);
+        setAadhaarOtpSent(true);
+        setShowAadhaarOtpModal(true);
+      } else {
+        setAadhaarError(
+          data?.message || 'Failed to generate Aadhaar OTP from UIDAI.',
+        );
+      }
+    } catch (err: any) {
+      setAadhaarError(
+        err?.response?.data?.message || 'Aadhaar OTP request failed.',
+      );
+    } finally {
+      setVerifyingAadhaar(false);
+    }
+  };
+
+  const verifyAadhaarOtpWithCashfree = async () => {
+    if (!aadhaarOtp || aadhaarOtp.length < 4) {
+      setAadhaarError('Please enter the OTP sent to your Aadhaar-linked mobile.');
+      return;
+    }
+    setVerifyingAadhaarOtp(true);
+    setAadhaarError('');
+    try {
+      const res = await storeApi.verifyAadhaarOtp(
+        aadhaarRefId,
+        aadhaarOtp,
+        form.legalBusinessName || user?.fullname || form.name,
+      );
+      const data = res.data;
+      if (data?.valid) {
+        // If live API was used and name doesn't match Aadhaar records — block
+        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+          setAadhaarError(`Name mismatch: Aadhaar records show the name as "${data.nameOnAadhaar || 'the Aadhaar holder'}". Please use the legal name matching your Aadhaar.`);
+          return;
+        }
+        setAadhaarVerified(true);
+        setAadhaarData(data);
+        setShowAadhaarOtpModal(false);
+      } else {
+        setAadhaarError(data?.message || 'Invalid Aadhaar OTP.');
+      }
+    } catch (err: any) {
+      setAadhaarError(
+        err?.response?.data?.message || 'Failed to verify Aadhaar OTP.',
+      );
+    } finally {
+      setVerifyingAadhaarOtp(false);
+    }
+  };
+
+  const verifyAadhaarDirectWithCashfree = async () => {
+    const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
+    if (cleanAadhaar.length !== 12) {
+      setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
+      return;
+    }
+    setVerifyingAadhaar(true);
+    setAadhaarError('');
+    try {
+      const res = await storeApi.verifyAadhaarDirect(
+        cleanAadhaar,
+        form.legalBusinessName || user?.fullname || form.name,
+      );
+      const data = res.data;
+      if (data?.valid) {
+        // If live API was used and name doesn't match Aadhaar records — block
+        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+          setAadhaarError(`Name mismatch: Aadhaar records show "${data.nameOnAadhaar || 'a different name'}". Please ensure your legal name matches your Aadhaar card.`);
+          return;
+        }
+        setAadhaarVerified(true);
+        setAadhaarData(data);
+      } else {
+        setAadhaarError(
+          data?.message || 'Aadhaar checksum validation failed.',
+        );
+      }
+    } catch (err: any) {
+      setAadhaarError(
+        err?.response?.data?.message || 'Could not verify Aadhaar.',
+      );
+    } finally {
+      setVerifyingAadhaar(false);
+    }
+  };
+
+  const verifyGSTINWithCashfree = async () => {
+    const cleanGstin = form.gstin.trim().toUpperCase();
+    const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if (!cleanGstin) {
+      setGstinError('Please enter a GSTIN number.');
+      return;
+    }
+    if (!GSTIN_REGEX.test(cleanGstin)) {
+      setGstinError('Invalid GSTIN format (e.g. 22AAAAA0000A1Z5).');
+      return;
+    }
+    setVerifyingGstin(true);
+    setGstinError('');
+    try {
+      const res = await storeApi.verifyGstin(
+        cleanGstin,
+        form.name || form.legalBusinessName,
+        form.pan.trim().toUpperCase(),
+      );
+      const data = res.data;
+      if (data?.valid) {
+        // Check if the PAN embedded in GSTIN matches the entered PAN
+        if (data.panMatches === false) {
+          setGstinVerified(false);
+          setGstinError(
+            `GSTIN PAN mismatch: The PAN embedded in your GSTIN (${data.embeddedPan || 'unknown'}) does not match the PAN you entered (${form.pan.trim().toUpperCase() || 'not entered'}). Please use the GSTIN registered to your PAN card.`
+          );
+          return;
+        }
+        // If live API returned a business name mismatch — block
+        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+          setGstinVerified(false);
+          setGstinError(`Business name mismatch: GSTIN records show "${data.legalName || 'a different name'}". Please verify your legal business name matches your GSTIN registration.`);
+          return;
+        }
+        setGstinVerified(true);
+        setGstinData(data);
+      } else {
+        setGstinVerified(false);
+        setGstinError(data?.message || 'GSTIN verification failed.');
+      }
+    } catch (err: any) {
+      setGstinError(
+        err?.response?.data?.message || 'Could not verify GSTIN with Cashfree.',
+      );
+    } finally {
+      setVerifyingGstin(false);
+    }
+  };
+
+  const verifyBankWithCashfree = async () => {
+    if (!form.accountNumber.trim()) {
+      setBankError('Bank Account Number is required.');
+      return;
+    }
+    if (form.accountNumber !== form.confirmAccountNumber) {
+      setBankError('Account numbers do not match.');
+      return;
+    }
+    const cleanIfsc = form.ifscCode.trim().toUpperCase();
+    const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!IFSC_REGEX.test(cleanIfsc)) {
+      setBankError('Invalid IFSC format (e.g. IDIB000K073).');
+      return;
+    }
+    setVerifyingBank(true);
+    setBankError('');
+    try {
+      const res = await storeApi.verifyBankAccount(
+        form.accountNumber.trim(),
+        cleanIfsc,
+        form.legalBusinessName || user?.fullname || form.name,
+        form.phone,
+      );
+      const data = res.data;
+      if (data?.valid) {
+        // If live API was used and name doesn't match bank account holder — block
+        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+          setBankVerified(false);
+          const nameAtBank = data.nameAtBank ? `"${data.nameAtBank}"` : 'a different account holder';
+          setBankError(`Name mismatch: Bank records show the account belongs to ${nameAtBank}. Please ensure the legal business name matches the bank account holder name.`);
+          return;
+        }
+        setBankVerified(true);
+        setBankData(data);
+      } else {
+        setBankVerified(false);
+        setBankError(data?.message || 'Bank account verification failed.');
+      }
+    } catch (err: any) {
+      setBankError(
+        err?.response?.data?.message || 'Could not verify Bank Account.',
+      );
+    } finally {
+      setVerifyingBank(false);
+    }
   };
 
   const detectLocation = async () => {
@@ -218,7 +468,9 @@ export default function StoreRegisterScreen() {
       },
       () => {
         setDetecting(false);
-        setError('Could not detect GPS location. Please enter coordinates manually.');
+        setError(
+          'Could not detect GPS location. Please enter coordinates manually.',
+        );
       },
       { enableHighAccuracy: true, timeout: 15000 },
     );
@@ -241,7 +493,19 @@ export default function StoreRegisterScreen() {
       }
       const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
       if (!PAN_REGEX.test(form.pan.trim().toUpperCase())) {
-        setError('Please enter a valid 10-character PAN number (e.g. ABCDE1234F).');
+        setError(
+          'Please enter a valid 10-character PAN number (e.g. ABCDE1234F).',
+        );
+        return false;
+      }
+
+      if (!form.aadhaar.trim()) {
+        setError('Aadhaar number is mandatory for identity verification.');
+        return false;
+      }
+      const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
+      if (cleanAadhaar.length !== 12) {
+        setError('Please enter a valid 12-digit Aadhaar number.');
         return false;
       }
 
@@ -260,7 +524,7 @@ export default function StoreRegisterScreen() {
       if (form.gstin.trim()) {
         const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
         if (!GSTIN_REGEX.test(form.gstin.trim().toUpperCase())) {
-          setError('Please enter a valid 15-character GSTIN (e.g. 22AAAAA0000A1Z5).');
+          setError('Please enter a valid 15-character GSTIN.');
           return false;
         }
       }
@@ -279,19 +543,26 @@ export default function StoreRegisterScreen() {
       const lat = parseFloat(form.latitude);
       const lng = parseFloat(form.longitude);
       if (!isValidLatLng(lat, lng)) {
-        setError('Invalid coordinates. Latitude must be -90 to 90, Longitude -180 to 180.');
+        setError('Invalid coordinates. Latitude must be -90 to 90.');
         return false;
       }
       return true;
     }
 
     if (step === 4) {
-      if (form.accountNumber && form.accountNumber !== form.confirmAccountNumber) {
+      if (!form.accountNumber.trim()) {
+        setError('Bank Account Number is required for settlement payouts.');
+        return false;
+      }
+      if (form.accountNumber !== form.confirmAccountNumber) {
         setError('Bank Account Number and Confirm Account Number do not match.');
         return false;
       }
-      if (form.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifscCode.trim().toUpperCase())) {
-        setError('Please enter a valid 11-character Indian IFSC code (e.g. IDIB000K073).');
+      if (
+        !form.ifscCode ||
+        !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifscCode.trim().toUpperCase())
+      ) {
+        setError('Please enter a valid 11-character Indian IFSC code.');
         return false;
       }
       return true;
@@ -317,7 +588,12 @@ export default function StoreRegisterScreen() {
       return;
     }
 
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3) || !validateStep(4)) {
+    if (
+      !validateStep(1) ||
+      !validateStep(2) ||
+      !validateStep(3) ||
+      !validateStep(4)
+    ) {
       return;
     }
 
@@ -331,6 +607,7 @@ export default function StoreRegisterScreen() {
       fd.append('email', form.email);
       fd.append('category', form.category);
       fd.append('pan', form.pan.trim().toUpperCase());
+      fd.append('aadhaar', form.aadhaar.replace(/\D/g, ''));
       if (form.fssaiNumber.trim()) {
         fd.append('fssaiNumber', form.fssaiNumber.trim());
         fd.append('fssai', form.fssaiNumber.trim());
@@ -364,6 +641,33 @@ export default function StoreRegisterScreen() {
         );
       }
 
+      // Verification Details metadata for Cashfree trust score
+      const verificationDetails = {
+        pan: {
+          verified: panVerified,
+          registeredName: panData?.registeredName || '',
+          matchScore: panData?.matchScore || 0,
+        },
+        aadhaar: {
+          verified: aadhaarVerified,
+          nameOnAadhaar: aadhaarData?.nameOnAadhaar || '',
+          matchScore: aadhaarData?.matchScore || 0,
+        },
+        gstin: {
+          verified: gstinVerified,
+          legalName: gstinData?.legalName || '',
+          status: gstinData?.gstinStatus || '',
+          panMatches: gstinData?.panMatches || false,
+        },
+        bankAccount: {
+          verified: bankVerified,
+          nameAtBank: bankData?.nameAtBank || '',
+          bankName: bankData?.bankName || '',
+          accountStatus: bankData?.accountStatus || '',
+        },
+      };
+      fd.append('verificationDetails', JSON.stringify(verificationDetails));
+
       if (logoUri) {
         fd.append('logo', {
           uri: logoUri,
@@ -396,7 +700,7 @@ export default function StoreRegisterScreen() {
   };
 
   return (
-    <View style={styles.screenContainer}>
+    <View style={[styles.screenContainer, isDark && { backgroundColor: '#0a0f1d' }]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
@@ -406,12 +710,12 @@ export default function StoreRegisterScreen() {
       >
         {/* Header */}
         <Text style={styles.title}>Register Your Store</Text>
-        <Text style={styles.subtitle}>
-          Complete your 4-step merchant profile to start receiving orders & settlements.
+        <Text style={[styles.subtitle, isDark && { color: '#94a3b8' }]}>
+          Complete your 4-step merchant profile with real-time KYC verification to start receiving orders.
         </Text>
 
         {/* ── Stepper Indicator ─────────────────────────────────── */}
-        <View style={styles.stepperCard}>
+        <View style={[styles.stepperCard, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
           <View style={styles.stepperRow}>
             {STEPS.map((step, idx) => {
               const isCompleted = currentStep > step.id;
@@ -427,6 +731,7 @@ export default function StoreRegisterScreen() {
                     <View
                       style={[
                         styles.stepCircle,
+                        isDark && { backgroundColor: '#1e293b', borderColor: '#334155' },
                         isCompleted && styles.stepCircleCompleted,
                         isCurrent && styles.stepCircleCurrent,
                       ]}
@@ -437,6 +742,7 @@ export default function StoreRegisterScreen() {
                         <Text
                           style={[
                             styles.stepNumber,
+                            isDark && { color: '#94a3b8' },
                             (isCurrent || isCompleted) && styles.stepNumberActive,
                           ]}
                         >
@@ -447,6 +753,7 @@ export default function StoreRegisterScreen() {
                     <Text
                       style={[
                         styles.stepLabel,
+                        isDark && { color: '#94a3b8' },
                         isCurrent && styles.stepLabelCurrent,
                         isCompleted && styles.stepLabelCompleted,
                       ]}
@@ -458,6 +765,7 @@ export default function StoreRegisterScreen() {
                     <View
                       style={[
                         styles.stepDivider,
+                        isDark && { backgroundColor: '#1f2937' },
                         currentStep > step.id && styles.stepDividerActive,
                       ]}
                     />
@@ -482,26 +790,29 @@ export default function StoreRegisterScreen() {
         {currentStep === 1 && (
           <View style={styles.stepContent}>
             {/* Logo Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Store Logo</Text>
+            <View style={[styles.section, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
+              <Text style={[styles.sectionTitle, isDark && { color: '#f8fafc' }]}>Store Logo</Text>
               <View style={styles.logoRow}>
-                <TouchableOpacity style={styles.logoBox} onPress={pickLogo}>
+                <TouchableOpacity
+                  style={[styles.logoBox, isDark && { backgroundColor: '#0f172a', borderColor: '#334155' }]}
+                  onPress={pickLogo}
+                >
                   {logoUri ? (
                     <Image source={{ uri: logoUri }} style={styles.logoImage} />
                   ) : (
-                    <Camera size={26} color={CustomerColors.steelBorder} />
+                    <Camera size={26} color={isDark ? '#64748b' : '#94a3b8'} />
                   )}
                 </TouchableOpacity>
                 <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                  <Text style={styles.logoLabel}>
+                  <Text style={[styles.logoLabel, isDark && { color: '#f8fafc' }]}>
                     {logoUri ? '✓ Logo selected' : 'Upload your store logo'}
                   </Text>
-                  <Text style={styles.logoHint}>Optional · JPG / PNG up to 5 MB</Text>
+                  <Text style={[styles.logoHint, isDark && { color: '#94a3b8' }]}>Optional · JPG / PNG up to 5 MB</Text>
                   <TouchableOpacity
-                    style={styles.logoButton}
+                    style={[styles.logoButton, isDark && { backgroundColor: '#134e4a33', borderColor: '#0f766e' }]}
                     onPress={pickLogo}
                   >
-                    <Text style={styles.logoButtonText}>
+                    <Text style={[styles.logoButtonText, isDark && { color: '#2dd4bf' }]}>
                       {logoUri ? 'Change Logo' : 'Choose Image'}
                     </Text>
                   </TouchableOpacity>
@@ -510,8 +821,8 @@ export default function StoreRegisterScreen() {
             </View>
 
             {/* Basic Info Fields */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Store Identity & Contact</Text>
+            <View style={[styles.section, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
+              <Text style={[styles.sectionTitle, isDark && { color: '#f8fafc' }]}>Store Identity & Contact</Text>
               <Field
                 label="Store Name *"
                 value={form.name}
@@ -519,13 +830,16 @@ export default function StoreRegisterScreen() {
                 placeholder="e.g. Smart Electronics"
               />
 
-              <Text style={styles.fieldLabel}>Category *</Text>
+              <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Category *</Text>
               <TouchableOpacity
-                style={styles.dropdownButton}
+                style={[
+                  styles.dropdownButton,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                ]}
                 onPress={() => setShowCategoryModal(true)}
               >
-                <Text style={styles.dropdownText}>{form.category}</Text>
-                <ChevronDown size={18} color="#64748b" />
+                <Text style={[styles.dropdownText, isDark && { color: '#ffffff' }]}>{form.category}</Text>
+                <ChevronDown size={18} color={isDark ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
 
               <Field
@@ -558,63 +872,275 @@ export default function StoreRegisterScreen() {
         )}
 
         {/* ═════════════════════════════════════════════════════════ */}
-        {/* STEP 2: Verification (PAN + FSSAI + GSTIN)               */}
+        {/* STEP 2: Verification (PAN + Aadhaar + GSTIN + FSSAI)     */}
         {/* ═════════════════════════════════════════════════════════ */}
         {currentStep === 2 && (
           <View style={styles.stepContent}>
-            <View style={styles.section}>
+            <View style={[styles.section, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
               <View style={styles.sectionHeaderRow}>
                 <ShieldCheck size={20} color="#0d9488" />
-                <Text style={styles.sectionTitle}>Tax & Legal Compliance</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: '#f8fafc' }]}>Cashfree Identity & Tax KYC</Text>
               </View>
-              <Text style={styles.sectionSubtitle}>
-                Regulatory credentials required for marketplace payout routing.
+              <Text style={[styles.sectionSubtitle, isDark && { color: '#94a3b8' }]}>
+                Live verification with Income Tax, UIDAI & GST databases ensures legitimate merchant identity.
               </Text>
 
-              {/* PAN Number Section */}
-              <View style={styles.panCard}>
+              {/* 1. PAN Number Card */}
+              <View
+                style={[
+                  styles.verifyCard,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  panVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
+                ]}
+              >
                 <View style={styles.rowBetween}>
-                  <Text style={styles.fieldLabel}>Permanent Account Number (PAN) *</Text>
-                  {panVerified && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <FileText size={16} color={panVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')} />
+                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Permanent Account Number (PAN) *</Text>
+                  </View>
+                  {panVerified ? (
                     <View style={styles.verifiedBadge}>
-                      <CheckCircle size={13} color="#047857" />
-                      <Text style={styles.verifiedBadgeText}>Verified</Text>
+                      <BadgeCheck size={13} color="#047857" />
+                      <Text style={styles.verifiedBadgeText}>ITD Verified</Text>
                     </View>
-                  )}
+                  ) : null}
                 </View>
 
-                <View style={styles.panInputRow}>
+                <View style={styles.inputActionRow}>
                   <TextInput
-                    style={[styles.input, styles.panInput]}
+                    style={[
+                      styles.input,
+                      styles.monoInput,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: isDark ? '#334155' : '#cbd5e1',
+                      },
+                    ]}
                     value={form.pan}
                     onChangeText={v => {
                       set('pan', v.toUpperCase());
                       if (panVerified) setPanVerified(false);
                     }}
                     placeholder="e.g. ABCDE1234F"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
                     maxLength={10}
                     autoCapitalize="characters"
                   />
                   <TouchableOpacity
-                    style={styles.verifyButton}
-                    onPress={() => verifyPAN(form.pan)}
+                    style={[styles.actionButton, verifyingPan && { opacity: 0.7 }]}
+                    onPress={verifyPANWithCashfree}
+                    disabled={verifyingPan || !form.pan.trim()}
                   >
-                    <Text style={styles.verifyButtonText}>Verify</Text>
+                    {verifyingPan ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>Verify PAN</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
                 {panError ? <Text style={styles.panErrorText}>{panError}</Text> : null}
-                <Text style={styles.fieldHint}>
+                {panVerified && panData && (
+                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                    {panData.registeredName ? (
+                      <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                        <Text style={{ fontWeight: '700' }}>Registered Name: </Text>
+                        {panData.registeredName}
+                      </Text>
+                    ) : (
+                      <Text style={{ color: '#d97706', fontSize: 11, fontWeight: '500' }}>
+                        ⚠ Name not returned by Cashfree API. Add production keys to enable identity verification.
+                      </Text>
+                    )}
+                    {panData.registeredName && panData.belongsToUser && (
+                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
+                        ✓ PAN matches store applicant identity.
+                      </Text>
+                    )}
+                  </View>
+                )}
+                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
                   10-character Permanent Account Number issued by Income Tax Dept.
                 </Text>
               </View>
 
-              {/* Conditional FSSAI Number for Food & Beverages */}
+              {/* 2. Aadhaar Number Card */}
+              <View
+                style={[
+                  styles.verifyCard,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  aadhaarVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
+                ]}
+              >
+                <View style={styles.rowBetween}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Fingerprint
+                      size={16}
+                      color={aadhaarVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')}
+                    />
+                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Aadhaar Number (UIDAI) *</Text>
+                  </View>
+                  {aadhaarVerified ? (
+                    <View style={styles.verifiedBadge}>
+                      <BadgeCheck size={13} color="#047857" />
+                      <Text style={styles.verifiedBadgeText}>UIDAI Verified</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.inputActionRow}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.monoInput,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: isDark ? '#334155' : '#cbd5e1',
+                      },
+                    ]}
+                    value={form.aadhaar}
+                    onChangeText={v => {
+                      set('aadhaar', v.replace(/\D/g, ''));
+                      if (aadhaarVerified) setAadhaarVerified(false);
+                    }}
+                    placeholder="e.g. 1234 5678 9012 (12 digits)"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                    maxLength={12}
+                    keyboardType="number-pad"
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: '#0284c7' },
+                      verifyingAadhaar && { opacity: 0.7 },
+                    ]}
+                    onPress={sendAadhaarOtpWithCashfree}
+                    disabled={verifyingAadhaar || form.aadhaar.length !== 12}
+                  >
+                    {verifyingAadhaar ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>Verify OTP</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: '#475569' },
+                      verifyingAadhaar && { opacity: 0.7 },
+                    ]}
+                    onPress={verifyAadhaarDirectWithCashfree}
+                    disabled={verifyingAadhaar || form.aadhaar.length !== 12}
+                  >
+                    <Text style={styles.actionButtonText}>Direct</Text>
+                  </TouchableOpacity>
+                </View>
+                {aadhaarError ? (
+                  <Text style={styles.panErrorText}>{aadhaarError}</Text>
+                ) : null}
+                {aadhaarVerified && aadhaarData && (
+                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                      <Text style={{ fontWeight: '700' }}>Aadhaar Holder: </Text>
+                      {aadhaarData.nameOnAadhaar || 'Verified Citizen'}
+                    </Text>
+                    {aadhaarData.belongsToUser && (
+                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
+                        ✓ Aadhaar identity confirmed and matches store applicant.
+                      </Text>
+                    )}
+                  </View>
+                )}
+                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
+                  12-digit Unique Identification Authority of India (UIDAI) citizen number.
+                </Text>
+              </View>
+
+              {/* 3. GSTIN Number Card */}
+              <View
+                style={[
+                  styles.verifyCard,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  gstinVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
+                ]}
+              >
+                <View style={styles.rowBetween}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Building2 size={16} color={gstinVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')} />
+                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>GSTIN Number (Optional)</Text>
+                  </View>
+                  {gstinVerified ? (
+                    <View style={styles.verifiedBadge}>
+                      <BadgeCheck size={13} color="#047857" />
+                      <Text style={styles.verifiedBadgeText}>GST Active</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.inputActionRow}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.monoInput,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: isDark ? '#334155' : '#cbd5e1',
+                      },
+                    ]}
+                    value={form.gstin}
+                    onChangeText={v => {
+                      set('gstin', v.toUpperCase());
+                      if (gstinVerified) setGstinVerified(false);
+                    }}
+                    placeholder="e.g. 22AAAAA0000A1Z5"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                    maxLength={15}
+                    autoCapitalize="characters"
+                  />
+                  <TouchableOpacity
+                    style={[styles.actionButton, verifyingGstin && { opacity: 0.7 }]}
+                    onPress={verifyGSTINWithCashfree}
+                    disabled={verifyingGstin || !form.gstin.trim()}
+                  >
+                    {verifyingGstin ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>Verify GST</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {gstinError ? <Text style={styles.panErrorText}>{gstinError}</Text> : null}
+                {gstinVerified && gstinData && (
+                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                      <Text style={{ fontWeight: '700' }}>Legal Name: </Text>
+                      {gstinData.legalName}
+                    </Text>
+                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                      <Text style={{ fontWeight: '700' }}>Status: </Text>
+                      {gstinData.gstinStatus} ({gstinData.taxpayerType || 'Regular'})
+                    </Text>
+                    {gstinData.panMatches && (
+                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
+                        ✓ GSTIN PAN matches entered PAN ({gstinData.embeddedPan})
+                      </Text>
+                    )}
+                  </View>
+                )}
+                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
+                  15-character Goods and Services Tax Identification Number.
+                </Text>
+              </View>
+
+              {/* 4. Conditional FSSAI Number for Food & Beverages */}
               {isFoodCategory && (
-                <View style={styles.fssaiCard}>
+                <View style={[styles.fssaiCard, isDark && { backgroundColor: 'rgba(120, 53, 15, 0.2)', borderColor: '#78350f' }]}>
                   <View style={styles.rowBetween}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Utensils size={16} color="#b45309" />
-                      <Text style={[styles.fieldLabel, { color: '#92400e', marginBottom: 0 }]}>
+                      <Utensils size={16} color={isDark ? '#fbbf24' : '#b45309'} />
+                      <Text style={[styles.fieldLabel, { color: isDark ? '#fde68a' : '#92400e', marginBottom: 0 }]}>
                         FSSAI License Number *
                       </Text>
                     </View>
@@ -624,31 +1150,27 @@ export default function StoreRegisterScreen() {
                   </View>
 
                   <TextInput
-                    style={[styles.input, styles.fssaiInput]}
+                    style={[
+                      styles.input,
+                      styles.fssaiInput,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: isDark ? '#334155' : '#fde68a',
+                      },
+                    ]}
                     value={form.fssaiNumber}
                     onChangeText={v => set('fssaiNumber', v.replace(/\D/g, ''))}
                     placeholder="e.g. 10012345678901 (14 digits)"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
                     maxLength={14}
                     keyboardType="number-pad"
                   />
-                  <Text style={[styles.fieldHint, { color: '#b45309' }]}>
+                  <Text style={[styles.fieldHint, { color: isDark ? '#fde68a' : '#b45309' }]}>
                     14-digit food safety registration / license issued by FSSAI.
                   </Text>
                 </View>
               )}
-
-              {/* GSTIN */}
-              <Field
-                label="GSTIN Number (Optional)"
-                value={form.gstin}
-                onChangeText={v => set('gstin', v.toUpperCase())}
-                placeholder="e.g. 22AAAAA0000A1Z5"
-                maxLength={15}
-                autoCapitalize="characters"
-              />
-              <Text style={styles.fieldHint}>
-                15-digit Goods and Services Tax Identification Number.
-              </Text>
             </View>
           </View>
         )}
@@ -658,10 +1180,10 @@ export default function StoreRegisterScreen() {
         {/* ═════════════════════════════════════════════════════════ */}
         {currentStep === 3 && (
           <View style={styles.stepContent}>
-            <View style={styles.section}>
+            <View style={[styles.section, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
               <View style={styles.sectionHeaderRow}>
                 <MapPin size={20} color="#0d9488" />
-                <Text style={styles.sectionTitle}>Physical Store Address</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: '#f8fafc' }]}>Physical Store Address</Text>
               </View>
 
               <Field
@@ -672,28 +1194,53 @@ export default function StoreRegisterScreen() {
               />
 
               {/* State Dropdown */}
-              <Text style={styles.fieldLabel}>State *</Text>
+              <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>State *</Text>
               <TouchableOpacity
-                style={styles.dropdownButton}
+                style={[
+                  styles.dropdownButton,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                ]}
                 onPress={() => setShowStateModal(true)}
               >
-                <Text style={[styles.dropdownText, !form.state && { color: '#94a3b8' }]}>
+                <Text
+                  style={[
+                    styles.dropdownText,
+                    !form.state
+                      ? { color: isDark ? '#64748b' : '#94a3b8' }
+                      : isDark
+                        ? { color: '#ffffff' }
+                        : { color: '#111827' },
+                  ]}
+                >
                   {form.state || 'Select State'}
                 </Text>
-                <ChevronDown size={18} color="#64748b" />
+                <ChevronDown size={18} color={isDark ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
 
               {/* City Dropdown */}
-              <Text style={styles.fieldLabel}>City *</Text>
+              <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>City *</Text>
               <TouchableOpacity
-                style={[styles.dropdownButton, !form.state && { opacity: 0.6 }]}
+                style={[
+                  styles.dropdownButton,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  !form.state && { opacity: 0.6 },
+                ]}
                 disabled={!form.state}
                 onPress={() => setShowCityModal(true)}
               >
-                <Text style={[styles.dropdownText, !form.city && { color: '#94a3b8' }]}>
+                <Text
+                  style={[
+                    styles.dropdownText,
+                    !form.city
+                      ? { color: isDark ? '#64748b' : '#94a3b8' }
+                      : isDark
+                        ? { color: '#ffffff' }
+                        : { color: '#111827' },
+                  ]}
+                >
                   {form.city || (form.state ? 'Select City' : 'Select State first')}
                 </Text>
-                <ChevronDown size={18} color="#64748b" />
+                <ChevronDown size={18} color={isDark ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
 
               {/* PIN Code */}
@@ -705,14 +1252,14 @@ export default function StoreRegisterScreen() {
                 maxLength={6}
                 keyboardType="number-pad"
               />
-              <Text style={styles.fieldHint}>Auto-populated on city select</Text>
+              <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>Auto-populated on city select</Text>
 
               {/* GPS Coordinates Section */}
               <View style={styles.gpsSection}>
                 <View style={styles.rowBetween}>
-                  <Text style={styles.fieldLabel}>Store GPS Location *</Text>
+                  <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Store GPS Location *</Text>
                   <TouchableOpacity
-                    style={styles.gpsButton}
+                    style={[styles.gpsButton, isDark && { backgroundColor: '#134e4a33', borderColor: '#0f766e' }]}
                     onPress={detectLocation}
                     disabled={detecting}
                   >
@@ -721,7 +1268,7 @@ export default function StoreRegisterScreen() {
                     ) : (
                       <>
                         <MapPin size={14} color="#0d9488" />
-                        <Text style={styles.gpsButtonText}>Use Current Location</Text>
+                        <Text style={[styles.gpsButtonText, isDark && { color: '#2dd4bf' }]}>Use Current Location</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -749,9 +1296,9 @@ export default function StoreRegisterScreen() {
                 </View>
 
                 {form.latitude && form.longitude ? (
-                  <View style={styles.locationTag}>
+                  <View style={[styles.locationTag, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' }]}>
                     <CheckCircle size={15} color="#047857" />
-                    <Text style={styles.locationTagText}>
+                    <Text style={[styles.locationTagText, isDark && { color: '#6ee7b7' }]}>
                       Coordinates: {parseFloat(form.latitude).toFixed(4)},{' '}
                       {parseFloat(form.longitude).toFixed(4)}
                     </Text>
@@ -763,17 +1310,17 @@ export default function StoreRegisterScreen() {
         )}
 
         {/* ═════════════════════════════════════════════════════════ */}
-        {/* STEP 4: Bank Details & Razorpay Connection               */}
+        {/* STEP 4: Bank Details & Cashfree Penny Drop               */}
         {/* ═════════════════════════════════════════════════════════ */}
         {currentStep === 4 && (
           <View style={styles.stepContent}>
-            <View style={styles.section}>
+            <View style={[styles.section, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
               <View style={styles.sectionHeaderRow}>
                 <Building2 size={20} color="#0d9488" />
-                <Text style={styles.sectionTitle}>Settlement Bank Account</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: '#f8fafc' }]}>Settlement Bank Account</Text>
               </View>
-              <Text style={styles.sectionSubtitle}>
-                Used for automated marketplace payouts directly to your bank account via Razorpay Route.
+              <Text style={[styles.sectionSubtitle, isDark && { color: '#94a3b8' }]}>
+                Used for automated marketplace payouts directly to your verified bank account.
               </Text>
 
               <Field
@@ -782,12 +1329,15 @@ export default function StoreRegisterScreen() {
                 onChangeText={v => set('legalBusinessName', v)}
                 placeholder="e.g. Rohini B"
               />
-              <Text style={styles.fieldHint}>Must match your bank passbook name</Text>
+              <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>Must match your bank passbook name</Text>
 
               <Field
                 label="Bank Account Number *"
                 value={form.accountNumber}
-                onChangeText={v => set('accountNumber', v.replace(/\D/g, ''))}
+                onChangeText={v => {
+                  set('accountNumber', v.replace(/\D/g, ''));
+                  if (bankVerified) setBankVerified(false);
+                }}
                 placeholder="e.g. 6285854908"
                 secureTextEntry
                 keyboardType="number-pad"
@@ -796,7 +1346,10 @@ export default function StoreRegisterScreen() {
               <Field
                 label="Confirm Bank Account Number *"
                 value={form.confirmAccountNumber}
-                onChangeText={v => set('confirmAccountNumber', v.replace(/\D/g, ''))}
+                onChangeText={v => {
+                  set('confirmAccountNumber', v.replace(/\D/g, ''));
+                  if (bankVerified) setBankVerified(false);
+                }}
                 placeholder="Re-enter bank account number"
                 keyboardType="number-pad"
               />
@@ -804,12 +1357,169 @@ export default function StoreRegisterScreen() {
               <Field
                 label="Bank IFSC Code *"
                 value={form.ifscCode}
-                onChangeText={v => set('ifscCode', v.toUpperCase())}
+                onChangeText={v => {
+                  set('ifscCode', v.toUpperCase());
+                  if (bankVerified) setBankVerified(false);
+                }}
                 placeholder="e.g. IDIB000K073"
                 maxLength={11}
                 autoCapitalize="characters"
               />
-              <Text style={styles.fieldHint}>11-character Indian bank branch code</Text>
+              <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>11-character Indian bank branch code</Text>
+
+              {/* Cashfree Bank Penny Drop Verification Card */}
+              <View
+                style={[
+                  styles.verifyCard,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  bankVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
+                ]}
+              >
+                <View style={styles.rowBetween}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <BadgeCheck
+                      size={16}
+                      color={bankVerified ? '#047857' : '#0d9488'}
+                    />
+                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Cashfree Bank Verification</Text>
+                  </View>
+                  {bankVerified ? (
+                    <View style={styles.verifiedBadge}>
+                      <CheckCircle size={13} color="#047857" />
+                      <Text style={styles.verifiedBadgeText}>Penny Drop Verified</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={{ marginTop: 6, marginBottom: 4 }}>
+                  <TouchableOpacity
+                    style={[styles.bankVerifyButton, verifyingBank && { opacity: 0.7 }]}
+                    onPress={verifyBankWithCashfree}
+                    disabled={
+                      verifyingBank || !form.accountNumber || !form.ifscCode
+                    }
+                  >
+                    {verifyingBank ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>
+                        ⚡ Verify Bank Account (Instant Sync)
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {bankError ? <Text style={styles.panErrorText}>{bankError}</Text> : null}
+
+                {bankVerified && bankData && (
+                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                      <Text style={{ fontWeight: '700' }}>Account Holder: </Text>
+                      {bankData.nameAtBank || bankData.registeredName}
+                    </Text>
+                    {bankData.bankName ? (
+                      <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                        <Text style={{ fontWeight: '700' }}>Bank: </Text>
+                        {bankData.bankName} {bankData.branch ? `(${bankData.branch})` : ''}
+                      </Text>
+                    ) : null}
+                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                      <Text style={{ fontWeight: '700' }}>Status: </Text>
+                      {bankData.accountStatus || 'ACTIVE'}
+                    </Text>
+                    {bankData.nameMatches !== false && (
+                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
+                        ✓ Bank holder name matches applicant identity.
+                      </Text>
+                    )}
+                  </View>
+                )}
+                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
+                  Penny drop verification confirms active account and holder name with NPCI / Cashfree.
+                </Text>
+              </View>
+
+              {/* Overall Cashfree KYC Trust Card */}
+              <View style={styles.kycTrustCard}>
+                <View style={styles.rowBetween}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Lock size={15} color="#2dd4bf" />
+                    <Text style={styles.kycTrustTitle}>Cashfree KYC Trust Summary</Text>
+                  </View>
+                  <View style={styles.kycTrustBadge}>
+                    <Text style={styles.kycTrustBadgeText}>SecureID</Text>
+                  </View>
+                </View>
+
+                <View style={styles.kycGrid}>
+                  <View
+                    style={[
+                      styles.kycGridItem,
+                      panVerified && styles.kycGridItemSuccess,
+                    ]}
+                  >
+                    <Text style={styles.kycGridLabel}>PAN ID</Text>
+                    <Text
+                      style={[
+                        styles.kycGridValue,
+                        panVerified && { color: '#34d399' },
+                      ]}
+                    >
+                      {panVerified ? '✓ Verified' : 'Pending'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.kycGridItem,
+                      aadhaarVerified && styles.kycGridItemSuccess,
+                    ]}
+                  >
+                    <Text style={styles.kycGridLabel}>Aadhaar</Text>
+                    <Text
+                      style={[
+                        styles.kycGridValue,
+                        aadhaarVerified && { color: '#34d399' },
+                      ]}
+                    >
+                      {aadhaarVerified ? '✓ Verified' : 'Pending'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.kycGridItem,
+                      gstinVerified && styles.kycGridItemSuccess,
+                    ]}
+                  >
+                    <Text style={styles.kycGridLabel}>GSTIN</Text>
+                    <Text
+                      style={[
+                        styles.kycGridValue,
+                        gstinVerified && { color: '#34d399' },
+                      ]}
+                    >
+                      {gstinVerified ? '✓ Verified' : form.gstin ? 'Pending' : 'Optional'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.kycGridItem,
+                      bankVerified && styles.kycGridItemSuccess,
+                    ]}
+                  >
+                    <Text style={styles.kycGridLabel}>Bank Sync</Text>
+                    <Text
+                      style={[
+                        styles.kycGridValue,
+                        bankVerified && { color: '#34d399' },
+                      ]}
+                    >
+                      {bankVerified ? '✓ Verified' : 'Pending'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.kycTrustSubtitle}>
+                  Verified records are cross-matched with Government databases.
+                </Text>
+              </View>
 
               {/* Razorpay Connection Card matching reference */}
               <View style={styles.razorpayCard}>
@@ -842,12 +1552,12 @@ export default function StoreRegisterScreen() {
         <View style={styles.navButtonsRow}>
           {currentStep > 1 ? (
             <TouchableOpacity
-              style={styles.backButton}
+              style={[styles.backButton, isDark && { backgroundColor: '#1e293b', borderColor: '#334155' }]}
               onPress={handlePrev}
               disabled={loading}
             >
-              <ArrowLeft size={16} color="#334155" />
-              <Text style={styles.backButtonText}>Back</Text>
+              <ArrowLeft size={16} color={isDark ? '#cbd5e1' : '#334155'} />
+              <Text style={[styles.backButtonText, isDark && { color: '#cbd5e1' }]}>Back</Text>
             </TouchableOpacity>
           ) : (
             <View style={{ width: 80 }} />
@@ -878,11 +1588,66 @@ export default function StoreRegisterScreen() {
       </ScrollView>
 
       {/* ── Selection Modals ────────────────────────────────────── */}
+      {/* Aadhaar OTP Verification Modal */}
+      <Modal visible={showAadhaarOtpModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, isDark && { backgroundColor: '#1e293b' }]}>
+            <Text style={[styles.modalTitle, isDark && { color: '#ffffff' }]}>Enter Aadhaar OTP</Text>
+            <Text style={[styles.otpSubtitle, isDark && { color: '#94a3b8' }]}>
+              Please enter the 6-digit OTP sent to your Aadhaar-linked mobile number by UIDAI.
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                styles.otpInput,
+                {
+                  backgroundColor: isDark ? '#020617' : '#ffffff',
+                  color: isDark ? '#ffffff' : '#111827',
+                  borderColor: isDark ? '#334155' : '#cbd5e1',
+                },
+              ]}
+              value={aadhaarOtp}
+              onChangeText={setAadhaarOtp}
+              placeholder="e.g. 123456"
+              placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+            {aadhaarError ? (
+              <Text style={[styles.panErrorText, { textAlign: 'center', marginBottom: 8 }]}>
+                {aadhaarError}
+              </Text>
+            ) : null}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { width: '100%', justifyContent: 'center' },
+                verifyingAadhaarOtp && { opacity: 0.7 },
+              ]}
+              onPress={verifyAadhaarOtpWithCashfree}
+              disabled={verifyingAadhaarOtp}
+            >
+              {verifyingAadhaarOtp ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Confirm & Verify Aadhaar</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalCloseButton, isDark && { borderTopColor: '#334155' }]}
+              onPress={() => setShowAadhaarOtpModal(false)}
+            >
+              <Text style={[styles.modalCloseText, isDark && { color: '#94a3b8' }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Category Modal */}
       <Modal visible={showCategoryModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Select Store Category</Text>
+          <View style={[styles.modalBox, isDark && { backgroundColor: '#1e293b' }]}>
+            <Text style={[styles.modalTitle, isDark && { color: '#ffffff' }]}>Select Store Category</Text>
             <FlatList
               data={CATEGORIES}
               keyExtractor={item => item}
@@ -890,7 +1655,8 @@ export default function StoreRegisterScreen() {
                 <TouchableOpacity
                   style={[
                     styles.modalItem,
-                    form.category === item && styles.modalItemActive,
+                    isDark && { borderBottomColor: '#334155' },
+                    form.category === item && (isDark ? { backgroundColor: '#0f172a' } : styles.modalItemActive),
                   ]}
                   onPress={() => {
                     set('category', item);
@@ -900,6 +1666,7 @@ export default function StoreRegisterScreen() {
                   <Text
                     style={[
                       styles.modalItemText,
+                      isDark && { color: '#f8fafc' },
                       form.category === item && styles.modalItemTextActive,
                     ]}
                   >
@@ -912,10 +1679,10 @@ export default function StoreRegisterScreen() {
               )}
             />
             <TouchableOpacity
-              style={styles.modalCloseButton}
+              style={[styles.modalCloseButton, isDark && { borderTopColor: '#334155' }]}
               onPress={() => setShowCategoryModal(false)}
             >
-              <Text style={styles.modalCloseText}>Cancel</Text>
+              <Text style={[styles.modalCloseText, isDark && { color: '#94a3b8' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -924,8 +1691,8 @@ export default function StoreRegisterScreen() {
       {/* State Modal */}
       <Modal visible={showStateModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Select State</Text>
+          <View style={[styles.modalBox, isDark && { backgroundColor: '#1e293b' }]}>
+            <Text style={[styles.modalTitle, isDark && { color: '#ffffff' }]}>Select State</Text>
             <FlatList
               data={indianStates}
               keyExtractor={item => item.isoCode}
@@ -933,13 +1700,15 @@ export default function StoreRegisterScreen() {
                 <TouchableOpacity
                   style={[
                     styles.modalItem,
-                    form.state === item.name && styles.modalItemActive,
+                    isDark && { borderBottomColor: '#334155' },
+                    form.state === item.name && (isDark ? { backgroundColor: '#0f172a' } : styles.modalItemActive),
                   ]}
                   onPress={() => handleSelectState(item)}
                 >
                   <Text
                     style={[
                       styles.modalItemText,
+                      isDark && { color: '#f8fafc' },
                       form.state === item.name && styles.modalItemTextActive,
                     ]}
                   >
@@ -949,10 +1718,10 @@ export default function StoreRegisterScreen() {
               )}
             />
             <TouchableOpacity
-              style={styles.modalCloseButton}
+              style={[styles.modalCloseButton, isDark && { borderTopColor: '#334155' }]}
               onPress={() => setShowStateModal(false)}
             >
-              <Text style={styles.modalCloseText}>Cancel</Text>
+              <Text style={[styles.modalCloseText, isDark && { color: '#94a3b8' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -961,8 +1730,8 @@ export default function StoreRegisterScreen() {
       {/* City Modal */}
       <Modal visible={showCityModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Select City</Text>
+          <View style={[styles.modalBox, isDark && { backgroundColor: '#1e293b' }]}>
+            <Text style={[styles.modalTitle, isDark && { color: '#ffffff' }]}>Select City</Text>
             <FlatList
               data={cities}
               keyExtractor={item => item.name}
@@ -970,13 +1739,15 @@ export default function StoreRegisterScreen() {
                 <TouchableOpacity
                   style={[
                     styles.modalItem,
-                    form.city === item.name && styles.modalItemActive,
+                    isDark && { borderBottomColor: '#334155' },
+                    form.city === item.name && (isDark ? { backgroundColor: '#0f172a' } : styles.modalItemActive),
                   ]}
                   onPress={() => handleSelectCity(item.name)}
                 >
                   <Text
                     style={[
                       styles.modalItemText,
+                      isDark && { color: '#f8fafc' },
                       form.city === item.name && styles.modalItemTextActive,
                     ]}
                   >
@@ -986,10 +1757,10 @@ export default function StoreRegisterScreen() {
               )}
             />
             <TouchableOpacity
-              style={styles.modalCloseButton}
+              style={[styles.modalCloseButton, isDark && { borderTopColor: '#334155' }]}
               onPress={() => setShowCityModal(false)}
             >
-              <Text style={styles.modalCloseText}>Cancel</Text>
+              <Text style={[styles.modalCloseText, isDark && { color: '#94a3b8' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -998,7 +1769,7 @@ export default function StoreRegisterScreen() {
       <SuccessModal
         visible={showSuccess}
         title="Store Registered!"
-        message="Your store has been created and linked to Razorpay Route successfully."
+        message="Your store has been created and verified successfully."
         onClose={() => setShowSuccess(false)}
       />
     </View>
@@ -1030,15 +1801,24 @@ function Field({
   secureTextEntry,
   maxLength,
 }: FieldProps) {
+  const { isDark } = useTheme();
   return (
     <View style={styles.fieldWrapper}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>{label}</Text>
       <TextInput
-        style={[styles.input, multiline && styles.textArea]}
+        style={[
+          styles.input,
+          {
+            backgroundColor: isDark ? '#0f172a' : '#ffffff',
+            color: isDark ? '#ffffff' : '#111827',
+            borderColor: isDark ? '#334155' : '#cbd5e1',
+          },
+          multiline && styles.textArea,
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#94a3b8"
+        placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
         multiline={multiline}
         numberOfLines={numberOfLines}
         keyboardType={keyboardType}
@@ -1229,8 +2009,8 @@ const styles = StyleSheet.create({
   fieldHint: {
     fontSize: 10,
     color: '#94a3b8',
-    marginTop: -2,
-    marginBottom: Spacing.sm,
+    marginTop: 4,
+    marginBottom: Spacing.xs,
   },
   input: {
     backgroundColor: '#ffffff',
@@ -1240,7 +2020,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     fontSize: FontSizes.sm,
-    color: '#1e293b',
+    color: '#111827',
+  },
+  monoInput: {
+    flex: 1,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   textArea: {
     minHeight: 70,
@@ -1260,40 +2045,49 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     fontSize: FontSizes.sm,
-    color: '#1e293b',
+    color: '#111827',
     fontWeight: '500',
   },
 
-  // PAN Card
-  panCard: {
+  // Verification Cards
+  verifyCard: {
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    marginBottom: 16,
   },
-  panInputRow: {
+  verifyCardSuccess: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#86efac',
+  },
+  inputActionRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     marginTop: 4,
   },
-  panInput: {
-    flex: 1,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  verifyButton: {
+  actionButton: {
     backgroundColor: '#0d9488',
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 70,
   },
-  verifyButtonText: {
+  actionButtonText: {
     color: '#ffffff',
     fontSize: 11,
     fontWeight: '700',
+  },
+  bankVerifyButton: {
+    backgroundColor: '#0d9488',
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   verifiedBadge: {
     flexDirection: 'row',
@@ -1313,6 +2107,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#dc2626',
     marginTop: 4,
+    fontWeight: '500',
+  },
+  verifiedDetailBox: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginTop: Spacing.xs,
+    gap: 2,
+  },
+  verifiedDetailText: {
+    fontSize: 11,
+    color: '#065f46',
+  },
+  verifiedMatchText: {
+    fontSize: 10,
+    color: '#047857',
+    fontWeight: '700',
+    marginTop: 2,
   },
 
   // FSSAI Card
@@ -1320,9 +2134,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffbeb',
     borderWidth: 1,
     borderColor: '#fde68a',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    marginBottom: 16,
   },
   fssaiBadge: {
     backgroundColor: '#fef3c7',
@@ -1341,6 +2156,62 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontWeight: '700',
     marginTop: 6,
+  },
+
+  // KYC Trust Card
+  kycTrustCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  kycTrustTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  kycTrustBadge: {
+    backgroundColor: 'rgba(45, 212, 191, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  kycTrustBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#2dd4bf',
+  },
+  kycGrid: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  kycGridItem: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: BorderRadius.md,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  kycGridItemSuccess: {
+    backgroundColor: 'rgba(6, 78, 59, 0.4)',
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  kycGridLabel: {
+    fontSize: 9,
+    color: '#94a3b8',
+  },
+  kycGridValue: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#cbd5e1',
+    marginTop: 2,
+  },
+  kycTrustSubtitle: {
+    fontSize: 9,
+    color: '#94a3b8',
+    marginTop: Spacing.xs,
   },
 
   // GPS
@@ -1518,12 +2389,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    padding: Spacing.lg,
   },
   modalBox: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: BorderRadius.xxl,
-    borderTopRightRadius: BorderRadius.xxl,
+    borderRadius: BorderRadius.xxl,
     padding: Spacing.lg,
     maxHeight: '80%',
   },
@@ -1531,8 +2402,21 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.lg,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.xs,
     textAlign: 'center',
+  },
+  otpSubtitle: {
+    fontSize: FontSizes.xs,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  otpInput: {
+    textAlign: 'center',
+    fontSize: FontSizes.xl,
+    letterSpacing: 6,
+    fontWeight: '800',
+    marginBottom: Spacing.md,
   },
   modalItem: {
     flexDirection: 'row',

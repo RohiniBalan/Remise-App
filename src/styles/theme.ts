@@ -19,6 +19,8 @@ export const CustomerColors = {
   white: '#FFFFFF',
   black: '#111827',
   textSecondary: '#6B7280',
+  placeholder: '#64748b',
+  placeholderDark: '#94a3b8',
   border: '#EAEAEA',
   success: '#16A34A',
   successBg: '#F0FDF4',
@@ -46,11 +48,33 @@ export const AdminColors = {
   gradientEnd: '#CC0000',
   bg: '#f8fafc',
   sidebarBg: '#ffffff',
+  cardBg: '#ffffff',
   textPrimary: '#0f172a',
-  textSecondary: '#64748b',
-  textMuted: '#94a3b8',
+  textSecondary: '#475569',
+  textMuted: '#64748b',
+  placeholder: '#64748b',
+  placeholderDark: '#94a3b8',
   border: '#e2e8f0',
 };
+
+export const AdminDarkColors = {
+  primary: '#FF0000',
+  primaryLight: 'rgba(255, 0, 0, 0.15)',
+  gradientStart: '#FF3333',
+  gradientEnd: '#CC0000',
+  bg: '#0b0f19',
+  sidebarBg: '#111827',
+  cardBg: '#1f2937',
+  textPrimary: '#f9fafb',
+  textSecondary: '#9ca3af',
+  textMuted: '#6b7280',
+  placeholder: '#6b7280',
+  placeholderDark: '#9ca3af',
+  border: '#374151',
+};
+
+export const getAdminColors = (isDark: boolean) => isDark ? AdminDarkColors : AdminColors;
+
 
 export const FontSizes = {
   xs: 11,

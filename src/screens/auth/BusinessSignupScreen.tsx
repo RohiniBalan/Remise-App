@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Eye, EyeOff, Briefcase, ShoppingBag, Store, Package, Home, CheckCircle2 } from 'lucide-react-native';
 import { authApi } from '../../api/authApi';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { normalizeAuthErrorMessage, validateSignupForm } from '../../utils/authValidation';
 
@@ -50,6 +51,8 @@ const BUSINESS_ROLES: RoleOption[] = [
 export default function BusinessSignupScreen() {
   const navigation = useNavigation<any>();
   const { login } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const [role, setRole] = useState<BusinessRole>('store_owner');
   const [fullname, setFullname] = useState('');
@@ -293,233 +296,234 @@ export default function BusinessSignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  container: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.xl + 4,
-    flexGrow: 1,
-  },
-  badgeContainer: {
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
-    backgroundColor: 'rgba(220, 38, 38, 0.08)',
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(220, 38, 38, 0.25)',
-  },
-  badgeText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: '#DC2626',
-  },
-  heading: {
-    fontSize: FontSizes.xl + 2,
-    fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  subheading: {
-    fontSize: FontSizes.xs + 1,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: Spacing.lg,
-  },
-  errorText: {
-    color: '#B91C1C',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-    fontSize: FontSizes.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  sectionLabel: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-  },
-  roleList: {
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  roleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-  },
-  roleCardActive: {
-    backgroundColor: 'rgba(220, 38, 38, 0.05)',
-    borderColor: '#DC2626',
-    borderWidth: 1.5,
-  },
-  roleIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  roleIconBoxActive: {
-    backgroundColor: 'rgba(220, 38, 38, 0.12)',
-  },
-  roleContent: {
-    flex: 1,
-  },
-  roleTitle: {
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  roleTitleActive: {
-    color: '#0F172A',
-  },
-  roleDesc: {
-    fontSize: FontSizes.xs,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  checkCircle: {
-    marginLeft: Spacing.sm,
-  },
-  form: {
-    gap: Spacing.md,
-  },
-  fieldGroup: {
-    marginBottom: 4,
-  },
-  label: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.xs,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    fontSize: FontSizes.base,
-    color: '#0F172A',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  fieldErrorText: {
-    fontSize: FontSizes.xs,
-    color: '#DC2626',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  passwordContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  passwordInput: {
-    paddingRight: 48,
-  },
-  eyeBtn: {
-    position: 'absolute',
-    right: 14,
-    padding: 6,
-  },
-  submitBtn: {
-    backgroundColor: '#DC2626',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.sm,
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  submitBtnDisabled: {
-    opacity: 0.7,
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontSize: FontSizes.base,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  googleBtn: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.sm,
-  },
-  googleBtnText: {
-    color: '#0F172A',
-    fontSize: FontSizes.base,
-    fontWeight: '600',
-  },
-  loginRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-
-  loginPrompt: {
-    color: '#64748B',
-    fontSize: FontSizes.sm,
-  },
-  loginLink: {
-    color: '#DC2626',
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-  },
-  switchPortalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: Spacing.sm,
-  },
-  switchPortalText: {
-    color: '#334155',
-    fontSize: FontSizes.xs + 1,
-    fontWeight: '600',
-  },
-});
+function getStyles(isDark: boolean) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+      backgroundColor: isDark ? '#0a0f1d' : '#F8FAFC',
+    },
+    container: {
+      paddingHorizontal: Spacing.xl,
+      paddingVertical: Spacing.xl + 4,
+      flexGrow: 1,
+    },
+    badgeContainer: {
+      alignItems: 'center',
+      marginBottom: Spacing.xs,
+    },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.xs + 2,
+      backgroundColor: 'rgba(220, 38, 38, 0.08)',
+      borderRadius: BorderRadius.pill,
+      borderWidth: 1,
+      borderColor: 'rgba(220, 38, 38, 0.25)',
+    },
+    badgeText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+      letterSpacing: 1.2,
+      color: '#DC2626',
+    },
+    heading: {
+      fontSize: FontSizes.xl + 2,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : '#0F172A',
+      textAlign: 'center',
+      marginTop: Spacing.xs,
+    },
+    subheading: {
+      fontSize: FontSizes.xs + 1,
+      color: isDark ? '#9CA3AF' : '#64748B',
+      textAlign: 'center',
+      marginTop: 4,
+      marginBottom: Spacing.lg,
+    },
+    errorText: {
+      color: '#F87171',
+      backgroundColor: isDark ? '#450a0a' : 'rgba(239, 68, 68, 0.08)',
+      padding: Spacing.md,
+      borderRadius: BorderRadius.md,
+      marginBottom: Spacing.md,
+      textAlign: 'center',
+      fontSize: FontSizes.sm,
+      borderWidth: 1,
+      borderColor: isDark ? '#7f1d1d' : 'rgba(239, 68, 68, 0.2)',
+    },
+    sectionLabel: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : '#64748B',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginBottom: Spacing.sm,
+    },
+    roleList: {
+      gap: Spacing.sm,
+      marginBottom: Spacing.lg,
+    },
+    roleCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : '#E2E8F0',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.md,
+    },
+    roleCardActive: {
+      backgroundColor: isDark ? 'rgba(220, 38, 38, 0.15)' : 'rgba(220, 38, 38, 0.05)',
+      borderColor: '#DC2626',
+      borderWidth: 1.5,
+    },
+    roleIconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: Spacing.md,
+    },
+    roleIconBoxActive: {
+      backgroundColor: 'rgba(220, 38, 38, 0.15)',
+    },
+    roleContent: {
+      flex: 1,
+    },
+    roleTitle: {
+      fontSize: FontSizes.base,
+      fontWeight: '700',
+      color: isDark ? '#E5E7EB' : '#334155',
+    },
+    roleTitleActive: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+    },
+    roleDesc: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : '#64748B',
+      marginTop: 2,
+    },
+    checkCircle: {
+      marginLeft: Spacing.sm,
+    },
+    form: {
+      gap: Spacing.md,
+    },
+    fieldGroup: {
+      marginBottom: 4,
+    },
+    label: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : '#475569',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginBottom: Spacing.xs,
+    },
+    input: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#CBD5E1',
+      borderRadius: BorderRadius.lg,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+      fontSize: FontSizes.base,
+      color: isDark ? '#F9FAFB' : '#0F172A',
+    },
+    inputError: {
+      borderColor: '#EF4444',
+    },
+    fieldErrorText: {
+      fontSize: FontSizes.xs,
+      color: '#DC2626',
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    passwordContainer: {
+      position: 'relative',
+      justifyContent: 'center',
+    },
+    passwordInput: {
+      paddingRight: 48,
+    },
+    eyeBtn: {
+      position: 'absolute',
+      right: 14,
+      padding: 6,
+    },
+    submitBtn: {
+      backgroundColor: '#DC2626',
+      borderRadius: BorderRadius.lg,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: Spacing.sm,
+      shadowColor: '#DC2626',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    submitBtnDisabled: {
+      opacity: 0.7,
+    },
+    submitBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.base,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    googleBtn: {
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#CBD5E1',
+      borderRadius: BorderRadius.lg,
+      paddingVertical: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: Spacing.sm,
+    },
+    googleBtnText: {
+      color: isDark ? '#F9FAFB' : '#0F172A',
+      fontSize: FontSizes.base,
+      fontWeight: '600',
+    },
+    loginRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: Spacing.sm,
+    },
+    loginPrompt: {
+      color: isDark ? '#9CA3AF' : '#64748B',
+      fontSize: FontSizes.sm,
+    },
+    loginLink: {
+      color: '#DC2626',
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+    },
+    switchPortalBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: Spacing.md,
+      borderRadius: BorderRadius.lg,
+      backgroundColor: isDark ? '#111827' : '#F8FAFC',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+      marginTop: Spacing.sm,
+    },
+    switchPortalText: {
+      color: isDark ? '#E5E7EB' : '#334155',
+      fontSize: FontSizes.xs + 1,
+      fontWeight: '600',
+    },
+  });
+}

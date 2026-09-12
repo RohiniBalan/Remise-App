@@ -1,4 +1,4 @@
-import { GOOGLE_AI_API_KEY } from './endpoints';
+import { GOOGLE_AI_API_KEYS, GOOGLE_AI_API_KEY } from './endpoints';
 
 // Mobile-only equivalent of client/app/api/smart-product-upload/route.ts's
 // "vision" path (VISION_PROMPT + Gemini/Claude, single request does OCR +
@@ -15,7 +15,13 @@ Reply ONLY with a raw JSON object — no markdown, no code fences:
 {"productName":"<product name>","category":"<one of: Groceries, Dairy, Beverages, Snacks, Beauty & Skincare, Household, Electronics, Clothing, Vegetables, Fruits, Medicine, Stationery, General>","subcategory":"<appropriate subcategory or empty string>","price":<MRP as number, 0 if not shown>,"discountedPrice":<sale price as number, same as price if not shown>,"validTill":"<YYYY-MM-DD or null>","description":"<2-4 sentence rich overview of the product in English>","aboutDescription":"<description paragraph or empty string>","aboutFeatures":["<feature bullet 1>","<feature bullet 2>"],"brand":"<brand name or empty string>","attributes":{"<key>":"<value>"},"specifications":[{"label":"<spec label>","value":"<spec value>"}],"idealFor":["<highlight/suitable for bullet 1>","<highlight/suitable for bullet 2>"]}`;
 
 // Tried in order, same fallback idea as the web route trying multiple models.
-const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+const MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-2.0-flash-lite',
+];
 
 export interface ScannedProduct {
   productName: string;
@@ -33,42 +39,95 @@ export interface ScannedProduct {
   brand: string;
 }
 
+function isQuotaOrKeyError(status: number, errorText: string): boolean {
+  if (status === 429 || status === 401 || status === 403) return true;
+  const lower = (errorText || '').toLowerCase();
+  return (
+    lower.includes('resource_exhausted') ||
+    lower.includes('quota') ||
+    lower.includes('rate limit') ||
+    lower.includes('exceeded') ||
+    lower.includes('api_key_invalid') ||
+    lower.includes('api key not valid') ||
+    lower.includes('permission_denied') ||
+    lower.includes('billing_disabled') ||
+    lower.includes('consumer_invalid') ||
+    lower.includes('consumer_suspended')
+  );
+}
+
 // Shared by every Gemini call in this file: POSTs a `parts` array, tries
-// each model in turn (same fallback idea as the web routes trying multiple
-// models), and returns the raw response text for the caller to parse as
-// JSON. `callGeminiVision`/`callGeminiText` below just build the `parts`
-// array differently (image+prompt vs. text-only prompt) on top of this.
+// each configured API key in turn (with automatic fallback on 429/quota/auth errors)
+// and each model in turn, returning the raw response text for the caller to parse as JSON.
 async function callGemini(parts: any[]): Promise<string> {
-  if (!GOOGLE_AI_API_KEY) {
-    throw new Error("Scanning isn't set up yet — add GOOGLE_AI_API_KEY=<your key> to a .env file at the project root (see endpoints.ts for details), then rebuild the app.");
+  const keys = GOOGLE_AI_API_KEYS.length > 0 ? GOOGLE_AI_API_KEYS : (GOOGLE_AI_API_KEY ? [GOOGLE_AI_API_KEY] : []);
+  if (keys.length === 0) {
+    throw new Error(
+      "Scanning isn't set up yet — add GEMINI_API_KEY_1..N or GOOGLE_AI_API_KEY to your .env file, then rebuild the app."
+    );
   }
 
   const body = JSON.stringify({ contents: [{ parts }] });
 
   let lastError: any;
-  for (const model of MODELS) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
-      if (!res.ok) {
-        lastError = new Error(`Gemini (${model}) responded with ${res.status}.`);
-        continue;
+
+  for (let keyIdx = 0; keyIdx < keys.length; keyIdx++) {
+    const currentKey = keys[keyIdx];
+    let shouldSkipToNextKey = false;
+
+    for (const model of MODELS) {
+      if (shouldSkipToNextKey) break;
+
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body,
+          }
+        );
+
+        if (res.status === 429) {
+          console.warn(`[GeminiScanApi] Key #${keyIdx + 1} hit 429 quota/rate limit on ${model}. Switching to next key...`);
+          lastError = new Error(`Key #${keyIdx + 1} 429 Rate Limit / Quota Exceeded`);
+          shouldSkipToNextKey = true;
+          break;
+        }
+
+        if (res.status === 401 || res.status === 403) {
+          console.warn(`[GeminiScanApi] Key #${keyIdx + 1} hit ${res.status} auth error on ${model}. Skipping this key...`);
+          lastError = new Error(`Key #${keyIdx + 1} Auth Error (${res.status})`);
+          shouldSkipToNextKey = true;
+          break;
+        }
+
+        if (!res.ok) {
+          const rawErr = await res.text().catch(() => '');
+          if (isQuotaOrKeyError(res.status, rawErr)) {
+            console.warn(`[GeminiScanApi] Key #${keyIdx + 1} failed with quota/auth error (${res.status}). Switching to next key...`);
+            lastError = new Error(`Key #${keyIdx + 1} Quota Error (${res.status})`);
+            shouldSkipToNextKey = true;
+            break;
+          }
+          lastError = new Error(`Gemini (${model}) responded with ${res.status}.`);
+          continue;
+        }
+
+        const json = await res.json();
+        const text: string | undefined = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (!text) {
+          lastError = new Error(`Gemini (${model}) returned no text.`);
+          continue;
+        }
+        return text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim();
+      } catch (err) {
+        lastError = err;
       }
-      const json = await res.json();
-      const text: string | undefined = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      if (!text) {
-        lastError = new Error(`Gemini (${model}) returned no text.`);
-        continue;
-      }
-      return text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim();
-    } catch (err) {
-      lastError = err;
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('Scan failed — could not reach Gemini.');
+
+  throw lastError instanceof Error ? lastError : new Error(`Scan failed — all ${keys.length} Gemini API keys failed.`);
 }
 
 async function callGeminiVision(base64: string, mimeType: string, prompt: string): Promise<string> {
@@ -113,12 +172,10 @@ export async function scanProductImage(base64: string, mimeType: string): Promis
 }
 
 // Mobile-only equivalent of client/app/api/smart-bulk-scan/route.ts —
-// same idea as scanProductImage above (single Gemini call does OCR +
-// translation + structuring, skipping the route's separate IndicTrans2
-// stage), but for a whole shopping list instead of one product.
-const LIST_VISION_PROMPT = `This image shows a handwritten or printed shopping/purchase list. Read every line and translate all text into English.
+// single Gemini call does OCR + multilingual translation to English + structuring
+const LIST_VISION_PROMPT = `This image shows a handwritten or printed shopping/purchase list in any language or script (such as Tamil, Hindi, Telugu, Kannada, Malayalam, Bengali, Gujarati, Marathi, Punjabi, English, or Tanglish). Read every line and translate all product names and text into standard English.
 Reply ONLY with a raw JSON array — no markdown, no code fences, no extra text:
-[{"name":"<item name>","quantity":"<quantity with unit as written, e.g. \\"2 kg\\", or empty string if none>"}]
+[{"name":"<item name in English>","quantity":"<quantity with unit as written, e.g. \\"2 kg\\", or empty string if none>"}]
 Skip lines that are headers, totals, dates, or purely numeric (e.g. "S.No", "Total", "Date:", page numbers). One array entry per actual item line.`;
 
 export interface ScannedBulkItem {
@@ -144,9 +201,9 @@ export async function scanBulkList(base64: string, mimeType: string): Promise<Sc
 // doing a separate OCR-then-enrich round trip like the web route does).
 const MAX_BULK_ITEMS = 25;
 
-const BULK_PRODUCT_VISION_PROMPT = `This image shows a grocery list, invoice, or handwritten/printed list of product names. Read every line and translate all text into English.
+const BULK_PRODUCT_VISION_PROMPT = `This image shows a grocery list, invoice, or handwritten/printed list of product names in any language or script. Read every line and translate all text into standard English.
 Reply ONLY with a raw JSON array — no markdown, no code fences, no extra text — with at most ${MAX_BULK_ITEMS} entries:
-[{"productName":"<product name>","category":"<one of: Groceries, Dairy, Beverages, Snacks, Beauty & Skincare, Household, Electronics, Clothing, Vegetables, Fruits, Medicine, Stationery, General>","price":<MRP as number, 0 if not shown>,"discountedPrice":<sale price as number, same as price if not shown>,"description":"<1-2 sentence plausible product description in English>","brand":"<brand name if implied, else empty string>"}]
+[{"productName":"<product name in English>","category":"<one of: Groceries, Dairy, Beverages, Snacks, Beauty & Skincare, Household, Electronics, Clothing, Vegetables, Fruits, Medicine, Stationery, General>","price":<MRP as number, 0 if not shown>,"discountedPrice":<sale price as number, same as price if not shown>,"description":"<1-2 sentence plausible product description in English>","brand":"<brand name if implied, else empty string>"}]
 Skip lines that are headers, totals, dates, or purely numeric (e.g. "S.No", "Total", "Date:", page numbers). One array entry per actual product line.`;
 
 export async function scanBulkProducts(base64: string, mimeType: string): Promise<ScannedProduct[]> {
@@ -186,9 +243,9 @@ function voiceLangClause(sourceLang: string): string {
 }
 
 export async function parseVoiceProduct(text: string, sourceLang: string): Promise<ScannedProduct & { totalStock: number }> {
-  const prompt = `You are helping a store owner add a product by speaking it aloud. The following was transcribed from speech${voiceLangClause(sourceLang)}. If it isn't already in English, translate it to English first, then extract the product details.
+  const prompt = `You are helping a store owner add a product by speaking it aloud. The following was transcribed from speech${voiceLangClause(sourceLang)}. Translate everything into standard English if not already in English, then extract the product details.
 Reply ONLY with a raw JSON object — no markdown, no code fences:
-{"productName":"<product name>","category":"<one of: Groceries, Dairy, Beverages, Snacks, Beauty & Skincare, Household, Electronics, Clothing, Vegetables, Fruits, Medicine, Stationery, General>","price":<MRP as number, 0 if not mentioned>,"discountedPrice":<sale price as number, same as price if not mentioned>,"totalStock":<stock quantity as number, 0 if not mentioned>,"description":"<1-2 sentence plausible product description in English>","brand":"<brand name if mentioned, else empty string>"}
+{"productName":"<product name in English>","category":"<one of: Groceries, Dairy, Beverages, Snacks, Beauty & Skincare, Household, Electronics, Clothing, Vegetables, Fruits, Medicine, Stationery, General>","price":<MRP as number, 0 if not mentioned>,"discountedPrice":<sale price as number, same as price if not mentioned>,"totalStock":<stock quantity as number, 0 if not mentioned>,"description":"<1-2 sentence plausible product description in English>","brand":"<brand name if mentioned, else empty string>"}
 
 Transcribed text: "${text}"`;
 
@@ -209,7 +266,7 @@ Transcribed text: "${text}"`;
 export interface VoiceListItem extends ScannedBulkItem { needsClarification: boolean }
 
 export async function parseVoiceList(text: string, sourceLang: string): Promise<VoiceListItem[]> {
-  const prompt = `You are helping a customer build a shopping list by speaking it aloud. The following was transcribed from speech${voiceLangClause(sourceLang)}. If it isn't already in English, translate it to English first, then extract every product mentioned.
+  const prompt = `You are helping a customer build a shopping list by speaking it aloud. The following was transcribed from speech${voiceLangClause(sourceLang)}. Extract every product mentioned and ALWAYS translate the product name into standard English (e.g. "thengai ennai" -> "Coconut Oil", "arisi" -> "Rice", "vengayam" -> "Onion", "chawal" -> "Rice", "doodh" -> "Milk", "tamatar" -> "Tomato").
 Reply ONLY with a raw JSON array — no markdown, no code fences, no extra text:
 [{"name":"<item name in English>","quantity":"<quantity with unit as mentioned, e.g. \\"2 kg\\", or empty string if none>","needsClarification":<true if this item's name or quantity is genuinely ambiguous/unclear from the sentence, otherwise false>}]
 Split naturally on "and", commas, or other separators. Do not skip anything the customer said, even if unclear — flag it instead.

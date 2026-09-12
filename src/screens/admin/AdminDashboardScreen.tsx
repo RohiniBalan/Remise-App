@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, TextInput, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { 
   IndianRupee, 
@@ -18,10 +18,13 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  ChevronRight
+  ChevronRight,
+  Search,
+  X
 } from 'lucide-react-native';
 import { adminStatsApi } from '../../api/adminApi';
-import { AdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { AdminColors, getAdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 const formatCompactINR = (val: number = 0) => {
   if (!val || isNaN(val)) return '₹0';
@@ -47,6 +50,8 @@ const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
 
 export default function AdminDashboardScreen() {
   const navigation = useNavigation<any>();
+  const { isDark } = useTheme();
+  const themeColors = getAdminColors(isDark);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
@@ -59,10 +64,14 @@ export default function AdminDashboardScreen() {
     totalHomeBusinesses: 0,
     totalUsers: 0,
     tokensUsed: 0,
+    geminiCallCount: 0,
+    geminiPromptTokens: 0,
+    geminiCandidatesTokens: 0,
     revenueTrend: [] as any[],
     topProducts: [] as any[],
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchStats = useCallback(async () => {
     try {
@@ -79,6 +88,9 @@ export default function AdminDashboardScreen() {
           totalHomeBusinesses: data.totalHomeBusinesses ?? 0,
           totalUsers: data.totalUsers ?? 0,
           tokensUsed: data.tokensUsed ?? 0,
+          geminiCallCount: data.geminiCallCount ?? 0,
+          geminiPromptTokens: data.geminiPromptTokens ?? 0,
+          geminiCandidatesTokens: data.geminiCandidatesTokens ?? 0,
           revenueTrend: data.revenueTrend ?? [],
           topProducts: data.topProducts ?? [],
         });
@@ -169,14 +181,44 @@ export default function AdminDashboardScreen() {
       bg: '#F0F9FF',
     },
     {
-      label: 'Tokens Used',
+      label: 'Gemini Tokens Used',
       value: (stats.tokensUsed || 0).toLocaleString('en-IN'),
-      tag: 'System Tokens',
+      tag: 'Google Gemini AI',
+      subStats: stats.geminiCallCount > 0
+        ? `${stats.geminiCallCount.toLocaleString('en-IN')} calls · ${(stats.geminiPromptTokens || 0).toLocaleString('en-IN')} prompt · ${(stats.geminiCandidatesTokens || 0).toLocaleString('en-IN')} output`
+        : null,
       icon: Key,
       color: '#7C3AED',
       bg: '#F5F3FF',
     },
   ];
+
+  const query = searchQuery.trim().toLowerCase();
+
+  const filteredRecentOrders = recentOrders.filter((o: any) => {
+    if (!query) return true;
+    const orderId = (o.id || '').toLowerCase();
+    const product = (o.product || '').toLowerCase();
+    const customer = (o.customer || '').toLowerCase();
+    const email = (o.email || '').toLowerCase();
+    const status = (o.status || '').toLowerCase();
+    const amount = String(o.amount || o.rawAmount || '').toLowerCase();
+    return (
+      orderId.includes(query) ||
+      product.includes(query) ||
+      customer.includes(query) ||
+      email.includes(query) ||
+      status.includes(query) ||
+      amount.includes(query)
+    );
+  });
+
+  const filteredTopProducts = (stats.topProducts || []).filter((p: any) => {
+    if (!query) return true;
+    const name = (p.name || '').toLowerCase();
+    const cat = (p.category || '').toLowerCase();
+    return name.includes(query) || cat.includes(query);
+  });
 
   if (loading && !refreshing) {
     return (
@@ -188,37 +230,75 @@ export default function AdminDashboardScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: themeColors.bg }]}
       contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      {/* Search Input Bar */}
+      <View style={[styles.searchContainer, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
+        <Search size={18} color={themeColors.textMuted} style={{ marginRight: 8 }} />
+        <TextInput
+          style={[styles.searchInput, { color: themeColors.textPrimary }]}
+          placeholder="Search orders, products, customers..."
+          placeholderTextColor={themeColors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity 
+            onPress={() => setSearchQuery('')} 
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.searchClearBtn}
+          >
+            <X size={15} color={themeColors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Search Filter Info Banner */}
+      {searchQuery.length > 0 && (
+        <View style={styles.searchFilterRow}>
+          <Text style={[styles.searchFilterText, { color: themeColors.textSecondary }]}>
+            Matching: {filteredRecentOrders.length} order{filteredRecentOrders.length === 1 ? '' : 's'}, {filteredTopProducts.length} product{filteredTopProducts.length === 1 ? '' : 's'}
+          </Text>
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Text style={styles.clearFilterBtnText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* 8 Stats Grid */}
       <View style={styles.statsGrid}>
         {statCards.map(s => (
-          <View key={s.label} style={styles.statCard}>
+          <View key={s.label} style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.statHeader}>
               <View style={[styles.statIcon, { backgroundColor: s.bg }]}>
                 <s.icon size={18} color={s.color} />
               </View>
-              <View style={styles.tagBadge}>
-                <Text style={styles.tagText}>{s.tag}</Text>
+              <View style={[styles.tagBadge, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                <Text style={[styles.tagText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>{s.tag}</Text>
               </View>
             </View>
-            <Text style={styles.statLabel}>{s.label}</Text>
-            <Text style={styles.statValue}>{s.value}</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{s.label}</Text>
+            <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>{s.value}</Text>
+            {'subStats' in s && s.subStats ? (
+              <Text style={styles.statSubStats}>{s.subStats}</Text>
+            ) : null}
           </View>
         ))}
       </View>
 
       {/* Weekly Revenue Bar Chart */}
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
         <View style={styles.sectionHeaderRow}>
           <View>
-            <Text style={styles.sectionTitle}>Weekly Revenue Trend</Text>
-            <Text style={styles.sectionSub}>Performance over the last 7 days</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Weekly Revenue Trend</Text>
+            <Text style={[styles.sectionSub, { color: themeColors.textMuted }]}>Performance over the last 7 days</Text>
           </View>
-          <View style={styles.tagBadge}>
-            <Text style={styles.tagText}>Last 7 Days</Text>
+          <View style={[styles.tagBadge, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+            <Text style={[styles.tagText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>Last 7 Days</Text>
           </View>
         </View>
         <View style={styles.barChart}>
@@ -232,8 +312,8 @@ export default function AdminDashboardScreen() {
                   {d.value > 0 ? (
                     <Text style={styles.barValue}>{formatCompactINR(d.value)}</Text>
                   ) : null}
-                  <View style={[styles.bar, { height, backgroundColor: d.value > 0 ? AdminColors.primary : '#E5E7EB' }]} />
-                  <Text style={styles.barLabel}>{d.label}</Text>
+                  <View style={[styles.bar, { height, backgroundColor: d.value > 0 ? AdminColors.primary : isDark ? '#374151' : '#E5E7EB' }]} />
+                  <Text style={[styles.barLabel, { color: themeColors.textMuted }]}>{d.label}</Text>
                 </View>
               );
             });
@@ -242,9 +322,9 @@ export default function AdminDashboardScreen() {
       </View>
 
       {/* Top Selling Products */}
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Top Selling Products</Text>
+          <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Top Selling Products</Text>
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => navigation.navigate('AdminProduct')}
@@ -253,18 +333,18 @@ export default function AdminDashboardScreen() {
             <ExternalLink size={12} color={AdminColors.primary} />
           </TouchableOpacity>
         </View>
-        {stats.topProducts && stats.topProducts.length > 0 ? (
-          stats.topProducts.map((p: any, i: number) => (
-            <View key={p.id || p.name || i} style={styles.row}>
-              <View style={styles.rankBadgeBox}>
+        {filteredTopProducts && filteredTopProducts.length > 0 ? (
+          filteredTopProducts.map((p: any, i: number) => (
+            <View key={p.id || p.name || i} style={[styles.row, { borderBottomColor: themeColors.border }]}>
+              <View style={[styles.rankBadgeBox, { backgroundColor: isDark ? 'rgba(255,0,0,0.15)' : '#FEF2F2' }]}>
                 <Text style={styles.rankBadgeText}>#{i + 1}</Text>
               </View>
               <View style={{ flex: 1, marginHorizontal: 8 }}>
-                <Text style={styles.rowTitle} numberOfLines={1}>{p.name}</Text>
-                <Text style={styles.rowSub}>{p.category} · {p.sales} sold</Text>
+                <Text style={[styles.rowTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{p.name}</Text>
+                <Text style={[styles.rowSub, { color: themeColors.textSecondary }]}>{p.category} · {p.sales} sold</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.rowAmount}>{formatCompactINR(p.revenue)}</Text>
+                <Text style={[styles.rowAmount, { color: themeColors.textPrimary }]}>{formatCompactINR(p.revenue)}</Text>
                 <Text style={[styles.rowTrend, { color: (p.trend || '+5%').startsWith('-') ? '#DC2626' : '#16A34A' }]}>
                   {p.trend || '+5%'}
                 </Text>
@@ -273,17 +353,19 @@ export default function AdminDashboardScreen() {
           ))
         ) : (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-            <Text style={styles.emptyRecentText}>No product sales recorded yet</Text>
+            <Text style={[styles.emptyRecentText, { color: themeColors.textMuted }]}>
+              {searchQuery ? `No products matching "${searchQuery}"` : 'No product sales recorded yet'}
+            </Text>
           </View>
         )}
       </View>
 
       {/* Recent Orders Table */}
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
         <View style={styles.sectionHeaderRow}>
           <View>
-            <Text style={styles.sectionTitle}>Recent Orders</Text>
-            <Text style={styles.sectionSub}>Latest transactions from database</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Recent Orders</Text>
+            <Text style={[styles.sectionSub, { color: themeColors.textMuted }]}>Latest transactions from database</Text>
           </View>
           <TouchableOpacity
             style={styles.linkRow}
@@ -294,36 +376,43 @@ export default function AdminDashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {recentOrders.length === 0 ? (
+        {filteredRecentOrders.length === 0 ? (
           <View style={styles.emptyRecent}>
-            <Package size={32} color="#D1D5DB" />
-            <Text style={styles.emptyRecentText}>No orders recorded yet</Text>
+            <Package size={32} color={themeColors.textMuted} />
+            <Text style={[styles.emptyRecentText, { color: themeColors.textMuted }]}>
+              {searchQuery ? `No orders matching "${searchQuery}"` : 'No orders recorded yet'}
+            </Text>
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ marginTop: 4 }}>
+                <Text style={styles.clearFilterBtnText}>Clear Search Filter</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
-          recentOrders.map((o: any, i: number) => {
-            const st = STATUS_COLOR[o.status] || { bg: '#F3F4F6', text: '#4B5563' };
+          filteredRecentOrders.map((o: any, i: number) => {
+            const st = STATUS_COLOR[o.status] || { bg: isDark ? '#374151' : '#F3F4F6', text: isDark ? '#E5E7EB' : '#4B5563' };
             return (
               <TouchableOpacity
                 key={o.id || o._id || i}
-                style={styles.orderCard}
+                style={[styles.orderCard, { borderBottomColor: themeColors.border }]}
                 onPress={() => navigation.navigate('AdminOrderHistory')}
                 activeOpacity={0.7}
               >
                 <View style={styles.orderTop}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.orderIdText}>{o.id || `#ORD-${String(i + 1).padStart(4, '0')}`}</Text>
-                    <Text style={styles.orderProductText} numberOfLines={1}>
+                    <Text style={[styles.orderIdText, { color: themeColors.textPrimary }]}>{o.id || `#ORD-${String(i + 1).padStart(4, '0')}`}</Text>
+                    <Text style={[styles.orderProductText, { color: themeColors.textSecondary }]} numberOfLines={1}>
                       {o.product || 'Order Item'}
                       {o.itemCount > 1 ? ` (+${o.itemCount - 1} more)` : ''}
                     </Text>
-                    <Text style={styles.orderCustomerText}>
+                    <Text style={[styles.orderCustomerText, { color: themeColors.textMuted }]}>
                       {o.customer || 'Customer'} {o.email ? `· ${o.email}` : ''}
                     </Text>
                     <Text style={styles.orderDateText}>{o.date || 'Recent'}</Text>
                   </View>
 
                   <View style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                    <Text style={styles.orderAmountText}>{o.amount || `₹${o.rawAmount || 0}`}</Text>
+                    <Text style={[styles.orderAmountText, { color: themeColors.textPrimary }]}>{o.amount || `₹${o.rawAmount || 0}`}</Text>
                     <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
                       <Text style={[styles.statusBadgeText, { color: st.text }]}>{o.status || 'Pending'}</Text>
                     </View>
@@ -341,6 +430,43 @@ export default function AdminDashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AdminColors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: AdminColors.bg },
+  searchContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#fff', 
+    borderRadius: BorderRadius.lg, 
+    borderWidth: 1, 
+    borderColor: '#E5E7EB', 
+    paddingHorizontal: Spacing.md, 
+    paddingVertical: Platform?.OS === 'ios' ? Spacing.sm : 6,
+    marginBottom: Spacing.sm,
+    ...Shadows.card 
+  },
+  searchInput: { 
+    flex: 1, 
+    fontSize: FontSizes.sm, 
+    paddingVertical: 4 
+  },
+  searchClearBtn: {
+    padding: 4,
+    borderRadius: 999,
+  },
+  searchFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginBottom: Spacing.sm,
+  },
+  searchFilterText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  clearFilterBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: AdminColors.primary,
+  },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
   statCard: { width: '48%', backgroundColor: '#fff', borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: '#F3F4F6', padding: Spacing.md, ...Shadows.card },
   statHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
@@ -349,6 +475,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 9, color: '#4B5563', fontWeight: '700' },
   statLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
   statValue: { fontSize: FontSizes.base, fontWeight: '800', color: '#111827', marginTop: 2 },
+  statSubStats: { fontSize: 9, color: '#9CA3AF', marginTop: 3, lineHeight: 13 },
   section: { backgroundColor: '#fff', borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: '#F3F4F6', padding: Spacing.md, marginBottom: Spacing.md },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#111827' },

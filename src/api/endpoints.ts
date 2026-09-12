@@ -47,13 +47,44 @@ export const LEGACY_PRODUCT_URL = 'https://wow-lifebackend.onrender.com/api';
 // file at the project root (same folder as package.json, NOT committed to
 // git) as a single line: GOOGLE_AI_API_KEY=your-key-here
 //
-// NOTE: this used to be named GOOGLE_API_KEY here (and never exported) while
-// geminiScanApi.ts imported GOOGLE_AI_API_KEY — the mismatched name meant
-// this always resolved to undefined even after adding a real key. Renamed to
-// match on both sides.
-export const GOOGLE_AI_API_KEY = Config.GOOGLE_AI_API_KEY;
+// Helper to collect all configured Gemini API keys (supports 1..20, comma-separated lists, and single keys)
+function loadGeminiKeys(): string[] {
+  const keys: string[] = [];
+  const add = (k?: string) => {
+    if (!k) return;
+    const clean = k.trim().replace(/^["']|["']$/g, '');
+    if (clean && !clean.startsWith('#') && !keys.includes(clean)) {
+      keys.push(clean);
+    }
+  };
+
+  const addList = (val?: string) => {
+    if (!val) return;
+    val.split(/[\n,]+/).forEach(add);
+  };
+
+  // 1. GEMINI_API_KEY_1..20
+  for (let i = 1; i <= 20; i++) {
+    add((Config as any)[`GEMINI_API_KEY_${i}`]);
+  }
+  // 2. GOOGLE_AI_API_KEY_1..20
+  for (let i = 1; i <= 20; i++) {
+    add((Config as any)[`GOOGLE_AI_API_KEY_${i}`]);
+  }
+  // 3. Comma lists
+  addList((Config as any).GEMINI_API_KEYS);
+  addList((Config as any).GOOGLE_AI_API_KEYS);
+  // 4. Singular keys
+  add(Config.GEMINI_API_KEY);
+  add(Config.GOOGLE_AI_API_KEY);
+
+  return keys;
+}
+
+export const GOOGLE_AI_API_KEYS: string[] = loadGeminiKeys();
+export const GOOGLE_AI_API_KEY = GOOGLE_AI_API_KEYS[0] || Config.GOOGLE_AI_API_KEY;
 
 console.log(
-    'GEMINI KEY CHECK:',
-    GOOGLE_AI_API_KEY ? 'KEY_LOADED' : 'KEY_MISSING'
+  'GEMINI KEY CHECK:',
+  GOOGLE_AI_API_KEYS.length > 0 ? `${GOOGLE_AI_API_KEYS.length} KEYS LOADED` : 'KEY_MISSING'
 );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,12 @@ import {
   StyleSheet,
   Linking,
   Alert,
+  Modal,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Newspaper,
   Calendar,
@@ -21,41 +26,34 @@ import {
   Download,
   Mail,
   ArrowRight,
+  X,
+  User,
+  MapPin,
+  Clock,
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
+import { pressApi } from '../../api/pressApi';
 
 const BRAND_RED = CustomerColors.primary;
+const STORAGE_KEY = 'remise_press_releases';
+const DUMMY_IDS = ['smarter-local-discovery', 'product-scanning-launch', 'store-comparison-update'];
 
-type PressRelease = {
+export interface PressRelease {
   id: string;
-  date: string;
   title: string;
+  slug?: string;
+  date: string;
   excerpt: string;
+  body?: string[];
+  category?: string;
   featured?: boolean;
-};
-
-const PRESS_RELEASES: PressRelease[] = [
-  {
-    id: 'smarter-local-discovery',
-    date: 'September 2026',
-    title: 'Remise introduces a smarter way to discover local products',
-    excerpt:
-      'Remise continues to improve product discovery and local shopping by connecting customers with nearby businesses.',
-    featured: true,
-  },
-  {
-    id: 'product-scanning-launch',
-    date: 'August 2026',
-    title: 'Remise launches product list scanning',
-    excerpt: 'A faster way to compare an entire shopping list across nearby stores in one pass.',
-  },
-  {
-    id: 'store-comparison-update',
-    date: 'July 2026',
-    title: 'Remise improves store comparison with total pricing',
-    excerpt: 'Customers can now see full pricing across stores at a glance, before choosing where to buy.',
-  },
-];
+  published?: boolean;
+  location?: string;
+  contactName?: string;
+  contactEmail?: string;
+  createdAt?: string;
+}
 
 const AT_A_GLANCE = [
   { icon: Globe, label: 'Web & Mobile', sub: 'Platform' },
@@ -70,13 +68,67 @@ const MEDIA_KIT = [
 ];
 
 export default function PressScreen({ navigation }: any) {
-  const featured = PRESS_RELEASES.find((r) => r.featured) ?? PRESS_RELEASES[0];
-  const timelineReleases = PRESS_RELEASES.filter((r) => r.id !== featured.id);
+  const { isDark } = useTheme();
+  const [releasesList, setReleasesList] = useState<PressRelease[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedRelease, setSelectedRelease] = useState<PressRelease | null>(null);
+  const [readerModalVisible, setReaderModalVisible] = useState(false);
+
+  // Dynamic theme colors
+  const themeColors = {
+    bg: isDark ? '#0B0F19' : '#F8FAFC',
+    card: isDark ? '#131D31' : '#FFFFFF',
+    border: isDark ? '#1E293B' : '#E2E8F0',
+    textPrimary: isDark ? '#FFFFFF' : '#0F172A',
+    textSecondary: isDark ? '#94A3B8' : '#64748B',
+    inputBg: isDark ? '#141414' : '#FFFFFF',
+    chipBg: isDark ? '#111111' : '#FFFFFF',
+    chipBorder: isDark ? '#262626' : '#E2E8F0',
+    highlightCardBg: isDark ? '#111111' : '#FFF1F2',
+  };
+
+  const loadReleases = async () => {
+    try {
+      setLoading(true);
+      const res = await pressApi.getAll();
+      if (res?.data && Array.isArray(res.data)) {
+        const publishedOnly = res.data.filter(
+          (r: any) => r && r.published !== false
+        );
+        setReleasesList(publishedOnly);
+        return;
+      }
+      setReleasesList([]);
+    } catch (e) {
+      console.warn('Failed to load press releases from DB:', e);
+      setReleasesList([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReleases();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadReleases();
+    }, [])
+  );
+
+  const featured = releasesList.find((r) => r.featured) ?? (releasesList.length > 0 ? releasesList[0] : null);
+  const timelineReleases = featured ? releasesList.filter((r) => (r.slug || r.id) !== (featured.slug || featured.id)) : releasesList;
+
+  const openReader = (release: PressRelease) => {
+    setSelectedRelease(release);
+    setReaderModalVisible(true);
+  };
 
   const handleDownload = (itemTitle: string) => {
     Alert.alert(
       'Media Asset Request',
-      `For official ${itemTitle} and media kits, please email press@remise.com or porulontechnologies@gmail.com.`,
+      `For official ${itemTitle} and media kits, please email porulontechnologies@gmail.com.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -89,75 +141,131 @@ export default function PressScreen({ navigation }: any) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: themeColors.bg }]}
+      contentContainerStyle={{ paddingBottom: Spacing.xxl }}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={loadReleases}
+          tintColor={BRAND_RED}
+          colors={[BRAND_RED]}
+        />
+      }
+    >
       {/* HERO / HEADER */}
       <View style={styles.hero}>
         <View style={styles.badge}>
           <Newspaper size={13} color={BRAND_RED} />
           <Text style={styles.badgeText}>Remise Newsroom</Text>
         </View>
-        <Text style={styles.heroTitle}>News, announcements & official info</Text>
-        <Text style={styles.heroSubtitle}>
+        <Text style={[styles.heroTitle, { color: themeColors.textPrimary }]}>News, announcements & official info</Text>
+        <Text style={[styles.heroSubtitle, { color: themeColors.textSecondary }]}>
           Everything a journalist, partner, or curious reader needs to know about what we're building.
         </Text>
       </View>
 
       {/* FEATURED ANNOUNCEMENT */}
-      <View style={styles.section}>
-        <View style={styles.featuredCard}>
-          <View style={styles.featuredTag}>
-            <Text style={styles.featuredTagText}>FEATURED ANNOUNCEMENT</Text>
-          </View>
-          <Text style={styles.featuredDate}>{featured.date}</Text>
-          <Text style={styles.featuredTitle}>{featured.title}</Text>
-          <Text style={styles.featuredExcerpt}>{featured.excerpt}</Text>
+      {featured ? (
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[styles.featuredCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.35)' : '#FCA5A5' }]}
+            activeOpacity={0.85}
+            onPress={() => openReader(featured)}
+          >
+            <View style={styles.featuredHeader}>
+              <View style={styles.featuredTag}>
+                <Text style={styles.featuredTagText}>FEATURED ANNOUNCEMENT</Text>
+              </View>
+              {featured.category ? (
+                <Text style={styles.featuredCategoryText}>{featured.category}</Text>
+              ) : null}
+            </View>
+            <Text style={[styles.featuredDate, { color: themeColors.textSecondary }]}>{featured.date}</Text>
+            <Text style={[styles.featuredTitle, { color: themeColors.textPrimary }]}>{featured.title}</Text>
+            <Text style={[styles.featuredExcerpt, { color: themeColors.textSecondary }]}>{featured.excerpt}</Text>
+
+            <View style={styles.readMoreRow}>
+              <Text style={styles.readMoreText}>Read Announcement</Text>
+              <ArrowRight size={12} color={BRAND_RED} />
+            </View>
+          </TouchableOpacity>
         </View>
-      </View>
+      ) : (
+        <View style={styles.section}>
+          <View style={[styles.emptyHeroCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <Sparkles size={28} color={BRAND_RED} style={{ marginBottom: Spacing.sm }} />
+            <Text style={[styles.emptyHeroTitle, { color: themeColors.textPrimary }]}>Building Our Story</Text>
+            <Text style={[styles.emptyHeroDesc, { color: themeColors.textSecondary }]}>
+              Official announcements, product launches, and press releases will appear here once published from the newsroom.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* TIMELINE RELEASES */}
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={styles.sectionHeadingText}>Press Releases</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Press Releases</Text>
         </View>
 
-        <View style={styles.timelineContainer}>
-          {PRESS_RELEASES.map((release, index) => (
-            <View key={release.id} style={styles.timelineItem}>
-              <View style={styles.timelineDotWrapper}>
-                <View style={styles.timelineDot} />
-                {index < PRESS_RELEASES.length - 1 && <View style={styles.timelineLine} />}
-              </View>
-              <View style={styles.releaseCard}>
-                <View style={styles.dateRow}>
-                  <Calendar size={12} color={BRAND_RED} />
-                  <Text style={styles.releaseDate}>{release.date}</Text>
+        {releasesList.length > 0 ? (
+          <View style={styles.timelineContainer}>
+            {(featured ? [{ ...featured }, ...timelineReleases] : releasesList).map((release, index, arr) => (
+              <View key={release.id || release.slug || index} style={styles.timelineItem}>
+                <View style={styles.timelineDotWrapper}>
+                  <View style={styles.timelineDot} />
+                  {index < arr.length - 1 && <View style={[styles.timelineLine, { backgroundColor: themeColors.border }]} />}
                 </View>
-                <Text style={styles.releaseTitle}>{release.title}</Text>
-                <Text style={styles.releaseExcerpt}>{release.excerpt}</Text>
+                <TouchableOpacity
+                  style={[styles.releaseCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                  activeOpacity={0.8}
+                  onPress={() => openReader(release)}
+                >
+                  <View style={styles.dateRow}>
+                    <Calendar size={12} color={BRAND_RED} />
+                    <Text style={[styles.releaseDate, { color: themeColors.textSecondary }]}>{release.date}</Text>
+                    {release.category ? (
+                      <Text style={styles.releaseCategoryBadge}>• {release.category}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={[styles.releaseTitle, { color: themeColors.textPrimary }]}>{release.title}</Text>
+                  <Text style={[styles.releaseExcerpt, { color: themeColors.textSecondary }]} numberOfLines={2}>
+                    {release.excerpt}
+                  </Text>
+                  <View style={styles.readMoreRow}>
+                    <Text style={styles.readMoreTextSmall}>Read Full Release</Text>
+                    <ArrowRight size={11} color={BRAND_RED} />
+                  </View>
+                </TouchableOpacity>
               </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.emptyBox, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <Text style={[styles.emptyBoxText, { color: themeColors.textSecondary }]}>No press releases published yet.</Text>
+          </View>
+        )}
       </View>
 
       {/* REMISE AT A GLANCE */}
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={styles.sectionHeadingText}>Remise at a Glance</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Remise at a Glance</Text>
         </View>
 
         <View style={styles.glanceRow}>
           {AT_A_GLANCE.map((item, i) => {
             const Icon = item.icon;
             return (
-              <View key={i} style={styles.glanceCard}>
+              <View key={i} style={[styles.glanceCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                 <View style={styles.glanceIconCircle}>
                   <Icon size={18} color={BRAND_RED} />
                 </View>
-                <Text style={styles.glanceLabel}>{item.label}</Text>
-                <Text style={styles.glanceSub}>{item.sub}</Text>
+                <Text style={[styles.glanceLabel, { color: themeColors.textPrimary }]}>{item.label}</Text>
+                <Text style={[styles.glanceSub, { color: themeColors.textSecondary }]}>{item.sub}</Text>
               </View>
             );
           })}
@@ -168,13 +276,13 @@ export default function PressScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={styles.sectionHeadingText}>In the News</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>In the News</Text>
         </View>
 
-        <View style={styles.newsEmptyCard}>
+        <View style={[styles.newsEmptyCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <Sparkles size={24} color={BRAND_RED} style={{ marginBottom: Spacing.sm }} />
-          <Text style={styles.newsEmptyTitle}>Building Our Story</Text>
-          <Text style={styles.newsEmptyDesc}>
+          <Text style={[styles.newsEmptyTitle, { color: themeColors.textPrimary }]}>Building Our Story</Text>
+          <Text style={[styles.newsEmptyDesc, { color: themeColors.textSecondary }]}>
             Remise is continuously growing. Media coverage and articles will appear here as we expand.
           </Text>
         </View>
@@ -184,20 +292,20 @@ export default function PressScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={styles.sectionHeadingText}>Media Resources</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Media Resources</Text>
         </View>
 
         <View style={{ gap: Spacing.sm }}>
           {MEDIA_KIT.map((item, i) => {
             const Icon = item.icon;
             return (
-              <View key={i} style={styles.mediaKitCard}>
+              <View key={i} style={[styles.mediaKitCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                 <View style={styles.mediaKitIconCircle}>
                   <Icon size={18} color={BRAND_RED} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.mediaKitTitle}>{item.title}</Text>
-                  <Text style={styles.mediaKitDesc}>{item.desc}</Text>
+                  <Text style={[styles.mediaKitTitle, { color: themeColors.textPrimary }]}>{item.title}</Text>
+                  <Text style={[styles.mediaKitDesc, { color: themeColors.textSecondary }]}>{item.desc}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.downloadBtn}
@@ -215,9 +323,9 @@ export default function PressScreen({ navigation }: any) {
 
       {/* ABOUT REMISE */}
       <View style={styles.section}>
-        <View style={styles.aboutCard}>
+        <View style={[styles.aboutCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <Text style={styles.aboutTag}>About Remise</Text>
-          <Text style={styles.aboutText}>
+          <Text style={[styles.aboutText, { color: themeColors.textSecondary }]}>
             Remise is a local commerce and product discovery platform that connects customers with
             nearby businesses. Customers can discover products, compare available options, choose
             stores, and place orders directly through the platform.
@@ -226,12 +334,12 @@ export default function PressScreen({ navigation }: any) {
       </View>
 
       {/* PRESS CONTACT CTA */}
-      <View style={styles.contactCard}>
+      <View style={[styles.contactCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#FCA5A5' }]}>
         <View style={styles.contactIconCircle}>
           <Mail size={22} color="#FFFFFF" />
         </View>
-        <Text style={styles.contactTitle}>Media & Press Contact</Text>
-        <Text style={styles.contactSubtitle}>
+        <Text style={[styles.contactTitle, { color: themeColors.textPrimary }]}>Media & Press Contact</Text>
+        <Text style={[styles.contactSubtitle, { color: themeColors.textSecondary }]}>
           Are you a journalist or publication interested in learning more about Remise?
         </Text>
         <Text style={styles.contactEmail}>porulontechnologies@gmail.com</Text>
@@ -247,12 +355,76 @@ export default function PressScreen({ navigation }: any) {
           <ArrowRight size={15} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
+
+      {/* PRESS RELEASE READER MODAL */}
+      <Modal
+        visible={readerModalVisible}
+        animationType="slide"
+        onRequestClose={() => setReaderModalVisible(false)}
+      >
+        <View style={[styles.readerModal, { backgroundColor: themeColors.bg }]}>
+          <View style={[styles.readerHeader, { borderBottomColor: themeColors.border, backgroundColor: themeColors.card }]}>
+            <TouchableOpacity
+              style={styles.readerCloseBtn}
+              onPress={() => setReaderModalVisible(false)}
+            >
+              <X size={20} color={themeColors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={[styles.readerHeaderCategory, { color: themeColors.textPrimary }]}>
+              {selectedRelease?.category || 'Press Release'}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          {selectedRelease && (
+            <ScrollView
+              style={styles.readerBody}
+              contentContainerStyle={{ paddingBottom: 60 }}
+            >
+              <View style={styles.readerTagRow}>
+                <Text style={styles.readerCategoryTag}>{selectedRelease.category || 'Official Release'}</Text>
+                <Text style={styles.readerDot}>•</Text>
+                <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{selectedRelease.date}</Text>
+                {selectedRelease.location ? (
+                  <>
+                    <Text style={styles.readerDot}>•</Text>
+                    <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{selectedRelease.location}</Text>
+                  </>
+                ) : null}
+              </View>
+
+              <Text style={[styles.readerTitle, { color: themeColors.textPrimary }]}>{selectedRelease.title}</Text>
+              <Text style={[styles.readerExcerpt, { color: themeColors.textSecondary }]}>{selectedRelease.excerpt}</Text>
+
+              {selectedRelease.contactName ? (
+                <View style={styles.readerAuthorRow}>
+                  <User size={13} color={themeColors.textSecondary} />
+                  <Text style={[styles.readerAuthorText, { color: themeColors.textSecondary }]}>
+                    Contact: {selectedRelease.contactName} ({selectedRelease.contactEmail || 'porulontechnologies@gmail.com'})
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.readerParagraphs}>
+                {(selectedRelease.body && selectedRelease.body.length > 0
+                  ? selectedRelease.body
+                  : [selectedRelease.excerpt]
+                ).map((para, i) => (
+                  <Text key={i} style={[styles.readerParagraph, { color: themeColors.textPrimary }]}>
+                    {para}
+                  </Text>
+                ))}
+              </View>
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  container: { flex: 1 },
 
   hero: { padding: Spacing.lg, paddingTop: Spacing.xl },
   badge: {
@@ -277,36 +449,47 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: FontSizes.xl ?? 26,
     fontWeight: '900',
-    color: '#FFFFFF',
     marginBottom: Spacing.sm,
     lineHeight: 32,
   },
-  heroSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 21 },
+  heroSubtitle: { fontSize: FontSizes.sm, lineHeight: 21 },
 
   section: { paddingHorizontal: Spacing.md, marginTop: Spacing.xl },
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
   headingBar: { width: 4, height: 18, borderRadius: 2, backgroundColor: BRAND_RED },
-  sectionHeadingText: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionHeadingText: { fontSize: FontSizes.base, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   featuredCard: {
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.35)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
   },
+  featuredHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
   featuredTag: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,0,0,0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BorderRadius.sm,
-    marginBottom: Spacing.xs,
   },
   featuredTagText: { fontSize: 10, fontWeight: '800', color: BRAND_RED, letterSpacing: 0.5 },
-  featuredDate: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', marginBottom: 6 },
-  featuredTitle: { fontSize: FontSizes.lg, fontWeight: '900', color: '#FFFFFF', marginBottom: Spacing.xs, lineHeight: 24 },
-  featuredExcerpt: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 20 },
+  featuredCategoryText: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 },
+  featuredDate: { fontSize: 11, fontWeight: '600', marginBottom: 6 },
+  featuredTitle: { fontSize: FontSizes.lg, fontWeight: '900', marginBottom: Spacing.xs, lineHeight: 24 },
+  featuredExcerpt: { fontSize: FontSizes.sm, lineHeight: 20, marginBottom: Spacing.sm },
+  readMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.xs },
+  readMoreText: { fontSize: 11, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase' },
+  readMoreTextSmall: { fontSize: 10, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase' },
+
+  emptyHeroCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    textAlign: 'center',
+  },
+  emptyHeroTitle: { fontSize: FontSizes.base, fontWeight: '800', marginBottom: 4 },
+  emptyHeroDesc: { fontSize: FontSizes.xs, textAlign: 'center', lineHeight: 18 },
 
   timelineContainer: { paddingLeft: Spacing.xs },
   timelineItem: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
@@ -321,28 +504,32 @@ const styles = StyleSheet.create({
   timelineLine: {
     flex: 1,
     width: 2,
-    backgroundColor: '#262626',
     marginTop: 4,
   },
   releaseCard: {
     flex: 1,
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
   },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  releaseDate: { fontSize: 11, color: '#9CA3AF', fontWeight: '700' },
-  releaseTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', marginBottom: 4, lineHeight: 19 },
-  releaseExcerpt: { fontSize: FontSizes.xs, color: '#9CA3AF', lineHeight: 16 },
+  releaseDate: { fontSize: 11, fontWeight: '700' },
+  releaseCategoryBadge: { fontSize: 10, fontWeight: '700', color: BRAND_RED },
+  releaseTitle: { fontSize: FontSizes.sm, fontWeight: '800', marginBottom: 4, lineHeight: 19 },
+  releaseExcerpt: { fontSize: FontSizes.xs, lineHeight: 16, marginBottom: Spacing.xs },
+
+  emptyBox: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
+  emptyBoxText: { fontSize: FontSizes.sm },
 
   glanceRow: { flexDirection: 'row', gap: Spacing.xs, justifyContent: 'space-between' },
   glanceCard: {
     flex: 1,
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     alignItems: 'center',
@@ -356,27 +543,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.xs,
   },
-  glanceLabel: { fontSize: FontSizes.xs, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' },
-  glanceSub: { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginTop: 2 },
+  glanceLabel: { fontSize: FontSizes.xs, fontWeight: '800', textAlign: 'center' },
+  glanceSub: { fontSize: 10, textAlign: 'center', marginTop: 2 },
 
   newsEmptyCard: {
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     alignItems: 'center',
   },
-  newsEmptyTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', marginBottom: Spacing.xs },
-  newsEmptyDesc: { fontSize: FontSizes.xs, color: '#9CA3AF', textAlign: 'center', lineHeight: 18 },
+  newsEmptyTitle: { fontSize: FontSizes.base, fontWeight: '800', marginBottom: Spacing.xs },
+  newsEmptyDesc: { fontSize: FontSizes.xs, textAlign: 'center', lineHeight: 18 },
 
   mediaKitCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
   },
@@ -388,8 +571,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mediaKitTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', marginBottom: 2 },
-  mediaKitDesc: { fontSize: FontSizes.xs, color: '#9CA3AF' },
+  mediaKitTitle: { fontSize: FontSizes.sm, fontWeight: '800', marginBottom: 2 },
+  mediaKitDesc: { fontSize: FontSizes.xs },
   downloadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -404,21 +587,17 @@ const styles = StyleSheet.create({
   downloadBtnText: { fontSize: 11, fontWeight: '800', color: BRAND_RED },
 
   aboutCard: {
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
   },
   aboutTag: { fontSize: 10, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.xs },
-  aboutText: { fontSize: FontSizes.xs, color: '#9CA3AF', lineHeight: 18 },
+  aboutText: { fontSize: FontSizes.xs, lineHeight: 18 },
 
   contactCard: {
     margin: Spacing.md,
     marginTop: Spacing.xl,
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.4)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     alignItems: 'center',
@@ -432,8 +611,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  contactTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', marginBottom: Spacing.xs },
-  contactSubtitle: { fontSize: FontSizes.xs, color: '#9CA3AF', textAlign: 'center', lineHeight: 18, marginBottom: Spacing.sm },
+  contactTitle: { fontSize: FontSizes.base, fontWeight: '800', textAlign: 'center', marginBottom: Spacing.xs },
+  contactSubtitle: { fontSize: FontSizes.xs, textAlign: 'center', lineHeight: 18, marginBottom: Spacing.sm },
   contactEmail: { fontSize: FontSizes.sm, fontWeight: '800', color: BRAND_RED, marginBottom: Spacing.lg },
   contactBtn: {
     flexDirection: 'row',
@@ -445,4 +624,28 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   contactBtnText: { fontSize: FontSizes.xs, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  // Reader Modal Styles
+  readerModal: { flex: 1 },
+  readerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  readerCloseBtn: { padding: Spacing.xs },
+  readerHeaderCategory: { fontSize: FontSizes.sm, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  readerBody: { padding: Spacing.lg },
+  readerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
+  readerCategoryTag: { fontSize: 11, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5 },
+  readerDot: { fontSize: 12, color: '#9CA3AF' },
+  readerMetaText: { fontSize: 11 },
+  readerTitle: { fontSize: FontSizes.xl ?? 24, fontWeight: '900', marginBottom: Spacing.sm, lineHeight: 30 },
+  readerExcerpt: { fontSize: FontSizes.sm, lineHeight: 22, marginBottom: Spacing.md },
+  readerAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.lg },
+  readerAuthorText: { fontSize: 11, fontWeight: '600' },
+  readerParagraphs: { gap: Spacing.md },
+  readerParagraph: { fontSize: FontSizes.sm, lineHeight: 24 },
 });

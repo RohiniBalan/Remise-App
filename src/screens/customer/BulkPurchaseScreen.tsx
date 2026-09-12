@@ -9,6 +9,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks/useVoiceInput';
 import { requestCameraPermission } from '../../utils/permissions';
 import BrandHeader from '../../components/common/BrandHeader';
+import { lookupTanglishDictionary } from '../../utils/tanglishTranslator';
 
 let idCounter = 0;
 const uid = () => `item-${++idCounter}-${Date.now()}`;
@@ -35,6 +36,23 @@ export default function BulkPurchaseScreen() {
   const addBlank = () => setItems(prev => [...prev, { id: uid(), name: '', brand: '', quantity: '', checked: false }]);
   const update = (id: string, field: 'name' | 'brand' | 'quantity', value: string) =>
     setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value, needsClarification: false } : i)));
+
+  const commitName = useCallback((id: string, value: string) => {
+    const trimmed = (value || '').trim();
+    if (!trimmed) return;
+    const res = lookupTanglishDictionary(trimmed);
+    if (res.matched && res.englishName) {
+      setItems(prev => prev.map(i => {
+        if (i.id !== id) return i;
+        return {
+          ...i,
+          name: res.englishName,
+          quantity: (!i.quantity && res.quantity) ? res.quantity : i.quantity,
+        };
+      }));
+    }
+  }, []);
+
   const toggleCheck = (id: string) => setItems(prev => prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i)));
   const remove = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
   const clearAll = () => setItems([]);
@@ -57,7 +75,19 @@ export default function BulkPurchaseScreen() {
         Alert.alert('No items found', "Couldn't read any list items from that photo. Try a clearer photo or add items manually.");
         return;
       }
-      setItems(prev => [...prev, ...scanned.map(it => ({ id: uid(), name: it.name, brand: '', quantity: it.quantity, checked: false }))]);
+      setItems(prev => [
+        ...prev,
+        ...scanned.map(it => {
+          const dict = lookupTanglishDictionary(it.name);
+          return {
+            id: uid(),
+            name: dict.matched && dict.englishName ? dict.englishName : it.name,
+            brand: '',
+            quantity: it.quantity || (dict.quantity || ''),
+            checked: false,
+          };
+        }),
+      ]);
     } catch (err: any) {
       Alert.alert('Scan failed', err?.message || 'Could not read the list from that photo. Try Add Item to enter it manually.');
     } finally {
@@ -74,7 +104,20 @@ export default function BulkPurchaseScreen() {
         Alert.alert('No items found', "Couldn't make out any items in that — try again or add items manually.");
         return;
       }
-      setItems(prev => [...prev, ...parsed.map(it => ({ id: uid(), name: it.name, brand: '', quantity: it.quantity, checked: false, needsClarification: it.needsClarification }))]);
+      setItems(prev => [
+        ...prev,
+        ...parsed.map(it => {
+          const dict = lookupTanglishDictionary(it.name);
+          return {
+            id: uid(),
+            name: dict.matched && dict.englishName ? dict.englishName : it.name,
+            brand: '',
+            quantity: it.quantity || (dict.quantity || ''),
+            checked: false,
+            needsClarification: it.needsClarification,
+          };
+        }),
+      ]);
     } catch (err: any) {
       setVoiceError(err?.message || 'Could not understand that.');
     } finally {
@@ -208,7 +251,9 @@ export default function BulkPurchaseScreen() {
                         style={styles.nameInput}
                         value={item.name}
                         onChangeText={v => update(item.id, 'name', v)}
-                        placeholder="Item name"
+                        onBlur={() => commitName(item.id, item.name)}
+                        onSubmitEditing={() => commitName(item.id, item.name)}
+                        placeholder="Item name (English or Tanglish)"
                         placeholderTextColor="#D1D5DB"
                       />
                       <TextInput

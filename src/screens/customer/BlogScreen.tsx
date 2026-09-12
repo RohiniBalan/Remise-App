@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,11 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Modal,
+  Image,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Sparkles,
   ShoppingBag,
@@ -23,9 +27,14 @@ import {
   Lightbulb,
   Mail,
   Check,
+  X,
+  User,
+  Calendar,
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { newsletterApi } from '../../api/newsletterApi';
+import { blogApi } from '../../api/blogApi';
+import { useTheme } from '../../context/ThemeContext';
 
 const BRAND_RED = CustomerColors.primary;
 
@@ -35,7 +44,8 @@ type Category =
   | 'Business'
   | 'Technology'
   | 'Remise News'
-  | 'Offers';
+  | 'Offers'
+  | 'General';
 
 const CATEGORIES: Category[] = [
   'All',
@@ -46,13 +56,14 @@ const CATEGORIES: Category[] = [
   'Offers',
 ];
 
-const CATEGORY_ICON: Record<Category, any> = {
+const CATEGORY_ICON: Record<string, any> = {
   All: Sparkles,
   'Shopping Tips': ShoppingBag,
   Business: Building2,
   Technology: Cpu,
   'Remise News': Newspaper,
   Offers: Megaphone,
+  General: Newspaper,
 };
 
 type Article = {
@@ -60,20 +71,31 @@ type Article = {
   category: Category;
   title: string;
   excerpt: string;
+  body?: string[];
   readTime: string;
   date: string;
+  author?: string;
+  image?: string;
   featured?: boolean;
+  type?: string;
 };
 
-const ARTICLES: Article[] = [
+const DEFAULT_ARTICLES: Article[] = [
   {
     id: 'making-local-shopping-smarter',
     category: 'Remise News',
     title: 'Making Local Shopping Smarter',
     excerpt:
       'Discover how Remise brings customers and local businesses together, helping shoppers find products, compare options, and choose where to buy.',
+    body: [
+      'Shopping for everyday products can be more complicated than it needs to be. Customers often check several stores, compare prices manually, and still aren\'t sure they found the best option nearby.',
+      'Remise was built to close that gap. Instead of guessing which store has what you need, you can search or scan once and see what\'s actually available around you — along with pricing, so comparing options takes seconds instead of a trip across town.',
+      'For the businesses on the other side of that search, the platform works the same way in reverse. A store owner, wholesaler, or home business can list what they carry, keep pricing current, and reach customers who are already looking for exactly that product in their area.',
+      'That\'s the core idea behind Remise: less friction for the person trying to find something, and a simpler way for local businesses to be found.',
+    ],
     readTime: '5 min read',
     date: 'September 2026',
+    author: 'Team Remise',
     featured: true,
   },
   {
@@ -81,8 +103,14 @@ const ARTICLES: Article[] = [
     category: 'Shopping Tips',
     title: 'How to Compare Prices Before You Buy',
     excerpt: 'Five practical habits that make it easier to spot a genuinely good deal nearby.',
+    body: [
+      'A lower price isn\'t always a better deal once you factor in distance, stock, and how current the listing actually is. A few habits make comparison shopping faster and more reliable.',
+      'Start with what you actually need, not the closest match. Searching for the specific product narrows results before you start comparing.',
+      'Check availability before price. A great price at a store that\'s out of stock isn\'t a deal at all.',
+    ],
     readTime: '4 min read',
     date: 'August 2026',
+    author: 'Team Remise',
   },
   {
     id: 'ai-modern-shopping',
@@ -91,6 +119,7 @@ const ARTICLES: Article[] = [
     excerpt: 'A look at scanning, search, and discovery tools quietly reshaping how people shop nearby.',
     readTime: '6 min read',
     date: 'August 2026',
+    author: 'Team Remise',
   },
   {
     id: 'grow-your-business-online',
@@ -99,6 +128,7 @@ const ARTICLES: Article[] = [
     excerpt: 'Simple, practical steps for store owners and home businesses building a digital presence.',
     readTime: '5 min read',
     date: 'July 2026',
+    author: 'Team Remise',
   },
   {
     id: 'whats-new-in-remise',
@@ -107,6 +137,7 @@ const ARTICLES: Article[] = [
     excerpt: 'Recent additions to the platform, in plain language, with no changelog jargon.',
     readTime: '3 min read',
     date: 'July 2026',
+    author: 'Team Remise',
   },
   {
     id: 'product-scanning-explained',
@@ -115,6 +146,7 @@ const ARTICLES: Article[] = [
     excerpt: 'How scanning a product or list helps you find it at nearby stores in seconds.',
     readTime: '4 min read',
     date: 'June 2026',
+    author: 'Team Remise',
   },
   {
     id: 'managing-inventory-digitally',
@@ -123,6 +155,7 @@ const ARTICLES: Article[] = [
     excerpt: 'Why keeping stock and pricing current online matters more than it seems.',
     readTime: '5 min read',
     date: 'June 2026',
+    author: 'Team Remise',
   },
   {
     id: 'finding-products-near-you',
@@ -131,10 +164,11 @@ const ARTICLES: Article[] = [
     excerpt: 'Search habits that narrow results fast when you know roughly what you want.',
     readTime: '3 min read',
     date: 'May 2026',
+    author: 'Team Remise',
   },
 ];
 
-const UPDATES = [
+const DEFAULT_UPDATES = [
   {
     icon: Sparkles,
     tag: 'New feature',
@@ -159,17 +193,89 @@ const BUSINESS_TOPICS = [
 ];
 
 export default function BlogScreen({ navigation }: any) {
+  const { isDark } = useTheme();
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [query, setQuery] = useState('');
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
 
-  const featured = useMemo(() => ARTICLES.find((a) => a.featured) ?? ARTICLES[0], []);
+  // Dynamic live articles state
+  const [articles, setArticles] = useState<Article[]>(DEFAULT_ARTICLES);
+  const [updates, setUpdates] = useState<any[]>(DEFAULT_UPDATES);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+
+  // Reader Modal state
+  const [readerModalVisible, setReaderModalVisible] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+
+  // Dynamic theme colors
+  const themeColors = {
+    bg: isDark ? '#0B0F19' : '#F8FAFC',
+    card: isDark ? '#131D31' : '#FFFFFF',
+    border: isDark ? '#1E293B' : '#E2E8F0',
+    textPrimary: isDark ? '#FFFFFF' : '#0F172A',
+    textSecondary: isDark ? '#94A3B8' : '#64748B',
+    inputBg: isDark ? '#141414' : '#FFFFFF',
+    chipBg: isDark ? '#111111' : '#FFFFFF',
+    chipBorder: isDark ? '#262626' : '#E2E8F0',
+    highlightCardBg: isDark ? '#111111' : '#FFF1F2',
+  };
+
+  const fetchLiveArticles = async () => {
+    try {
+      setLoadingArticles(true);
+      const res = await blogApi.getArticles();
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: Article[] = res.data.map((item: any) => ({
+          id: item.slug || item._id || item.id,
+          category: item.category as Category,
+          title: item.title,
+          excerpt: item.excerpt,
+          body: Array.isArray(item.body) && item.body.length > 0 ? item.body : [item.excerpt],
+          readTime: item.readTime || '4 min read',
+          date: item.date || (item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '2026'),
+          author: item.author || 'Team Remise',
+          image: item.image || '',
+          featured: Boolean(item.featured),
+          type: item.type || 'blog',
+        }));
+        setArticles(mapped);
+
+        // Update news strip if news items exist
+        const news = res.data.filter((d: any) => d.type === 'news');
+        if (news.length > 0) {
+          setUpdates(
+            news.map((n: any) => ({
+              icon: Newspaper,
+              tag: n.category || 'News',
+              text: n.title,
+            }))
+          );
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch live articles in BlogScreen:', err);
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveArticles();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchLiveArticles();
+    }, [])
+  );
+
+  const featured = useMemo(() => articles.find((a) => a.featured) ?? articles[0], [articles]);
 
   const filteredArticles = useMemo(() => {
-    return ARTICLES.filter((a) => {
-      if (a.id === featured.id) return false;
+    return articles.filter((a) => {
+      if (featured && a.id === featured.id) return false;
       const matchesCategory = activeCategory === 'All' || a.category === activeCategory;
       const matchesQuery =
         query.trim() === '' ||
@@ -177,7 +283,12 @@ export default function BlogScreen({ navigation }: any) {
         a.excerpt.toLowerCase().includes(query.toLowerCase());
       return matchesCategory && matchesQuery;
     });
-  }, [activeCategory, query, featured]);
+  }, [activeCategory, query, featured, articles]);
+
+  const openReader = (art: Article) => {
+    setSelectedArticle(art);
+    setReaderModalVisible(true);
+  };
 
   const handleSubscribe = async () => {
     const trimmed = newsletterEmail.trim();
@@ -205,25 +316,36 @@ export default function BlogScreen({ navigation }: any) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: themeColors.bg }]}
+      contentContainerStyle={{ paddingBottom: Spacing.xxl }}
+      refreshControl={
+        <RefreshControl
+          refreshing={loadingArticles}
+          onRefresh={fetchLiveArticles}
+          tintColor={BRAND_RED}
+          colors={[BRAND_RED]}
+        />
+      }
+    >
       {/* HERO / TITLE */}
       <View style={styles.hero}>
         <View style={styles.badge}>
           <Newspaper size={13} color={BRAND_RED} />
           <Text style={styles.badgeText}>Blogs & News</Text>
         </View>
-        <Text style={styles.heroTitle}>Stories from Remise</Text>
-        <Text style={styles.heroSubtitle}>
-          Shopping tips, product updates, and news from the local businesses building on Remise.
+        <Text style={[styles.heroTitle, { color: themeColors.textPrimary }]}>Stories from Remise</Text>
+        <Text style={[styles.heroSubtitle, { color: themeColors.textSecondary }]}>
+          Shopping tips, product updates, and news from local businesses building on Remise.
         </Text>
 
         {/* SEARCH BAR */}
-        <View style={styles.searchContainer}>
+        <View style={[styles.searchContainer, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}>
           <Search size={16} color={BRAND_RED} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: themeColors.textPrimary }]}
             placeholder="Search articles..."
-            placeholderTextColor="#666"
+            placeholderTextColor={themeColors.textSecondary}
             value={query}
             onChangeText={setQuery}
           />
@@ -238,17 +360,21 @@ export default function BlogScreen({ navigation }: any) {
           contentContainerStyle={styles.categoryList}
         >
           {CATEGORIES.map((cat) => {
-            const Icon = CATEGORY_ICON[cat];
+            const Icon = CATEGORY_ICON[cat] || Sparkles;
             const active = activeCategory === cat;
             return (
               <TouchableOpacity
                 key={cat}
-                style={[styles.categoryChip, active && styles.categoryChipActive]}
+                style={[
+                  styles.categoryChip,
+                  { backgroundColor: themeColors.chipBg, borderColor: themeColors.chipBorder },
+                  active && styles.categoryChipActive,
+                ]}
                 onPress={() => setActiveCategory(cat)}
                 activeOpacity={0.7}
               >
-                <Icon size={14} color={active ? '#000000' : '#D1D5DB'} />
-                <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                <Icon size={14} color={active ? '#FFFFFF' : themeColors.textSecondary} />
+                <Text style={[styles.categoryChipText, { color: themeColors.textSecondary }, active && styles.categoryChipTextActive]}>
                   {cat}
                 </Text>
               </TouchableOpacity>
@@ -258,64 +384,102 @@ export default function BlogScreen({ navigation }: any) {
       </View>
 
       {/* FEATURED STORY */}
-      <View style={styles.section}>
-        <View style={styles.featuredCard}>
-          <View style={styles.featuredHeader}>
-            <View style={styles.featuredTag}>
-              <Text style={styles.featuredTagText}>FEATURED</Text>
-            </View>
-            <Text style={styles.featuredCategoryText}>{featured.category}</Text>
-          </View>
+      {featured && (
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[styles.featuredCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.3)' : '#FCA5A5' }]}
+            activeOpacity={0.85}
+            onPress={() => openReader(featured)}
+          >
+            {featured.image ? (
+              <Image
+                source={{ uri: featured.image }}
+                style={styles.featuredCoverImage}
+                resizeMode="cover"
+              />
+            ) : null}
 
-          <Text style={styles.featuredTitle}>{featured.title}</Text>
-          <Text style={styles.featuredExcerpt}>{featured.excerpt}</Text>
-
-          <View style={styles.featuredMetaRow}>
-            <View style={styles.metaItem}>
-              <Clock size={12} color="#9CA3AF" />
-              <Text style={styles.metaText}>{featured.readTime}</Text>
+            <View style={styles.featuredHeader}>
+              <View style={styles.featuredTag}>
+                <Text style={styles.featuredTagText}>FEATURED</Text>
+              </View>
+              <Text style={styles.featuredCategoryText}>{featured.category}</Text>
             </View>
-            <Text style={styles.metaText}>•</Text>
-            <Text style={styles.metaText}>{featured.date}</Text>
-          </View>
+
+            <Text style={[styles.featuredTitle, { color: themeColors.textPrimary }]}>{featured.title}</Text>
+            <Text style={[styles.featuredExcerpt, { color: themeColors.textSecondary }]}>{featured.excerpt}</Text>
+
+            <View style={styles.featuredMetaRow}>
+              <View style={styles.metaItem}>
+                <Clock size={12} color={themeColors.textSecondary} />
+                <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{featured.readTime}</Text>
+              </View>
+              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>•</Text>
+              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{featured.date}</Text>
+              <View style={{ flex: 1 }} />
+              <View style={styles.readLink}>
+                <Text style={styles.readLinkText}>Read Story</Text>
+                <ArrowRight size={12} color={BRAND_RED} />
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
-      </View>
+      )}
 
       {/* LATEST ARTICLES */}
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={styles.sectionHeadingText}>Latest from Remise</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Latest from Remise</Text>
         </View>
 
         {filteredArticles.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No articles match that search yet.</Text>
+          <View style={[styles.emptyCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>No articles match that search yet.</Text>
           </View>
         ) : (
           <View style={{ gap: Spacing.md }}>
             {filteredArticles.map((article) => {
               const Icon = CATEGORY_ICON[article.category] || Newspaper;
               return (
-                <View key={article.id} style={styles.articleCard}>
+                <TouchableOpacity
+                  key={article.id}
+                  style={[styles.articleCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                  activeOpacity={0.8}
+                  onPress={() => openReader(article)}
+                >
+                  {article.image ? (
+                    <Image
+                      source={{ uri: article.image }}
+                      style={styles.articleThumbImage}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+
                   <View style={styles.articleHeader}>
                     <View style={styles.articleTagRow}>
                       <Icon size={12} color={BRAND_RED} />
                       <Text style={styles.articleCategory}>{article.category}</Text>
                     </View>
                     <View style={styles.metaItem}>
-                      <Clock size={11} color="#6B7280" />
-                      <Text style={styles.metaTextSmall}>{article.readTime}</Text>
+                      <Clock size={11} color={themeColors.textSecondary} />
+                      <Text style={[styles.metaTextSmall, { color: themeColors.textSecondary }]}>{article.readTime}</Text>
                     </View>
                   </View>
 
-                  <Text style={styles.articleTitle}>{article.title}</Text>
-                  <Text style={styles.articleExcerpt}>{article.excerpt}</Text>
+                  <Text style={[styles.articleTitle, { color: themeColors.textPrimary }]}>{article.title}</Text>
+                  <Text style={[styles.articleExcerpt, { color: themeColors.textSecondary }]} numberOfLines={2}>
+                    {article.excerpt}
+                  </Text>
 
                   <View style={styles.articleFooter}>
-                    <Text style={styles.metaTextSmall}>{article.date}</Text>
+                    <Text style={[styles.metaTextSmall, { color: themeColors.textSecondary }]}>{article.date}</Text>
+                    <View style={styles.readLink}>
+                      <Text style={styles.readLinkTextSmall}>Read</Text>
+                      <ArrowRight size={11} color={BRAND_RED} />
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -326,18 +490,18 @@ export default function BlogScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={styles.sectionHeadingText}>Remise Updates</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Remise Updates</Text>
         </View>
 
-        <View style={styles.updatesCard}>
-          {UPDATES.map((u, i) => {
-            const Icon = u.icon;
+        <View style={[styles.updatesCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          {updates.map((u, i) => {
+            const Icon = u.icon || Bell;
             return (
               <View
                 key={i}
                 style={[
                   styles.updateItem,
-                  i < UPDATES.length - 1 && styles.updateItemBorder,
+                  i < updates.length - 1 && [styles.updateItemBorder, { borderBottomColor: themeColors.border }],
                 ]}
               >
                 <View style={styles.updateIconCircle}>
@@ -345,7 +509,7 @@ export default function BlogScreen({ navigation }: any) {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.updateTag}>{u.tag}</Text>
-                  <Text style={styles.updateText}>{u.text}</Text>
+                  <Text style={[styles.updateText, { color: themeColors.textPrimary }]}>{u.text}</Text>
                 </View>
               </View>
             );
@@ -355,13 +519,13 @@ export default function BlogScreen({ navigation }: any) {
 
       {/* SMART SHOPPING HIGHLIGHT */}
       <View style={styles.section}>
-        <View style={styles.highlightCard}>
+        <View style={[styles.highlightCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.35)' : '#FCA5A5' }]}>
           <View style={styles.highlightHeader}>
             <Lightbulb size={16} color={BRAND_RED} />
             <Text style={styles.highlightTag}>Smart Shopping Tips</Text>
           </View>
-          <Text style={styles.highlightTitle}>How to Compare Prices Before You Buy</Text>
-          <Text style={styles.highlightDesc}>
+          <Text style={[styles.highlightTitle, { color: themeColors.textPrimary }]}>How to Compare Prices Before You Buy</Text>
+          <Text style={[styles.highlightDesc, { color: themeColors.textSecondary }]}>
             Five practical habits that make it easier to spot a genuinely good deal nearby.
             Check store listings, verify stock, and look for bundled nearby promotions.
           </Text>
@@ -372,20 +536,20 @@ export default function BlogScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={styles.sectionHeadingText}>For Local Businesses</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>For Local Businesses</Text>
         </View>
 
         <View style={{ gap: Spacing.sm }}>
           {BUSINESS_TOPICS.map((topic, i) => {
             const Icon = topic.icon;
             return (
-              <View key={i} style={styles.businessCard}>
+              <View key={i} style={[styles.businessCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                 <View style={styles.iconCircle}>
                   <Icon size={18} color={BRAND_RED} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.businessTitle}>{topic.title}</Text>
-                  <Text style={styles.businessDesc}>{topic.desc}</Text>
+                  <Text style={[styles.businessTitle, { color: themeColors.textPrimary }]}>{topic.title}</Text>
+                  <Text style={[styles.businessDesc, { color: themeColors.textSecondary }]}>{topic.desc}</Text>
                 </View>
               </View>
             );
@@ -394,10 +558,10 @@ export default function BlogScreen({ navigation }: any) {
       </View>
 
       {/* STAY UPDATED / NEWSLETTER */}
-      <View style={styles.newsletterCard}>
+      <View style={[styles.newsletterCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#FCA5A5' }]}>
         <Mail size={24} color={BRAND_RED} style={{ marginBottom: Spacing.xs }} />
-        <Text style={styles.newsletterTitle}>Stay Updated</Text>
-        <Text style={styles.newsletterSubtitle}>
+        <Text style={[styles.newsletterTitle, { color: themeColors.textPrimary }]}>Stay Updated</Text>
+        <Text style={[styles.newsletterSubtitle, { color: themeColors.textSecondary }]}>
           Get the latest Remise news, shopping tips, and business insights sent directly to you.
         </Text>
 
@@ -409,9 +573,9 @@ export default function BlogScreen({ navigation }: any) {
         ) : (
           <View style={styles.subscribeRow}>
             <TextInput
-              style={styles.subscribeInput}
+              style={[styles.subscribeInput, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.textPrimary }]}
               placeholder="Enter your email"
-              placeholderTextColor="#666"
+              placeholderTextColor={themeColors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
               value={newsletterEmail}
@@ -432,12 +596,78 @@ export default function BlogScreen({ navigation }: any) {
           </View>
         )}
       </View>
+
+      {/* ARTICLE READER MODAL */}
+      <Modal
+        visible={readerModalVisible}
+        animationType="slide"
+        onRequestClose={() => setReaderModalVisible(false)}
+      >
+        <View style={[styles.readerModal, { backgroundColor: themeColors.bg }]}>
+          <View style={[styles.readerHeader, { borderBottomColor: themeColors.border, backgroundColor: themeColors.card }]}>
+            <TouchableOpacity
+              style={styles.readerCloseBtn}
+              onPress={() => setReaderModalVisible(false)}
+            >
+              <X size={20} color={themeColors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.readerHeaderCategory}>
+              {selectedArticle?.category || 'Article'}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          {selectedArticle && (
+            <ScrollView
+              style={styles.readerBody}
+              contentContainerStyle={{ paddingBottom: 60 }}
+            >
+              <View style={styles.readerTagRow}>
+                <Text style={styles.readerCategoryTag}>{selectedArticle.category}</Text>
+                <Text style={styles.readerDot}>•</Text>
+                <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{selectedArticle.readTime}</Text>
+                <Text style={styles.readerDot}>•</Text>
+                <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{selectedArticle.date}</Text>
+              </View>
+
+              <Text style={[styles.readerTitle, { color: themeColors.textPrimary }]}>{selectedArticle.title}</Text>
+              <Text style={[styles.readerExcerpt, { color: themeColors.textSecondary }]}>{selectedArticle.excerpt}</Text>
+
+              <View style={styles.readerAuthorRow}>
+                <User size={13} color={themeColors.textSecondary} />
+                <Text style={[styles.readerAuthorText, { color: themeColors.textSecondary }]}>
+                  By {selectedArticle.author || 'Team Remise'}
+                </Text>
+              </View>
+
+              {selectedArticle.image ? (
+                <Image
+                  source={{ uri: selectedArticle.image }}
+                  style={[styles.readerCoverImage, { backgroundColor: themeColors.card }]}
+                  resizeMode="cover"
+                />
+              ) : null}
+
+              <View style={styles.readerParagraphs}>
+                {(selectedArticle.body && selectedArticle.body.length > 0
+                  ? selectedArticle.body
+                  : [selectedArticle.excerpt]
+                ).map((para, i) => (
+                  <Text key={i} style={[styles.readerParagraph, { color: themeColors.textPrimary }]}>
+                    {para}
+                  </Text>
+                ))}
+              </View>
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  container: { flex: 1 },
 
   hero: { padding: Spacing.lg, paddingTop: Spacing.xl },
   badge: {
@@ -462,26 +692,22 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: FontSizes.xl ?? 26,
     fontWeight: '900',
-    color: '#FFFFFF',
     marginBottom: Spacing.sm,
     lineHeight: 32,
   },
-  heroSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 21, marginBottom: Spacing.md },
+  heroSubtitle: { fontSize: FontSizes.sm, lineHeight: 21, marginBottom: Spacing.md },
 
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: '#141414',
     borderWidth: 1,
-    borderColor: '#262626',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
     fontSize: FontSizes.sm,
     padding: 0,
   },
@@ -496,8 +722,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-    borderColor: '#262626',
-    backgroundColor: '#111111',
   },
   categoryChipActive: {
     backgroundColor: BRAND_RED,
@@ -506,7 +730,6 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: '#9CA3AF',
   },
   categoryChipTextActive: {
     color: '#FFFFFF',
@@ -516,14 +739,18 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: Spacing.md, marginTop: Spacing.xl },
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
   headingBar: { width: 4, height: 18, borderRadius: 2, backgroundColor: BRAND_RED },
-  sectionHeadingText: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionHeadingText: { fontSize: FontSizes.base, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   featuredCard: {
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.3)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
+  },
+  featuredCoverImage: {
+    width: '100%',
+    height: 170,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
   },
   featuredHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   featuredTag: {
@@ -534,44 +761,49 @@ const styles = StyleSheet.create({
   },
   featuredTagText: { fontSize: 10, fontWeight: '800', color: BRAND_RED, letterSpacing: 0.5 },
   featuredCategoryText: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 },
-  featuredTitle: { fontSize: FontSizes.lg, fontWeight: '900', color: '#FFFFFF', marginBottom: Spacing.xs, lineHeight: 24 },
-  featuredExcerpt: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 20, marginBottom: Spacing.md },
+  featuredTitle: { fontSize: FontSizes.lg, fontWeight: '900', marginBottom: Spacing.xs, lineHeight: 24 },
+  featuredExcerpt: { fontSize: FontSizes.sm, lineHeight: 20, marginBottom: Spacing.md },
   featuredMetaRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: FontSizes.xs, color: '#9CA3AF' },
-  metaTextSmall: { fontSize: 11, color: '#6B7280' },
+  metaText: { fontSize: FontSizes.xs },
+  metaTextSmall: { fontSize: 11 },
+  readLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  readLinkText: { fontSize: 11, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase' },
+  readLinkTextSmall: { fontSize: 10, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase' },
 
   emptyCard: {
-    backgroundColor: '#111',
     borderRadius: BorderRadius.md,
+    borderWidth: 1,
     padding: Spacing.lg,
     alignItems: 'center',
   },
-  emptyText: { fontSize: FontSizes.sm, color: '#6B7280' },
+  emptyText: { fontSize: FontSizes.sm },
 
   articleCard: {
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
+  },
+  articleThumbImage: {
+    width: '100%',
+    height: 130,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.sm,
   },
   articleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   articleTagRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   articleCategory: { fontSize: 10, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5 },
-  articleTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', marginBottom: 4, lineHeight: 20 },
-  articleExcerpt: { fontSize: FontSizes.xs, color: '#9CA3AF', lineHeight: 17, marginBottom: Spacing.sm },
-  articleFooter: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center' },
+  articleTitle: { fontSize: FontSizes.sm, fontWeight: '800', marginBottom: 4, lineHeight: 20 },
+  articleExcerpt: { fontSize: FontSizes.xs, lineHeight: 17, marginBottom: Spacing.sm },
+  articleFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
   updatesCard: {
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
   },
   updateItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
-  updateItemBorder: { borderBottomWidth: 1, borderBottomColor: '#1F1F1F' },
+  updateItemBorder: { borderBottomWidth: 1 },
   updateIconCircle: {
     width: 36,
     height: 36,
@@ -581,27 +813,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   updateTag: { fontSize: 10, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  updateText: { fontSize: FontSizes.xs, color: '#D1D5DB', fontWeight: '500' },
+  updateText: { fontSize: FontSizes.xs, fontWeight: '500' },
 
   highlightCard: {
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.35)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
   },
   highlightHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.xs },
   highlightTag: { fontSize: 10, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5 },
-  highlightTitle: { fontSize: FontSizes.base, fontWeight: '900', color: '#FFFFFF', marginBottom: Spacing.xs },
-  highlightDesc: { fontSize: FontSizes.xs, color: '#9CA3AF', lineHeight: 18 },
+  highlightTitle: { fontSize: FontSizes.base, fontWeight: '900', marginBottom: Spacing.xs },
+  highlightDesc: { fontSize: FontSizes.xs, lineHeight: 18 },
 
   businessCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#222222',
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
   },
@@ -613,31 +841,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  businessTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', marginBottom: 2 },
-  businessDesc: { fontSize: FontSizes.xs, color: '#9CA3AF', lineHeight: 16 },
+  businessTitle: { fontSize: FontSizes.sm, fontWeight: '800', marginBottom: 2 },
+  businessDesc: { fontSize: FontSizes.xs, lineHeight: 16 },
 
   newsletterCard: {
     margin: Spacing.md,
     marginTop: Spacing.xl,
-    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.4)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     alignItems: 'center',
   },
-  newsletterTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', marginBottom: Spacing.xs },
-  newsletterSubtitle: { fontSize: FontSizes.xs, color: '#9CA3AF', textAlign: 'center', lineHeight: 18, marginBottom: Spacing.lg },
+  newsletterTitle: { fontSize: FontSizes.base, fontWeight: '800', textAlign: 'center', marginBottom: Spacing.xs },
+  newsletterSubtitle: { fontSize: FontSizes.xs, textAlign: 'center', lineHeight: 18, marginBottom: Spacing.lg },
   subscribeRow: { flexDirection: 'row', width: '100%', gap: Spacing.sm },
   subscribeInput: {
     flex: 1,
-    backgroundColor: '#181818',
     borderWidth: 1,
-    borderColor: '#333333',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
-    color: '#FFFFFF',
     fontSize: FontSizes.xs,
   },
   subscribeBtn: {
@@ -660,4 +883,43 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(34,197,94,0.3)',
   },
   subscribedText: { fontSize: FontSizes.xs, fontWeight: '700', color: '#22C55E' },
+
+  // Reader Modal Styles
+  readerModal: { flex: 1 },
+  readerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  readerCloseBtn: { padding: 4 },
+  readerHeaderCategory: { fontSize: FontSizes.xs, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase' },
+  readerBody: { padding: Spacing.lg },
+  readerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
+  readerCategoryTag: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: BRAND_RED,
+    textTransform: 'uppercase',
+    backgroundColor: 'rgba(255,0,0,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  readerDot: { color: '#64748B', fontSize: 10 },
+  readerMetaText: { fontSize: 11, fontWeight: '600' },
+  readerTitle: { fontSize: FontSizes.xl, fontWeight: '900', marginBottom: Spacing.sm, lineHeight: 28 },
+  readerExcerpt: { fontSize: FontSizes.sm, lineHeight: 21, marginBottom: Spacing.md },
+  readerAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.lg },
+  readerAuthorText: { fontSize: 11, fontWeight: '700' },
+  readerCoverImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
+  },
+  readerParagraphs: { gap: Spacing.md },
+  readerParagraph: { fontSize: FontSizes.sm, lineHeight: 23 },
 });

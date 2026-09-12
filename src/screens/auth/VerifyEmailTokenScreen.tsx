@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   card: { width: '100%', maxWidth: 420, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: CustomerColors.steelBorder, padding: Spacing.xl },
   title: { fontSize: FontSizes.lg, fontWeight: '700', color: CustomerColors.black, marginBottom: Spacing.lg, textAlign: 'center' },
   label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.base, marginBottom: Spacing.md },
+  input: { backgroundColor: CustomerColors.white, color: CustomerColors.black, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.base, marginBottom: Spacing.md },
   errorText: { color: CustomerColors.danger, backgroundColor: CustomerColors.dangerBg, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md, fontSize: FontSizes.sm },
   button: { backgroundColor: CustomerColors.primary, borderRadius: BorderRadius.md, paddingVertical: Spacing.md, alignItems: 'center' },
   buttonText: { color: CustomerColors.white, fontWeight: '700', fontSize: FontSizes.base },

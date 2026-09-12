@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   title: { fontSize: FontSizes.lg, fontWeight: '700', color: CustomerColors.black, marginBottom: Spacing.sm, textAlign: 'center' },
   subtitle: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, marginBottom: Spacing.lg, textAlign: 'center', lineHeight: 20 },
   label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.base, marginBottom: Spacing.md },
+  input: { backgroundColor: CustomerColors.white, color: CustomerColors.black, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.base, marginBottom: Spacing.md },
   message: { fontSize: FontSizes.sm, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md },
   messageSuccess: { color: CustomerColors.success, backgroundColor: CustomerColors.successBg },
   messageError: { color: CustomerColors.danger, backgroundColor: CustomerColors.dangerBg },

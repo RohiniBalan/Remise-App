@@ -10,6 +10,9 @@ export const adminOrderApi = {
 
 export const adminUserApi = {
   getAll: () => legacyProductClient.get(`/admin/users?t=${Date.now()}`),
+  delete: (id: string) => legacyProductClient.delete(`/admin/users/${id}`),
+  updateRole: (id: string, role: string) => legacyProductClient.patch(`/admin/users/${id}/role`, { role }),
+  createAdmin: (data: { fullname: string; email: string; password: string; mobilenumber?: string; role?: string }) => legacyProductClient.post('/admin/users', data),
 };
 
 export const adminCategoryApi = {

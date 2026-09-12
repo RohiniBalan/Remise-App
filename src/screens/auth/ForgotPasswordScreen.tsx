@@ -70,6 +70,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
           value={email}
           onChangeText={setEmail}
           placeholder="you@example.com"
+          placeholderTextColor={CustomerColors.textSecondary}
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -121,6 +122,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: CustomerColors.white,
+    color: CustomerColors.black,
     borderWidth: 1,
     borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,

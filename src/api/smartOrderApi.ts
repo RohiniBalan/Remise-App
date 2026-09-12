@@ -47,8 +47,18 @@ export const smartOrderApi = {
   getMyOrders: (userId: string, email: string) =>
     gatewayClient.get('/api/orders/my-orders', { params: { userId, email } }),
 
-  matchCart: (items: SmartOrderCartItem[], storeIds: string[]) =>
-    gatewayClient.post('/api/products/match-cart', { items, storeIds }),
+  matchCart: (
+    items: SmartOrderCartItem[],
+    storeIds: string[],
+    ownerRole?: string,
+    requireAll: boolean = true,
+  ) =>
+    gatewayClient.post('/api/products/match-cart', {
+      items,
+      storeIds,
+      ownerRole,
+      requireAll,
+    }),
 
   placeOrder: (payload: {
     amount: number;

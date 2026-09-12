@@ -232,7 +232,12 @@ export default function CompareStoresScreen() {
             storeIds,
             items,
           });
-          const matchRes = await smartOrderApi.matchCart(items, storeIds);
+          const matchRes = await smartOrderApi.matchCart(
+            items,
+            storeIds,
+            undefined,
+            true,
+          );
           console.log('[NearbySearch] matchCart response', {
             ...requestMeta,
             rawResponse: matchRes.data,
@@ -240,33 +245,30 @@ export default function CompareStoresScreen() {
           const ranked: any[] = matchRes.data.data || [];
           const byId: Record<string, any> = {};
           stores.forEach(s => (byId[s._id] = s));
+
+          // Strictly only display stores that have ALL requested items in stock
+          const fullMatchStores = ranked.filter(
+            r =>
+              r.matchedCount === items.length &&
+              (!r.unmatched || r.unmatched.length === 0) &&
+              (!r.insufficientStock || r.insufficientStock.length === 0),
+          );
+
           let merged: StoreResult[] = [];
-          if (ranked.length > 0) {
-            merged = ranked.map(r => ({
+          if (fullMatchStores.length > 0) {
+            merged = fullMatchStores.map(r => ({
               ...r,
               storeName: byId[r.storeId]?.name || 'Store',
               distanceKm: byId[r.storeId]?.distanceKm ?? 0,
-            }));
-          } else {
-            merged = stores.slice(0, 5).map(s => ({
-              storeId: s._id,
-              storeName: s.name || 'Store',
-              distanceKm: s.distanceKm ?? 0,
-              matched: [],
-              insufficientStock: [],
-              unmatched: items.map(i => i.name),
-              matchedCount: 0,
-              totalRequested: items.length,
-              totalAmount: 0,
             }));
           }
           console.log('[NearbySearch] final merged results shown to UI', {
             ...requestMeta,
             nearbyStoreIds: storeIds,
             nearbyStoreNames: stores.map(s => s.name),
-            matchedStoreIds: ranked.map(r => r.storeId),
+            matchedStoreIds: fullMatchStores.map(r => r.storeId),
             droppedByMatchCart: storeIds.filter(
-              id => !ranked.some(r => r.storeId === id),
+              id => !fullMatchStores.some(r => r.storeId === id),
             ),
           });
           setResults(merged);
@@ -483,10 +485,10 @@ export default function CompareStoresScreen() {
                 <View style={styles.center}>
                   <PackageX size={40} color={CustomerColors.steelBorder} />
                   <Text style={styles.emptyTitle}>
-                    No nearby stores carry these items
+                    No nearby stores carry all products on your list
                   </Text>
                   <Text style={styles.emptySubtitle}>
-                    Try a larger search radius.
+                    Try expanding your search radius or modifying items.
                   </Text>
                   <TouchableOpacity onPress={() => setStep('radius')}>
                     <Text style={styles.linkText}>← Change radius</Text>

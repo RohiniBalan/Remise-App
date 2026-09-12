@@ -126,6 +126,7 @@ export default function LoginRegisterScreen() {
                 setFieldErrors(prev => ({ ...prev, fullname: '' }));
               }}
               placeholder="Your name"
+              placeholderTextColor={CustomerColors.textSecondary}
             />
             {fieldErrors.fullname ? <Text style={styles.fieldError}>{fieldErrors.fullname}</Text> : null}
             <Text style={styles.label}>Mobile Number</Text>
@@ -137,6 +138,7 @@ export default function LoginRegisterScreen() {
                 setFieldErrors(prev => ({ ...prev, mobilenumber: '' }));
               }}
               placeholder="10-digit mobile number"
+              placeholderTextColor={CustomerColors.textSecondary}
               keyboardType="phone-pad"
               maxLength={10}
             />
@@ -153,6 +155,7 @@ export default function LoginRegisterScreen() {
             setFieldErrors(prev => ({ ...prev, email: '' }));
           }}
           placeholder="you@example.com"
+          placeholderTextColor={CustomerColors.textSecondary}
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -168,6 +171,7 @@ export default function LoginRegisterScreen() {
               setFieldErrors(prev => ({ ...prev, password: '' }));
             }}
             placeholder="••••••••"
+            placeholderTextColor={CustomerColors.textSecondary}
             secureTextEntry={!showPassword}
           />
           <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

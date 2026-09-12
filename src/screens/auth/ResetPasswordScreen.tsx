@@ -80,6 +80,7 @@ export default function ResetPasswordScreen({ navigation }: any) {
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
+          placeholderTextColor={CustomerColors.textSecondary}
           secureTextEntry
         />
 
@@ -89,6 +90,7 @@ export default function ResetPasswordScreen({ navigation }: any) {
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           placeholder="••••••••"
+          placeholderTextColor={CustomerColors.textSecondary}
           secureTextEntry
         />
 
@@ -132,6 +134,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: CustomerColors.white,
+    color: CustomerColors.black,
     borderWidth: 1,
     borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
