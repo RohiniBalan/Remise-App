@@ -119,7 +119,7 @@ export default function StoreOrdersScreen() {
         renderItem={({ item: o }) => (
           <View style={styles.card}>
             <View style={styles.orderHeaderRow}>
-              <Text style={styles.orderTitle} numberOfLines={1}>{o.offerTitle}</Text>
+              <Text style={styles.orderTitle} numberOfLines={1}>{o.offerTitle || o.productName || o.customerName || 'Order'}</Text>
               {o.deliveryStatus ? (
                 <View style={styles.deliveryBadge}>
                   <Text style={styles.deliveryBadgeText}>Delivery: {o.deliveryStatus}</Text>

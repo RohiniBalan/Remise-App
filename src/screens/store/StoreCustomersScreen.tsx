@@ -85,7 +85,7 @@ export default function StoreCustomersScreen() {
             <View style={styles.cardTop}>
               <View style={{ flex: 1 }}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.name}>{c.name}</Text>
+                  <Text style={styles.name}>{c.name || c.phone || 'Customer'}</Text>
                   {c.isRecurring && (
                     <View style={styles.recurBadge}>
                       <Star size={9} color={isDark ? '#FCD34D' : '#B45309'} />
@@ -148,7 +148,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   name: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
   recurBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: isDark ? '#78350F' : '#FFFBEB', borderWidth: 1, borderColor: isDark ? '#92400E' : '#FDE68A', borderRadius: BorderRadius.pill, paddingHorizontal: 6, paddingVertical: 2 },
   recurBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#FDE68A' : '#B45309' },
-  meta: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 3 },
+  meta: { fontSize: FontSizes.xs, color: isDark ? '#D1D5DB' : CustomerColors.textSecondary, marginTop: 3 },
   lastOrder: { fontSize: FontSizes.xs, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 4 },
   spent: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   orderCount: { fontSize: FontSizes.xs, color: isDark ? '#6B7280' : '#9CA3AF' },

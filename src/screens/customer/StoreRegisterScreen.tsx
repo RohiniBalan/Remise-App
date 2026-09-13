@@ -108,7 +108,9 @@ export default function StoreRegisterScreen() {
     email: user?.email || '',
     category: 'Food & Beverages',
     pan: '',
+    panName: '',
     aadhaar: '',
+    aadhaarName: '',
     fssaiNumber: '',
     gstin: '',
     street: '',
@@ -206,6 +208,7 @@ export default function StoreRegisterScreen() {
   // ── Cashfree Identity Verification Handlers ───────────────────
   const verifyPANWithCashfree = async () => {
     const cleanPan = form.pan.trim().toUpperCase();
+    const cleanPanName = form.panName.trim();
     const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     if (!cleanPan) {
       setPanError('Please enter a PAN number.');
@@ -215,12 +218,16 @@ export default function StoreRegisterScreen() {
       setPanError('Invalid PAN format (e.g. ABCDE1234F).');
       return;
     }
+    if (!cleanPanName) {
+      setPanError('Please enter the name as it appears on your PAN card.');
+      return;
+    }
     setVerifyingPan(true);
     setPanError('');
     try {
       const res = await storeApi.verifyPan(
         cleanPan,
-        form.legalBusinessName || user?.fullname || form.name,
+        cleanPanName,
       );
       const data = res.data;
       if (data?.valid) {
@@ -248,6 +255,11 @@ export default function StoreRegisterScreen() {
 
   const sendAadhaarOtpWithCashfree = async () => {
     const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
+    const cleanAadhaarName = form.aadhaarName.trim();
+    if (!cleanAadhaarName) {
+      setAadhaarError('Please enter the name as it appears on your Aadhaar card.');
+      return;
+    }
     if (cleanAadhaar.length !== 12) {
       setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
       return;
@@ -276,6 +288,11 @@ export default function StoreRegisterScreen() {
   };
 
   const verifyAadhaarOtpWithCashfree = async () => {
+    const cleanAadhaarName = form.aadhaarName.trim();
+    if (!cleanAadhaarName) {
+      setAadhaarError('Please enter the name as it appears on your Aadhaar card.');
+      return;
+    }
     if (!aadhaarOtp || aadhaarOtp.length < 4) {
       setAadhaarError('Please enter the OTP sent to your Aadhaar-linked mobile.');
       return;
@@ -286,7 +303,7 @@ export default function StoreRegisterScreen() {
       const res = await storeApi.verifyAadhaarOtp(
         aadhaarRefId,
         aadhaarOtp,
-        form.legalBusinessName || user?.fullname || form.name,
+        cleanAadhaarName,
       );
       const data = res.data;
       if (data?.valid) {
@@ -312,6 +329,11 @@ export default function StoreRegisterScreen() {
 
   const verifyAadhaarDirectWithCashfree = async () => {
     const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
+    const cleanAadhaarName = form.aadhaarName.trim();
+    if (!cleanAadhaarName) {
+      setAadhaarError('Please enter the name as it appears on your Aadhaar card.');
+      return;
+    }
     if (cleanAadhaar.length !== 12) {
       setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
       return;
@@ -321,7 +343,7 @@ export default function StoreRegisterScreen() {
     try {
       const res = await storeApi.verifyAadhaarDirect(
         cleanAadhaar,
-        form.legalBusinessName || user?.fullname || form.name,
+        cleanAadhaarName,
       );
       const data = res.data;
       if (data?.valid) {
@@ -371,11 +393,15 @@ export default function StoreRegisterScreen() {
         if (data.panMatches === false) {
           setGstinVerified(false);
           setGstinError(
-            `GSTIN PAN mismatch: The PAN embedded in your GSTIN (${data.embeddedPan || 'unknown'}) does not match the PAN you entered (${form.pan.trim().toUpperCase() || 'not entered'}). Please use the GSTIN registered to your PAN card.`
+            `GSTIN PAN mismatch: The PAN embedded in your GSTIN (${
+              data.embeddedPan || 'unknown'
+            }) does not match the PAN you entered (${
+              form.pan.trim().toUpperCase() || 'not entered'
+            }). Please use the GSTIN registered to your PAN card.`,
           );
           return;
         }
-        // If live API returned a business name mismatch — block
+        // If live API returned a business name mismatch — warn but allow
         if (data.source === 'cashfree_live' && data.belongsToUser === false) {
           setGstinVerified(false);
           setGstinError(`Business name mismatch: GSTIN records show "${data.legalName || 'a different name'}". Please verify your legal business name matches your GSTIN registration.`);
@@ -397,6 +423,10 @@ export default function StoreRegisterScreen() {
   };
 
   const verifyBankWithCashfree = async () => {
+    if (!form.legalBusinessName.trim()) {
+      setBankError('Legal Business / Account Holder Name is required.');
+      return;
+    }
     if (!form.accountNumber.trim()) {
       setBankError('Bank Account Number is required.');
       return;
@@ -417,7 +447,7 @@ export default function StoreRegisterScreen() {
       const res = await storeApi.verifyBankAccount(
         form.accountNumber.trim(),
         cleanIfsc,
-        form.legalBusinessName || user?.fullname || form.name,
+        form.legalBusinessName.trim(),
         form.phone,
       );
       const data = res.data;
@@ -498,6 +528,10 @@ export default function StoreRegisterScreen() {
         );
         return false;
       }
+      if (!form.panName.trim()) {
+        setError('Name as on PAN Card is required.');
+        return false;
+      }
 
       if (!form.aadhaar.trim()) {
         setError('Aadhaar number is mandatory for identity verification.');
@@ -506,6 +540,10 @@ export default function StoreRegisterScreen() {
       const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
       if (cleanAadhaar.length !== 12) {
         setError('Please enter a valid 12-digit Aadhaar number.');
+        return false;
+      }
+      if (!form.aadhaarName.trim()) {
+        setError('Name as on Aadhaar Card is required.');
         return false;
       }
 
@@ -906,6 +944,33 @@ export default function StoreRegisterScreen() {
                   ) : null}
                 </View>
 
+                <View style={{ marginTop: 6, marginBottom: 8 }}>
+                  <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                    Name as on PAN Card *
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: isDark ? '#334155' : '#cbd5e1',
+                      },
+                    ]}
+                    value={form.panName}
+                    onChangeText={v => {
+                      set('panName', v);
+                      if (panVerified) setPanVerified(false);
+                    }}
+                    placeholder="e.g. JOHN DOE"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                  PAN Number *
+                </Text>
                 <View style={styles.inputActionRow}>
                   <TextInput
                     style={[
@@ -930,10 +995,12 @@ export default function StoreRegisterScreen() {
                   <TouchableOpacity
                     style={[styles.actionButton, verifyingPan && { opacity: 0.7 }]}
                     onPress={verifyPANWithCashfree}
-                    disabled={verifyingPan || !form.pan.trim()}
+                    disabled={verifyingPan || !form.pan.trim() || !form.panName?.trim()}
                   >
                     {verifyingPan ? (
                       <ActivityIndicator size="small" color="#ffffff" />
+                    ) : panVerified ? (
+                      <Text style={styles.actionButtonText}>Re-verify</Text>
                     ) : (
                       <Text style={styles.actionButtonText}>Verify PAN</Text>
                     )}
@@ -954,7 +1021,7 @@ export default function StoreRegisterScreen() {
                     )}
                     {panData.registeredName && panData.belongsToUser && (
                       <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
-                        ✓ PAN matches store applicant identity.
+                        ✓ PAN matches applicant ({form.panName || form.legalBusinessName || user?.fullname || form.name}).
                       </Text>
                     )}
                   </View>
@@ -988,6 +1055,34 @@ export default function StoreRegisterScreen() {
                   ) : null}
                 </View>
 
+                <View style={{ marginTop: 6, marginBottom: 8 }}>
+                  <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                    Name as on Aadhaar Card *
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: isDark ? '#334155' : '#cbd5e1',
+                      },
+                    ]}
+                    value={form.aadhaarName}
+                    onChangeText={v => {
+                      set('aadhaarName', v);
+                      if (aadhaarVerified) setAadhaarVerified(false);
+                      if (aadhaarOtpSent) setAadhaarOtpSent(false);
+                    }}
+                    placeholder="e.g. JOHN DOE"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                  Aadhaar Number *
+                </Text>
                 <View style={styles.inputActionRow}>
                   <TextInput
                     style={[
@@ -1003,6 +1098,7 @@ export default function StoreRegisterScreen() {
                     onChangeText={v => {
                       set('aadhaar', v.replace(/\D/g, ''));
                       if (aadhaarVerified) setAadhaarVerified(false);
+                      if (aadhaarOtpSent) setAadhaarOtpSent(false);
                     }}
                     placeholder="e.g. 1234 5678 9012 (12 digits)"
                     placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
@@ -1016,7 +1112,7 @@ export default function StoreRegisterScreen() {
                       verifyingAadhaar && { opacity: 0.7 },
                     ]}
                     onPress={sendAadhaarOtpWithCashfree}
-                    disabled={verifyingAadhaar || form.aadhaar.length !== 12}
+                    disabled={verifyingAadhaar || form.aadhaar.length !== 12 || !form.aadhaarName.trim()}
                   >
                     {verifyingAadhaar ? (
                       <ActivityIndicator size="small" color="#ffffff" />
@@ -1031,7 +1127,7 @@ export default function StoreRegisterScreen() {
                       verifyingAadhaar && { opacity: 0.7 },
                     ]}
                     onPress={verifyAadhaarDirectWithCashfree}
-                    disabled={verifyingAadhaar || form.aadhaar.length !== 12}
+                    disabled={verifyingAadhaar || form.aadhaar.length !== 12 || !form.aadhaarName.trim()}
                   >
                     <Text style={styles.actionButtonText}>Direct</Text>
                   </TouchableOpacity>
@@ -1396,7 +1492,7 @@ export default function StoreRegisterScreen() {
                     style={[styles.bankVerifyButton, verifyingBank && { opacity: 0.7 }]}
                     onPress={verifyBankWithCashfree}
                     disabled={
-                      verifyingBank || !form.accountNumber || !form.ifscCode
+                      verifyingBank || !form.accountNumber || !form.ifscCode || !form.legalBusinessName.trim()
                     }
                   >
                     {verifyingBank ? (
