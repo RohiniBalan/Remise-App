@@ -29,6 +29,8 @@ export interface SellerOrder {
   paymentMethod?: string;
   paymentStatus: string; // "PENDING" | "PAID" | "SUCCESS" | "FAILED"
   orderStatus: string; // "Processing" | "Shipped" | "Delivered" | "Cancelled"
+  deliveryStatus?: string; // "Pending" | "Assigned" | "Accepted" | "Ready" | "Picked Up" | "Out for Delivery" | "Delivered" | "Cancelled"
+  deliveryMethod?: string;
   createdAt: string;
   vendorTransfers?: {
     storeId: string;
@@ -57,6 +59,9 @@ export const sellerOrderApi = {
 
   updateOrderStatus: (orderId: string, status: string) =>
     gatewayClient.patch(`/api/orders/internal/${orderId}/status`, { status }),
+
+  updateDeliveryStatus: (orderId: string, status: string) =>
+    gatewayClient.patch(`/api/orders/${orderId}/delivery-status`, { status }),
 };
 
 export const sellerStoreApi = {

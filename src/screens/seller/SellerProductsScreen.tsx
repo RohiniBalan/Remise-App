@@ -109,7 +109,7 @@ export default function SellerProductsScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder={isWholesaler ? 'Search wholesale catalog…' : 'Search artisan products…'}
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
             style={styles.searchInput}
           />
         </View>
@@ -187,14 +187,14 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  searchInput: { flex: 1, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+  searchInput: { flex: 1, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
   actionRow: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   actionBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.teal600, paddingVertical: 10, borderRadius: BorderRadius.md },
   actionBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs },
   addBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF0000', marginHorizontal: Spacing.md, marginTop: Spacing.sm, paddingVertical: 12, borderRadius: BorderRadius.md },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
   emptyBox: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: 6 },
-  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#F9FAFB' : '#374151' },
+  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#FFFFFF' : '#374151' },
   emptySub: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : '#9CA3AF', textAlign: 'center' },
   card: {
     width: '48%',
@@ -208,7 +208,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   cardImageWrap: { aspectRatio: 1, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
   cardImage: { width: '100%', height: '100%' },
   cardCategory: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF', marginBottom: 2 },
-  cardTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  cardTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
   cardSub: { fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 },
   manageBtn: { marginTop: 8, backgroundColor: CustomerColors.teal600, borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
   manageBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },

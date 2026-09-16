@@ -368,11 +368,11 @@ export default function StoreAnalyticsScreen() {
                 curved
                 xAxisLabelTextStyle={{
                   fontSize: 9,
-                  color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+                  color: isDark ? '#FFFFFF' : CustomerColors.black,
                 }}
                 yAxisTextStyle={{
                   fontSize: 9,
-                  color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+                  color: isDark ? '#FFFFFF' : CustomerColors.black,
                 }}
                 rulesColor={isDark ? '#1F2937' : '#E5E7EB'}
                 noOfSections={4}
@@ -424,8 +424,8 @@ export default function StoreAnalyticsScreen() {
                 height={Math.max(180, brandBarData.length * 36)}
                 frontColor={isDark ? '#2DD4BF' : '#0d9488'}
                 barBorderRadius={4}
-                yAxisTextStyle={{ fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
-                xAxisLabelTextStyle={{ fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
+                yAxisTextStyle={{ fontSize: 10, color: isDark ? '#FFFFFF' : CustomerColors.black }}
+                xAxisLabelTextStyle={{ fontSize: 9, color: isDark ? '#FFFFFF' : CustomerColors.black }}
                 rulesColor={isDark ? '#1F2937' : '#E5E7EB'}
                 yAxisLabelWidth={CATEGORY_LABEL_WIDTH}
                 initialSpacing={8}
@@ -475,8 +475,8 @@ export default function StoreAnalyticsScreen() {
                 height={180}
                 frontColor={isDark ? '#2DD4BF' : '#0d9488'}
                 barBorderRadius={4}
-                xAxisLabelTextStyle={{ fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
-                yAxisTextStyle={{ fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}
+                xAxisLabelTextStyle={{ fontSize: 9, color: isDark ? '#FFFFFF' : CustomerColors.black }}
+                yAxisTextStyle={{ fontSize: 9, color: isDark ? '#FFFFFF' : CustomerColors.black }}
                 rulesColor={isDark ? '#1F2937' : '#E5E7EB'}
                 yAxisLabelWidth={Y_AXIS_LABEL_WIDTH}
                 initialSpacing={8}
@@ -529,7 +529,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   filterLabel: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     marginBottom: Spacing.xs,
   },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
@@ -548,7 +548,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   pillText: {
     fontSize: FontSizes.xs,
-    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     fontWeight: '600',
   },
   pillTextActive: { color: CustomerColors.white },
@@ -560,7 +560,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   smallPillText: {
     fontSize: 10,
-    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     fontWeight: '700',
   },
   customRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
@@ -573,7 +573,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 8,
     fontSize: FontSizes.xs,
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
 
   // ── Category / Product dropdown row ──
@@ -594,8 +594,8 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     paddingVertical: 10,
   },
   selectDisabled: { opacity: 0.5 },
-  selectValue: { fontSize: FontSizes.xs, color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
-  selectPlaceholder: { fontSize: FontSizes.xs, color: isDark ? '#6B7280' : '#9CA3AF', flex: 1 },
+  selectValue: { fontSize: FontSizes.xs, color: isDark ? '#FFFFFF' : CustomerColors.black, flex: 1, fontWeight: '600' },
+  selectPlaceholder: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#6B7280', flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: isDark ? '#111827' : '#fff',
@@ -613,22 +613,22 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
   },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
   modalItem: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
   },
-  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#E5E7EB' : CustomerColors.black },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
   modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' },
-  modalEmpty: { textAlign: 'center', color: isDark ? '#6B7280' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
+  modalEmpty: { textAlign: 'center', color: isDark ? '#9CA3AF' : '#6B7280', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
 
   statCard: {
     backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.card,
@@ -641,7 +641,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   statLabel: {
     fontSize: FontSizes.xs,
-    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    color: isDark ? '#FFFFFF' : CustomerColors.textSecondary,
     marginTop: 2,
   },
 
@@ -664,7 +664,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   sectionTitle: {
     fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     marginBottom: Spacing.sm,
   },
 
@@ -678,7 +678,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   productRowTitle: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
   productRowSub: {
     fontSize: FontSizes.xs,
@@ -686,7 +686,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   productRowQty: {
     fontSize: FontSizes.xs,
-    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     marginRight: Spacing.sm,
   },
   productRowRevenue: {
@@ -704,7 +704,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+  legendText: { fontSize: FontSizes.xs, color: isDark ? '#FFFFFF' : CustomerColors.black },
 
   bestDayDate: {
     fontSize: FontSizes.lg,
@@ -713,7 +713,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   bestDaySub: {
     fontSize: FontSizes.sm,
-    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    color: isDark ? '#FFFFFF' : CustomerColors.textSecondary,
     marginTop: 2,
   },
 

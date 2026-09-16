@@ -67,7 +67,7 @@ export default function StoreCategoriesScreen() {
             value={name}
             onChangeText={setName}
             placeholder="e.g. Skincare"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
           <TouchableOpacity style={styles.addBtn} onPress={handleAdd} disabled={saving || !name.trim()}>
             {saving ? <ActivityIndicator size="small" color="#fff" /> : <Plus size={15} color="#fff" />}
@@ -136,7 +136,7 @@ const getStyles = (isDark: boolean) =>
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.md,
       fontSize: FontSizes.sm,
-      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      color: isDark ? '#FFFFFF' : CustomerColors.black,
     },
     addBtn: { width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, borderRadius: BorderRadius.md },
     errorText: { color: isDark ? '#F87171' : CustomerColors.primary, fontSize: FontSizes.xs, marginTop: Spacing.sm },

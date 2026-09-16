@@ -172,7 +172,7 @@ export default function StoreDeliveriesScreen() {
           value={search}
           onChangeText={setSearch}
           placeholder="Search by rider, customer, phone, address…"
-          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
         />
       </View>
 
@@ -395,7 +395,7 @@ const getStyles = (isDark: boolean) =>
     },
     statIconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: isDark ? '#1F2937' : '#F0FDFA', alignItems: 'center', justifyContent: 'center' },
     statLabel: { fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase' },
-    statValue: { fontSize: FontSizes.base, fontWeight: '900', color: isDark ? '#F9FAFB' : CustomerColors.black, marginTop: 1 },
+    statValue: { fontSize: FontSizes.base, fontWeight: '900', color: isDark ? '#FFFFFF' : CustomerColors.black, marginTop: 1 },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -408,7 +408,7 @@ const getStyles = (isDark: boolean) =>
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     },
-    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
     filterScrollWrap: { marginTop: Spacing.xs },
     filterScroll: { paddingHorizontal: Spacing.md, gap: Spacing.xs, paddingVertical: 4 },
     filterChip: {
@@ -443,7 +443,7 @@ const getStyles = (isDark: boolean) =>
       borderBottomColor: isDark ? '#1F2937' : '#F3F4F6',
       paddingBottom: 8,
     },
-    orderIdText: { fontSize: FontSizes.xs, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, fontFamily: 'monospace' },
+    orderIdText: { fontSize: FontSizes.xs, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black, fontFamily: 'monospace' },
     orderDateText: { fontSize: 10, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 2 },
     statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.pill, borderWidth: 1 },
     statusBadgeDelivered: { backgroundColor: isDark ? '#064e3b' : '#DCFCE7', borderColor: isDark ? '#059669' : '#86EFAC' },
@@ -473,7 +473,7 @@ const getStyles = (isDark: boolean) =>
     },
     modeTagText: { fontSize: 8, fontWeight: '700', color: isDark ? '#9CA3AF' : '#475569' },
     personRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    personName: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    personName: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
     personPhoneText: { fontSize: 11, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 },
     timestampDelivered: { fontSize: 10, fontWeight: '700', color: isDark ? '#34D399' : '#16A34A', marginTop: 4 },
     callSmallBtn: {
@@ -498,7 +498,7 @@ const getStyles = (isDark: boolean) =>
       borderTopWidth: 1,
       borderTopColor: isDark ? '#1F2937' : '#F3F4F6',
     },
-    itemsSummary: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    itemsSummary: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
     paymentInfoText: { fontSize: 10, color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '600', marginTop: 2 },
     manageDeliveryBtn: {
       flexDirection: 'row',

@@ -50,7 +50,7 @@ export default function StoreCustomersScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder="Search by name, phone or email…"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
         </View>
       </View>
@@ -134,7 +134,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   toolbar: { padding: Spacing.md, paddingBottom: 0 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, backgroundColor: isDark ? '#1F2937' : CustomerColors.white, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md },
-  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
   recurringBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', margin: Spacing.md, marginTop: Spacing.sm, paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: BorderRadius.pill, backgroundColor: isDark ? '#111827' : CustomerColors.white, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder },
   recurringBtnActive: { backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600, borderColor: isDark ? '#0f766e' : CustomerColors.teal600 },
   recurringBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
@@ -145,7 +145,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   card: { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder, padding: Spacing.md, marginBottom: Spacing.sm },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  name: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  name: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
   recurBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: isDark ? '#78350F' : '#FFFBEB', borderWidth: 1, borderColor: isDark ? '#92400E' : '#FDE68A', borderRadius: BorderRadius.pill, paddingHorizontal: 6, paddingVertical: 2 },
   recurBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#FDE68A' : '#B45309' },
   meta: { fontSize: FontSizes.xs, color: isDark ? '#D1D5DB' : CustomerColors.textSecondary, marginTop: 3 },

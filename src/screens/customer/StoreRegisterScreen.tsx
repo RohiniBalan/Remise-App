@@ -141,6 +141,9 @@ export default function StoreRegisterScreen() {
   const [showAadhaarOtpModal, setShowAadhaarOtpModal] = useState(false);
   const [verifyingAadhaarOtp, setVerifyingAadhaarOtp] = useState(false);
 
+  // GSTIN Preference Selection
+  const [hasGstin, setHasGstin] = useState<'yes' | 'no'>('no');
+
   const [gstinVerified, setGstinVerified] = useState(false);
   const [gstinData, setGstinData] = useState<any>(null);
   const [gstinError, setGstinError] = useState('');
@@ -150,6 +153,11 @@ export default function StoreRegisterScreen() {
   const [bankData, setBankData] = useState<any>(null);
   const [bankError, setBankError] = useState('');
   const [verifyingBank, setVerifyingBank] = useState(false);
+
+  const [ifscVerified, setIfscVerified] = useState(false);
+  const [ifscData, setIfscData] = useState<any>(null);
+  const [ifscError, setIfscError] = useState('');
+  const [verifyingIfsc, setVerifyingIfsc] = useState(false);
 
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -385,18 +393,18 @@ export default function StoreRegisterScreen() {
       const res = await storeApi.verifyGstin(
         cleanGstin,
         form.name || form.legalBusinessName,
-        form.pan.trim().toUpperCase(),
+        form.pan ? form.pan.trim().toUpperCase() : cleanGstin.substring(2, 12),
       );
       const data = res.data;
       if (data?.valid) {
-        // Check if the PAN embedded in GSTIN matches the entered PAN
-        if (data.panMatches === false) {
+        // If PAN was provided, check if the PAN embedded in GSTIN matches the entered PAN
+        if (data.panMatches === false && form.pan.trim()) {
           setGstinVerified(false);
           setGstinError(
             `GSTIN PAN mismatch: The PAN embedded in your GSTIN (${
               data.embeddedPan || 'unknown'
             }) does not match the PAN you entered (${
-              form.pan.trim().toUpperCase() || 'not entered'
+              form.pan.trim().toUpperCase()
             }). Please use the GSTIN registered to your PAN card.`,
           );
           return;
@@ -422,6 +430,40 @@ export default function StoreRegisterScreen() {
     }
   };
 
+  const verifyIFSCWithCashfree = async (codeToVerify?: string) => {
+    const cleanIfsc = (codeToVerify || form.ifscCode).trim().toUpperCase();
+    const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!cleanIfsc) {
+      setIfscError('Please enter an IFSC code.');
+      return;
+    }
+    if (!IFSC_REGEX.test(cleanIfsc)) {
+      setIfscError('Invalid IFSC format (must be 11 characters e.g. HDFC0001234).');
+      return;
+    }
+    setVerifyingIfsc(true);
+    setIfscError('');
+    try {
+      const res = await storeApi.verifyIFSC(cleanIfsc);
+      const data = res.data;
+      if (data?.valid) {
+        setIfscVerified(true);
+        setIfscData(data);
+        setIfscError('');
+      } else {
+        setIfscVerified(false);
+        setIfscData(null);
+        setIfscError(data?.message || `IFSC Code "${cleanIfsc}" could not be verified.`);
+      }
+    } catch (err: any) {
+      setIfscVerified(false);
+      setIfscData(null);
+      setIfscError(err?.response?.data?.message || `Failed to verify IFSC Code "${cleanIfsc}".`);
+    } finally {
+      setVerifyingIfsc(false);
+    }
+  };
+
   const verifyBankWithCashfree = async () => {
     if (!form.legalBusinessName.trim()) {
       setBankError('Legal Business / Account Holder Name is required.');
@@ -443,6 +485,7 @@ export default function StoreRegisterScreen() {
     }
     setVerifyingBank(true);
     setBankError('');
+    setIfscError('');
     try {
       const res = await storeApi.verifyBankAccount(
         form.accountNumber.trim(),
@@ -452,6 +495,12 @@ export default function StoreRegisterScreen() {
       );
       const data = res.data;
       if (data?.valid) {
+        if (data.ifscDetails) {
+          setIfscVerified(true);
+          setIfscData(data.ifscDetails);
+        } else {
+          setIfscVerified(true);
+        }
         // If live API was used and name doesn't match bank account holder — block
         if (data.source === 'cashfree_live' && data.belongsToUser === false) {
           setBankVerified(false);
@@ -463,7 +512,11 @@ export default function StoreRegisterScreen() {
         setBankData(data);
       } else {
         setBankVerified(false);
-        setBankError(data?.message || 'Bank account verification failed.');
+        if (data?.ifscValid === false) {
+          setIfscVerified(false);
+          setIfscError(data?.message || 'Invalid IFSC code.');
+        }
+        setBankError(data?.message || 'Bank account verification failed. Check Account & IFSC.');
       }
     } catch (err: any) {
       setBankError(
@@ -517,20 +570,32 @@ export default function StoreRegisterScreen() {
     }
 
     if (step === 2) {
-      if (!form.pan.trim()) {
-        setError('PAN number is mandatory for merchant onboarding.');
-        return false;
-      }
-      const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-      if (!PAN_REGEX.test(form.pan.trim().toUpperCase())) {
-        setError(
-          'Please enter a valid 10-character PAN number (e.g. ABCDE1234F).',
-        );
-        return false;
-      }
-      if (!form.panName.trim()) {
-        setError('Name as on PAN Card is required.');
-        return false;
+      if (hasGstin === 'yes') {
+        if (!form.gstin.trim()) {
+          setError('GSTIN Number is required.');
+          return false;
+        }
+        const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+        if (!GSTIN_REGEX.test(form.gstin.trim().toUpperCase())) {
+          setError('Please enter a valid 15-character GSTIN (e.g. 22AAAAA0000A1Z5).');
+          return false;
+        }
+      } else {
+        if (!form.pan.trim()) {
+          setError('PAN number is mandatory for merchant onboarding.');
+          return false;
+        }
+        const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+        if (!PAN_REGEX.test(form.pan.trim().toUpperCase())) {
+          setError(
+            'Please enter a valid 10-character PAN number (e.g. ABCDE1234F).',
+          );
+          return false;
+        }
+        if (!form.panName.trim()) {
+          setError('Name as on PAN Card is required.');
+          return false;
+        }
       }
 
       if (!form.aadhaar.trim()) {
@@ -559,13 +624,6 @@ export default function StoreRegisterScreen() {
         }
       }
 
-      if (form.gstin.trim()) {
-        const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-        if (!GSTIN_REGEX.test(form.gstin.trim().toUpperCase())) {
-          setError('Please enter a valid 15-character GSTIN.');
-          return false;
-        }
-      }
       return true;
     }
 
@@ -644,13 +702,16 @@ export default function StoreRegisterScreen() {
       fd.append('phone', form.phone);
       fd.append('email', form.email);
       fd.append('category', form.category);
-      fd.append('pan', form.pan.trim().toUpperCase());
+      const effectivePan = form.pan.trim().toUpperCase() || (hasGstin === 'yes' && form.gstin.trim().length === 15 ? form.gstin.trim().substring(2, 12).toUpperCase() : '');
+      if (effectivePan) {
+        fd.append('pan', effectivePan);
+      }
       fd.append('aadhaar', form.aadhaar.replace(/\D/g, ''));
       if (form.fssaiNumber.trim()) {
         fd.append('fssaiNumber', form.fssaiNumber.trim());
         fd.append('fssai', form.fssaiNumber.trim());
       }
-      if (form.gstin.trim()) {
+      if (hasGstin === 'yes' && form.gstin.trim()) {
         fd.append('gstin', form.gstin.trim().toUpperCase());
       }
       fd.append('latitude', form.latitude);
@@ -923,312 +984,323 @@ export default function StoreRegisterScreen() {
                 Live verification with Income Tax, UIDAI & GST databases ensures legitimate merchant identity.
               </Text>
 
-              {/* 1. PAN Number Card */}
+              {/* 1. GSTIN Preference Toggle Card */}
               <View
                 style={[
                   styles.verifyCard,
                   isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
-                  panVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
                 ]}
               >
-                <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <FileText size={16} color={panVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')} />
-                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Permanent Account Number (PAN) *</Text>
-                  </View>
-                  {panVerified ? (
-                    <View style={styles.verifiedBadge}>
-                      <BadgeCheck size={13} color="#047857" />
-                      <Text style={styles.verifiedBadgeText}>ITD Verified</Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                <View style={{ marginTop: 6, marginBottom: 8 }}>
-                  <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
-                    Name as on PAN Card *
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Building2 size={16} color={isDark ? '#38bdf8' : '#0284c7'} />
+                  <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>
+                    Do you have a GSTIN Number? *
                   </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark ? '#020617' : '#ffffff',
-                        color: isDark ? '#ffffff' : '#111827',
-                        borderColor: isDark ? '#334155' : '#cbd5e1',
-                      },
-                    ]}
-                    value={form.panName}
-                    onChangeText={v => {
-                      set('panName', v);
-                      if (panVerified) setPanVerified(false);
-                    }}
-                    placeholder="e.g. JOHN DOE"
-                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-                    autoCapitalize="words"
-                  />
                 </View>
-
-                <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
-                  PAN Number *
+                <Text style={[styles.fieldHint, { marginTop: 0, marginBottom: 12 }, isDark && { color: '#94a3b8' }]}>
+                  If you have a GSTIN, select Yes to verify with GST portal. If not, select No to verify using PAN Card.
                 </Text>
-                <View style={styles.inputActionRow}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.monoInput,
-                      {
-                        backgroundColor: isDark ? '#020617' : '#ffffff',
-                        color: isDark ? '#ffffff' : '#111827',
-                        borderColor: isDark ? '#334155' : '#cbd5e1',
-                      },
-                    ]}
-                    value={form.pan}
-                    onChangeText={v => {
-                      set('pan', v.toUpperCase());
-                      if (panVerified) setPanVerified(false);
-                    }}
-                    placeholder="e.g. ABCDE1234F"
-                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-                    maxLength={10}
-                    autoCapitalize="characters"
-                  />
+                <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity
-                    style={[styles.actionButton, verifyingPan && { opacity: 0.7 }]}
-                    onPress={verifyPANWithCashfree}
-                    disabled={verifyingPan || !form.pan.trim() || !form.panName?.trim()}
+                    style={[
+                      {
+                        flex: 1,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderRadius: 10,
+                        borderWidth: 1.5,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 6,
+                      },
+                      hasGstin === 'yes'
+                        ? {
+                            backgroundColor: isDark ? 'rgba(14, 165, 233, 0.15)' : '#e0f2fe',
+                            borderColor: '#0284c7',
+                          }
+                        : {
+                            backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                            borderColor: isDark ? '#334155' : '#cbd5e1',
+                          },
+                    ]}
+                    onPress={() => {
+                      setHasGstin('yes');
+                      setError('');
+                    }}
                   >
-                    {verifyingPan ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : panVerified ? (
-                      <Text style={styles.actionButtonText}>Re-verify</Text>
-                    ) : (
-                      <Text style={styles.actionButtonText}>Verify PAN</Text>
-                    )}
+                    <View
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 7,
+                        borderWidth: 1.5,
+                        borderColor: hasGstin === 'yes' ? '#0284c7' : '#94a3b8',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {hasGstin === 'yes' ? (
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#0284c7' }} />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: hasGstin === 'yes' ? (isDark ? '#38bdf8' : '#0369a1') : (isDark ? '#cbd5e1' : '#475569'),
+                      }}
+                    >
+                      Yes, I have GSTIN
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      {
+                        flex: 1,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderRadius: 10,
+                        borderWidth: 1.5,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 6,
+                      },
+                      hasGstin === 'no'
+                        ? {
+                            backgroundColor: isDark ? 'rgba(14, 165, 233, 0.15)' : '#e0f2fe',
+                            borderColor: '#0284c7',
+                          }
+                        : {
+                            backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                            borderColor: isDark ? '#334155' : '#cbd5e1',
+                          },
+                    ]}
+                    onPress={() => {
+                      setHasGstin('no');
+                      setError('');
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 7,
+                        borderWidth: 1.5,
+                        borderColor: hasGstin === 'no' ? '#0284c7' : '#94a3b8',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {hasGstin === 'no' ? (
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#0284c7' }} />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: hasGstin === 'no' ? (isDark ? '#38bdf8' : '#0369a1') : (isDark ? '#cbd5e1' : '#475569'),
+                      }}
+                    >
+                      No, use PAN Card
+                    </Text>
                   </TouchableOpacity>
                 </View>
-                {panError ? <Text style={styles.panErrorText}>{panError}</Text> : null}
-                {panVerified && panData && (
-                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
-                    {panData.registeredName ? (
-                      <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
-                        <Text style={{ fontWeight: '700' }}>Registered Name: </Text>
-                        {panData.registeredName}
-                      </Text>
-                    ) : (
-                      <Text style={{ color: '#d97706', fontSize: 11, fontWeight: '500' }}>
-                        ⚠ Name not returned by Cashfree API. Add production keys to enable identity verification.
-                      </Text>
-                    )}
-                    {panData.registeredName && panData.belongsToUser && (
-                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
-                        ✓ PAN matches applicant ({form.panName || form.legalBusinessName || user?.fullname || form.name}).
-                      </Text>
-                    )}
-                  </View>
-                )}
-                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
-                  10-character Permanent Account Number issued by Income Tax Dept.
-                </Text>
               </View>
 
-              {/* 2. Aadhaar Number Card */}
-              <View
-                style={[
-                  styles.verifyCard,
-                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
-                  aadhaarVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
-                ]}
-              >
-                <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Fingerprint
-                      size={16}
-                      color={aadhaarVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')}
+              {/* 2. If Yes: GSTIN Number Card */}
+              {hasGstin === 'yes' && (
+                <View
+                  style={[
+                    styles.verifyCard,
+                    isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                    gstinVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
+                  ]}
+                >
+                  <View style={styles.rowBetween}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Building2 size={16} color={gstinVerified ? '#047857' : (isDark ? '#38bdf8' : '#0284c7')} />
+                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>GSTIN Number *</Text>
+                    </View>
+                    {gstinVerified ? (
+                      <View style={styles.verifiedBadge}>
+                        <BadgeCheck size={13} color="#047857" />
+                        <Text style={styles.verifiedBadgeText}>GST Active</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.inputActionRow}>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        styles.monoInput,
+                        {
+                          backgroundColor: isDark ? '#020617' : '#ffffff',
+                          color: isDark ? '#ffffff' : '#111827',
+                          borderColor: isDark ? '#334155' : '#cbd5e1',
+                        },
+                      ]}
+                      value={form.gstin}
+                      onChangeText={v => {
+                        set('gstin', v.toUpperCase());
+                        if (gstinVerified) setGstinVerified(false);
+                      }}
+                      placeholder="e.g. 22AAAAA0000A1Z5"
+                      placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                      maxLength={15}
+                      autoCapitalize="characters"
                     />
-                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Aadhaar Number (UIDAI) *</Text>
+                    <TouchableOpacity
+                      style={[styles.actionButton, verifyingGstin && { opacity: 0.7 }]}
+                      onPress={verifyGSTINWithCashfree}
+                      disabled={verifyingGstin || !form.gstin.trim()}
+                    >
+                      {verifyingGstin ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : gstinVerified ? (
+                        <Text style={styles.actionButtonText}>Re-verify</Text>
+                      ) : (
+                        <Text style={styles.actionButtonText}>Verify GST</Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
-                  {aadhaarVerified ? (
-                    <View style={styles.verifiedBadge}>
-                      <BadgeCheck size={13} color="#047857" />
-                      <Text style={styles.verifiedBadgeText}>UIDAI Verified</Text>
+                  {gstinError ? <Text style={styles.panErrorText}>{gstinError}</Text> : null}
+                  {gstinVerified && gstinData && (
+                    <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                      <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                        <Text style={{ fontWeight: '700' }}>Legal Name: </Text>
+                        {gstinData.legalName}
+                      </Text>
+                      <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                        <Text style={{ fontWeight: '700' }}>Status: </Text>
+                        {gstinData.gstinStatus} ({gstinData.taxpayerType || 'Regular'})
+                      </Text>
+                      {gstinData.embeddedPan && (
+                        <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
+                          ✓ Embedded PAN: {gstinData.embeddedPan} (No separate PAN card required)
+                        </Text>
+                      )}
                     </View>
-                  ) : null}
-                </View>
-
-                <View style={{ marginTop: 6, marginBottom: 8 }}>
-                  <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
-                    Name as on Aadhaar Card *
+                  )}
+                  <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
+                    15-character Goods and Services Tax Identification Number. PAN verification is not required when GSTIN is provided.
                   </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark ? '#020617' : '#ffffff',
-                        color: isDark ? '#ffffff' : '#111827',
-                        borderColor: isDark ? '#334155' : '#cbd5e1',
-                      },
-                    ]}
-                    value={form.aadhaarName}
-                    onChangeText={v => {
-                      set('aadhaarName', v);
-                      if (aadhaarVerified) setAadhaarVerified(false);
-                      if (aadhaarOtpSent) setAadhaarOtpSent(false);
-                    }}
-                    placeholder="e.g. JOHN DOE"
-                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-                    autoCapitalize="words"
-                  />
                 </View>
+              )}
 
-                <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
-                  Aadhaar Number *
-                </Text>
-                <View style={styles.inputActionRow}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.monoInput,
-                      {
-                        backgroundColor: isDark ? '#020617' : '#ffffff',
-                        color: isDark ? '#ffffff' : '#111827',
-                        borderColor: isDark ? '#334155' : '#cbd5e1',
-                      },
-                    ]}
-                    value={form.aadhaar}
-                    onChangeText={v => {
-                      set('aadhaar', v.replace(/\D/g, ''));
-                      if (aadhaarVerified) setAadhaarVerified(false);
-                      if (aadhaarOtpSent) setAadhaarOtpSent(false);
-                    }}
-                    placeholder="e.g. 1234 5678 9012 (12 digits)"
-                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-                    maxLength={12}
-                    keyboardType="number-pad"
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      { backgroundColor: '#0284c7' },
-                      verifyingAadhaar && { opacity: 0.7 },
-                    ]}
-                    onPress={sendAadhaarOtpWithCashfree}
-                    disabled={verifyingAadhaar || form.aadhaar.length !== 12 || !form.aadhaarName.trim()}
-                  >
-                    {verifyingAadhaar ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : (
-                      <Text style={styles.actionButtonText}>Verify OTP</Text>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      { backgroundColor: '#475569' },
-                      verifyingAadhaar && { opacity: 0.7 },
-                    ]}
-                    onPress={verifyAadhaarDirectWithCashfree}
-                    disabled={verifyingAadhaar || form.aadhaar.length !== 12 || !form.aadhaarName.trim()}
-                  >
-                    <Text style={styles.actionButtonText}>Direct</Text>
-                  </TouchableOpacity>
-                </View>
-                {aadhaarError ? (
-                  <Text style={styles.panErrorText}>{aadhaarError}</Text>
-                ) : null}
-                {aadhaarVerified && aadhaarData && (
-                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
-                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
-                      <Text style={{ fontWeight: '700' }}>Aadhaar Holder: </Text>
-                      {aadhaarData.nameOnAadhaar || 'Verified Citizen'}
-                    </Text>
-                    {aadhaarData.belongsToUser && (
-                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
-                        ✓ Aadhaar identity confirmed and matches store applicant.
-                      </Text>
-                    )}
-                  </View>
-                )}
-                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
-                  12-digit Unique Identification Authority of India (UIDAI) citizen number.
-                </Text>
-              </View>
-
-              {/* 3. GSTIN Number Card */}
-              <View
-                style={[
-                  styles.verifyCard,
-                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
-                  gstinVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
-                ]}
-              >
-                <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Building2 size={16} color={gstinVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')} />
-                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>GSTIN Number (Optional)</Text>
-                  </View>
-                  {gstinVerified ? (
-                    <View style={styles.verifiedBadge}>
-                      <BadgeCheck size={13} color="#047857" />
-                      <Text style={styles.verifiedBadgeText}>GST Active</Text>
+              {/* 3. If No: PAN Number Card */}
+              {hasGstin === 'no' && (
+                <View
+                  style={[
+                    styles.verifyCard,
+                    isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                    panVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
+                  ]}
+                >
+                  <View style={styles.rowBetween}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <FileText size={16} color={panVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')} />
+                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Permanent Account Number (PAN) *</Text>
                     </View>
-                  ) : null}
-                </View>
-
-                <View style={styles.inputActionRow}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.monoInput,
-                      {
-                        backgroundColor: isDark ? '#020617' : '#ffffff',
-                        color: isDark ? '#ffffff' : '#111827',
-                        borderColor: isDark ? '#334155' : '#cbd5e1',
-                      },
-                    ]}
-                    value={form.gstin}
-                    onChangeText={v => {
-                      set('gstin', v.toUpperCase());
-                      if (gstinVerified) setGstinVerified(false);
-                    }}
-                    placeholder="e.g. 22AAAAA0000A1Z5"
-                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-                    maxLength={15}
-                    autoCapitalize="characters"
-                  />
-                  <TouchableOpacity
-                    style={[styles.actionButton, verifyingGstin && { opacity: 0.7 }]}
-                    onPress={verifyGSTINWithCashfree}
-                    disabled={verifyingGstin || !form.gstin.trim()}
-                  >
-                    {verifyingGstin ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : (
-                      <Text style={styles.actionButtonText}>Verify GST</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-                {gstinError ? <Text style={styles.panErrorText}>{gstinError}</Text> : null}
-                {gstinVerified && gstinData && (
-                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
-                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
-                      <Text style={{ fontWeight: '700' }}>Legal Name: </Text>
-                      {gstinData.legalName}
-                    </Text>
-                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
-                      <Text style={{ fontWeight: '700' }}>Status: </Text>
-                      {gstinData.gstinStatus} ({gstinData.taxpayerType || 'Regular'})
-                    </Text>
-                    {gstinData.panMatches && (
-                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
-                        ✓ GSTIN PAN matches entered PAN ({gstinData.embeddedPan})
-                      </Text>
-                    )}
+                    {panVerified ? (
+                      <View style={styles.verifiedBadge}>
+                        <BadgeCheck size={13} color="#047857" />
+                        <Text style={styles.verifiedBadgeText}>ITD Verified</Text>
+                      </View>
+                    ) : null}
                   </View>
-                )}
-                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
-                  15-character Goods and Services Tax Identification Number.
-                </Text>
-              </View>
+
+                  <View style={{ marginTop: 6, marginBottom: 8 }}>
+                    <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                      Name as on PAN Card *
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: isDark ? '#020617' : '#ffffff',
+                          color: isDark ? '#ffffff' : '#111827',
+                          borderColor: isDark ? '#334155' : '#cbd5e1',
+                        },
+                      ]}
+                      value={form.panName}
+                      onChangeText={v => {
+                        set('panName', v);
+                        if (panVerified) setPanVerified(false);
+                      }}
+                      placeholder="e.g. JOHN DOE"
+                      placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                      autoCapitalize="words"
+                    />
+                  </View>
+
+                  <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                    PAN Number *
+                  </Text>
+                  <View style={styles.inputActionRow}>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        styles.monoInput,
+                        {
+                          backgroundColor: isDark ? '#020617' : '#ffffff',
+                          color: isDark ? '#ffffff' : '#111827',
+                          borderColor: isDark ? '#334155' : '#cbd5e1',
+                        },
+                      ]}
+                      value={form.pan}
+                      onChangeText={v => {
+                        set('pan', v.toUpperCase());
+                        if (panVerified) setPanVerified(false);
+                      }}
+                      placeholder="e.g. ABCDE1234F"
+                      placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                      maxLength={10}
+                      autoCapitalize="characters"
+                    />
+                    <TouchableOpacity
+                      style={[styles.actionButton, verifyingPan && { opacity: 0.7 }]}
+                      onPress={verifyPANWithCashfree}
+                      disabled={verifyingPan || !form.pan.trim() || !form.panName?.trim()}
+                    >
+                      {verifyingPan ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : panVerified ? (
+                        <Text style={styles.actionButtonText}>Re-verify</Text>
+                      ) : (
+                        <Text style={styles.actionButtonText}>Verify PAN</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {panError ? <Text style={styles.panErrorText}>{panError}</Text> : null}
+                  {panVerified && panData && (
+                    <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                      {panData.registeredName ? (
+                        <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                          <Text style={{ fontWeight: '700' }}>Registered Name: </Text>
+                          {panData.registeredName}
+                        </Text>
+                      ) : (
+                        <Text style={{ color: '#d97706', fontSize: 11, fontWeight: '500' }}>
+                          ⚠ Name not returned by Cashfree API. Add production keys to enable identity verification.
+                        </Text>
+                      )}
+                      {panData.registeredName && panData.belongsToUser && (
+                        <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
+                          ✓ PAN matches applicant ({form.panName || form.legalBusinessName || user?.fullname || form.name}).
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                  <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
+                    10-character Permanent Account Number issued by Income Tax Dept.
+                  </Text>
+                </View>
+              )}
 
               {/* 4. Conditional FSSAI Number for Food & Beverages */}
               {isFoodCategory && (
@@ -1450,18 +1522,86 @@ export default function StoreRegisterScreen() {
                 keyboardType="number-pad"
               />
 
-              <Field
-                label="Bank IFSC Code *"
-                value={form.ifscCode}
-                onChangeText={v => {
-                  set('ifscCode', v.toUpperCase());
-                  if (bankVerified) setBankVerified(false);
-                }}
-                placeholder="e.g. IDIB000K073"
-                maxLength={11}
-                autoCapitalize="characters"
-              />
-              <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>11-character Indian bank branch code</Text>
+              <View style={{ marginBottom: 12 }}>
+                <View style={[styles.rowBetween, { marginBottom: 4 }]}>
+                  <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>
+                    Bank IFSC Code *
+                  </Text>
+                  {ifscVerified && ifscData ? (
+                    <View style={styles.verifiedBadge}>
+                      <CheckCircle size={11} color="#047857" />
+                      <Text style={styles.verifiedBadgeText}>Verified IFSC</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { flex: 1, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', letterSpacing: 1 },
+                      isDark && { backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' },
+                    ]}
+                    value={form.ifscCode}
+                    onChangeText={v => {
+                      const val = v.toUpperCase();
+                      set('ifscCode', val);
+                      if (bankVerified) setBankVerified(false);
+                      if (ifscVerified) setIfscVerified(false);
+                      if (val.length === 11 && /^[A-Z]{4}0[A-Z0-9]{6}$/.test(val)) {
+                        verifyIFSCWithCashfree(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (form.ifscCode.length === 11 && !ifscVerified) {
+                        verifyIFSCWithCashfree();
+                      }
+                    }}
+                    placeholder="e.g. IDIB000K073"
+                    placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+                    maxLength={11}
+                    autoCapitalize="characters"
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { paddingVertical: 10, paddingHorizontal: 12 },
+                      (verifyingIfsc || form.ifscCode.length !== 11) && { opacity: 0.6 },
+                    ]}
+                    disabled={verifyingIfsc || form.ifscCode.length !== 11}
+                    onPress={() => verifyIFSCWithCashfree()}
+                  >
+                    {verifyingIfsc ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>
+                        {ifscVerified ? '✓ Verified' : 'Verify IFSC'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {ifscError ? <Text style={styles.panErrorText}>{ifscError}</Text> : null}
+                {ifscVerified && ifscData ? (
+                  <View style={[styles.verifiedDetailBox, { marginTop: 6 }, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                      <Text style={{ fontWeight: '700' }}>Bank: </Text>
+                      {ifscData.bankName}
+                    </Text>
+                    {ifscData.branch ? (
+                      <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                        <Text style={{ fontWeight: '700' }}>Branch: </Text>
+                        {ifscData.branch}
+                      </Text>
+                    ) : null}
+                    {ifscData.city || ifscData.state ? (
+                      <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                        <Text style={{ fontWeight: '700' }}>Location: </Text>
+                        {[ifscData.city, ifscData.state].filter(Boolean).join(', ')}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>11-character Indian bank branch code</Text>
+              </View>
 
               {/* Cashfree Bank Penny Drop Verification Card */}
               <View

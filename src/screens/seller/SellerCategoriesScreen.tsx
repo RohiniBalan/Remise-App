@@ -66,7 +66,7 @@ export default function SellerCategoriesScreen() {
             value={name}
             onChangeText={setName}
             placeholder="e.g. Skincare"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
           <TouchableOpacity style={styles.addBtn} onPress={handleAdd} disabled={saving || !name.trim()}>
             {saving ? <ActivityIndicator size="small" color="#fff" /> : <Plus size={15} color="#fff" />}
@@ -124,7 +124,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderWidth: 1,
     borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
   },
-  formTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.md },
+  formTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black, marginBottom: Spacing.md },
   addRow: { flexDirection: 'row', gap: Spacing.sm },
   input: {
     backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
@@ -134,7 +134,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSizes.sm,
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
   addBtn: { width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, borderRadius: BorderRadius.md },
   errorText: { color: CustomerColors.primary, fontSize: FontSizes.xs, marginTop: Spacing.sm },
@@ -154,7 +154,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   rowIcon: { width: 28, height: 28, borderRadius: BorderRadius.sm, backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : CustomerColors.mint, alignItems: 'center', justifyContent: 'center' },
   rowNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  rowName: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  rowName: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
   defaultBadge: { backgroundColor: isDark ? '#1F2937' : '#F5F5F5', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   defaultBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
   countBadge: { alignSelf: 'flex-start', backgroundColor: isDark ? 'rgba(15, 163, 177, 0.15)' : CustomerColors.mint, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1, marginTop: 2 },

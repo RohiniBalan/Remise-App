@@ -45,6 +45,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { requireAuthForPurchase } from '../../utils/authGuard';
 import { mergeCategories } from '../../utils/storeCategories';
+import { useTheme } from '../../context/ThemeContext';
 import HomeFooter from '../../components/home/HomeFooter';
 
 const API_BASE = 'YOUR_API_BASE_URL';
@@ -481,6 +482,7 @@ function SelectField({
   disabled?: boolean;
   onSelect: (key: string, label: string) => void;
 }) {
+  const { isDark } = useTheme();
   const [open, setOpen] = useState(false);
 
   return (
@@ -488,12 +490,19 @@ function SelectField({
       <Text style={styles.selectLabel}>{label}</Text>
 
       <TouchableOpacity
-        style={[styles.selectInput, disabled && styles.selectDisabled]}
+        style={[
+          styles.selectInput,
+          isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+          disabled && styles.selectDisabled,
+        ]}
         disabled={disabled}
         onPress={() => setOpen(true)}
       >
         <Text
-          style={value ? styles.selectValue : styles.selectPlaceholder}
+          style={[
+            value ? styles.selectValue : styles.selectPlaceholder,
+            { color: isDark ? '#ffffff' : '#000000' },
+          ]}
           numberOfLines={1}
         >
           {value || placeholder}
@@ -513,13 +522,13 @@ function SelectField({
           onPress={() => setOpen(false)}
         >
           <View
-            style={styles.modalSheet}
+            style={[styles.modalSheet, isDark && { backgroundColor: '#111827' }]}
             onStartShouldSetResponder={() => true}
           >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{label}</Text>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: '#1F2937' }]}>
+              <Text style={[styles.modalTitle, { color: isDark ? '#ffffff' : '#000000' }]}>{label}</Text>
               <TouchableOpacity onPress={() => setOpen(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -528,7 +537,7 @@ function SelectField({
               keyExtractor={item => item.key}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.modalItem}
+                  style={[styles.modalItem, isDark && { borderBottomColor: '#1F2937' }]}
                   onPress={() => {
                     onSelect(item.key, item.label);
                     setOpen(false);
@@ -537,6 +546,7 @@ function SelectField({
                   <Text
                     style={[
                       styles.modalItemText,
+                      { color: isDark ? '#ffffff' : '#000000' },
                       item.key === value && styles.modalItemTextActive,
                     ]}
                   >
@@ -790,8 +800,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectDisabled: { opacity: 0.5 },
-  selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },
-  selectPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF', flex: 1 },
+  selectValue: { fontSize: FontSizes.sm, color: '#000000', flex: 1 },
+  selectPlaceholder: { fontSize: FontSizes.sm, color: '#000000', flex: 1 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

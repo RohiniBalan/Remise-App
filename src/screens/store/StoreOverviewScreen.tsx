@@ -112,7 +112,7 @@ export default function StoreOverviewScreen() {
             <View style={styles.statCard}>
               <TrendingUp size={18} color={isDark ? '#A78BFA' : '#7C3AED'} />
               <Text style={[styles.statValue, { color: isDark ? '#A78BFA' : '#7C3AED' }]}>{totalProductsSold}</Text>
-              <Text style={styles.statLabel} numberOfLines={1}>Products Sold</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>Total Products Sold</Text>
             </View>
             {stats.map(s => (
               <View key={s.label} style={styles.statCard}>
@@ -202,13 +202,13 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
-      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
       padding: Spacing.md,
       marginBottom: Spacing.lg,
       ...Shadows.card,
     },
     targetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
-    targetTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    targetTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
     targetAmounts: { fontSize: FontSizes.md, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginTop: Spacing.xs },
     targetOf: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
     progressTrack: { height: 8, borderRadius: 4, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', marginTop: Spacing.sm, overflow: 'hidden' },
@@ -222,17 +222,17 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
-      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
       padding: Spacing.sm,
       ...Shadows.card,
     },
     statValue: { fontSize: FontSizes.md, fontWeight: '800', marginTop: 4 },
-    statLabel: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
+    statLabel: { fontSize: 10, color: isDark ? '#FFFFFF' : CustomerColors.textSecondary, marginTop: 2 },
     section: {
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
-      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
       marginBottom: Spacing.md,
       overflow: 'hidden',
     },
@@ -244,7 +244,7 @@ const getStyles = (isDark: boolean) =>
       borderBottomWidth: 1,
       borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
     },
-    sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
     link: { fontSize: FontSizes.xs, color: isDark ? '#2DD4BF' : CustomerColors.teal600, fontWeight: '700' },
     emptyText: { textAlign: 'center', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontSize: FontSizes.sm, padding: Spacing.lg },
     listRow: {
@@ -256,10 +256,10 @@ const getStyles = (isDark: boolean) =>
       borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
     },
     productThumb: { width: 36, height: 36, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#1F2937' : '#F5F5F5' },
-    listRowTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    listRowTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
     listRowSub: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
     listRowAmount: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
-    listRowStatus: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+    listRowStatus: { fontSize: 10, color: isDark ? '#FFFFFF' : CustomerColors.textSecondary },
     verificationBanner: {
       flexDirection: 'row',
       gap: Spacing.sm,

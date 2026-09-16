@@ -76,7 +76,7 @@ export default function StoreOrdersScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder="Search by customer or offer…"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
         </View>
         <TouchableOpacity
@@ -242,7 +242,7 @@ const getStyles = (isDark: boolean) =>
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     },
-    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
     deliveryLogsNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: CustomerColors.teal700, paddingHorizontal: 12, paddingVertical: 10, borderRadius: BorderRadius.md },
     deliveryLogsNavBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
     filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, paddingHorizontal: Spacing.md, marginTop: Spacing.sm },

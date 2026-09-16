@@ -6,6 +6,12 @@ export interface GroupedSupplier {
   moq: number;
   bulkPricing: { minQty: number; price: number }[];
   totalStock: number;
+  description?: string;
+  subcategory?: string;
+  brand?: string;
+  specifications?: { label: string; value: string }[];
+  attributes?: Record<string, any>;
+  availability?: string;
 }
 
 export interface ProductGroup {
@@ -13,6 +19,9 @@ export interface ProductGroup {
   title: string;
   brand: string;
   category: string;
+  subcategory?: string;
+  description?: string;
+  specifications?: { label: string; value: string }[];
   image: string | null;
   lowestPrice: number;
   supplierCount: number;

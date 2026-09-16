@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
 import { X, ChevronLeft, ChevronRight, Package } from 'lucide-react-native';
 import { TitleGroup, ProductGroup } from '../../utils/supplierGrouping';
+import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function BrandListSheet({ titleGroup, visible, onClose, onCompareBrand }: Props) {
+  const { isDark } = useTheme();
   const [index, setIndex] = useState(0);
 
   useEffect(() => { if (visible) setIndex(0); }, [visible, titleGroup?.titleKey]);
@@ -27,15 +29,15 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          <View style={styles.header}>
+        <View style={[styles.sheet, isDark && { backgroundColor: '#111827' }]}>
+          <View style={[styles.header, isDark && { backgroundColor: '#1F2937' }]}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{titleGroup.title}</Text>
+              <Text style={[styles.title, { color: isDark ? '#ffffff' : '#000000' }]}>{titleGroup.title}</Text>
               <Text style={styles.subtitle}>
                 {titleGroup.brandCount} brand{titleGroup.brandCount !== 1 ? 's' : ''} available
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose}><X size={22} color={CustomerColors.textSecondary} /></TouchableOpacity>
+            <TouchableOpacity onPress={onClose}><X size={22} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} /></TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: Spacing.lg }}>
@@ -46,20 +48,21 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
               </View>
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                <TouchableOpacity style={styles.navBtn} disabled={total <= 1} onPress={goPrev}>
-                  <ChevronLeft size={18} color={total <= 1 ? CustomerColors.border : CustomerColors.teal700} />
+                <TouchableOpacity style={[styles.navBtn, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]} disabled={total <= 1} onPress={goPrev}>
+                  <ChevronLeft size={18} color={total <= 1 ? (isDark ? '#4B5563' : CustomerColors.border) : (isDark ? '#2DD4BF' : CustomerColors.teal700)} />
                 </TouchableOpacity>
 
                 <View style={{ flex: 1 }}>
-                  <View style={[styles.card, index === 0 && styles.cardBest]}>
+                  <View style={[styles.card, index === 0 && styles.cardBest, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
                     <View style={styles.cardTopRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.brandName}>{b.brand || 'Unbranded'}</Text>
+                        <Text style={[styles.brandName, { color: isDark ? '#ffffff' : '#000000' }]}>{b.brand || 'Unbranded'}</Text>
                         {index === 0 && (
                           <View style={styles.bestPill}><Text style={styles.bestPillText}>Best price</Text></View>
                         )}
                         <Text style={styles.metaText}>
-                          Stock: {cheapest?.totalStock ?? '—'} · Available from {b.supplierCount} supplier{b.supplierCount !== 1 ? 's' : ''}
+                          Stock: {cheapest?.totalStock ?? '—'} · Available from{' '}
+                          <Text style={{ fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>{b.supplierCount}</Text> supplier{b.supplierCount !== 1 ? 's' : ''}
                         </Text>
                       </View>
                       <Text style={styles.priceText}>₹{b.lowestPrice}</Text>

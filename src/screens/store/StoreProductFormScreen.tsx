@@ -540,7 +540,7 @@ export default function StoreProductFormScreen() {
           <TextInput
             style={[styles.input, { flex: 1 }]}
             placeholder="Or paste image URL (https://...)"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
             value={newImageUrl}
             onChangeText={setNewImageUrl}
           />
@@ -631,7 +631,7 @@ export default function StoreProductFormScreen() {
         <TextInput
           style={styles.input}
           placeholder="e.g. Organic Face Moisturizer / Galaxy S24"
-          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
           value={form.title}
           onChangeText={v => set('title', v)}
         />
@@ -640,7 +640,7 @@ export default function StoreProductFormScreen() {
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Provide product highlights, features, and key specifications..."
-          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
           multiline
           numberOfLines={3}
           value={form.description}
@@ -653,7 +653,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="0.00"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               keyboardType="numeric"
               value={form.price}
               onChangeText={v => set('price', v)}
@@ -664,7 +664,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="0.00"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               keyboardType="numeric"
               value={form.discountedPrice}
               onChangeText={v => set('discountedPrice', v)}
@@ -712,7 +712,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. Apple, Organic India"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               value={form.brand}
               onChangeText={v => set('brand', v)}
             />
@@ -722,7 +722,7 @@ export default function StoreProductFormScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. 50"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               keyboardType="numeric"
               value={form.totalStock}
               onChangeText={v => set('totalStock', v)}
@@ -757,7 +757,7 @@ export default function StoreProductFormScreen() {
         <TextInput
           style={styles.input}
           placeholder="e.g. bestseller, trending, fast-delivery"
-          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
           value={form.tags}
           onChangeText={v => set('tags', v)}
         />
@@ -783,7 +783,7 @@ export default function StoreProductFormScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
                   value={
                     dynamicAttributes[field.key] ??
                     dynamicAttributes[field.key.toLowerCase()] ??
@@ -983,7 +983,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   voiceButtonListening: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
   voiceButtonText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
-  voiceButtonTextInactive: { color: isDark ? '#F9FAFB' : CustomerColors.black, fontSize: FontSizes.xs, fontWeight: '600' },
+  voiceButtonTextInactive: { color: isDark ? '#FFFFFF' : CustomerColors.black, fontSize: FontSizes.xs, fontWeight: '600' },
   voiceTranscript: { fontSize: 11, color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginTop: 4 },
   voiceErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   voiceErrorText: { fontSize: 11, color: '#DC2626' },
@@ -999,7 +999,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    color: isDark ? '#E5E7EB' : CustomerColors.textSecondary,
     letterSpacing: 0.5,
     marginBottom: Spacing.sm,
   },
@@ -1035,7 +1035,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addUrlBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  addUrlBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
 
   emptyPhotoBox: {
     borderWidth: 1.5,
@@ -1048,7 +1048,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
     marginVertical: 4,
   },
-  emptyPhotoText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black, marginTop: Spacing.xs },
+  emptyPhotoText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black, marginTop: Spacing.xs },
   emptyPhotoSubtext: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
 
   thumbnailsScroll: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
@@ -1115,7 +1115,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   addMoreText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
 
-  inputLabel: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: 4, marginTop: Spacing.xs },
+  inputLabel: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#FFFFFF' : CustomerColors.black, marginBottom: 4, marginTop: Spacing.xs },
   input: {
     backgroundColor: isDark ? '#1F2937' : '#fff',
     borderWidth: 1,
@@ -1124,7 +1124,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
     fontSize: FontSizes.sm,
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
   textArea: { height: 70, textAlignVertical: 'top' },
 
@@ -1143,7 +1143,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   selectorDisabled: { backgroundColor: isDark ? '#111827' : '#F1F5F9', opacity: 0.7 },
-  selectorValue: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
+  selectorValue: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black, flex: 1 },
   selectorPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, flex: 1 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 4 },
@@ -1198,7 +1198,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
   },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1208,6 +1208,6 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderBottomColor: isDark ? '#1F2937' : '#F1F5F9',
   },
   modalItemActive: { backgroundColor: isDark ? '#134e4a' : '#F0FDFA' },
-  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#E5E7EB' : CustomerColors.black },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
   modalItemTextActive: { fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
 });

@@ -161,202 +161,207 @@ export default function StoreSettingsScreen() {
       <Text style={styles.sectionTitle}>Store Profile</Text>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <Field label="Store Name *" value={form.name} onChangeText={v => set('name', v)} styles={styles} isDark={isDark} />
-      <Field
-        label="Monthly Revenue Target (₹)"
-        value={form.targetRevenue}
-        onChangeText={v => set('targetRevenue', v)}
-        keyboardType="numeric"
-        placeholder="e.g. 100000"
-        styles={styles}
-        isDark={isDark}
-      />
-      <Text style={styles.label}>Description</Text>
-      <TextInput
-        style={[styles.input, { height: 70 }]}
-        multiline
-        value={form.description}
-        onChangeText={v => set('description', v)}
-        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-      />
-      <Field label="Phone" value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" styles={styles} isDark={isDark} />
-      <Field label="Email" value={form.email} onChangeText={v => set('email', v)} keyboardType="email-address" styles={styles} isDark={isDark} />
-
-      <SelectField
-        label="Category"
-        value={form.category}
-        placeholder="Select Category"
-        options={categoryOptions}
-        onSelect={(key) => set('category', key)}
-        styles={styles}
-        isDark={isDark}
-      />
-
-      {form.category === 'Food & Beverages' && (
+      <View style={styles.formCard}>
+        <Field label="Store Name *" value={form.name} onChangeText={v => set('name', v)} styles={styles} isDark={isDark} />
         <Field
-          label="FSSAI License Number"
-          value={fssai}
-          onChangeText={setFssai}
-          keyboardType="number-pad"
-          maxLength={14}
-          placeholder="14-digit FSSAI number"
-          styles={styles}
-          isDark={isDark}
-        />
-      )}
-
-      <Field
-        label="PAN Number * (Mandatory)"
-        value={form.pan}
-        onChangeText={v => set('pan', v.toUpperCase())}
-        placeholder="e.g. ABCDE1234F"
-        maxLength={10}
-        autoCapitalize="characters"
-        styles={styles}
-        isDark={isDark}
-      />
-      <Field
-        label="GSTIN Number (Optional)"
-        value={form.gstin}
-        onChangeText={v => set('gstin', v.toUpperCase())}
-        placeholder="e.g. 22AAAAA0000A1Z5"
-        maxLength={15}
-        autoCapitalize="characters"
-        styles={styles}
-        isDark={isDark}
-      />
-
-      <Field label="Street" value={form.street} onChangeText={v => set('street', v)} styles={styles} isDark={isDark} />
-
-      <SelectField
-        label="State"
-        value={form.state}
-        placeholder="Select State"
-        options={stateOptions}
-        onSelect={handleStateSelect}
-        styles={styles}
-        isDark={isDark}
-      />
-      <SelectField
-        label="City"
-        value={form.city}
-        placeholder={form.state ? 'Select City' : 'Select a state first'}
-        options={cityOptions}
-        disabled={!form.state}
-        onSelect={handleCitySelect}
-        styles={styles}
-        isDark={isDark}
-      />
-
-      <Field label="Pin Code" value={form.pinCode} onChangeText={v => set('pinCode', v)} keyboardType="numeric" styles={styles} isDark={isDark} />
-
-      <View style={styles.qrSection}>
-        <Text style={styles.qrTitle}>UPI Payment QR Code</Text>
-        <Text style={styles.qrSubtitle}>Enter your UPI ID to generate a scannable QR code. Customers who choose QR payment will see this.</Text>
-        <View style={styles.qrRow}>
-          <View style={styles.qrPreviewBox}>
-            {store?.qrCodeImage ? <Image source={{ uri: store.qrCodeImage }} style={styles.qrPreviewImage} /> : <QrCode size={22} color={isDark ? '#6B7280' : '#D1D5DB'} />}
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>UPI ID</Text>
-            <TextInput
-              style={styles.input}
-              value={upiId}
-              onChangeText={setUpiId}
-              placeholder="merchant@upi"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              autoCapitalize="none"
-            />
-            {upiError ? <Text style={styles.errorText}>{upiError}</Text> : null}
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.qrSection}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <Text style={styles.qrTitle}>Razorpay Route Marketplace</Text>
-          <View style={[
-            styles.routeBadge,
-            store?.razorpayAccountId
-              ? store?.razorpayRouteStatus === 'active'
-                ? styles.routeBadgeActive
-                : styles.routeBadgePending
-              : styles.routeBadgeNone
-          ]}>
-            <Text style={[
-              styles.routeBadgeText,
-              store?.razorpayAccountId
-                ? store?.razorpayRouteStatus === 'active'
-                  ? styles.routeBadgeTextActive
-                  : styles.routeBadgeTextPending
-                : styles.routeBadgeTextNone
-            ]}>
-              {store?.razorpayAccountId
-                ? `ROUTE: ${store?.razorpayRouteStatus?.toUpperCase() || 'CONNECTED'}`
-                : 'ROUTE: NOT CONNECTED'}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.qrSubtitle}>
-          Connect your Razorpay Linked Account to automatically receive customer payments directly into your bank account.
-        </Text>
-
-        {store?.razorpayAccountId ? (
-          <View style={styles.routeInfoBox}>
-            <Text style={styles.routeInfoText}>
-              <Text style={{ fontWeight: '700' }}>Account ID: </Text>{store.razorpayAccountId}
-            </Text>
-            <Text style={styles.routeInfoText}>
-              <Text style={{ fontWeight: '700' }}>Platform Commission: </Text>{store.commissionPercentage ?? 10}%
-            </Text>
-          </View>
-        ) : null}
-
-        <Field
-          label="Legal Business / Entity Name"
-          value={form.legalBusinessName}
-          onChangeText={v => set('legalBusinessName', v)}
-          placeholder="e.g. John Doe Enterprises"
-          styles={styles}
-          isDark={isDark}
-        />
-        <Field
-          label="Bank Account Number"
-          value={form.bankAccountNumber}
-          onChangeText={v => set('bankAccountNumber', v)}
-          placeholder="Account Number"
+          label="Monthly Revenue Target (₹)"
+          value={form.targetRevenue}
+          onChangeText={v => set('targetRevenue', v)}
           keyboardType="numeric"
+          placeholder="e.g. 100000"
+          styles={styles}
+          isDark={isDark}
+        />
+        <View style={{ marginBottom: Spacing.md }}>
+          <Text style={styles.label}>Description</Text>
+          <TextInput
+            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+            multiline
+            value={form.description}
+            onChangeText={v => set('description', v)}
+            placeholder="Store description..."
+            placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+          />
+        </View>
+        <Field label="Phone" value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" styles={styles} isDark={isDark} />
+        <Field label="Email" value={form.email} onChangeText={v => set('email', v)} keyboardType="email-address" styles={styles} isDark={isDark} />
+
+        <SelectField
+          label="Category"
+          value={form.category}
+          placeholder="Select Category"
+          options={categoryOptions}
+          onSelect={(key) => set('category', key)}
+          styles={styles}
+          isDark={isDark}
+        />
+
+        {form.category === 'Food & Beverages' && (
+          <Field
+            label="FSSAI License Number"
+            value={fssai}
+            onChangeText={setFssai}
+            keyboardType="number-pad"
+            maxLength={14}
+            placeholder="14-digit FSSAI number"
+            styles={styles}
+            isDark={isDark}
+          />
+        )}
+
+        <Field
+          label="PAN Number * (Mandatory)"
+          value={form.pan}
+          onChangeText={v => set('pan', v.toUpperCase())}
+          placeholder="e.g. ABCDE1234F"
+          maxLength={10}
+          autoCapitalize="characters"
           styles={styles}
           isDark={isDark}
         />
         <Field
-          label="Bank IFSC Code"
-          value={form.bankIfsc}
-          onChangeText={v => set('bankIfsc', v.toUpperCase())}
-          placeholder="e.g. HDFC0001234"
+          label="GSTIN Number (Optional)"
+          value={form.gstin}
+          onChangeText={v => set('gstin', v.toUpperCase())}
+          placeholder="e.g. 22AAAAA0000A1Z5"
+          maxLength={15}
           autoCapitalize="characters"
           styles={styles}
           isDark={isDark}
         />
 
-        <TouchableOpacity
-          style={styles.routeBtn}
-          disabled={onboardingRoute}
-          onPress={handleRazorpayOnboard}
-        >
-          {onboardingRoute ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.routeBtnText}>
-              {store?.razorpayAccountId ? 'Sync / Update Razorpay Account' : 'Connect with Razorpay Route'}
-            </Text>
-          )}
+        <Field label="Street" value={form.street} onChangeText={v => set('street', v)} styles={styles} isDark={isDark} />
+
+        <SelectField
+          label="State"
+          value={form.state}
+          placeholder="Select State"
+          options={stateOptions}
+          onSelect={handleStateSelect}
+          styles={styles}
+          isDark={isDark}
+        />
+        <SelectField
+          label="City"
+          value={form.city}
+          placeholder={form.state ? 'Select City' : 'Select a state first'}
+          options={cityOptions}
+          disabled={!form.state}
+          onSelect={handleCitySelect}
+          styles={styles}
+          isDark={isDark}
+        />
+
+        <Field label="Pin Code" value={form.pinCode} onChangeText={v => set('pinCode', v)} keyboardType="numeric" styles={styles} isDark={isDark} />
+
+        <View style={styles.qrSection}>
+          <Text style={styles.qrTitle}>UPI Payment QR Code</Text>
+          <Text style={styles.qrSubtitle}>Enter your UPI ID to generate a scannable QR code. Customers who choose QR payment will see this.</Text>
+          <View style={styles.qrRow}>
+            <View style={styles.qrPreviewBox}>
+              {store?.qrCodeImage ? <Image source={{ uri: store.qrCodeImage }} style={styles.qrPreviewImage} /> : <QrCode size={22} color={isDark ? '#6B7280' : '#D1D5DB'} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>UPI ID</Text>
+              <TextInput
+                style={styles.input}
+                value={upiId}
+                onChangeText={setUpiId}
+                placeholder="merchant@upi"
+                placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+                autoCapitalize="none"
+              />
+              {upiError ? <Text style={styles.errorText}>{upiError}</Text> : null}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.qrSection}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={styles.qrTitle}>Razorpay Route Marketplace</Text>
+            <View style={[
+              styles.routeBadge,
+              store?.razorpayAccountId
+                ? store?.razorpayRouteStatus === 'active'
+                  ? styles.routeBadgeActive
+                  : styles.routeBadgePending
+                : styles.routeBadgeNone
+            ]}>
+              <Text style={[
+                styles.routeBadgeText,
+                store?.razorpayAccountId
+                  ? store?.razorpayRouteStatus === 'active'
+                    ? styles.routeBadgeTextActive
+                    : styles.routeBadgeTextPending
+                  : styles.routeBadgeTextNone
+              ]}>
+                {store?.razorpayAccountId
+                  ? `ROUTE: ${store?.razorpayRouteStatus?.toUpperCase() || 'CONNECTED'}`
+                  : 'ROUTE: NOT CONNECTED'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.qrSubtitle}>
+            Connect your Razorpay Linked Account to automatically receive customer payments directly into your bank account.
+          </Text>
+
+          {store?.razorpayAccountId ? (
+            <View style={styles.routeInfoBox}>
+              <Text style={styles.routeInfoText}>
+                <Text style={{ fontWeight: '700' }}>Account ID: </Text>{store.razorpayAccountId}
+              </Text>
+              <Text style={styles.routeInfoText}>
+                <Text style={{ fontWeight: '700' }}>Platform Commission: </Text>{store.commissionPercentage ?? 10}%
+              </Text>
+            </View>
+          ) : null}
+
+          <Field
+            label="Legal Business / Entity Name"
+            value={form.legalBusinessName}
+            onChangeText={v => set('legalBusinessName', v)}
+            placeholder="e.g. John Doe Enterprises"
+            styles={styles}
+            isDark={isDark}
+          />
+          <Field
+            label="Bank Account Number"
+            value={form.bankAccountNumber}
+            onChangeText={v => set('bankAccountNumber', v)}
+            placeholder="Account Number"
+            keyboardType="numeric"
+            styles={styles}
+            isDark={isDark}
+          />
+          <Field
+            label="Bank IFSC Code"
+            value={form.bankIfsc}
+            onChangeText={v => set('bankIfsc', v.toUpperCase())}
+            placeholder="e.g. HDFC0001234"
+            autoCapitalize="characters"
+            styles={styles}
+            isDark={isDark}
+          />
+
+          <TouchableOpacity
+            style={styles.routeBtn}
+            disabled={onboardingRoute}
+            onPress={handleRazorpayOnboard}
+          >
+            {onboardingRoute ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.routeBtnText}>
+                {store?.razorpayAccountId ? 'Sync / Update Razorpay Account' : 'Connect with Razorpay Route'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+          {saving ? <ActivityIndicator color="#fff" /> : saved ? <><CheckCircle size={15} color="#fff" /><Text style={styles.saveBtnText}>Saved!</Text></> : <><Save size={15} color="#fff" /><Text style={styles.saveBtnText}>Save Changes</Text></>}
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-        {saving ? <ActivityIndicator color="#fff" /> : saved ? <><CheckCircle size={15} color="#fff" /><Text style={styles.saveBtnText}>Saved!</Text></> : <><Save size={15} color="#fff" /><Text style={styles.saveBtnText}>Save Changes</Text></>}
-      </TouchableOpacity>
 
       <View style={styles.verificationCard}>
         <Text style={styles.verificationTitle}>Verification Status</Text>
@@ -390,7 +395,7 @@ function Field({
       <Text style={styles.label}>{label}</Text>
       <TextInput
         style={styles.input}
-        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+        placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
         {...props}
       />
     </View>
@@ -461,19 +466,26 @@ const getStyles = (isDark: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
-    sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.md },
-    errorText: { color: isDark ? '#F87171' : CustomerColors.primary, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
-    label: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
-    input: {
+    formCard: {
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.lg,
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      padding: Spacing.lg,
+      marginBottom: Spacing.lg,
+    },
+    sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.md },
+    errorText: { color: isDark ? '#F87171' : CustomerColors.primary, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
+    label: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#D1D5DB' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
+    input: {
+      backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
       borderRadius: BorderRadius.md,
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.md,
       fontSize: FontSizes.sm,
-      color: isDark ? '#F9FAFB' : CustomerColors.black,
-      marginBottom: Spacing.md,
+      color: isDark ? '#FFFFFF' : CustomerColors.black,
     },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.md },
     chip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder },
@@ -491,7 +503,7 @@ const getStyles = (isDark: boolean) =>
       borderWidth: 2,
       borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
       borderStyle: 'dashed',
-      backgroundColor: isDark ? '#111827' : CustomerColors.bg,
+      backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -501,11 +513,10 @@ const getStyles = (isDark: boolean) =>
     saveBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
     verificationCard: {
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
-      borderRadius: BorderRadius.md,
+      borderRadius: BorderRadius.lg,
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
       padding: Spacing.lg,
-      marginTop: Spacing.lg,
     },
     verificationTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.sm },
     verifiedBanner: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', backgroundColor: isDark ? '#064e3b' : CustomerColors.successBg, padding: Spacing.md, borderRadius: BorderRadius.md },
@@ -536,8 +547,8 @@ const getStyles = (isDark: boolean) =>
     // ── SelectField / modal ──
     selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     selectDisabled: { opacity: 0.5 },
-    selectValue: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
-    selectPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#6B7280' : '#9CA3AF', flex: 1 },
+    selectValue: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black, flex: 1 },
+    selectPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#94A3B8' : '#9CA3AF', flex: 1 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalSheet: {
       backgroundColor: isDark ? '#111827' : '#fff',
@@ -561,7 +572,7 @@ const getStyles = (isDark: boolean) =>
     modalItem: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F5F5F5' },
     modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
     modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' },
-    modalEmpty: { textAlign: 'center', color: isDark ? '#6B7280' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
+    modalEmpty: { textAlign: 'center', color: isDark ? '#94A3B8' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
     routeBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.pill, borderWidth: 1 },
     routeBadgeActive: { backgroundColor: isDark ? '#064e3b' : '#F0FDF4', borderColor: isDark ? '#059669' : '#BBF7D0' },
     routeBadgePending: { backgroundColor: isDark ? '#451a03' : '#FFFBEB', borderColor: isDark ? '#78350f' : '#FDE68A' },

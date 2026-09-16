@@ -8,6 +8,12 @@ import { gatewayClient } from './client';
 // this flow never needs a WebView (unlike Checkout's 'phonepe' path).
 export interface SmartOrderCartItem { name: string; quantity: string }
 
+export interface RefundRequest {
+  orderId: string;
+  refundAmount: number;
+  refundNote?: string;
+}
+
 export interface MatchedLine {
   requestedName: string;
   requestedQuantity: string;
@@ -46,6 +52,9 @@ export const smartOrderApi = {
   // for OrdersScreen to merge alongside legacy-monolith cart-checkout orders.
   getMyOrders: (userId: string, email: string) =>
     gatewayClient.get('/api/orders/my-orders', { params: { userId, email } }),
+
+  createRefund: (payload: RefundRequest) =>
+    gatewayClient.post('/api/payment/refund', payload),
 
   matchCart: (
     items: SmartOrderCartItem[],

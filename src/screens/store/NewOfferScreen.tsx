@@ -327,7 +327,7 @@ export default function NewOfferScreen() {
         value={form.description}
         onChangeText={v => set('description', v)}
         placeholder="Describe special discounts, bundled items, or terms…"
-        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+        placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
       />
 
       <View style={styles.row2}>
@@ -515,7 +515,7 @@ function Field({
       <Text style={styles.label}>{label}</Text>
       <TextInput
         style={styles.input}
-        placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+        placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
         {...props}
       />
     </View>
@@ -556,7 +556,7 @@ const getStyles = (isDark: boolean) =>
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.md,
       fontSize: FontSizes.sm,
-      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      color: isDark ? '#FFFFFF' : CustomerColors.black,
     },
     imageBox: {
       width: '100%',
@@ -641,8 +641,8 @@ const getStyles = (isDark: boolean) =>
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    selectValue: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, fontWeight: '600' },
-    selectPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#6B7280' : '#9CA3AF' },
+    selectValue: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black, fontWeight: '600' },
+    selectPlaceholder: { fontSize: FontSizes.sm, color: isDark ? '#94A3B8' : '#6B7280' },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -666,7 +666,7 @@ const getStyles = (isDark: boolean) =>
       borderBottomWidth: 1,
       borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
     },
-    modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
     modalItem: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -677,7 +677,7 @@ const getStyles = (isDark: boolean) =>
       borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
     },
     modalItemActive: { backgroundColor: isDark ? 'rgba(45,212,191,0.1)' : 'rgba(255,0,0,0.05)' },
-    modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, fontWeight: '500' },
+    modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black, fontWeight: '500' },
     modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.primary, fontWeight: '700' },
     successOverlay: {
       flex: 1,

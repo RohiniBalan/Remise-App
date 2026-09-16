@@ -260,7 +260,7 @@ export default function StoreSuppliersScreen() {
               onChangeText={setSearch}
               onSubmitEditing={loadGroups}
               placeholder="Search products…"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
             />
           </View>
 
@@ -576,7 +576,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.md,
   },
-  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
   list: { paddingHorizontal: Spacing.md, paddingBottom: 90 },
   empty: {
     alignItems: 'center',
@@ -604,7 +604,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   title: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
   subText: {
     fontSize: FontSizes.xs,
@@ -647,7 +647,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   orderStore: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
   orderId: { fontSize: FontSizes.xs, color: isDark ? '#6B7280' : '#9CA3AF' },
   statusPill: {
@@ -704,13 +704,13 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
 
   selectValue: {
     fontSize: FontSizes.sm,
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     flex: 1,
   },
 
   selectPlaceholder: {
     fontSize: FontSizes.sm,
-    color: isDark ? '#6B7280' : '#9CA3AF',
+    color: isDark ? '#94A3B8' : '#6B7280',
     flex: 1,
   },
 
@@ -741,7 +741,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   modalTitle: {
     fontSize: FontSizes.base,
     fontWeight: '800',
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
 
   modalItem: {
@@ -753,7 +753,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
 
   modalItemText: {
     fontSize: FontSizes.sm,
-    color: isDark ? '#E5E7EB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
 
   modalItemTextActive: {

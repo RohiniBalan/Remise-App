@@ -1054,7 +1054,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   sectionLabel: {
     fontSize: FontSizes.sm,
     fontWeight: '800',
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     marginBottom: Spacing.md,
   },
   fieldBlock: { marginBottom: Spacing.sm },
@@ -1073,7 +1073,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     fontSize: FontSizes.sm,
-    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
     marginBottom: Spacing.sm,
   },
   textArea: { minHeight: 70, textAlignVertical: 'top' },
@@ -1090,8 +1090,8 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   disabledBtn: { opacity: 0.5, backgroundColor: isDark ? '#111827' : '#F8FAFC' },
-  selectText: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black, fontWeight: '600' },
-  placeholderText: { fontSize: FontSizes.sm, color: isDark ? '#6B7280' : '#9CA3AF' },
+  selectText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black, fontWeight: '600' },
+  placeholderText: { fontSize: FontSizes.sm, color: isDark ? '#94A3B8' : '#9CA3AF' },
   row: { flexDirection: 'row', gap: Spacing.md },
   half: { flex: 1 },
   photosHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
@@ -1125,7 +1125,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addUrlBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  addUrlBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
 
   emptyPhotoBox: {
     borderWidth: 1.5,
@@ -1138,7 +1138,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
     marginVertical: 4,
   },
-  emptyPhotoText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black, marginTop: Spacing.xs },
+  emptyPhotoText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black, marginTop: Spacing.xs },
   emptyPhotoSubtext: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
 
   thumbnailsScroll: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
@@ -1229,9 +1229,9 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: isDark ? '#111827' : '#fff', borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, maxHeight: '75%', paddingBottom: Spacing.xl },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F1F5F9' },
-  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
   modalItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F8FAFC' },
-  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
   modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '800' },
   modalEmpty: { textAlign: 'center', color: isDark ? '#9CA3AF' : '#9CA3AF', fontSize: FontSizes.sm, paddingVertical: Spacing.lg },
 });

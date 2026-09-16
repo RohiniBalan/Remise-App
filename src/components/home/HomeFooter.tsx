@@ -110,11 +110,11 @@ export default function HomeFooter() {
         <Text style={styles.newsletterSubtitle}>Get exclusive deals, new arrivals & offers in your inbox.</Text>
         <View style={styles.newsletterInputRow}>
           <View style={[styles.newsletterInputWrap, hasInputError && styles.newsletterInputWrapError]}>
-            <Mail size={15} color="#CFF3F6" />
+            <Mail size={15} color="#FFFFFF" />
             <TextInput
               style={styles.newsletterInput}
               placeholder="Enter your email"
-              placeholderTextColor="#CFF3F6"
+              placeholderTextColor="#FFFFFF"
               value={email}
               editable={!isSubscribing}
               onChangeText={(text) => {

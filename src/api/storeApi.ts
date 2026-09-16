@@ -40,6 +40,9 @@ export const storeApi = {
   verifyAadhaarDirect: (aadhaarNumber: string, name?: string) =>
     gatewayClient.post('/api/stores/verify/aadhaar/direct', { aadhaarNumber, name }),
 
+  verifyIFSC: (ifsc: string) =>
+    gatewayClient.post('/api/stores/verify/ifsc', { ifsc }),
+
   verifyBankAccount: (accountNumber: string, ifsc: string, name?: string, phone?: string) =>
     gatewayClient.post('/api/stores/verify/bank-account', { accountNumber, ifsc, name, phone }),
 

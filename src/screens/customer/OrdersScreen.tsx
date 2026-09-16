@@ -13,11 +13,19 @@ import {
   Alert,
 } from 'react-native';
 
-import { Search, PackageX, Star, FileText, Download } from 'lucide-react-native';
+import {
+  Search,
+  PackageX,
+  Star,
+  FileText,
+  Download,
+  RotateCcw,
+} from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { orderApi, OrderData } from '../../api/orderApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
+import RefundModal from '../../components/common/RefundModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import {
@@ -47,9 +55,22 @@ interface DisplayItem {
   displayStatus: string;
   orderDate: string;
   deliveryDate: string;
+  totalAmount: number;
 }
 
-function getStatusUI(status: string, orderDate: string, deliveryDate: string, deliveryStatus?: string) {
+function getStatusUI(
+  status: string,
+  orderDate: string,
+  deliveryDate: string,
+  deliveryStatus?: string,
+) {
+  if (status === 'REFUNDED')
+    return {
+      color: CustomerColors.success,
+      text: `Refund initiated on ${orderDate}`,
+      subText:
+        'Razorpay is processing the refund to your original payment method.',
+    };
   if (status === 'Delivered' || deliveryStatus === 'Delivered')
     return {
       color: CustomerColors.success,
@@ -93,7 +114,6 @@ function getStatusUI(status: string, orderDate: string, deliveryDate: string, de
   };
 }
 
-
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -102,7 +122,15 @@ export default function OrdersScreen() {
   const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
-  const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState<string | null>(null);
+  const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState<
+    string | null
+  >(null);
+  const [selectedRefund, setSelectedRefund] = useState<{
+    orderId: string;
+    totalAmount: number;
+  } | null>(null);
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [refundError, setRefundError] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -128,13 +156,15 @@ export default function OrdersScreen() {
 
           // Deduplicate orders by orderId / _id
           const seenOrderIds = new Set<string>();
-          const uniqueOrders = [...legacyOrders, ...smartOrders].filter(order => {
-            const id = order.orderId || order._id || (order as any).id;
-            if (!id) return true;
-            if (seenOrderIds.has(id)) return false;
-            seenOrderIds.add(id);
-            return true;
-          });
+          const uniqueOrders = [...legacyOrders, ...smartOrders].filter(
+            order => {
+              const id = order.orderId || order._id || (order as any).id;
+              if (!id) return true;
+              if (seenOrderIds.has(id)) return false;
+              seenOrderIds.add(id);
+              return true;
+            },
+          );
 
           const merged = uniqueOrders.sort(
             (a, b) =>
@@ -167,6 +197,43 @@ export default function OrdersScreen() {
     }, [user]),
   );
 
+  const handleRefund = async (amount: number, note: string) => {
+    if (!selectedRefund) return;
+    setIsRefunding(true);
+    setRefundError('');
+    try {
+      const response = await smartOrderApi.createRefund({
+        orderId: selectedRefund.orderId,
+        refundAmount: amount,
+        refundNote: note,
+      });
+      if (!response.data?.success)
+        throw new Error(
+          response.data?.message || 'Refund could not be initiated.',
+        );
+      setOrders(prev =>
+        prev.map(order =>
+          (order.orderId || order._id) === selectedRefund.orderId
+            ? { ...order, paymentStatus: 'REFUNDED' }
+            : order,
+        ),
+      );
+      setSelectedRefund(null);
+      Alert.alert(
+        'Refund initiated',
+        `Rs ${amount.toLocaleString()} will be processed by Razorpay normally. It usually reaches the original payment method within 5-7 working days.`,
+      );
+    } catch (error: any) {
+      setRefundError(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Refund could not be initiated.',
+      );
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
   const displayItems: DisplayItem[] = useMemo(() => {
     return orders.flatMap((order, orderIdx) =>
       (order.items || []).map((item, idx) => {
@@ -196,11 +263,11 @@ export default function OrdersScreen() {
           displayStatus: order.orderStatus || 'Processing',
           orderDate: fmt(orderDateObj),
           deliveryDate: fmt(deliveryDateObj),
+          totalAmount: order.totalAmount,
         };
       }),
     );
   }, [orders]);
-
 
   const toggleStatus = (status: string) =>
     setStatusFilters(prev =>
@@ -318,9 +385,11 @@ export default function OrdersScreen() {
                   <Text style={styles.statusText}>{statusUI.text}</Text>
                 </View>
                 <Text style={styles.statusSub}>{statusUI.subText}</Text>
-                
+
                 <View style={styles.actionRow}>
-                  {(item.paymentStatus === 'SUCCESS' || item.paymentMethod === 'cod' || item.paymentMethod === 'cash') && (
+                  {(item.paymentStatus === 'SUCCESS' ||
+                    item.paymentMethod === 'cod' ||
+                    item.paymentMethod === 'cash') && (
                     <View style={styles.invoiceRow}>
                       <TouchableOpacity
                         style={styles.invoiceBtn}
@@ -333,11 +402,16 @@ export default function OrdersScreen() {
                       <TouchableOpacity
                         style={styles.pdfBtn}
                         onPress={async () => {
-                          const url = smartOrderApi.getInvoicePdfUrl(item.orderId);
+                          const url = smartOrderApi.getInvoicePdfUrl(
+                            item.orderId,
+                          );
                           try {
                             await Linking.openURL(url);
                           } catch {
-                            Alert.alert('Download', 'Could not open invoice download.');
+                            Alert.alert(
+                              'Download',
+                              'Could not open invoice download.',
+                            );
                           }
                         }}
                       >
@@ -347,6 +421,22 @@ export default function OrdersScreen() {
                     </View>
                   )}
 
+                  {item.paymentStatus === 'SUCCESS' &&
+                    item.paymentMethod?.toLowerCase() === 'razorpay' && (
+                      <TouchableOpacity
+                        style={styles.refundBtn}
+                        onPress={() => {
+                          setRefundError('');
+                          setSelectedRefund({
+                            orderId: item.orderId,
+                            totalAmount: item.totalAmount,
+                          });
+                        }}
+                      >
+                        <RotateCcw size={13} color="#C2410C" />
+                        <Text style={styles.refundBtnText}>Refund</Text>
+                      </TouchableOpacity>
+                    )}
 
                   {item.displayStatus === 'Delivered' && (
                     <TouchableOpacity style={styles.reviewBtn}>
@@ -374,10 +464,21 @@ export default function OrdersScreen() {
           onClose={() => setSelectedInvoiceOrderId(null)}
         />
       ) : null}
+      {selectedRefund ? (
+        <RefundModal
+          visible={!!selectedRefund}
+          totalAmount={selectedRefund.totalAmount}
+          isSubmitting={isRefunding}
+          error={refundError}
+          onClose={() => {
+            if (!isRefunding) setSelectedRefund(null);
+          }}
+          onSubmit={handleRefund}
+        />
+      ) : null}
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F3F6' },
@@ -534,5 +635,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
+  refundBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  refundBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#C2410C',
+  },
 });
-

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
-import { ShoppingBag, RefreshCw } from 'lucide-react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator, Modal } from 'react-native';
+import { ShoppingBag, RefreshCw, Truck, ChevronDown, X, Check } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { sellerOrderApi } from '../../api/sellerApi';
@@ -9,6 +9,8 @@ import PaginationControl from '../../components/common/PaginationControl';
 import { useTheme } from '../../context/ThemeContext';
 
 const ORDER_STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'] as const;
+const DELIVERY_STATUSES = ['Pending', 'Assigned', 'Accepted', 'Ready', 'Picked Up', 'Out for Delivery', 'Delivered', 'Cancelled'] as const;
+
 const STATUS_STYLE: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
   Processing: { bg: '#FFFBEB', fg: '#B45309', darkBg: 'rgba(217, 119, 6, 0.15)', darkFg: '#FBBF24' },
   Shipped: { bg: '#EFF6FF', fg: '#1D4ED8', darkBg: 'rgba(37, 99, 235, 0.15)', darkFg: '#60A5FA' },
@@ -23,6 +25,7 @@ export default function SellerOrdersScreen() {
   const [filter, setFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [deliveryModalOrder, setDeliveryModalOrder] = useState<any | null>(null);
 
   const ITEMS_PER_PAGE = 30;
 
@@ -53,6 +56,19 @@ export default function SellerOrdersScreen() {
       await refresh();
     } catch {
       Alert.alert('Failed', 'Could not update order status.');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleDeliveryStatus = async (orderId: string, status: string) => {
+    setUpdating(orderId);
+    setDeliveryModalOrder(null);
+    try {
+      await sellerOrderApi.updateDeliveryStatus(orderId, status);
+      await refresh();
+    } catch {
+      Alert.alert('Failed', 'Could not update delivery status.');
     } finally {
       setUpdating(null);
     }
@@ -98,6 +114,7 @@ export default function SellerOrdersScreen() {
           const st = STATUS_STYLE[o.orderStatus] || { bg: '#F3F4F6', fg: '#4B5563', darkBg: '#1F2937', darkFg: '#9CA3AF' };
           const badgeBg = isDark ? st.darkBg : st.bg;
           const badgeFg = isDark ? st.darkFg : st.fg;
+          const currentDeliveryStatus = o.deliveryStatus || (o.orderStatus === 'Delivered' ? 'Delivered' : 'Pending');
           return (
             <View style={styles.card}>
               <View style={styles.cardTop}>
@@ -108,6 +125,10 @@ export default function SellerOrdersScreen() {
                     </Text>
                     <View style={[styles.statusBadge, { backgroundColor: badgeBg }]}>
                       <Text style={[styles.statusBadgeText, { color: badgeFg }]}>{o.orderStatus}</Text>
+                    </View>
+                    <View style={[styles.deliveryBadge]}>
+                      <Truck size={10} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                      <Text style={styles.deliveryBadgeText}>{currentDeliveryStatus}</Text>
                     </View>
                   </View>
                   <Text style={styles.email}>{(o as any).user?.email || (o as any).shippingAddress?.phone}</Text>
@@ -133,17 +154,32 @@ export default function SellerOrdersScreen() {
 
               <View style={styles.cardBottom}>
                 <Text style={styles.orderShortId}>#{o._id.slice(-6).toUpperCase()}</Text>
-                <View style={styles.statusPicker}>
-                  {ORDER_STATUSES.map(s => (
-                    <TouchableOpacity
-                      key={s}
-                      disabled={updating === o._id}
-                      onPress={() => handleStatus(o._id, s)}
-                      style={[styles.statusOption, o.orderStatus === s && { backgroundColor: CustomerColors.teal600 }]}
-                    >
-                      <Text style={[styles.statusOptionText, o.orderStatus === s && { color: '#fff' }]}>{s}</Text>
-                    </TouchableOpacity>
-                  ))}
+                
+                <View style={styles.actionsContainer}>
+                  {/* Delivery Status Dropdown / Trigger */}
+                  <TouchableOpacity
+                    style={styles.deliveryPickerBtn}
+                    onPress={() => setDeliveryModalOrder(o)}
+                    disabled={updating === o._id}
+                  >
+                    <Truck size={11} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    <Text style={styles.deliveryPickerBtnText}>{currentDeliveryStatus}</Text>
+                    <ChevronDown size={11} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  </TouchableOpacity>
+
+                  {/* Order Status Options */}
+                  <View style={styles.statusPicker}>
+                    {ORDER_STATUSES.map(s => (
+                      <TouchableOpacity
+                        key={s}
+                        disabled={updating === o._id}
+                        onPress={() => handleStatus(o._id, s)}
+                        style={[styles.statusOption, o.orderStatus === s && { backgroundColor: CustomerColors.teal600 }]}
+                      >
+                        <Text style={[styles.statusOptionText, o.orderStatus === s && { color: '#fff' }]}>{s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
                 {updating === o._id && <ActivityIndicator size="small" color={CustomerColors.teal600} />}
               </View>
@@ -151,6 +187,53 @@ export default function SellerOrdersScreen() {
           );
         }}
       />
+
+      {/* Delivery Status Picker Modal */}
+      {deliveryModalOrder && (
+        <Modal
+          visible={!!deliveryModalOrder}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setDeliveryModalOrder(null)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setDeliveryModalOrder(null)}
+          >
+            <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Truck size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                  <Text style={styles.modalTitle}>Update Delivery Status</Text>
+                </View>
+                <TouchableOpacity onPress={() => setDeliveryModalOrder(null)}>
+                  <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={DELIVERY_STATUSES}
+                keyExtractor={item => item}
+                renderItem={({ item }) => {
+                  const currentSt = deliveryModalOrder.deliveryStatus || (deliveryModalOrder.orderStatus === 'Delivered' ? 'Delivered' : 'Pending');
+                  const isSelected = currentSt === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.modalItem, isSelected && styles.modalItemActive]}
+                      onPress={() => handleDeliveryStatus(deliveryModalOrder.orderId || deliveryModalOrder._id, item)}
+                    >
+                      <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>
+                        {item}
+                      </Text>
+                      {isSelected && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -170,7 +253,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   filterChipText: { fontSize: 11, fontWeight: '700', color: isDark ? '#9CA3AF' : '#4B5563' },
   filterChipTextActive: { color: '#fff' },
   emptyBox: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: 6 },
-  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#F9FAFB' : '#374151' },
+  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#FFFFFF' : '#374151' },
   emptySub: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : '#9CA3AF', textAlign: 'center' },
   card: {
     backgroundColor: isDark ? '#111827' : '#fff',
@@ -180,10 +263,12 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     padding: Spacing.md,
   },
   cardTop: { flexDirection: 'row', gap: Spacing.sm },
-  orderIdRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  orderId: { fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, fontSize: FontSizes.sm },
+  orderIdRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  orderId: { fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black, fontSize: FontSizes.sm },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
   statusBadgeText: { fontSize: 9, fontWeight: '700' },
+  deliveryBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: isDark ? 'rgba(45,212,191,0.15)' : '#F0FDFA', borderWidth: 1, borderColor: isDark ? '#115E59' : '#CCFBF1', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
+  deliveryBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   email: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 },
   itemLine: { fontSize: 11, color: isDark ? '#D1D5DB' : '#6B7280', marginTop: 2 },
   date: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF', marginTop: 4 },
@@ -191,15 +276,30 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   cardBottom: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: isDark ? '#1F2937' : '#F5F5F5',
+    flexWrap: 'wrap',
   },
   orderShortId: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF' },
-  statusPicker: { flexDirection: 'row', gap: 4, flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  statusOption: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: isDark ? '#1F2937' : '#F5F5F5' },
+  actionsContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', flex: 1 },
+  deliveryPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: isDark ? '#1F2937' : '#F0FDFA',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#CCFBF1',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.sm,
+  },
+  deliveryPickerBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+  statusPicker: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  statusOption: { paddingHorizontal: 7, paddingVertical: 5, borderRadius: 8, backgroundColor: isDark ? '#1F2937' : '#F5F5F5' },
   statusOptionText: { fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : '#4B5563' },
   settlementBox: {
     backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
@@ -212,4 +312,12 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     alignSelf: 'flex-start',
   },
   settlementText: { fontSize: 10, color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: isDark ? '#111827' : '#fff', borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, maxHeight: '75%', paddingBottom: Spacing.xl },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F1F5F9' },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
+  modalItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#F8FAFC' },
+  modalItemActive: { backgroundColor: isDark ? 'rgba(45,212,191,0.1)' : '#F0FDFA' },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
+  modalItemTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '800' },
 });

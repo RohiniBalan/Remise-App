@@ -40,6 +40,11 @@ export default function StoreSupplierCompareScreen() {
   };
 
   const s = group.suppliers[carouselIndex];
+  const model = s?.attributes?.model || s?.attributes?.modelName || s?.attributes?.modelNumber || s?.attributes?.Model || s?.specifications?.find((sp: any) => sp.label?.toLowerCase().includes('model'))?.value || '';
+  const desc = s?.description || group.description || '';
+  const brand = s?.brand || group.brand || '';
+  const subcategory = s?.subcategory || group.subcategory || '';
+  const specs = (s?.specifications && s.specifications.length > 0) ? s.specifications : (group.specifications || []);
 
   return (
     <View style={styles.container}>
@@ -55,7 +60,7 @@ export default function StoreSupplierCompareScreen() {
       </View>
 
       <View style={styles.body}>
-        {!selected && total > 0 && (
+        {!selected && total > 0 && s && (
           <View style={styles.carouselRow}>
             <TouchableOpacity style={styles.arrowBtn} onPress={goPrev} disabled={total <= 1}>
               <ChevronLeft size={18} color={total <= 1 ? (isDark ? '#4B5563' : '#D1D5DB') : (isDark ? '#9CA3AF' : CustomerColors.textSecondary)} />
@@ -69,15 +74,63 @@ export default function StoreSupplierCompareScreen() {
                     {carouselIndex === 0 && (
                       <View style={styles.bestBadge}><Text style={styles.bestBadgeText}>Best price</Text></View>
                     )}
-                    <Text style={styles.metaText}>MOQ: {s.moq} units · Stock: {s.totalStock}</Text>
                   </View>
                   <Text style={styles.price}>₹{s.price}</Text>
                 </View>
 
+                {/* Details Grid */}
+                <View style={{ marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : CustomerColors.steelBorder, gap: 4 }}>
+                  {brand ? (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700' }}>BRAND</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>{brand}</Text>
+                    </View>
+                  ) : null}
+                  {model ? (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700' }}>MODEL</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>{model}</Text>
+                    </View>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700' }}>CATEGORY</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#ffffff' : '#000000' }}>{group.category}{subcategory ? ` • ${subcategory}` : ''}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700' }}>STOCK / MOQ</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#ffffff' : '#000000' }}>Stock: {s.totalStock} · MOQ: {s.moq}</Text>
+                  </View>
+                </View>
+
+                {/* Description */}
+                {desc ? (
+                  <View style={{ marginTop: 8, padding: 8, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 2 }}>Description</Text>
+                    <Text style={{ fontSize: 11, color: isDark ? '#ffffff' : '#000000', lineHeight: 16 }} numberOfLines={3}>{desc}</Text>
+                  </View>
+                ) : null}
+
+                {/* Specifications */}
+                {specs && specs.length > 0 && (
+                  <View style={{ marginTop: 6, padding: 8, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 4 }}>Specifications</Text>
+                    {specs.slice(0, 3).map((sp: any, i: number) => (
+                      <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+                        <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}>{sp.label}:</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#ffffff' : '#000000' }}>{sp.value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Bulk Pricing */}
                 {s.bulkPricing?.length > 0 && (
-                  <View style={{ marginTop: 6 }}>
+                  <View style={{ marginTop: 6, padding: 6, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#134e4a' : '#F0FDFA' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, textTransform: 'uppercase' }}>Wholesale Bulk Tiers</Text>
                     {s.bulkPricing.map((t, i) => (
-                      <Text key={i} style={styles.tierText}>{t.minQty}+ units — ₹{t.price}</Text>
+                      <Text key={i} style={{ fontSize: 11, color: isDark ? '#ffffff' : '#000000', fontWeight: '600', marginTop: 2 }}>
+                        {t.minQty}+ units — ₹{t.price}
+                      </Text>
                     ))}
                   </View>
                 )}
@@ -92,7 +145,7 @@ export default function StoreSupplierCompareScreen() {
                       onPress={() => navigation.navigate('ProductDetail', { productId: s.productId })}
                     >
                       <Eye size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                      <Text style={{ fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black }}>Details</Text>
+                      <Text style={{ fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>Details</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -121,6 +174,16 @@ export default function StoreSupplierCompareScreen() {
             <View style={styles.selectedBox}>
               <Text style={styles.storeName}>{selected.storeName}</Text>
               <Text style={styles.metaText}>MOQ: {selected.moq} units · Stock: {selected.totalStock}</Text>
+              {(selected.brand || group.brand) && (
+                <Text style={{ fontSize: 12, color: isDark ? '#ffffff' : '#000000', marginTop: 4 }}>
+                  Brand: <Text style={{ fontWeight: '700' }}>{selected.brand || group.brand}</Text>
+                </Text>
+              )}
+              {(selected.description || group.description) && (
+                <Text style={{ fontSize: 12, color: isDark ? '#ffffff' : '#000000', marginTop: 4 }} numberOfLines={2}>
+                  {selected.description || group.description}
+                </Text>
+              )}
             </View>
 
             <Text style={styles.qtyLabel}>Quantity</Text>
@@ -167,7 +230,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   header: { backgroundColor: isDark ? '#111827' : '#DFF1F1', padding: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : CustomerColors.steelBorder },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.sm },
   backText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
-  headerTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  headerTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#ffffff' : '#000000' },
   headerSub: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
   body: { padding: Spacing.lg },
   carouselRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
@@ -176,7 +239,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   card: { borderWidth: 1, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder, backgroundColor: isDark ? '#111827' : CustomerColors.white, borderRadius: BorderRadius.md, padding: Spacing.md },
   cardBest: { borderColor: isDark ? '#0f766e' : CustomerColors.teal600, backgroundColor: isDark ? '#134e4a' : '#F0FDFA' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
-  storeName: { fontSize: FontSizes.base, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  storeName: { fontSize: FontSizes.base, fontWeight: '700', color: isDark ? '#ffffff' : '#000000' },
   bestBadge: { alignSelf: 'flex-start', backgroundColor: isDark ? '#115e59' : '#CCFBF1', borderRadius: BorderRadius.pill, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 },
   bestBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   metaText: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#9CA3AF', marginTop: 6 },
@@ -193,10 +256,10 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   qtyRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, borderRadius: BorderRadius.sm, alignSelf: 'flex-start', backgroundColor: isDark ? '#1F2937' : CustomerColors.white },
   qtyBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   qtyBtnText: { fontSize: FontSizes.lg, color: isDark ? '#F9FAFB' : CustomerColors.textSecondary },
-  qtyValue: { width: 50, textAlign: 'center', fontWeight: '700', fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+  qtyValue: { width: 50, textAlign: 'center', fontWeight: '700', fontSize: FontSizes.sm, color: isDark ? '#ffffff' : '#000000' },
   tierLabel: { fontSize: FontSizes.xs, color: isDark ? '#2DD4BF' : CustomerColors.teal600, fontWeight: '600', marginTop: 6 },
   subtotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F5F5F5', paddingTop: Spacing.sm, marginTop: Spacing.md },
-  subtotalLabel: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  subtotalLabel: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#ffffff' : '#000000' },
   subtotalValue: { fontSize: FontSizes.lg, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   actionsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
   backSmallBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, backgroundColor: isDark ? '#1F2937' : CustomerColors.bg, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder },

@@ -87,7 +87,7 @@ export async function lookupPincode(cityName: string): Promise<string | null> {
 
 const styles = StyleSheet.create({
   label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm },
+  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm, color: CustomerColors.black },
   selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   selectDisabled: { opacity: 0.5 },
   selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },

@@ -40,6 +40,7 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { requireAuthForPurchase } from '../../utils/authGuard';
 
 const emptyAddress = (): AddressData => ({
@@ -56,6 +57,7 @@ const emptyAddress = (): AddressData => ({
 
 export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
+  const { isDark } = useTheme();
   const { user, token } = useAuth();
   const {
     cart,
@@ -185,10 +187,10 @@ export default function CheckoutScreen() {
 
   if (itemsToCheckout.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, isDark && { backgroundColor: '#0a0f1d' }]}>
         <BrandHeader />
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>There is nothing to checkout.</Text>
+          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>There is nothing to checkout.</Text>
           <TouchableOpacity
             style={styles.emptyBtn}
             onPress={() =>
@@ -203,11 +205,11 @@ export default function CheckoutScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: '#0a0f1d' }]}>
       <BrandHeader />
 
       {/* Header bar */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, isDark && { backgroundColor: '#111827', borderBottomColor: '#1F2937' }]}>
         <TouchableOpacity
           onPress={() => {
             setBuyNowItem(null);
@@ -215,21 +217,21 @@ export default function CheckoutScreen() {
           }}
           style={styles.backBtn}
         >
-          <ChevronLeft size={20} color={CustomerColors.black} />
+          <ChevronLeft size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-            <Text style={styles.headerTitle}>Secure Checkout</Text>
+            <Text style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}>Secure Checkout</Text>
             {buyNowItem ? (
-              <View style={styles.buyNowPill}>
-                <Text style={styles.buyNowPillText}>BUY NOW</Text>
+              <View style={[styles.buyNowPill, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)', borderColor: '#006D77' }]}>
+                <Text style={[styles.buyNowPillText, isDark && { color: '#5EEAD4' }]}>BUY NOW</Text>
               </View>
             ) : null}
           </View>
         </View>
-        <View style={styles.sslBadge}>
-          <ShieldCheck size={12} color={CustomerColors.teal700} />
-          <Text style={styles.sslBadgeText}>256-Bit SSL</Text>
+        <View style={[styles.sslBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.15)', borderColor: 'rgba(15, 163, 177, 0.3)' }]}>
+          <ShieldCheck size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
+          <Text style={[styles.sslBadgeText, isDark && { color: '#5EEAD4' }]}>256-Bit SSL</Text>
         </View>
       </View>
 
@@ -245,48 +247,48 @@ export default function CheckoutScreen() {
         ) : null}
 
         {/* 1. Order Items Summary */}
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Order Summary</Text>
-            <Text style={styles.itemCountText}>
+            <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>Order Summary</Text>
+            <Text style={[styles.itemCountText, isDark && { color: '#5EEAD4' }]}>
               {itemsToCheckout.length} item{itemsToCheckout.length !== 1 ? 's' : ''}
             </Text>
           </View>
 
           {itemsToCheckout.map(item => (
-            <View key={item.id} style={styles.lineItem}>
+            <View key={item.id} style={[styles.lineItem, isDark && { borderBottomColor: '#1F2937' }]}>
               <Image
                 source={{ uri: item.image ?? undefined }}
-                style={styles.lineImage}
+                style={[styles.lineImage, isDark && { backgroundColor: '#1F2937' }]}
               />
               <View style={styles.lineInfo}>
-                <Text style={styles.lineTitle} numberOfLines={2}>
+                <Text style={[styles.lineTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={2}>
                   {item.title}
                 </Text>
                 <View style={styles.lineBottomRow}>
-                  <View style={styles.qtyStepper}>
+                  <View style={[styles.qtyStepper, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
                     <TouchableOpacity
                       style={styles.qtyBtn}
                       onPress={() => decreaseQuantity(item.id)}
                     >
-                      <Minus size={12} color={CustomerColors.teal700} />
+                      <Minus size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
                     </TouchableOpacity>
-                    <Text style={styles.qtyValue}>{item.quantity}</Text>
+                    <Text style={[styles.qtyValue, isDark && { color: '#FFFFFF' }]}>{item.quantity}</Text>
                     <TouchableOpacity
                       style={styles.qtyBtn}
                       onPress={() => addToCart(item)}
                     >
-                      <Plus size={12} color={CustomerColors.teal700} />
+                      <Plus size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.linePrice}>
+                  <Text style={[styles.linePrice, isDark && { color: '#2DD4BF' }]}>
                     ₹{(item.price * item.quantity).toLocaleString()}
                   </Text>
                   <TouchableOpacity
                     onPress={() => removeFromCart(item.id)}
                     style={{ marginLeft: Spacing.sm }}
                   >
-                    <Trash2 size={15} color="#9CA3AF" />
+                    <Trash2 size={15} color={isDark ? '#6B7280' : '#9CA3AF'} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -295,38 +297,38 @@ export default function CheckoutScreen() {
 
           <View style={styles.priceStrip}>
             <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Subtotal</Text>
-              <Text style={styles.priceValue}>₹{subtotal.toLocaleString()}</Text>
+              <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>Subtotal</Text>
+              <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>₹{subtotal.toLocaleString()}</Text>
             </View>
             <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Delivery</Text>
-              <Text style={[styles.priceValue, { color: '#15803D' }]}>FREE</Text>
+              <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>Delivery</Text>
+              <Text style={[styles.priceValue, { color: isDark ? '#4ADE80' : '#15803D' }]}>FREE</Text>
             </View>
-            <View style={[styles.priceRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total Payable</Text>
-              <Text style={styles.totalValue}>₹{subtotal.toLocaleString()}</Text>
+            <View style={[styles.priceRow, styles.totalRow, isDark && { borderTopColor: '#1F2937' }]}>
+              <Text style={[styles.totalLabel, isDark && { color: '#FFFFFF' }]}>Total Payable</Text>
+              <Text style={[styles.totalValue, isDark && { color: '#2DD4BF' }]}>₹{subtotal.toLocaleString()}</Text>
             </View>
           </View>
         </View>
 
         {/* 2. Contact Information */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>1. Contact Information</Text>
-          <Text style={styles.inputLabel}>Email Address *</Text>
+        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>1. Contact Information</Text>
+          <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>Email Address *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
             value={contactEmail}
             onChangeText={setContactEmail}
             placeholder="e.g. yourname@example.com"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
             keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
 
         {/* 3. Delivery Address */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>2. Delivery Address</Text>
+        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>2. Delivery Address</Text>
           <AddressFormFields
             data={shippingAddress}
             onChange={(field, v) =>
@@ -336,20 +338,25 @@ export default function CheckoutScreen() {
         </View>
 
         {/* 4. Payment Method */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>3. Payment Method</Text>
+        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>3. Payment Method</Text>
 
           {/* 1. Razorpay */}
           <TouchableOpacity
             style={[
               styles.paymentCard,
-              paymentMethod === 'razorpay' && styles.paymentCardActive,
+              isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+              paymentMethod === 'razorpay' &&
+                (isDark
+                  ? { borderColor: '#0D9488', backgroundColor: 'rgba(15, 163, 177, 0.12)' }
+                  : styles.paymentCardActive),
             ]}
             onPress={() => setPaymentMethod('razorpay')}
           >
             <View
               style={[
                 styles.radio,
+                isDark && { borderColor: '#6B7280' },
                 paymentMethod === 'razorpay' && styles.radioActive,
               ]}
             >
@@ -357,29 +364,35 @@ export default function CheckoutScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-                <Text style={styles.paymentTitle}>Online Payment (Razorpay)</Text>
+                <Text style={[styles.paymentTitle, isDark && { color: '#FFFFFF' }]}>Online Payment (Razorpay)</Text>
                 <View style={styles.instantTag}>
                   <Text style={styles.instantTagText}>INSTANT</Text>
                 </View>
               </View>
-              <Text style={styles.paymentSubtitle}>
+              <Text style={[styles.paymentSubtitle, isDark && { color: '#9CA3AF' }]}>
                 UPI, Debit/Credit Cards, Net Banking & Wallets
               </Text>
             </View>
-            <CreditCard size={18} color={CustomerColors.teal600} />
+            <CreditCard size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
           </TouchableOpacity>
         </View>
 
         {/* 5. Billing Address */}
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
           <TouchableOpacity
             style={[styles.checkboxRow]}
             onPress={() => setBillingSameAsShipping(!billingSameAsShipping)}
           >
-            <View style={[styles.checkbox, billingSameAsShipping && styles.checkboxActive]}>
+            <View
+              style={[
+                styles.checkbox,
+                isDark && { backgroundColor: '#1F2937', borderColor: '#4B5563' },
+                billingSameAsShipping && styles.checkboxActive,
+              ]}
+            >
               {billingSameAsShipping && <Check size={12} color="#fff" strokeWidth={3} />}
             </View>
-            <Text style={styles.checkboxText}>Billing address same as shipping</Text>
+            <Text style={[styles.checkboxText, isDark && { color: '#E5E7EB' }]}>Billing address same as shipping</Text>
           </TouchableOpacity>
 
           {!billingSameAsShipping && (

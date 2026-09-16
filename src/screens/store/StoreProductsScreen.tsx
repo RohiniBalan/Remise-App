@@ -157,7 +157,7 @@ export default function StoreProductsScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder="Search products…"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
         </View>
         <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalType('single')} disabled={scanning}>
@@ -290,7 +290,7 @@ const getStyles = (isDark: boolean) =>
       borderRadius: BorderRadius.md,
       paddingHorizontal: Spacing.md,
     },
-    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#F9FAFB' : CustomerColors.black },
+    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
     scanBtn: { width: 40, height: 40, borderRadius: BorderRadius.md, backgroundColor: CustomerColors.teal600, alignItems: 'center', justifyContent: 'center' },
     addBtn: { width: 40, height: 40, borderRadius: BorderRadius.md, backgroundColor: CustomerColors.primary, alignItems: 'center', justifyContent: 'center' },
     list: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
