@@ -354,6 +354,20 @@ export default function ProductDetailScreen() {
     );
   }
 
+  const handleBackToProducts = () => {
+    if (product?.category) {
+      navigation.navigate('Categories', {
+        screen: 'CategoryProducts',
+        params: { category: product.category },
+      });
+    } else {
+      navigation.navigate('Categories', {
+        screen: 'CategoryProducts',
+        params: { category: 'all' },
+      });
+    }
+  };
+
   if (!product) {
     return (
       <View style={styles.center}>
@@ -361,7 +375,7 @@ export default function ProductDetailScreen() {
         <Text style={styles.notFoundSubtitle}>This item no longer exists.</Text>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => navigation.goBack()}
+          onPress={handleBackToProducts}
         >
           <Text style={styles.backBtnText}>Return to Shop</Text>
         </TouchableOpacity>
@@ -441,9 +455,9 @@ export default function ProductDetailScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerBtn}
-          onPress={() => navigation.goBack()}
+          onPress={handleBackToProducts}
           activeOpacity={0.7}
-          accessibilityLabel="Go back"
+          accessibilityLabel="Back to products"
         >
           <ArrowLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>

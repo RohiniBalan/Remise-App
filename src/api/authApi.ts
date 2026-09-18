@@ -38,7 +38,13 @@ export const authApi = {
   resendVerification: (email: string) =>
     gatewayClient.post('/api/auth/resend-verification', { email }),
 
-  verifyEmail: (token: string) => gatewayClient.get(`/api/auth/verify-email/${token}`),
+  verifyEmail: (codeOrToken: string, email?: string) => {
+    const is6DigitCode = /^\d{6}$/.test(codeOrToken.trim());
+    if (is6DigitCode) {
+      return gatewayClient.post('/api/auth/verify-email', { code: codeOrToken.trim(), email: email?.trim() });
+    }
+    return gatewayClient.get(`/api/auth/verify-email/${codeOrToken.trim()}`);
+  },
 
   forgotPassword: (email: string) =>
     gatewayClient.post('/api/auth/forgot-password', { email }),
@@ -66,9 +72,9 @@ export const authApi = {
 
 // Same role -> destination mapping as web's redirectDestination() in
 // login/page.tsx and the inline mapping in verify-email/[token]/page.tsx.
-export function redirectDestination(role?: string): 'Admin' | 'StoreOwner' | 'Customer' {
+export function redirectDestination(role?: string): 'Admin' | 'StoreOwner' | 'User' {
   if (role === 'admin') return 'Admin';
   if (role === 'store_owner') return 'StoreOwner';
-  return 'Customer';
+  return 'User';
 }
 

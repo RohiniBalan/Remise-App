@@ -15,12 +15,12 @@ const ROLE_FILTERS = [
   { value: 'store_owner', label: 'Store Owners' },
   { value: 'wholesaler', label: 'Wholesalers' },
   { value: 'home_business', label: 'Home Business' },
-  { value: 'customer', label: 'Customers' },
+  { value: 'user', label: 'Users' },
 ];
 
 const AVAILABLE_ROLES = [
   { value: 'admin', label: 'Admin (Full Access)' },
-  { value: 'customer', label: 'Customer' },
+  { value: 'user', label: 'User' },
   { value: 'store_owner', label: 'Store Owner' },
   { value: 'wholesaler', label: 'Wholesaler' },
   { value: 'home_business', label: 'Home Business' },
@@ -145,10 +145,10 @@ export default function AdminUsersScreen() {
     return users.filter(u => {
       // Role Filter
       if (selectedRoleFilter !== 'all') {
-        const r = (u.role || 'customer').toLowerCase();
+        const r = (u.role || 'user').toLowerCase();
         if (selectedRoleFilter === 'wholesaler' && (r === 'wholesaler' || r === 'whole_saler')) {
           // match
-        } else if (selectedRoleFilter === 'customer' && (r === 'customer' || r === 'user')) {
+        } else if (selectedRoleFilter === 'user' && (r === 'user' || r === 'customer')) {
           // match
         } else if (r !== selectedRoleFilter) {
           return false;
@@ -175,14 +175,14 @@ export default function AdminUsersScreen() {
   );
 
   const roleCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: users.length, admin: 0, store_owner: 0, wholesaler: 0, home_business: 0, customer: 0 };
+    const counts: Record<string, number> = { all: users.length, admin: 0, store_owner: 0, wholesaler: 0, home_business: 0, user: 0 };
     users.forEach(u => {
-      const r = (u.role || 'customer').toLowerCase();
+      const r = (u.role || 'user').toLowerCase();
       if (r === 'admin') counts.admin++;
       else if (r === 'store_owner') counts.store_owner++;
       else if (r === 'wholesaler' || r === 'whole_saler') counts.wholesaler++;
       else if (r === 'home_business') counts.home_business++;
-      else counts.customer++;
+      else counts.user++;
     });
     return counts;
   }, [users]);
@@ -292,7 +292,7 @@ export default function AdminUsersScreen() {
                 >
                   {isAdmin ? <Shield size={10} color="#7C3AED" /> : <ShieldCheck size={10} color="#059669" />}
                   <Text style={[styles.roleBadgeText, isAdmin && styles.roleBadgeTextAdmin]}>
-                    {u.role || 'customer'}
+                    {u.role || 'user'}
                   </Text>
                   <Text style={styles.roleChangeHint}>· change</Text>
                 </TouchableOpacity>
