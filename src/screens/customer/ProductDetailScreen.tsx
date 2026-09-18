@@ -187,6 +187,27 @@ export default function ProductDetailScreen() {
     return String(product?._id || product?.id || routeProductId || '');
   }, [product, routeProductId]);
 
+  const dynamicRating = useMemo(() => {
+    if (reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+      return sum / reviews.length;
+    }
+    if (reviewStats.totalReviews > 0) {
+      return reviewStats.averageRating;
+    }
+    if (product?.price && (product as any).rating != null && (product as any).rating > 0) {
+      return (product as any).rating;
+    }
+    return 0;
+  }, [reviews, reviewStats, product]);
+
+  const dynamicReviewCount = useMemo(() => {
+    if (reviews.length > 0) return reviews.length;
+    if (reviewStats.totalReviews > 0) return reviewStats.totalReviews;
+    if ((product as any)?.numReviews != null && (product as any).numReviews > 0) return (product as any).numReviews;
+    return 0;
+  }, [reviews, reviewStats, product]);
+
   const fetchReviews = async (pId: string) => {
     if (!pId) return;
     setReviewsLoading(true);
@@ -358,10 +379,25 @@ export default function ProductDetailScreen() {
     : product;
 
   const isOutOfStock = product.totalStock <= 0;
-  const originalPriceVal = displayProduct.originalPrice || displayProduct.price * 1.25;
-  const currentPriceVal = displayProduct.price;
+
+  const currentPriceVal =
+    displayProduct.discountedPrice != null &&
+    displayProduct.discountedPrice > 0 &&
+    displayProduct.discountedPrice < displayProduct.price
+      ? displayProduct.discountedPrice
+      : displayProduct.price;
+
+  const originalPriceVal =
+    displayProduct.originalPrice && displayProduct.originalPrice > currentPriceVal
+      ? displayProduct.originalPrice
+      : displayProduct.discountedPrice != null &&
+        displayProduct.discountedPrice > 0 &&
+        displayProduct.discountedPrice < displayProduct.price
+      ? displayProduct.price
+      : undefined;
+
   const discount =
-    originalPriceVal > currentPriceVal
+    originalPriceVal && originalPriceVal > currentPriceVal
       ? Math.round(((originalPriceVal - currentPriceVal) / originalPriceVal) * 100)
       : 0;
 
@@ -376,7 +412,7 @@ export default function ProductDetailScreen() {
       addToCart({
         id: pId,
         title: product.title,
-        price: displayProduct.price,
+        price: currentPriceVal,
         quantity: 1,
         image: productImage(product) || '',
         totalStock: product.totalStock,
@@ -391,7 +427,7 @@ export default function ProductDetailScreen() {
     setBuyNowItem({
       id: pId,
       title: product.title,
-      price: displayProduct.price,
+      price: currentPriceVal,
       quantity,
       image: productImage(product) || '',
       totalStock: product.totalStock,
@@ -536,16 +572,16 @@ export default function ProductDetailScreen() {
             style={styles.ratingBar}
           >
             <View style={styles.ratingChip}>
-              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Star size={13} color="#F59E0B" fill={dynamicReviewCount > 0 ? "#F59E0B" : "transparent"} />
               <Text style={styles.ratingText}>
-                {reviewStats.totalReviews > 0
-                  ? reviewStats.averageRating.toFixed(1)
-                  : '5.0'}
+                {dynamicReviewCount > 0
+                  ? dynamicRating.toFixed(1)
+                  : '0.0'}
               </Text>
             </View>
             <Text style={styles.ratingCount}>
-              {reviewStats.totalReviews > 0
-                ? `${reviewStats.totalReviews} Ratings`
+              {dynamicReviewCount > 0
+                ? `${dynamicReviewCount} ${dynamicReviewCount === 1 ? 'Rating' : 'Ratings'}`
                 : 'No reviews yet'}
             </Text>
             <Text style={styles.dotSeparator}>·</Text>
@@ -559,7 +595,7 @@ export default function ProductDetailScreen() {
             <Text style={styles.price}>
               ₹{currentPriceVal?.toLocaleString('en-IN')}
             </Text>
-            {originalPriceVal > currentPriceVal && (
+            {originalPriceVal && originalPriceVal > currentPriceVal && (
               <>
                 <Text style={styles.originalPrice}>
                   ₹{originalPriceVal?.toLocaleString('en-IN')}
@@ -748,7 +784,7 @@ export default function ProductDetailScreen() {
                 <View style={styles.reviewOverviewCard}>
                   <View style={styles.reviewScoreBox}>
                     <Text style={styles.reviewScoreText}>
-                      {reviewStats.totalReviews > 0 ? reviewStats.averageRating.toFixed(1) : '5.0'}
+                      {dynamicReviewCount > 0 ? dynamicRating.toFixed(1) : '0.0'}
                     </Text>
                     <View style={styles.starsRow}>
                       {[1, 2, 3, 4, 5].map(s => (
@@ -757,7 +793,7 @@ export default function ProductDetailScreen() {
                           size={15}
                           color="#F59E0B"
                           fill={
-                            s <= Math.round(reviewStats.totalReviews > 0 ? reviewStats.averageRating : 5)
+                            dynamicReviewCount > 0 && s <= Math.round(dynamicRating)
                               ? '#F59E0B'
                               : 'transparent'
                           }
@@ -765,7 +801,9 @@ export default function ProductDetailScreen() {
                       ))}
                     </View>
                     <Text style={styles.reviewScoreSub}>
-                      {reviewStats.totalReviews} rating{reviewStats.totalReviews === 1 ? '' : 's'}
+                      {dynamicReviewCount > 0
+                        ? `Based on ${dynamicReviewCount} rating${dynamicReviewCount === 1 ? '' : 's'}`
+                        : 'No reviews yet'}
                     </Text>
                   </View>
 

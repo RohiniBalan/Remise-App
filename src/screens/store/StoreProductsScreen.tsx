@@ -118,7 +118,14 @@ export default function StoreProductsScreen() {
     setScanModalType(null);
     const granted = await requestCameraPermission();
     if (!granted) return;
-    const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
+    const res = await launchCamera({
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.8,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      saveToPhotos: false,
+    });
     const asset = res.assets?.[0];
     if (asset?.base64) {
       if (isSingle) runScan(asset.base64, asset.type || 'image/jpeg');
@@ -131,7 +138,13 @@ export default function StoreProductsScreen() {
   const handleGalleryScan = async () => {
     const isSingle = scanModalType === 'single';
     setScanModalType(null);
-    const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8 });
+    const res = await launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.8,
+      maxWidth: 1600,
+      maxHeight: 1600,
+    });
     const asset = res.assets?.[0];
     if (asset?.base64) {
       if (isSingle) runScan(asset.base64, asset.type || 'image/jpeg');

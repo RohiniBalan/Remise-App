@@ -266,9 +266,18 @@ Transcribed text: "${text}"`;
 export interface VoiceListItem extends ScannedBulkItem { needsClarification: boolean }
 
 export async function parseVoiceList(text: string, sourceLang: string): Promise<VoiceListItem[]> {
-  const prompt = `You are helping a customer build a shopping list by speaking it aloud. The following was transcribed from speech${voiceLangClause(sourceLang)}. Extract every product mentioned and ALWAYS translate the product name into standard English (e.g. "thengai ennai" -> "Coconut Oil", "arisi" -> "Rice", "vengayam" -> "Onion", "chawal" -> "Rice", "doodh" -> "Milk", "tamatar" -> "Tomato").
+  const langName = VOICE_LANG_NAMES[sourceLang] || sourceLang || 'English';
+  const prompt = `You are helping a customer build a shopping list by speaking it aloud. The customer selected language preference "${langName}", but may speak in English, in a regional Indian language (Tamil, Telugu, Kannada, Malayalam, Hindi, etc.), in romanized Tanglish/Hinglish, or in a mix of languages.
+
+CRITICAL LANGUAGE DETECTION & TRANSLATION RULES:
+1. Detect the actual language of EACH item or phrase mentioned:
+   - If an item name is spoken in a regional Indian language (in native script or romanized/Tanglish/Hinglish, e.g., "thengai ennai" -> "Coconut Oil", "arisi" -> "Rice", "vengayam" -> "Onion", "chawal" -> "Rice", "doodh" -> "Milk", "tamatar" -> "Tomato", "uppu" -> "Salt", "paruppu" -> "Dal/Lentils", "pala pazham" -> "Jackfruit", "kadala paruppu" -> "Chana Dal"), TRANSLATE ONLY that regional item name into standard English.
+   - If an item name is ALREADY spoken in English (e.g., "Lifebuoy soap", "Colgate toothpaste", "Sunflower oil", "Apple", "Bread", "Milk", "Shampoo", "Dettol", "Biscuits", "Butter", "Eggs", "Dishwash bar", "Body lotion", "Basmati Rice"), KEEP IT UNCHANGED in English. Do NOT translate or transliterate English product names into anything else.
+2. Maintain brand names accurately (e.g., "Lifebuoy", "Colgate", "Amul", "Dettol", "Tata", "Aashirvaad", "Fortune", "Surf Excel").
+3. Extract quantity with units if mentioned (e.g. "2 kg", "1 litre", "500 g", "2 packets", "3 pcs", "half kg", "dozen", or empty string if none).
+
 Reply ONLY with a raw JSON array — no markdown, no code fences, no extra text:
-[{"name":"<item name in English>","quantity":"<quantity with unit as mentioned, e.g. \\"2 kg\\", or empty string if none>","needsClarification":<true if this item's name or quantity is genuinely ambiguous/unclear from the sentence, otherwise false>}]
+[{"name":"<proper item name in English>","quantity":"<quantity with unit as mentioned, e.g. \\"2 kg\\", or empty string if none>","needsClarification":<true if this item's name or quantity is genuinely ambiguous/unclear from the sentence, otherwise false>}]
 Split naturally on "and", commas, or other separators. Do not skip anything the customer said, even if unclear — flag it instead.
 
 Transcribed text: "${text}"`;
@@ -285,13 +294,444 @@ Transcribed text: "${text}"`;
     .filter(it => it.name.length > 0);
 }
 
+/**
+ * Builds a category-aware, e-commerce product photograph prompt.
+ * Disambiguates homonyms and polysemous terms (e.g., Mouse in Electronics vs animal,
+ * Hand Wash in Personal Care vs person washing hands, Apple in Fruits vs tech logo,
+ * Charger in Electronics vs action/horse, etc.) using both product name and category
+ * to ensure a sellable commercial retail product item is generated.
+ */
+export function guessCategory(text: string): string {
+  const t = text.toLowerCase();
+  const map: [string, string[]][] = [
+    [
+      'Electronics',
+      [
+        'phone',
+        'mobile',
+        'battery',
+        'charger',
+        'adapter',
+        'cable',
+        'cord',
+        'wire',
+        'earphone',
+        'headphone',
+        'speaker',
+        'mouse',
+        'keyboard',
+        'laptop',
+        'monitor',
+        'usb',
+        'power bank',
+        'bulb',
+        'led',
+        'gadget',
+        'camera',
+        'tablet',
+      ],
+    ],
+    [
+      'Beauty & Skincare',
+      [
+        'hand wash',
+        'handwash',
+        'face wash',
+        'facewash',
+        'body wash',
+        'shower gel',
+        'cream',
+        'lotion',
+        'soap',
+        'shampoo',
+        'conditioner',
+        'hair oil',
+        'moisturizer',
+        'serum',
+        'sunscreen',
+        'cleanser',
+        'scrub',
+        'cosmetic',
+      ],
+    ],
+    [
+      'Fruits',
+      [
+        'fruit',
+        'apple',
+        'mango',
+        'banana',
+        'orange',
+        'grapes',
+        'kiwi',
+        'papaya',
+        'guava',
+        'strawberry',
+        'blueberry',
+        'berry',
+        'berries',
+        'dates',
+        'plum',
+        'peach',
+        'pear',
+      ],
+    ],
+    [
+      'Vegetables',
+      [
+        'vegetable',
+        'onion',
+        'potato',
+        'tomato',
+        'chilli',
+        'pepper',
+        'capsicum',
+        'garlic',
+        'ginger',
+        'carrot',
+        'radish',
+        'cabbage',
+        'cauliflower',
+        'spinach',
+        'sabzi',
+      ],
+    ],
+    [
+      'Dairy',
+      [
+        'milk',
+        'curd',
+        'butter',
+        'ghee',
+        'paneer',
+        'cheese',
+        'yogurt',
+      ],
+    ],
+    [
+      'Beverages',
+      ['tea', 'coffee', 'juice', 'drink', 'water', 'soda', 'cola', 'chai'],
+    ],
+    [
+      'Snacks',
+      [
+        'chips',
+        'biscuit',
+        'cookie',
+        'namkeen',
+        'snack',
+        'wafer',
+        'chocolate',
+        'candy',
+      ],
+    ],
+    [
+      'Groceries',
+      [
+        'rice',
+        'wheat',
+        'flour',
+        'dal',
+        'oil',
+        'sugar',
+        'salt',
+        'atta',
+        'maida',
+        'masala',
+        'spice',
+      ],
+    ],
+    [
+      'Household',
+      [
+        'detergent',
+        'washing',
+        'cleaner',
+        'floor',
+        'dish',
+        'dishwash',
+        'bleach',
+        'matchbox',
+        'broom',
+        'mop',
+      ],
+    ],
+    [
+      'Clothing',
+      [
+        'shirt',
+        'pant',
+        't-shirt',
+        'jeans',
+        'trousers',
+        'saree',
+        'kurta',
+        'dress',
+        'cloth',
+        'fabric',
+        'shoes',
+        'sneakers',
+      ],
+    ],
+    [
+      'Medicine',
+      [
+        'tablet',
+        'capsule',
+        'syrup',
+        'ointment',
+        'bandage',
+        'medicine',
+        'pharma',
+        'dawa',
+      ],
+    ],
+    [
+      'Stationery',
+      [
+        'pen',
+        'pencil',
+        'notebook',
+        'book',
+        'diary',
+        'marker',
+        'eraser',
+        'stapler',
+        'paper',
+        'stationery',
+      ],
+    ],
+    [
+      'Toys',
+      [
+        'toy',
+        'doll',
+        'puzzle',
+        'ball',
+        'bat',
+        'board game',
+      ],
+    ],
+  ];
+  for (const [cat, kws] of map) {
+    if (kws.some(kw => t.includes(kw))) return cat;
+  }
+  return 'General';
+}
+
+export function buildProductImagePrompt(productName: string, category: string = ''): string {
+  const name = (productName || '').trim();
+  const nameLower = name.toLowerCase();
+  const rawCat = (category || '').trim();
+  // If category is missing or 'General', fall back to guessCategory(name)
+  const cat = rawCat && rawCat.toLowerCase() !== 'general' ? rawCat : guessCategory(name);
+  const catLower = cat.toLowerCase();
+
+  let itemType = 'packaged commercial retail product item';
+  let categoryDescriptor = cat && cat.toLowerCase() !== 'general' ? `${cat} retail product` : 'retail merchandise';
+  let disambiguatedName = name;
+  let negativeDirectives = 'no people, no human hands, no action, no live animals, no text, no watermark, no illustrations';
+
+  // 1. Electronics / Gadgets / Tech / Appliances / Computers / Mobile
+  if (
+    catLower.includes('electr') ||
+    catLower.includes('gadget') ||
+    catLower.includes('tech') ||
+    catLower.includes('appliance') ||
+    catLower.includes('computer') ||
+    catLower.includes('mobile') ||
+    catLower.includes('phone')
+  ) {
+    itemType = 'electronic hardware device or tech accessory';
+    categoryDescriptor = 'Electronics';
+    negativeDirectives = 'no rodents, no live animals, no rat, no rodent paws, no people, no human hands, no animal charger, no horses, no vehicles, no swimming boats, no real fruit, no food, packaged hardware electronic accessory product only, no text, no watermark';
+
+    if (/\b(mouse|mice)\b/i.test(nameLower)) {
+      disambiguatedName = `computer mouse hardware peripheral (${name})`;
+    } else if (/\b(charger|adapter|cable|cord|wire|power\s*bank)\b/i.test(nameLower)) {
+      disambiguatedName = `electronic power charger adapter unit (${name})`;
+    } else if (/\b(apple)\b/i.test(nameLower)) {
+      disambiguatedName = `Apple electronic brand tech device hardware (${name})`;
+    } else if (/\b(fan|cooler)\b/i.test(nameLower)) {
+      disambiguatedName = `electric cooling fan room appliance (${name})`;
+    } else if (/\b(pad|mat)\b/i.test(nameLower)) {
+      disambiguatedName = `electronic gaming mouse pad desk mat accessory (${name})`;
+    } else if (/\b(plug|switch|socket)\b/i.test(nameLower)) {
+      disambiguatedName = `electrical plug socket switch hardware unit (${name})`;
+    } else if (/\b(keyboard|keypad)\b/i.test(nameLower)) {
+      disambiguatedName = `computer keyboard hardware peripheral (${name})`;
+    } else if (/\b(battery|cell)\b/i.test(nameLower)) {
+      disambiguatedName = `electronic battery pack cell unit (${name})`;
+    } else if (/\b(boat)\b/i.test(nameLower)) {
+      disambiguatedName = `boAt audio electronic headphones earphones product (${name})`;
+    } else if (/\b(iron)\b/i.test(nameLower)) {
+      disambiguatedName = `electric dry clothes iron home appliance (${name})`;
+    }
+  }
+  // 2. Beauty & Skincare / Personal Care / Cosmetics / Toiletries / Salon
+  else if (
+    catLower.includes('beauty') ||
+    catLower.includes('skin') ||
+    catLower.includes('personal') ||
+    catLower.includes('care') ||
+    catLower.includes('cosmetic') ||
+    catLower.includes('toiletr')
+  ) {
+    itemType = 'personal care cosmetic bottled or packaged retail product container';
+    categoryDescriptor = 'Beauty & Personal Care';
+    negativeDirectives = 'no person washing hands, no human body, no people, no hands, no water splashing, no bathroom sink, no live birds, no real flowers in ponds, product container packaging bottle or jar only, no text, no watermark';
+
+    if (/\b(hand\s*wash|handwash|soap)\b/i.test(nameLower)) {
+      disambiguatedName = `liquid hand wash soap pump dispenser bottle packaging (${name})`;
+    } else if (/\b(body\s*wash|shower\s*gel)\b/i.test(nameLower)) {
+      disambiguatedName = `body wash shower gel plastic bottle container (${name})`;
+    } else if (/\b(face\s*wash|facewash|cleanser)\b/i.test(nameLower)) {
+      disambiguatedName = `facial cleanser face wash tube bottle container (${name})`;
+    } else if (/\b(dove)\b/i.test(nameLower)) {
+      disambiguatedName = `Dove personal care beauty soap bar or moisturizer bottle product (${name})`;
+    } else if (/\b(lotus)\b/i.test(nameLower)) {
+      disambiguatedName = `Lotus Herbals cosmetic skincare cream lotion bottle (${name})`;
+    } else if (/\b(scrub|cream|lotion|moisturizer|serum)\b/i.test(nameLower)) {
+      disambiguatedName = `cosmetic skincare bottle jar packaging (${name})`;
+    } else if (/\b(shampoo|conditioner|hair\s*oil)\b/i.test(nameLower)) {
+      disambiguatedName = `haircare shampoo conditioner bottle product (${name})`;
+    } else if (/\b(pad|pads|napkin)\b/i.test(nameLower)) {
+      disambiguatedName = `feminine sanitary hygiene pad packaging box (${name})`;
+    }
+  }
+  // 3. Fruits / Fresh Produce
+  else if (catLower.includes('fruit')) {
+    itemType = 'fresh raw edible agricultural fruit produce';
+    categoryDescriptor = 'fresh Fruits grocery produce';
+    negativeDirectives = 'no electronic devices, no tech logos, no smartphones, no laptops, no computers, no people, no trees, no orchard, fresh edible fruit produce item only, solid white background, no text, no watermark';
+
+    if (/\b(apple)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh ripe red apple fruit produce (${name})`;
+    } else if (/\b(orange)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh juicy orange citrus fruit produce (${name})`;
+    } else if (/\b(kiwi)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh whole ripe kiwi fruit produce (${name})`;
+    } else if (/\b(mango)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh ripe mango fruit produce (${name})`;
+    } else if (/\b(banana)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh ripe yellow banana bunch fruit produce (${name})`;
+    } else if (/\b(berry|berries|strawberry|blueberry)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh ripe berries fruit produce (${name})`;
+    } else if (/\b(date|dates)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh edible sweet dates fruit produce (${name})`;
+    }
+  }
+  // 4. Vegetables / Greens
+  else if (catLower.includes('veg') || catLower.includes('vegetable')) {
+    itemType = 'fresh raw agricultural vegetable grocery produce';
+    categoryDescriptor = 'fresh Vegetables grocery';
+    negativeDirectives = 'no cooked food, no cooking pots, no kitchen, no recipes, no people, fresh raw vegetable produce item only, solid white background, no text, no watermark';
+  }
+  // 5. Dairy / Eggs
+  else if (catLower.includes('dairy') || catLower.includes('egg')) {
+    itemType = 'packaged dairy grocery product, milk carton, butter tub, or cheese pack';
+    categoryDescriptor = 'Dairy';
+    negativeDirectives = 'no live cows, no farm animals, no farm, no people, packaged dairy food product only, solid white background, no text, no watermark';
+    if (/\b(milk)\b/i.test(nameLower)) {
+      disambiguatedName = `packaged fresh milk carton or bottle (${name})`;
+    } else if (/\b(butter|cheese|paneer|curd|yogurt|ghee)\b/i.test(nameLower)) {
+      disambiguatedName = `packaged retail dairy product (${name})`;
+    } else if (/\b(egg|eggs)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh poultry eggs pack in carton tray packaging (${name})`;
+    }
+  }
+  // 6. Beverages / Drinks / Juice / Tea / Coffee
+  else if (catLower.includes('beverage') || catLower.includes('drink') || catLower.includes('juice') || catLower.includes('tea') || catLower.includes('coffee')) {
+    itemType = 'packaged beverage bottle or can retail drink product';
+    categoryDescriptor = 'Beverages';
+    negativeDirectives = 'no people drinking, no hands, no glasses on table, no restaurant, packaged beverage bottle or can retail drink product only, solid white background, no text, no watermark';
+    if (/\b(apple)\b/i.test(nameLower)) {
+      disambiguatedName = `apple juice beverage bottle or can drink (${name})`;
+    } else if (/\b(orange)\b/i.test(nameLower)) {
+      disambiguatedName = `orange juice beverage bottle or can drink (${name})`;
+    } else if (/\b(coffee|java)\b/i.test(nameLower)) {
+      disambiguatedName = `packaged coffee beans, powder jar or pouch drink (${name})`;
+    }
+  }
+  // 7. Snacks / Bakery / Sweets
+  else if (catLower.includes('snack') || catLower.includes('bakery') || catLower.includes('sweet') || catLower.includes('biscuit')) {
+    itemType = 'packaged retail snack food packet pouch or box';
+    categoryDescriptor = 'Snacks';
+    negativeDirectives = 'no people eating, no hands, no dining table, packaged retail snack food packet pouch or box only, solid white background, no text, no watermark';
+  }
+  // 8. Groceries / Food & Supermarket / Staples
+  else if (catLower.includes('grocer') || catLower.includes('food') || catLower.includes('staple')) {
+    itemType = 'packaged supermarket grocery food retail product';
+    categoryDescriptor = 'Groceries';
+    negativeDirectives = 'no people cooking, no farm, no live animals, no swimming fish, no aquarium, packaged supermarket grocery food retail product only, solid white background, no text, no watermark';
+    if (/\b(fish|salmon|tuna|prawn|shrimp)\b/i.test(nameLower)) {
+      disambiguatedName = `fresh culinary food seafood item (${name})`;
+      negativeDirectives = 'no aquarium, no swimming live fish, culinary food item only, no text';
+    }
+  }
+  // 9. Household / Cleaning / Laundry
+  else if (catLower.includes('house') || catLower.includes('clean') || catLower.includes('home') || catLower.includes('laundry')) {
+    itemType = 'household cleaning utility packaged retail product';
+    categoryDescriptor = 'Household & Cleaning';
+    negativeDirectives = 'no people cleaning, no hands, no dirty dishes, no bathroom, packaged cleaning product bottle or box only, solid white background, no text, no watermark';
+    if (/\b(hand\s*wash|handwash|soap)\b/i.test(nameLower)) {
+      disambiguatedName = `liquid hand wash cleaning soap bottle dispenser (${name})`;
+    } else if (/\b(wash|detergent|bleach|cleaner)\b/i.test(nameLower)) {
+      disambiguatedName = `household cleaning detergent liquid bottle or powder pack (${name})`;
+    } else if (/\b(kiwi)\b/i.test(nameLower)) {
+      disambiguatedName = `Kiwi shoe polish tin can container (${name})`;
+    } else if (/\b(match|matches|matchbox)\b/i.test(nameLower)) {
+      disambiguatedName = `household matchbox safety matches pack (${name})`;
+    }
+  }
+  // 10. Clothing / Fashion / Apparel / Footwear
+  else if (catLower.includes('cloth') || catLower.includes('apparel') || catLower.includes('fashion') || catLower.includes('wear') || catLower.includes('shoe')) {
+    itemType = 'apparel clothing fashion garment product, neatly folded or flat lay display';
+    categoryDescriptor = 'Clothing & Apparel';
+    negativeDirectives = 'no human model, no human face, no human body, no wild animals, no big cats, flat lay or retail folded garment product only, solid white background, no text, no watermark';
+    if (/\b(puma|jaguar)\b/i.test(nameLower)) {
+      disambiguatedName = `branded athletic apparel footwear sportswear item (${name})`;
+      negativeDirectives = 'no wild animals, no big cats, clothing apparel product only, no text';
+    }
+  }
+  // 11. Medicine / Pharmacy / Healthcare / Wellness
+  else if (catLower.includes('med') || catLower.includes('pharm') || catLower.includes('health')) {
+    itemType = 'pharmaceutical healthcare medicine packaged box, bottle, or blister pack';
+    categoryDescriptor = 'Medicine & Pharmacy';
+    negativeDirectives = 'no sick patients, no doctors, no hospital, packaged pharmaceutical medicine product only, solid white background, no text, no watermark';
+  }
+  // 12. Stationery / Office / Books
+  else if (catLower.includes('station') || catLower.includes('office') || catLower.includes('school') || catLower.includes('book')) {
+    itemType = 'stationery office school supply product';
+    categoryDescriptor = 'Stationery & Office';
+    negativeDirectives = 'no people writing, no snakes, no reptiles, stationery product item only, solid white background, no text, no watermark';
+    if (/\b(mouse)\b/i.test(nameLower)) {
+      disambiguatedName = `desk stationery mouse pad accessory or computer mouse (${name})`;
+    } else if (/\b(python|java|c\+\+)\b/i.test(nameLower)) {
+      disambiguatedName = `programming educational study textbook book (${name})`;
+      negativeDirectives = 'no snakes, no reptiles, textbook book product only, no text';
+    }
+  }
+  // 13. Toys / Games / Sports
+  else if (catLower.includes('toy') || catLower.includes('game') || catLower.includes('sport') || catLower.includes('kid') || catLower.includes('baby')) {
+    itemType = 'packaged toy games retail merchandise product box';
+    categoryDescriptor = 'Toys & Games';
+    negativeDirectives = 'no live animals, no flying bat animals, no children, toy retail product packaging only, solid white background, no text, no watermark';
+    if (/\b(bat)\b/i.test(nameLower)) {
+      disambiguatedName = `sports toy cricket or baseball bat wooden product (${name})`;
+    }
+  }
+
+  return `Commercial studio product photography of a sellable ${disambiguatedName}, ${itemType}, ${categoryDescriptor}. Centered standalone physical retail product, solid clean plain white studio background, professional e-commerce product catalog photo, soft studio lighting, sharp focus, 4k high resolution, ${negativeDirectives}, photo only.`;
+}
+
 // Pure URL builder — mobile equivalent of web's Pollinations.ai FLUX tier in
 // `getProductImage()` (client/app/api/_lib/productScan.ts). No fetch here:
 // the URL is handed straight to <Image> for preview and to the backend as a
 // plain `imageUrl` string on product creation, same as the web flow's
 // `imageResultToUrl` for a 'url' result.
 export function buildGeneratedImageUrl(productName: string, category: string, seedOffset: number = 0): string {
-  const prompt = `product photo of ${productName}${category ? `, ${category}` : ''}, white background, studio lighting, e-commerce product shot`;
+  const prompt = buildProductImagePrompt(productName, category);
   const seed = Math.floor(Date.now() / 1000) + seedOffset;
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}`;
 }

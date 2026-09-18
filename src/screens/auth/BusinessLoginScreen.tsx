@@ -161,7 +161,7 @@ export default function BusinessLoginScreen() {
           {/* Google Sign In Button */}
           <TouchableOpacity
             style={styles.googleBtn}
-            onPress={() => navigation.navigate('GoogleAuthWebView')}
+            onPress={() => navigation.navigate('GoogleAuthWebView', { role: 'user' })}
           >
             <Text style={styles.googleBtnText}>Continue with Google</Text>
           </TouchableOpacity>

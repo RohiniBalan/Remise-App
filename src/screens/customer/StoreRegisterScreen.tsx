@@ -177,7 +177,7 @@ export default function StoreRegisterScreen() {
     setForm(f => ({ ...f, [k]: v }));
 
   const pickLogo = async () => {
-    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
     const uri = res.assets?.[0]?.uri;
     if (uri) setLogoUri(uri);
   };
@@ -562,8 +562,27 @@ export default function StoreRegisterScreen() {
   const validateStep = (step: number): boolean => {
     setError('');
     if (step === 1) {
-      if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
-        setError('Please fill in Store Name, Phone, and Email.');
+      if (!form.name.trim()) {
+        setError('Store Name is required.');
+        return false;
+      }
+      if (!form.phone.trim()) {
+        setError('Contact Phone is required.');
+        return false;
+      }
+      const cleanPhone = form.phone.replace(/[\s\-()]/g, '');
+      const PHONE_REGEX = /^(?:\+91|0)?[6-9]\d{9}$/;
+      if (!PHONE_REGEX.test(cleanPhone)) {
+        setError('Please enter a valid 10-digit mobile number (e.g. 9876543210 or +91 98765 43210).');
+        return false;
+      }
+      if (!form.email.trim()) {
+        setError('Contact Email is required.');
+        return false;
+      }
+      const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!EMAIL_REGEX.test(form.email.trim())) {
+        setError('Please enter a valid email address (e.g. store@email.com).');
         return false;
       }
       return true;
@@ -944,9 +963,10 @@ export default function StoreRegisterScreen() {
               <Field
                 label="Contact Phone *"
                 value={form.phone}
-                onChangeText={v => set('phone', v)}
-                placeholder="+91 98765 43210"
-                keyboardType="phone-pad"
+                onChangeText={v => set('phone', v.replace(/\D/g, '').slice(0, 10))}
+                placeholder="9876543210"
+                keyboardType="number-pad"
+                maxLength={10}
               />
 
               <Field

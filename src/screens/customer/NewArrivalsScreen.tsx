@@ -219,7 +219,7 @@ export default function NewArrivalsScreen() {
       {/* Header Eyebrow & Filter Bar */}
       <View style={styles.headerBar}>
         <View style={styles.eyebrowRow}>
-          <Sparkles size={13} color={GoldColors.gold} />
+          <Sparkles size={13} color={CustomerColors.primary} />
           <Text style={styles.eyebrowText}>Just In</Text>
         </View>
         <Text style={styles.pageTitle}>
@@ -341,7 +341,7 @@ export default function NewArrivalsScreen() {
         contentContainerStyle={styles.grid}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <Sparkles size={32} color={GoldColors.gold} style={{ alignSelf: 'center', marginBottom: 8 }} />
+            <Sparkles size={32} color={CustomerColors.primary} style={{ alignSelf: 'center', marginBottom: 8 }} />
             <Text style={styles.emptyTitle}>No new arrivals</Text>
             <Text style={styles.emptySubtitle}>
               Check back soon for latest arrivals or adjust your active filters.
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   eyebrowText: {
     fontSize: 10,
     fontWeight: '800',
-    color: GoldColors.gold,
+    color: CustomerColors.primary,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },

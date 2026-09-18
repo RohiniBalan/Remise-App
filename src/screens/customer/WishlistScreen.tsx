@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: CustomerColors.primary,
+    backgroundColor: CustomerColors.teal,
     paddingVertical: 8,
     borderRadius: BorderRadius.md,
   },

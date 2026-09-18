@@ -112,86 +112,142 @@ export function mapProduct(p: any): BestSellerItem {
   };
 }
 
+// ── In-Memory Caching for Instant Screen Navigation ───────────────────────
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+let cachedCategories: CategoryItem[] | null = null;
+let categoriesCacheTime = 0;
+
+let cachedBestSellers: BestSellerItem[] | null = null;
+let bestSellersCacheTime = 0;
+
+let cachedNewArrivals: Product[] | null = null;
+let newArrivalsCacheTime = 0;
+
+export function getCachedCategories(): CategoryItem[] | null {
+  return cachedCategories;
+}
+
+export function getCachedBestSellers(): BestSellerItem[] | null {
+  return cachedBestSellers;
+}
+
+export function getCachedNewArrivals(): Product[] | null {
+  return cachedNewArrivals;
+}
+
 // ── Build category items from real data (same as web's ShopByCategorySection) ──
 
-export async function buildCategoryItems(): Promise<CategoryItem[]> {
-  const [catRes, prodRes] = await Promise.all([
-    productApi.getCategoriesViaGateway(),
-    productApi.getProductsViaGateway({ limit: 10000, ownerRole: 'store_owner' }),
-  ]);
+export async function buildCategoryItems(forceRefresh = false): Promise<CategoryItem[]> {
+  const now = Date.now();
+  if (!forceRefresh && cachedCategories && now - categoriesCacheTime < CACHE_TTL_MS) {
+    return cachedCategories;
+  }
 
-  const apiCategories: { _id: string; name: string }[] =
-    catRes?.data?.success && Array.isArray(catRes.data.data) ? catRes.data.data : [];
-  const products: any[] = Array.isArray(prodRes?.data?.data)
-    ? prodRes.data.data
-    : [];
+  try {
+    const [catRes, prodRes] = await Promise.all([
+      productApi.getCategoriesViaGateway(),
+      productApi.getProductsViaGateway({ limit: 200, ownerRole: 'store_owner' }),
+    ]);
 
-  // Merge admin-added categories with the fixed default list — same approach
-  // as the web — so a default with zero products still shows up.
-  const seen = new Set<string>();
-  const names: string[] = [];
-  const addIfNew = (name: string) => {
-    if (!name) return;
-    const key = name.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    names.push(name);
-  };
-  apiCategories.forEach(c => addIfNew(c.name));
-  DEFAULT_STORE_CATEGORIES.forEach(addIfNew);
-  products.forEach(p => addIfNew(p.category));
+    const apiCategories: { _id: string; name: string }[] =
+      catRes?.data?.success && Array.isArray(catRes.data.data) ? catRes.data.data : [];
+    const products: any[] = Array.isArray(prodRes?.data?.data)
+      ? prodRes.data.data
+      : [];
 
-  const built: CategoryItem[] = names.map((name, i) => {
-    const catProducts = products.filter(
-      (p: any) => (p.category || '').toLowerCase() === name.toLowerCase(),
-    );
-    // Use a real photo from one of this category's own products.
-    const withImage = catProducts.find(
-      (p: any) => (p.images && p.images[0]) || p.imageUrl,
-    );
-    const img = withImage
-      ? withImage.images?.[0] || withImage.imageUrl
-      : '';
-    const palette = COLOR_PALETTE[i % COLOR_PALETTE.length];
-
-    return {
-      id: name,
-      title: name,
-      img,
-      color: palette.color,
-      accent: palette.accent,
-      icon: iconForCategory(name),
-      count: catProducts.length,
-      description: `${catProducts.length} product${catProducts.length === 1 ? '' : 's'} available`,
-      badge: badgeForCount(catProducts.length),
+    // Merge admin-added categories with the fixed default list — same approach
+    // as the web — so a default with zero products still shows up.
+    const seen = new Set<string>();
+    const names: string[] = [];
+    const addIfNew = (name: string) => {
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(name);
     };
-  });
+    apiCategories.forEach(c => addIfNew(c.name));
+    DEFAULT_STORE_CATEGORIES.forEach(addIfNew);
+    products.forEach(p => addIfNew(p.category));
 
-  // Show the categories with the most real inventory first
-  const sorted = [...built].sort((a, b) => b.count - a.count);
-  return sorted.length > 0 ? sorted.slice(0, 6) : CATEGORY_FALLBACK;
+    const built: CategoryItem[] = names.map((name, i) => {
+      const catProducts = products.filter(
+        (p: any) => (p.category || '').toLowerCase() === name.toLowerCase(),
+      );
+      // Use a real photo from one of this category's own products.
+      const withImage = catProducts.find(
+        (p: any) => (p.images && p.images[0]) || p.imageUrl,
+      );
+      const img = withImage
+        ? withImage.images?.[0] || withImage.imageUrl
+        : '';
+      const palette = COLOR_PALETTE[i % COLOR_PALETTE.length];
+
+      return {
+        id: name,
+        title: name,
+        img,
+        color: palette.color,
+        accent: palette.accent,
+        icon: iconForCategory(name),
+        count: catProducts.length,
+        description: `${catProducts.length} product${catProducts.length === 1 ? '' : 's'} available`,
+        badge: badgeForCount(catProducts.length),
+      };
+    });
+
+    // Filter categories that have products (> 0) and sort by count descending
+    const withProducts = built.filter(item => item.count > 0);
+    const sorted = [...withProducts].sort((a, b) => b.count - a.count);
+    const finalResult = sorted.length > 0 ? sorted : CATEGORY_FALLBACK.filter(c => c.count > 0);
+    cachedCategories = finalResult;
+    categoriesCacheTime = Date.now();
+    return finalResult;
+  } catch {
+    if (cachedCategories) return cachedCategories;
+    return CATEGORY_FALLBACK.filter(c => c.count > 0);
+  }
 }
 
 // ── Fetch best sellers from product-service (same as web) ──
 
-export async function fetchBestSellers(): Promise<BestSellerItem[]> {
-  const res = await productApi.getProductsViaGateway({
-    ownerRole: 'store_owner',
-    sort: 'bestselling',
-    limit: 5,
-  });
-  const raw = Array.isArray(res?.data?.data) ? res.data.data : [];
-  if (raw.length === 0) return BEST_SELLER_FALLBACK;
-  return raw.map(mapProduct);
+export async function fetchBestSellers(forceRefresh = false): Promise<BestSellerItem[]> {
+  const now = Date.now();
+  if (!forceRefresh && cachedBestSellers && now - bestSellersCacheTime < CACHE_TTL_MS) {
+    return cachedBestSellers;
+  }
+
+  try {
+    const res = await productApi.getProductsViaGateway({
+      ownerRole: 'store_owner',
+      sort: 'bestselling',
+      limit: 50,
+    });
+    const raw = Array.isArray(res?.data?.data) ? res.data.data : [];
+    const inStock = raw.filter((p: any) => (p.totalStock ?? p.stock ?? 1) > 0);
+    const result = inStock.length === 0 ? BEST_SELLER_FALLBACK : inStock.map(mapProduct);
+    cachedBestSellers = result;
+    bestSellersCacheTime = Date.now();
+    return result;
+  } catch {
+    if (cachedBestSellers) return cachedBestSellers;
+    return BEST_SELLER_FALLBACK;
+  }
 }
 
 // ── Fetch new arrivals from product-service (same as web) ──
 // Filters products created/updated within NEW_ARRIVAL_WINDOW_DAYS (14 days).
 
-export async function fetchNewArrivals(): Promise<Product[]> {
+export async function fetchNewArrivals(forceRefresh = false): Promise<Product[]> {
+  const now = Date.now();
+  if (!forceRefresh && cachedNewArrivals && now - newArrivalsCacheTime < CACHE_TTL_MS) {
+    return cachedNewArrivals;
+  }
+
   try {
     const res = await productApi.getProductsViaGateway({
-      limit: 10000,
+      limit: 50,
       ownerRole: 'store_owner',
     });
     const data = res.data;
@@ -200,18 +256,25 @@ export async function fetchNewArrivals(): Promise<Product[]> {
       : data?.products || data?.data || [];
 
     const cutoff = Date.now() - NEW_ARRIVAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    return products
+    const filtered = products
       .filter(p => {
+        const inStock = ((p as any).totalStock ?? (p as any).stock ?? 1) > 0;
         const created = new Date((p as any).createdAt || (p as any).updatedAt || 0).getTime();
-        return created >= cutoff;
+        return inStock && created >= cutoff;
       })
       .sort(
         (a, b) =>
           new Date((b as any).createdAt || 0).getTime() -
           new Date((a as any).createdAt || 0).getTime(),
       );
+
+    const result = filtered.length > 0 ? filtered : products.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0);
+    cachedNewArrivals = result;
+    newArrivalsCacheTime = Date.now();
+    return result;
   } catch (err) {
     console.error('Failed to fetch new arrivals:', err);
+    if (cachedNewArrivals) return cachedNewArrivals;
     return [];
   }
 }
@@ -219,12 +282,12 @@ export async function fetchNewArrivals(): Promise<Product[]> {
 // ── Fallback data (same as web's FALLBACK arrays) ──
 
 export const CATEGORY_FALLBACK: CategoryItem[] = [
-  { id: 'groceries', title: 'Groceries & Fresh', img: 'https://images.unsplash.com/photo-1542838132-29423eda0ea4?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-green-400 to-emerald-600', accent: 'text-green-600', icon: 'ShoppingBasket', count: 120, description: 'Daily essentials & fresh produce', badge: 'Daily' },
-  { id: 'beauty', title: 'Beauty & Cosmetics', img: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-pink-400 to-rose-600', accent: 'text-pink-500', icon: 'Heart', count: 85, description: 'Skincare, makeup & wellness', badge: 'Trending' },
-  { id: 'toys', title: 'Toys & Games', img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-yellow-400 to-orange-500', accent: 'text-orange-500', icon: 'Gamepad2', count: 74, description: 'Fun for kids of all ages', badge: 'Popular' },
-  { id: 'fashion', title: 'Fashion & Apparel', img: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-purple-400 to-indigo-600', accent: 'text-purple-500', icon: 'Shirt', count: 96, description: 'Clothing, footwear & accessories', badge: 'New' },
-  { id: 'home', title: 'Home & Living', img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-teal-400 to-cyan-600', accent: 'text-teal-600', icon: 'Home', count: 58, description: 'Décor, kitchen & household items', badge: 'Top Pick' },
-  { id: 'electronics', title: 'Electronics', img: 'https://images.unsplash.com/photo-1526406915894-7bcd65f60845?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-blue-400 to-sky-600', accent: 'text-blue-500', icon: 'Smartphone', count: 43, description: 'Gadgets, accessories & more', badge: 'Hot' },
+  { id: 'Grocery', title: 'Grocery', img: 'https://images.unsplash.com/photo-1542838132-29423eda0ea4?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-green-400 to-emerald-600', accent: 'text-green-600', icon: 'ShoppingBasket', count: 120, description: 'Daily essentials & fresh produce', badge: 'Daily' },
+  { id: 'Beauty', title: 'Beauty', img: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-pink-400 to-rose-600', accent: 'text-pink-500', icon: 'Heart', count: 85, description: 'Skincare, makeup & wellness', badge: 'Trending' },
+  { id: 'Toys', title: 'Toys', img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-yellow-400 to-orange-500', accent: 'text-orange-500', icon: 'Gamepad2', count: 74, description: 'Fun for kids of all ages', badge: 'Popular' },
+  { id: 'Fashion', title: 'Fashion', img: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-purple-400 to-indigo-600', accent: 'text-purple-500', icon: 'Shirt', count: 96, description: 'Clothing, footwear & accessories', badge: 'New' },
+  { id: 'Home & Living', title: 'Home & Living', img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-teal-400 to-cyan-600', accent: 'text-teal-600', icon: 'Home', count: 58, description: 'Décor, kitchen & household items', badge: 'Top Pick' },
+  { id: 'Electronics', title: 'Electronics', img: 'https://images.unsplash.com/photo-1526406915894-7bcd65f60845?w=400&h=300&auto=format&fit=crop&q=80', color: 'from-blue-400 to-sky-600', accent: 'text-blue-500', icon: 'Smartphone', count: 43, description: 'Gadgets, accessories & more', badge: 'Hot' },
 ];
 
 export const BEST_SELLER_FALLBACK: BestSellerItem[] = [

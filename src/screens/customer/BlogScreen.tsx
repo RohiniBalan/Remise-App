@@ -35,6 +35,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { newsletterApi } from '../../api/newsletterApi';
 import { blogApi } from '../../api/blogApi';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 const BRAND_RED = CustomerColors.primary;
 
@@ -194,6 +195,7 @@ const BUSINESS_TOPICS = [
 
 export default function BlogScreen({ navigation }: any) {
   const { isDark } = useTheme();
+  const { user, token } = useAuth();
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [query, setQuery] = useState('');
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -291,6 +293,21 @@ export default function BlogScreen({ navigation }: any) {
   };
 
   const handleSubscribe = async () => {
+    if (!user && !token) {
+      Alert.alert(
+        'Login Required',
+        'Please log in first to subscribe to the newsletter.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Log In',
+            onPress: () => navigation.navigate('LoginRegister'),
+          },
+        ]
+      );
+      return;
+    }
+
     const trimmed = newsletterEmail.trim();
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');

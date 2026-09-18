@@ -69,6 +69,7 @@ export default function CheckoutScreen() {
     clearCart,
   } = useCart();
 
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [shippingAddress, setShippingAddress] = useState<AddressData>(() => {
     const base = emptyAddress();
@@ -94,13 +95,16 @@ export default function CheckoutScreen() {
     [itemsToCheckout],
   );
 
+  const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+  const isPhoneValid = (phone: string) => /^\d{10}$/.test((phone || '').trim());
+
   const isShippingValid =
-    contactEmail.trim() !== '' &&
+    isEmailValid(contactEmail) &&
     shippingAddress.firstName.trim() !== '' &&
     shippingAddress.address.trim() !== '' &&
     shippingAddress.city.trim() !== '' &&
     shippingAddress.pinCode.trim() !== '' &&
-    shippingAddress.phone.trim() !== '';
+    isPhoneValid(shippingAddress.phone);
 
   const isBillingValid =
     billingSameAsShipping ||
@@ -108,7 +112,7 @@ export default function CheckoutScreen() {
       billingAddress.address.trim() !== '' &&
       billingAddress.city.trim() !== '' &&
       billingAddress.pinCode.trim() !== '' &&
-      billingAddress.phone.trim() !== '');
+      isPhoneValid(billingAddress.phone));
 
   const isFormValid = isShippingValid && isBillingValid;
 
@@ -121,6 +125,24 @@ export default function CheckoutScreen() {
       })
     )
       return;
+
+    if (!isEmailValid(contactEmail)) {
+      setError('Please enter a valid email address.');
+      setCurrentStep(1);
+      return;
+    }
+
+    if (!isPhoneValid(shippingAddress.phone)) {
+      setError('Please enter a valid 10-digit phone number for shipping.');
+      setCurrentStep(2);
+      return;
+    }
+
+    if (!billingSameAsShipping && !isPhoneValid(billingAddress.phone)) {
+      setError('Please enter a valid 10-digit phone number for billing.');
+      setCurrentStep(2);
+      return;
+    }
 
     if (!isFormValid) {
       setError('Please fill in all mandatory fields.');
@@ -246,7 +268,7 @@ export default function CheckoutScreen() {
           </View>
         ) : null}
 
-        {/* 1. Order Items Summary */}
+        {/* 1. Order Items Summary (Kept Intact) */}
         <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>Order Summary</Text>
@@ -311,122 +333,385 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
-        {/* 2. Contact Information */}
-        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
-          <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>1. Contact Information</Text>
-          <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>Email Address *</Text>
-          <TextInput
-            style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
-            value={contactEmail}
-            onChangeText={setContactEmail}
-            placeholder="e.g. yourname@example.com"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-
-        {/* 3. Delivery Address */}
-        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
-          <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>2. Delivery Address</Text>
-          <AddressFormFields
-            data={shippingAddress}
-            onChange={(field, v) =>
-              setShippingAddress(prev => ({ ...prev, [field]: v }))
-            }
-          />
-        </View>
-
-        {/* 4. Payment Method */}
-        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
-          <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>3. Payment Method</Text>
-
-          {/* 1. Razorpay */}
-          <TouchableOpacity
-            style={[
-              styles.paymentCard,
-              isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
-              paymentMethod === 'razorpay' &&
-                (isDark
-                  ? { borderColor: '#0D9488', backgroundColor: 'rgba(15, 163, 177, 0.12)' }
-                  : styles.paymentCardActive),
-            ]}
-            onPress={() => setPaymentMethod('razorpay')}
-          >
-            <View
-              style={[
-                styles.radio,
-                isDark && { borderColor: '#6B7280' },
-                paymentMethod === 'razorpay' && styles.radioActive,
-              ]}
+        {/* ── Stepper Navigation Header ── */}
+        <View style={[styles.stepperCard, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <View style={styles.stepperContainer}>
+            {/* Step 1 Tab */}
+            <TouchableOpacity
+              style={styles.stepTab}
+              onPress={() => setCurrentStep(1)}
+              activeOpacity={0.7}
             >
-              {paymentMethod === 'razorpay' && <View style={styles.radioDot} />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-                <Text style={[styles.paymentTitle, isDark && { color: '#FFFFFF' }]}>Online Payment (Razorpay)</Text>
-                <View style={styles.instantTag}>
-                  <Text style={styles.instantTagText}>INSTANT</Text>
-                </View>
+              <View
+                style={[
+                  styles.stepBadge,
+                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                  currentStep === 1 && styles.stepBadgeActive,
+                  currentStep > 1 && isEmailValid(contactEmail) && styles.stepBadgeDone,
+                ]}
+              >
+                {currentStep > 1 && isEmailValid(contactEmail) ? (
+                  <Check size={13} color="#fff" strokeWidth={3} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.stepBadgeText,
+                      isDark && { color: '#9CA3AF' },
+                      currentStep === 1 && styles.stepBadgeTextActive,
+                    ]}
+                  >
+                    1
+                  </Text>
+                )}
               </View>
-              <Text style={[styles.paymentSubtitle, isDark && { color: '#9CA3AF' }]}>
-                UPI, Debit/Credit Cards, Net Banking & Wallets
+              <Text
+                style={[
+                  styles.stepTabText,
+                  isDark && { color: '#9CA3AF' },
+                  currentStep === 1 && styles.stepTabTextActive,
+                ]}
+              >
+                Contact
               </Text>
-            </View>
-            <CreditCard size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
-          </TouchableOpacity>
+            </TouchableOpacity>
+
+            <View style={[styles.stepConnector, isDark && { backgroundColor: '#1F2937' }]} />
+
+            {/* Step 2 Tab */}
+            <TouchableOpacity
+              style={styles.stepTab}
+              onPress={() => {
+                if (isEmailValid(contactEmail)) {
+                  setCurrentStep(2);
+                  setError('');
+                } else {
+                  setError('Please enter a valid email address first.');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.stepBadge,
+                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                  currentStep === 2 && styles.stepBadgeActive,
+                  currentStep > 2 && isShippingValid && styles.stepBadgeDone,
+                ]}
+              >
+                {currentStep > 2 && isShippingValid ? (
+                  <Check size={13} color="#fff" strokeWidth={3} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.stepBadgeText,
+                      isDark && { color: '#9CA3AF' },
+                      currentStep === 2 && styles.stepBadgeTextActive,
+                    ]}
+                  >
+                    2
+                  </Text>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.stepTabText,
+                  isDark && { color: '#9CA3AF' },
+                  currentStep === 2 && styles.stepTabTextActive,
+                ]}
+              >
+                Address
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.stepConnector, isDark && { backgroundColor: '#1F2937' }]} />
+
+            {/* Step 3 Tab */}
+            <TouchableOpacity
+              style={styles.stepTab}
+              onPress={() => {
+                if (!isEmailValid(contactEmail)) {
+                  setError('Please enter a valid email address first.');
+                  setCurrentStep(1);
+                } else if (!isShippingValid) {
+                  setError('Please complete all delivery address fields first.');
+                  setCurrentStep(2);
+                } else {
+                  setCurrentStep(3);
+                  setError('');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.stepBadge,
+                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                  currentStep === 3 && styles.stepBadgeActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stepBadgeText,
+                    isDark && { color: '#9CA3AF' },
+                    currentStep === 3 && styles.stepBadgeTextActive,
+                  ]}
+                >
+                  3
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.stepTabText,
+                  isDark && { color: '#9CA3AF' },
+                  currentStep === 3 && styles.stepTabTextActive,
+                ]}
+              >
+                Payment
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* 5. Billing Address */}
-        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
-          <TouchableOpacity
-            style={[styles.checkboxRow]}
-            onPress={() => setBillingSameAsShipping(!billingSameAsShipping)}
-          >
-            <View
-              style={[
-                styles.checkbox,
-                isDark && { backgroundColor: '#1F2937', borderColor: '#4B5563' },
-                billingSameAsShipping && styles.checkboxActive,
-              ]}
-            >
-              {billingSameAsShipping && <Check size={12} color="#fff" strokeWidth={3} />}
+        {/* ──── STEP 1: Contact Information Card ──── */}
+        {currentStep === 1 && (
+          <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+            <View style={styles.stepCardHeader}>
+              <View>
+                <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>1. Contact Information</Text>
+                <Text style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}>
+                  Where we'll send order receipts & tracking updates
+                </Text>
+              </View>
+              <View style={[styles.stepNumberBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
+                <Text style={[styles.stepNumberBadgeText, isDark && { color: '#5EEAD4' }]}>Step 1/3</Text>
+              </View>
             </View>
-            <Text style={[styles.checkboxText, isDark && { color: '#E5E7EB' }]}>Billing address same as shipping</Text>
-          </TouchableOpacity>
 
-          {!billingSameAsShipping && (
-            <View style={{ marginTop: Spacing.md }}>
-              <AddressFormFields
-                data={billingAddress}
-                onChange={(field, v) =>
-                  setBillingAddress(prev => ({ ...prev, [field]: v }))
-                }
+            <View style={{ marginTop: Spacing.sm }}>
+              <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>Email Address *</Text>
+              <TextInput
+                style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
+                value={contactEmail}
+                onChangeText={setContactEmail}
+                placeholder="e.g. yourname@example.com"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
             </View>
-          )}
-        </View>
 
-        {/* Primary CTA */}
-        <TouchableOpacity
-          style={[
-            styles.payBtn,
-            (!isFormValid || isProcessing) && styles.payBtnDisabled,
-          ]}
-          onPress={handlePayment}
-          disabled={!isFormValid || isProcessing}
-        >
-          {isProcessing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Lock size={16} color="#fff" />
-              <Text style={styles.payBtnText}>
-                Pay ₹{subtotal.toLocaleString()} via Razorpay
+            <TouchableOpacity
+              style={[styles.stepActionBtn, { marginTop: Spacing.md }]}
+              onPress={() => {
+                if (isEmailValid(contactEmail)) {
+                  setError('');
+                  setCurrentStep(2);
+                } else {
+                  setError('Please enter a valid email address.');
+                }
+              }}
+            >
+              <Text style={styles.stepActionBtnText}>Continue to Delivery</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ──── STEP 2: Delivery Address Card ──── */}
+        {currentStep === 2 && (
+          <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+            <View style={styles.stepCardHeader}>
+              <View>
+                <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>2. Delivery Address</Text>
+                <Text style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}>
+                  Enter complete shipping address with 10-digit phone
+                </Text>
+              </View>
+              <View style={[styles.stepNumberBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
+                <Text style={[styles.stepNumberBadgeText, isDark && { color: '#5EEAD4' }]}>Step 2/3</Text>
+              </View>
+            </View>
+
+            <AddressFormFields
+              data={shippingAddress}
+              onChange={(field, v) =>
+                setShippingAddress(prev => ({ ...prev, [field]: v }))
+              }
+            />
+
+            {/* Billing Address Toggle */}
+            <View style={[styles.billingToggleSection, isDark && { borderTopColor: '#1F2937' }]}>
+              <TouchableOpacity
+                style={[styles.checkboxRow]}
+                onPress={() => setBillingSameAsShipping(!billingSameAsShipping)}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    isDark && { backgroundColor: '#1F2937', borderColor: '#4B5563' },
+                    billingSameAsShipping && styles.checkboxActive,
+                  ]}
+                >
+                  {billingSameAsShipping && <Check size={12} color="#fff" strokeWidth={3} />}
+                </View>
+                <Text style={[styles.checkboxText, isDark && { color: '#E5E7EB' }]}>Billing address same as shipping</Text>
+              </TouchableOpacity>
+
+              {!billingSameAsShipping && (
+                <View style={{ marginTop: Spacing.md }}>
+                  <Text style={[styles.subSectionTitle, isDark && { color: '#FFFFFF' }]}>Different Billing Address</Text>
+                  <AddressFormFields
+                    data={billingAddress}
+                    onChange={(field, v) =>
+                      setBillingAddress(prev => ({ ...prev, [field]: v }))
+                    }
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Step 2 Buttons */}
+            <View style={styles.stepBtnRow}>
+              <TouchableOpacity
+                style={[styles.stepBackBtn, isDark && { borderColor: '#374151', backgroundColor: '#1F2937' }]}
+                onPress={() => {
+                  setError('');
+                  setCurrentStep(1);
+                }}
+              >
+                <ChevronLeft size={16} color={isDark ? '#E5E7EB' : CustomerColors.black} />
+                <Text style={[styles.stepBackBtnText, isDark && { color: '#E5E7EB' }]}>Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.stepActionBtn, { flex: 1 }]}
+                onPress={() => {
+                  if (!isShippingValid) {
+                    if (!isPhoneValid(shippingAddress.phone)) {
+                      setError('Please enter a valid 10-digit phone number.');
+                    } else {
+                      setError('Please fill in all required delivery address fields.');
+                    }
+                    return;
+                  }
+                  if (!billingSameAsShipping && !isBillingValid) {
+                    setError('Please fill in all required billing address fields.');
+                    return;
+                  }
+                  setError('');
+                  setCurrentStep(3);
+                }}
+              >
+                <Text style={styles.stepActionBtnText}>Continue to Payment</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* ──── STEP 3: Payment Method Card ──── */}
+        {currentStep === 3 && (
+          <View style={{ gap: Spacing.md }}>
+            {/* Delivery & Contact Review Chip */}
+            <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+              <View style={styles.summaryHeader}>
+                <Text style={[styles.summaryTitle, isDark && { color: '#9CA3AF' }]}>DELIVERY & CONTACT DETAILS</Text>
+                <TouchableOpacity onPress={() => setCurrentStep(2)}>
+                  <Text style={[styles.summaryEditBtn, isDark && { color: '#2DD4BF' }]}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.summaryText, isDark && { color: '#FFFFFF' }]}>
+                {shippingAddress.firstName} {shippingAddress.lastName}
               </Text>
-            </>
-          )}
-        </TouchableOpacity>
+              <Text style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}>
+                {shippingAddress.address}, {shippingAddress.city}, {shippingAddress.state} - {shippingAddress.pinCode}
+              </Text>
+              <Text style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}>
+                📞 {shippingAddress.phone}  ·  ✉️ {contactEmail}
+              </Text>
+            </View>
+
+            {/* Payment Method Selector */}
+            <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+              <View style={styles.stepCardHeader}>
+                <View>
+                  <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>3. Payment Method</Text>
+                  <Text style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}>
+                    All payments are 100% secure & encrypted
+                  </Text>
+                </View>
+                <View style={[styles.stepNumberBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
+                  <Text style={[styles.stepNumberBadgeText, isDark && { color: '#5EEAD4' }]}>Step 3/3</Text>
+                </View>
+              </View>
+
+              {/* Razorpay Option */}
+              <TouchableOpacity
+                style={[
+                  styles.paymentCard,
+                  isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+                  paymentMethod === 'razorpay' &&
+                    (isDark
+                      ? { borderColor: '#0D9488', backgroundColor: 'rgba(15, 163, 177, 0.12)' }
+                      : styles.paymentCardActive),
+                ]}
+                onPress={() => setPaymentMethod('razorpay')}
+              >
+                <View
+                  style={[
+                    styles.radio,
+                    isDark && { borderColor: '#6B7280' },
+                    paymentMethod === 'razorpay' && styles.radioActive,
+                  ]}
+                >
+                  {paymentMethod === 'razorpay' && <View style={styles.radioDot} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                    <Text style={[styles.paymentTitle, isDark && { color: '#FFFFFF' }]}>Online Payment (Razorpay)</Text>
+                    <View style={styles.instantTag}>
+                      <Text style={styles.instantTagText}>INSTANT</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.paymentSubtitle, isDark && { color: '#9CA3AF' }]}>
+                    UPI, Debit/Credit Cards, Net Banking & Wallets
+                  </Text>
+                </View>
+                <CreditCard size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
+              </TouchableOpacity>
+
+              {/* Step 3 Action Buttons */}
+              <View style={styles.stepBtnRow}>
+                <TouchableOpacity
+                  style={[styles.stepBackBtn, isDark && { borderColor: '#374151', backgroundColor: '#1F2937' }]}
+                  onPress={() => setCurrentStep(2)}
+                >
+                  <ChevronLeft size={16} color={isDark ? '#E5E7EB' : CustomerColors.black} />
+                  <Text style={[styles.stepBackBtnText, isDark && { color: '#E5E7EB' }]}>Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.stepActionBtn,
+                    { flex: 1 },
+                    (!isFormValid || isProcessing) && styles.payBtnDisabled,
+                  ]}
+                  onPress={handlePayment}
+                  disabled={!isFormValid || isProcessing}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                      <Lock size={15} color="#fff" />
+                      <Text style={styles.stepActionBtnText}>
+                        Pay ₹{subtotal.toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -803,5 +1088,171 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '800',
     color: '#fff',
+  },
+  stepperCard: {
+    backgroundColor: CustomerColors.white,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  stepBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  stepBadgeActive: {
+    backgroundColor: CustomerColors.teal600,
+    borderColor: CustomerColors.teal600,
+  },
+  stepBadgeDone: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  stepBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: CustomerColors.textSecondary,
+  },
+  stepBadgeTextActive: {
+    color: '#FFFFFF',
+  },
+  stepTabText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.textSecondary,
+  },
+  stepTabTextActive: {
+    color: CustomerColors.teal700,
+  },
+  stepConnector: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 8,
+  },
+  stepCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  cardSubTitle: {
+    fontSize: 11,
+    color: CustomerColors.textSecondary,
+    marginTop: 2,
+  },
+  stepNumberBadge: {
+    backgroundColor: '#CCFBF1',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.pill,
+  },
+  stepNumberBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: CustomerColors.teal700,
+  },
+  stepActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CustomerColors.teal600,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+  },
+  stepActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: FontSizes.xs + 1,
+  },
+  stepBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  stepBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+  },
+  stepBackBtnText: {
+    fontSize: FontSizes.xs + 1,
+    fontWeight: '700',
+    color: CustomerColors.black,
+  },
+  billingToggleSection: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  subSectionTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: '800',
+    color: CustomerColors.black,
+    marginBottom: Spacing.xs,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+    paddingBottom: Spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  summaryTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: CustomerColors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  summaryEditBtn: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.teal600,
+  },
+  summaryText: {
+    fontSize: FontSizes.xs + 1,
+    fontWeight: '700',
+    color: CustomerColors.black,
+    marginTop: 2,
+  },
+  summarySubText: {
+    fontSize: 11,
+    color: CustomerColors.textSecondary,
+    marginTop: 2,
   },
 });

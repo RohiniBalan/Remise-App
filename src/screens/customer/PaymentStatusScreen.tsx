@@ -70,7 +70,7 @@ export default function PaymentStatusScreen() {
       <View style={styles.card}>
         {status === 'LOADING' && (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={GoldColors.gold} />
+            <ActivityIndicator size="large" color={CustomerColors.primary} />
             <Text style={styles.title}>Verifying Payment</Text>
             <Text style={styles.subtitle}>Please wait while we securely confirm your transaction.</Text>
           </View>
@@ -181,8 +181,8 @@ const styles = StyleSheet.create({
   title: { fontSize: FontSizes.lg, fontWeight: '700', color: '#111827', marginTop: Spacing.md, textAlign: 'center' },
   subtitle: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, textAlign: 'center', marginTop: Spacing.sm, marginBottom: Spacing.xl },
   row: { flexDirection: 'row', gap: Spacing.md, width: '100%' },
-  primaryBtn: { flex: 1, flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: GoldColors.gold, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
-  primaryBtnText: { color: '#000', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
+  primaryBtn: { flex: 1, flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
+  primaryBtnText: { color: '#FFFFFF', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
   continueShoppingBtn: { width: '100%', flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.teal600, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
   continueShoppingBtnText: { color: '#FFFFFF', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
   secondaryBtn: { flex: 1, flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },

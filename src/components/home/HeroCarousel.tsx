@@ -176,7 +176,11 @@ function HomeHeroMark({ isDark }: { isDark: boolean }) {
   );
 }
 
-export default function HeroCarousel() {
+interface HeroCarouselProps {
+  onShopNow?: () => void;
+}
+
+export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
 
@@ -211,7 +215,13 @@ export default function HeroCarousel() {
       <View style={styles.btnRow}>
         <TouchableOpacity
           style={styles.primaryBtn}
-          onPress={() => navigation.navigate('Categories')}
+          onPress={() => {
+            if (onShopNow) {
+              onShopNow();
+            } else {
+              navigation.navigate('Categories');
+            }
+          }}
           activeOpacity={0.88}
         >
           <Text style={styles.primaryBtnText}>Shop Now</Text>

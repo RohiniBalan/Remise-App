@@ -163,7 +163,7 @@ export default function NewOfferScreen() {
   };
 
   const pickImage = () => {
-    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, res => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 }, res => {
       const uri = res.assets?.[0]?.uri;
       if (uri) setImgUri(uri);
     });

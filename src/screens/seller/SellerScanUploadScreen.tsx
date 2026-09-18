@@ -67,8 +67,8 @@ export default function SellerScanUploadScreen() {
       if (!granted) return;
     }
     const res = fromCamera
-      ? await launchCamera({ mediaType: 'photo', quality: 0.8 })
-      : await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+      ? await launchCamera({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 })
+      : await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
     if (res.didCancel || res.errorCode) return;
     const picked = res.assets?.[0];
     if (picked) {

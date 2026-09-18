@@ -131,6 +131,10 @@ export default function CartCheckoutModal({
       setErrorMsg('Please fill in all required fields.');
       return;
     }
+    if (!/^\d{10}$/.test(form.phone.trim())) {
+      setErrorMsg('Please enter a valid 10-digit phone number.');
+      return;
+    }
     setErrorMsg('');
     setStep('delivery');
   };
@@ -262,8 +266,9 @@ export default function CartCheckoutModal({
                 <Field
                   label="Phone *"
                   value={form.phone}
-                  onChangeText={(v: string) => setField('phone', v)}
-                  keyboardType="phone-pad"
+                  onChangeText={(v: string) => setField('phone', v.replace(/\D/g, '').slice(0, 10))}
+                  keyboardType="number-pad"
+                  maxLength={10}
                 />
                 <Field
                   label="Email"

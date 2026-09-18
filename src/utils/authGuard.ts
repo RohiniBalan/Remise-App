@@ -12,6 +12,12 @@ export function navigateToAuthFlow(navigation: NavigationLike | undefined) {
   while (current && !visited.has(current)) {
     visited.add(current);
     try {
+      current.navigate('LoginRegister');
+      return true;
+    } catch {
+      // Fall through
+    }
+    try {
       current.navigate('RoleGate');
       return true;
     } catch {

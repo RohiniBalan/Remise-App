@@ -150,11 +150,20 @@ export default function AddressFormFields({ data, onChange }: Props) {
           <TextInput
             style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
             value={data.phone}
-            onChangeText={v => onChange('phone', v)}
-            placeholder="Phone number"
+            onChangeText={v => {
+              const numeric = v.replace(/\D/g, '').slice(0, 10);
+              onChange('phone', numeric);
+            }}
+            placeholder="10-digit mobile"
             placeholderTextColor={placeholderColor}
-            keyboardType="phone-pad"
+            keyboardType="number-pad"
+            maxLength={10}
           />
+          {data.phone && data.phone.length < 10 ? (
+            <Text style={{ fontSize: 10, color: '#EF4444', marginTop: 2 }}>
+              Must be 10 digits ({data.phone.length}/10)
+            </Text>
+          ) : null}
         </View>
       </View>
     </View>

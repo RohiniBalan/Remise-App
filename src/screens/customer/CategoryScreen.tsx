@@ -7,10 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { Filter, X } from 'lucide-react-native';
+import { Filter, X, Search } from 'lucide-react-native';
 import { productApi, Product, productId } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -42,18 +43,12 @@ const PRICE_PRESETS: Array<{ label: string; min: number; max: number }> = [
   { label: '₹2500+', min: 2500, max: Infinity },
 ];
 
-const SORT_OPTIONS = [
-  'Best selling',
-  'Price: Low to High',
-  'Price: High to Low',
-] as const;
-
 // Roles that see store-owner pricing instead of the direct-customer price
 const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
 
 export default function CategoryScreen() {
   const navigation = useNavigation<any>();
-  const route = useRoute<RouteProp<{ CategoryProducts: { category?: string } }, 'CategoryProducts'>>();
+  const route = useRoute<RouteProp<{ CategoryProducts: { category?: string; search?: string } }, 'CategoryProducts'>>();
   const { user, token } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
@@ -63,13 +58,12 @@ export default function CategoryScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(route.params?.category ?? null);
+  const [searchQuery, setSearchQuery] = useState<string>(route.params?.search ?? '');
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedAvailabilities, setSelectedAvailabilities] = useState<
     string[]
   >([]);
   const [pricePreset, setPricePreset] = useState(PRICE_PRESETS[0]);
-  const [sortBy, setSortBy] =
-    useState<(typeof SORT_OPTIONS)[number]>('Best selling');
 
   useEffect(() => {
     productApi
@@ -89,10 +83,6 @@ export default function CategoryScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    setActiveCategory(route.params?.category ?? null);
-  }, [route.params?.category]);
-  
   const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
   // Store-owner buyers see storePrice/storeDiscountedPrice (falling back to
   // the regular customer price if the seller didn't set a store price).
@@ -111,7 +101,45 @@ export default function CategoryScreen() {
     Array.from(new Set(displayProducts.map(p => p[key]).filter(Boolean))) as string[];
   const categories = useMemo(() => getUnique('category'), [displayProducts]);
   const brands = useMemo(() => getUnique('brand'), [displayProducts]);
-  const availabilities = useMemo(() => getUnique('availability'), [displayProducts]);
+  const availabilities = useMemo(() => ['In Stock', 'Out of Stock'], []);
+
+  const getEffectivePrice = (p: Product) => {
+    return p.discountedPrice != null &&
+      p.discountedPrice > 0 &&
+      p.discountedPrice < p.price
+      ? p.discountedPrice
+      : p.price || 0;
+  };
+
+  useEffect(() => {
+    const rawCategory = route.params?.category ?? null;
+    if (!rawCategory || rawCategory === 'all') {
+      setActiveCategory(null);
+    } else {
+      const slug = rawCategory.trim().toLowerCase();
+      const match = categories.find(
+        c =>
+          c.toLowerCase() === slug ||
+          c.toLowerCase().includes(slug) ||
+          slug.includes(c.toLowerCase()),
+      );
+      setActiveCategory(match ?? rawCategory);
+    }
+    // Refresh / reset search and sub-filters when switching to a new category
+    setSearchQuery(route.params?.search ?? '');
+    setSelectedBrands([]);
+    setSelectedAvailabilities([]);
+    setPricePreset(PRICE_PRESETS[0]);
+  }, [route.params?.category, categories]);
+
+  const handleSelectCategory = (cat: string | null) => {
+    setActiveCategory(cat);
+    // Reset search query and sub-filters for a fresh category view
+    setSearchQuery('');
+    setSelectedBrands([]);
+    setSelectedAvailabilities([]);
+    setPricePreset(PRICE_PRESETS[0]);
+  };
 
   const toggle = (
     list: string[],
@@ -123,42 +151,54 @@ export default function CategoryScreen() {
     );
 
   const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return displayProducts
       .filter(p => {
-        if (activeCategory && p.category !== activeCategory) return false;
-        if (p.price < pricePreset.min || p.price > pricePreset.max)
+        if (
+          q &&
+          !`${p.title || ''} ${p.brand || ''} ${p.category || ''}`
+            .toLowerCase()
+            .includes(q)
+        ) {
+          return false;
+        }
+        if (
+          activeCategory &&
+          (p.category || '').toLowerCase() !== activeCategory.toLowerCase()
+        )
+          return false;
+        const effPrice = getEffectivePrice(p);
+        if (effPrice < pricePreset.min || effPrice > pricePreset.max)
           return false;
         if (selectedBrands.length && !selectedBrands.includes(p.brand || ''))
           return false;
-        if (
-          selectedAvailabilities.length &&
-          !selectedAvailabilities.includes(p.availability || '')
-        )
-          return false;
+        if (selectedAvailabilities.length) {
+          const isOutOfStock =
+            p.totalStock <= 0 || p.availability === 'Out of Stock';
+          const status = isOutOfStock ? 'Out of Stock' : 'In Stock';
+          if (!selectedAvailabilities.includes(status)) return false;
+        }
         return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'Price: Low to High') return a.price - b.price;
-        if (sortBy === 'Price: High to Low') return b.price - a.price;
-        return 0;
       });
   }, [
     displayProducts,
     activeCategory,
+    searchQuery,
     pricePreset,
     selectedBrands,
     selectedAvailabilities,
-    sortBy,
   ]);
 
   const hasActiveFilters =
     Boolean(activeCategory) ||
+    Boolean(searchQuery) ||
     selectedBrands.length > 0 ||
     selectedAvailabilities.length > 0 ||
     pricePreset.label !== 'All';
 
   const clearFilters = () => {
     setActiveCategory(null);
+    setSearchQuery('');
     setSelectedBrands([]);
     setSelectedAvailabilities([]);
     setPricePreset(PRICE_PRESETS[0]);
@@ -174,10 +214,11 @@ export default function CategoryScreen() {
       })
     )
       return;
+    const effectivePrice = getEffectivePrice(p);
     addToCart({
       id: productId(p),
       title: p.title,
-      price: p.price,
+      price: effectivePrice,
       quantity: 1,
       image: p.images?.[0] ?? p.imageUrl,
       totalStock: p.totalStock,
@@ -194,10 +235,11 @@ export default function CategoryScreen() {
       })
     )
       return;
+    const effectivePrice = getEffectivePrice(p);
     setBuyNowItem({
       id: productId(p),
       title: p.title,
-      price: p.price,
+      price: effectivePrice,
       quantity: 1,
       image: p.images?.[0] ?? p.imageUrl,
       totalStock: p.totalStock,
@@ -215,6 +257,27 @@ export default function CategoryScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Search Bar */}
+      <View style={styles.searchBarContainer}>
+        <View style={styles.searchBar}>
+          <Search size={16} color={CustomerColors.textSecondary} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={activeCategory ? `Search in ${activeCategory}…` : "Search all products…"}
+            placeholderTextColor={CustomerColors.textSecondary}
+            style={styles.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <X size={16} color={CustomerColors.textSecondary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+
       <View style={styles.topBar}>
         <TouchableOpacity
           style={styles.filterToggle}
@@ -241,7 +304,7 @@ export default function CategoryScreen() {
                 label={cat}
                 active={activeCategory === cat}
                 onPress={() =>
-                  setActiveCategory(activeCategory === cat ? null : cat)
+                  handleSelectCategory(activeCategory === cat ? null : cat)
                 }
               />
             ))}
@@ -292,20 +355,6 @@ export default function CategoryScreen() {
               ))}
             </ScrollView>
           )}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipRow}
-          >
-            {SORT_OPTIONS.map(s => (
-              <Chip
-                key={s}
-                label={s}
-                active={sortBy === s}
-                onPress={() => setSortBy(s)}
-              />
-            ))}
-          </ScrollView>
           {hasActiveFilters && (
             <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
               <X size={12} color={CustomerColors.primary} />
@@ -374,6 +423,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
+  },
+  searchBarContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    backgroundColor: '#FFFFFF',
+  },
+  searchBar: {
+    height: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.sm,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FontSizes.xs,
+    color: CustomerColors.black,
+    paddingVertical: 0,
   },
   topBar: {
     flexDirection: 'row',

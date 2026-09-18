@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -67,6 +67,9 @@ import {
   buildCategoryItems,
   fetchBestSellers,
   fetchNewArrivals,
+  getCachedCategories,
+  getCachedBestSellers,
+  getCachedNewArrivals,
 } from '../../api/homeSectionsApi';
 import { productApi, Product, productId, productImage } from '../../api/productApi';
 import { useAuth } from '../../context/AuthContext';
@@ -138,9 +141,20 @@ export default function HomeScreen() {
   const { theme, toggleTheme, isDark, colors } = useTheme();
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [categories, setCategories] = useState<CategoryItem[]>(CATEGORY_FALLBACK);
-  const [bestSellers, setBestSellers] = useState<BestSellerItem[]>(BEST_SELLER_FALLBACK);
-  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>(() => getCachedCategories() || CATEGORY_FALLBACK);
+  const [bestSellers, setBestSellers] = useState<BestSellerItem[]>(() => getCachedBestSellers() || BEST_SELLER_FALLBACK);
+  const [newArrivals, setNewArrivals] = useState<Product[]>(() => getCachedNewArrivals() || []);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [categorySectionY, setCategorySectionY] = useState(0);
+
+  const handleShopNow = () => {
+    if (categorySectionY > 0) {
+      scrollViewRef.current?.scrollTo({ y: categorySectionY, animated: true });
+    } else {
+      scrollViewRef.current?.scrollTo({ y: 650, animated: true });
+    }
+  };
 
   // ── Shop by Offers Nearby — mirrors ShopByOffersNearbySection.tsx's
   // status machine exactly (idle → locating → loading → done/denied/error),
@@ -158,36 +172,21 @@ export default function HomeScreen() {
       .then(items => {
         if (items && items.length > 0) setCategories(items);
       })
-      .catch(() => setCategories(CATEGORY_FALLBACK));
+      .catch(() => {});
 
     fetchBestSellers()
       .then(items => {
         if (items && items.length > 0) setBestSellers(items);
       })
-      .catch(() => setBestSellers(BEST_SELLER_FALLBACK));
+      .catch(() => {});
 
     fetchNewArrivals()
       .then(items => {
         if (items && items.length > 0) {
-          setNewArrivals(items.slice(0, 10));
-        } else {
-          // Fallback to recent products if no products created in the last 14 days
-          productApi.getProductsViaGateway({ limit: 10, ownerRole: 'store_owner' })
-            .then(res => {
-              const list = Array.isArray(res.data) ? res.data : (res.data?.products || res.data?.data || []);
-              if (list.length > 0) setNewArrivals(list.slice(0, 10));
-            })
-            .catch(() => {});
+          setNewArrivals(items);
         }
       })
-      .catch(() => {
-        productApi.getProductsViaGateway({ limit: 10, ownerRole: 'store_owner' })
-          .then(res => {
-            const list = Array.isArray(res.data) ? res.data : (res.data?.products || res.data?.data || []);
-            if (list.length > 0) setNewArrivals(list.slice(0, 10));
-          })
-          .catch(() => {});
-      });
+      .catch(() => {});
   }, []);
 
   const fetchNearbyOffers = useCallback(async (lat?: number, lng?: number) => {
@@ -227,7 +226,7 @@ export default function HomeScreen() {
         // If location is denied or unavailable, fallback to active offers seamlessly
         fetchNearbyOffers();
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
     );
   }, [fetchNearbyOffers]);
 
@@ -280,7 +279,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
         {!user && (
           <View style={[styles.guestLoginCard, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}>
             <View style={styles.guestLoginIconBg}>
@@ -299,7 +298,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         )}
-        <HeroCarousel />
+        <HeroCarousel onShopNow={handleShopNow} />
 
         {/* ── Deal Strip ── */}
         <View style={[styles.dealStrip, isDark && { backgroundColor: '#111827', borderBottomColor: '#1e293b' }]}>
@@ -448,42 +447,53 @@ export default function HomeScreen() {
         </Section>
 
         {/* ── Shop by Category ─────────────────────────────────────────── */}
-        <Section title="Shop by Category" onViewAll={() => navigation.navigate('Categories')}>
-          <View style={styles.categoryGrid}>
-            {categories.slice(0, 6).map((cat, i) => {
-              const IconComp = ICON_MAP[cat.icon] || Sparkles;
-              const tint = CATEGORY_TINTS[i % CATEGORY_TINTS.length];
-              return (
-                <TouchableOpacity key={cat.id} style={styles.categoryCard} onPress={() => navigation.navigate('Categories', { screen: 'CategoryProducts', params: { category: cat.title } })}>
-                  <View style={styles.categoryImageWrap}>
-                    <Image source={{ uri: resolveImage(cat.img) }} style={styles.categoryImage} />
-                    <View style={styles.categoryOverlay} />
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryBadgeText}>{cat.badge}</Text>
+        <View onLayout={e => setCategorySectionY(e.nativeEvent.layout.y)}>
+          <Section title="Shop by Category" onViewAll={() => navigation.navigate('Categories')}>
+            <FlatList
+              data={categories.filter(cat => cat.count > 0)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={cat => cat.id}
+              contentContainerStyle={styles.categoryList}
+              renderItem={({ item: cat, index: i }) => {
+                const IconComp = ICON_MAP[cat.icon] || Sparkles;
+                const tint = CATEGORY_TINTS[i % CATEGORY_TINTS.length];
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categoryCard, isDark && { backgroundColor: '#111827', borderColor: '#1f2937' }]}
+                    onPress={() => navigation.navigate('Categories', { screen: 'CategoryProducts', params: { category: cat.title || cat.id } })}
+                  >
+                    <View style={styles.categoryImageWrap}>
+                      <Image source={{ uri: resolveImage(cat.img) }} style={styles.categoryImage} />
+                      <View style={styles.categoryOverlay} />
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryBadgeText}>{cat.badge}</Text>
+                      </View>
+                      <View style={[styles.categoryIconWrap, { backgroundColor: tint }]}>
+                        <IconComp size={14} color="#fff" />
+                      </View>
                     </View>
-                    <View style={[styles.categoryIconWrap, { backgroundColor: tint }]}>
-                      <IconComp size={14} color="#fff" />
+                    <Text style={[styles.categoryTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{cat.title}</Text>
+                    <Text style={[styles.categoryDesc, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>{cat.description}</Text>
+                    <View style={styles.categoryFooterRow}>
+                      <Text style={styles.categoryCount}>{cat.count} items</Text>
+                      <View style={styles.exploreRow}>
+                        <Text style={styles.exploreText}>Explore</Text>
+                        <ChevronRight size={10} color={CustomerColors.teal600} />
+                      </View>
                     </View>
-                  </View>
-                  <Text style={styles.categoryTitle} numberOfLines={1}>{cat.title}</Text>
-                  <Text style={styles.categoryDesc} numberOfLines={1}>{cat.description}</Text>
-                  <View style={styles.categoryFooterRow}>
-                    <Text style={styles.categoryCount}>{cat.count} items</Text>
-                    <View style={styles.exploreRow}>
-                      <Text style={styles.exploreText}>Explore</Text>
-                      <ChevronRight size={10} color={CustomerColors.teal600} />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Section>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </Section>
+        </View>
 
         {/* ── Best Sellers ─────────────────────────────────────────────── */}
         <Section title="Best Sellers" onViewAll={() => navigation.navigate('BestSellers')}>
           <FlatList
-            data={bestSellers}
+            data={bestSellers.filter(p => (p.totalStock ?? 1) > 0)}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={p => String(p.id)}
@@ -554,10 +564,10 @@ export default function HomeScreen() {
         </Section>
 
         {/* ── New Arrivals ─────────────────────────────────────────────── */}
-        {newArrivals.length > 0 && (
+        {newArrivals.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0).length > 0 && (
           <Section title="New Arrivals" onViewAll={() => navigation.navigate('NewArrivals')}>
             <FlatList
-              data={newArrivals}
+              data={newArrivals.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0)}
               horizontal
               showsHorizontalScrollIndicator={false}
               keyExtractor={p => productId(p)}
@@ -824,13 +834,22 @@ const styles = StyleSheet.create({
   offerTimeBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: CustomerColors.bg, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1 },
   offerTimeText: { fontSize: 9, color: CustomerColors.textSecondary, fontWeight: '600' },
 
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.lg, gap: Spacing.sm, justifyContent: 'space-between' },
-  categoryCard: { width: '31%', marginBottom: Spacing.md },
-  categoryImageWrap: { aspectRatio: 4 / 3, borderRadius: BorderRadius.md, overflow: 'hidden', backgroundColor: CustomerColors.bg, position: 'relative' },
+  categoryList: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
+  categoryCard: {
+    width: 140,
+    backgroundColor: CustomerColors.white,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: CustomerColors.border,
+    overflow: 'hidden',
+    padding: Spacing.xs,
+    ...Shadows.card,
+  },
+  categoryImageWrap: { aspectRatio: 4 / 3, borderRadius: BorderRadius.sm, overflow: 'hidden', backgroundColor: CustomerColors.bg, position: 'relative' },
   categoryImage: { width: '100%', height: '100%' },
   categoryOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '55%', backgroundColor: 'rgba(0,0,0,0.35)' },
-  categoryBadge: { position: 'absolute', top: 4, right: 4, backgroundColor: GoldColors.gold, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
-  categoryBadgeText: { fontSize: 8, fontWeight: '800', color: '#000' },
+  categoryBadge: { position: 'absolute', top: 4, right: 4, backgroundColor: CustomerColors.teal, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
+  categoryBadgeText: { fontSize: 8, fontWeight: '800', color: '#fff' },
   categoryIconWrap: { position: 'absolute', bottom: 4, left: 4, width: 22, height: 22, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   categoryTitle: { fontSize: 11, fontWeight: '800', color: CustomerColors.black, marginTop: 5 },
   categoryDesc: { fontSize: 9, color: CustomerColors.textSecondary, marginTop: 1 },
@@ -845,8 +864,8 @@ const styles = StyleSheet.create({
   sellerImage: { width: '100%', height: '100%' },
   sellerBadge: { position: 'absolute', top: 6, left: 6, backgroundColor: CustomerColors.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
   sellerBadgeText: { fontSize: 8, fontWeight: '800', color: '#fff' },
-  sellerDiscount: { position: 'absolute', top: 6, right: 6, backgroundColor: GoldColors.gold, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
-  sellerDiscountText: { fontSize: 8, fontWeight: '800', color: '#000' },
+  sellerDiscount: { position: 'absolute', top: 6, right: 6, backgroundColor: CustomerColors.teal, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
+  sellerDiscountText: { fontSize: 8, fontWeight: '800', color: '#fff' },
   sellerBody: { padding: Spacing.xs },
   sellerBrand: { fontSize: 9, color: CustomerColors.textSecondary, fontWeight: '600' },
   sellerName: { fontSize: 11, fontWeight: '700', color: CustomerColors.black, marginTop: 1, minHeight: 28 },
@@ -866,8 +885,8 @@ const styles = StyleSheet.create({
   newArrivalImage: { width: '100%', height: '100%' },
   newArrivalNewBadge: { position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: CustomerColors.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 2 },
   newArrivalNewBadgeText: { fontSize: 8, fontWeight: '800', color: '#fff' },
-  newArrivalDiscount: { position: 'absolute', top: 6, right: 36, backgroundColor: GoldColors.gold, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 2 },
-  newArrivalDiscountText: { fontSize: 8, fontWeight: '800', color: '#000' },
+  newArrivalDiscount: { position: 'absolute', top: 6, right: 36, backgroundColor: CustomerColors.teal, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 2 },
+  newArrivalDiscountText: { fontSize: 8, fontWeight: '800', color: '#fff' },
   newArrivalWishBtn: { position: 'absolute', top: 6, right: 6, zIndex: 3, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' },
   newArrivalWishBtnActive: { backgroundColor: '#FFE5E5' },
   newArrivalBody: { padding: Spacing.xs },

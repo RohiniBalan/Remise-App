@@ -298,8 +298,8 @@ export default function StoreProductFormScreen() {
       if (!granted) return;
     }
     const res = fromCamera
-      ? await launchCamera({ mediaType: 'photo', quality: 0.8 })
-      : await launchImageLibrary({ mediaType: 'photo', quality: 0.8, selectionLimit: 0 });
+      ? await launchCamera({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 })
+      : await launchImageLibrary({ mediaType: 'photo', quality: 0.8, selectionLimit: 0, maxWidth: 1600, maxHeight: 1600 });
     if (res.didCancel || res.errorCode) return;
     const assets = res.assets || [];
     if (assets.length > 0) {

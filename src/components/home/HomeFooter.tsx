@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Phone, MapPin, Shield, CreditCard, Truck, Mail, Send } from 'lucide-react-native';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { newsletterApi } from '../../api/newsletterApi';
+import { useAuth } from '../../context/AuthContext';
 
 // Compact mobile counterpart of client/app/components-sections/Footer.tsx.
 // Web's link columns (Company/Support/Shop) mostly point at '#' (no real
@@ -34,6 +35,7 @@ const LEGAL_LINKS = [
 
 export default function HomeFooter() {
   const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [hasInputError, setHasInputError] = useState(false);
@@ -49,6 +51,23 @@ export default function HomeFooter() {
 
   const handleSubscribe = async () => {
     if (isSubscribing) return;
+
+    if (!user && !token) {
+      setHasInputError(true);
+      setStatusMessage({ type: 'error', text: 'Please log in first to subscribe' });
+      Alert.alert(
+        'Login Required',
+        'Please log in first to subscribe to the newsletter.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Log In',
+            onPress: () => navigation.navigate('LoginRegister'),
+          },
+        ]
+      );
+      return;
+    }
 
     if (!email.trim()) {
       setHasInputError(true);
@@ -147,8 +166,8 @@ export default function HomeFooter() {
               statusMessage.type === 'success'
                 ? styles.statusSuccess
                 : statusMessage.type === 'duplicate'
-                ? styles.statusDuplicate
-                : styles.statusError,
+                  ? styles.statusDuplicate
+                  : styles.statusError,
             ]}
           >
             <Text
@@ -157,8 +176,8 @@ export default function HomeFooter() {
                 statusMessage.type === 'success'
                   ? styles.statusTextSuccess
                   : statusMessage.type === 'duplicate'
-                  ? styles.statusTextDuplicate
-                  : styles.statusTextError,
+                    ? styles.statusTextDuplicate
+                    : styles.statusTextError,
               ]}
             >
               {statusMessage.text}
@@ -237,7 +256,7 @@ export default function HomeFooter() {
           ))}
         </View>
 
-        <Text style={styles.copyright}>© 2025 Remise. All rights reserved.</Text>
+        <Text style={styles.copyright}>© 2026 Remise. All rights reserved.</Text>
       </View>
     </View>
   );

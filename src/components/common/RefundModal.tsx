@@ -39,7 +39,7 @@ export default function RefundModal({
     !Number.isFinite(numericAmount) || numericAmount <= 0
       ? 'Enter an amount greater than zero.'
       : numericAmount > totalAmount
-      ? `The refund cannot exceed Rs ${totalAmount.toLocaleString()}.`
+      ? `The refund cannot exceed the available balance of Rs ${totalAmount.toLocaleString()}.`
       : '';
 
   return (
@@ -54,8 +54,7 @@ export default function RefundModal({
           <View>
             <Text style={styles.title}>Request Razorpay refund</Text>
             <Text style={styles.subtitle}>
-              Normal refunds usually reach the original payment method within
-              5-7 working days.
+              Razorpay Route processes the refund to the customer's original payment method and adjusts vendor transfers accordingly.
             </Text>
           </View>
 
@@ -65,10 +64,11 @@ export default function RefundModal({
             onChangeText={setAmount}
             keyboardType="decimal-pad"
             placeholder="0.00"
+            editable={!isSubmitting}
             style={styles.input}
           />
           <Text style={styles.hint}>
-            Paid amount available: Rs {totalAmount.toLocaleString()}
+            Refundable balance available: Rs {totalAmount.toLocaleString()}
           </Text>
 
           <Text style={styles.label}>Reason</Text>
@@ -77,6 +77,7 @@ export default function RefundModal({
             onChangeText={setNote}
             maxLength={200}
             multiline
+            editable={!isSubmitting}
             style={[styles.input, styles.noteInput]}
           />
 

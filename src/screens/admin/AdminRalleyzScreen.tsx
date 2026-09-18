@@ -36,7 +36,7 @@ export default function AdminRalleyzScreen() {
   const update = (idx: number, patch: Partial<RalleyzItem>) => setData(d => d.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
   const uploadImage = async (idx: number, itemId: string | number) => {
-    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
     const uri = res.assets?.[0]?.uri;
     if (!uri) return;
     setUploadingId(itemId);

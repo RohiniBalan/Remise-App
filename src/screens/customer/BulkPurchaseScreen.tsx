@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Share, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, HelpCircle, AlertCircle, Camera, Image as ImageIcon, X } from 'lucide-react-native';
+import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, HelpCircle, AlertCircle, Camera, Image as ImageIcon, X, Lock } from 'lucide-react-native';
 import { scanBulkList, parseVoiceList } from '../../api/geminiScanApi';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
@@ -10,6 +10,7 @@ import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks
 import { requestCameraPermission } from '../../utils/permissions';
 import BrandHeader from '../../components/common/BrandHeader';
 import { lookupTanglishDictionary } from '../../utils/tanglishTranslator';
+import { useAuth } from '../../context/AuthContext';
 
 let idCounter = 0;
 const uid = () => `item-${++idCounter}-${Date.now()}`;
@@ -26,14 +27,22 @@ interface BulkItem {
 export default function BulkPurchaseScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
   const [items, setItems] = useState<BulkItem[]>([]);
   const [scanning, setScanning] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [voiceLang, setVoiceLang] = useState<VoiceLanguageOption>(VOICE_LANGUAGES[0]);
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceError, setVoiceError] = useState('');
 
-  const addBlank = () => setItems(prev => [...prev, { id: uid(), name: '', brand: '', quantity: '', checked: false }]);
+  const addBlank = () => {
+    if (!token || !user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setItems(prev => [...prev, { id: uid(), name: '', brand: '', quantity: '', checked: false }]);
+  };
   const update = (id: string, field: 'name' | 'brand' | 'quantity', value: string) =>
     setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value, needsClarification: false } : i)));
 
@@ -65,6 +74,14 @@ export default function BulkPurchaseScreen() {
     } catch {
       // user cancelled
     }
+  };
+
+  const handleOpenScan = () => {
+    if (!token || !user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setShowScanModal(true);
   };
 
   const runScan = async (base64: string, mimeType: string) => {
@@ -127,11 +144,34 @@ export default function BulkPurchaseScreen() {
 
   const voice = useVoiceInput(handleVoiceResult);
 
+  const handleVoiceToggle = () => {
+    if (!token || !user) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (voice.listening) {
+      voice.stop();
+    } else {
+      voice.start(voiceLang);
+    }
+  };
+
   const handleCameraScan = async () => {
     setShowScanModal(false);
+    if (!token || !user) {
+      setShowAuthModal(true);
+      return;
+    }
     const granted = await requestCameraPermission();
     if (!granted) return;
-    const res = await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.8, saveToPhotos: false });
+    const res = await launchCamera({
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.8,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      saveToPhotos: false,
+    });
     const asset = res.assets?.[0];
     if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
     else if (res.errorMessage) Alert.alert('Camera unavailable', res.errorMessage);
@@ -139,7 +179,17 @@ export default function BulkPurchaseScreen() {
 
   const handleGalleryScan = async () => {
     setShowScanModal(false);
-    const res = await launchImageLibrary({ mediaType: 'photo', includeBase64: true, quality: 0.8 });
+    if (!token || !user) {
+      setShowAuthModal(true);
+      return;
+    }
+    const res = await launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.8,
+      maxWidth: 1600,
+      maxHeight: 1600,
+    });
     const asset = res.assets?.[0];
     if (asset?.base64) runScan(asset.base64, asset.type || 'image/jpeg');
   };
@@ -164,7 +214,7 @@ export default function BulkPurchaseScreen() {
         <View style={styles.heroIcon}><ListChecks size={24} color={CustomerColors.teal600} /></View>
         <Text style={styles.heroTitle}>Monthly / Bulk Purchase</Text>
         <Text style={styles.heroSubtitle}>Build a shopping list, then compare nearby stores and place a smart order.</Text>
-        <TouchableOpacity style={styles.scanBtn} onPress={() => setShowScanModal(true)} disabled={scanning}>
+        <TouchableOpacity style={styles.scanBtn} onPress={handleOpenScan} disabled={scanning}>
           {scanning ? <ActivityIndicator size="small" color="#fff" /> : <ScanLine size={15} color="#fff" />}
           <Text style={styles.scanBtnText}>{scanning ? 'Scanning…' : 'Scan Paper List'}</Text>
         </TouchableOpacity>
@@ -183,7 +233,7 @@ export default function BulkPurchaseScreen() {
         <TouchableOpacity
           style={[styles.voiceBtn, voice.listening && styles.voiceBtnActive]}
           disabled={voiceParsing}
-          onPress={() => (voice.listening ? voice.stop() : voice.start(voiceLang))}
+          onPress={handleVoiceToggle}
         >
           {voiceParsing
             ? <ActivityIndicator size="small" color="#fff" />
@@ -220,7 +270,6 @@ export default function BulkPurchaseScreen() {
           <View style={styles.toolbar}>
             <Text style={styles.toolbarText}>
               {items.length} item{items.length !== 1 ? 's' : ''}
-              {checkedCount > 0 ? ` · ${checkedCount} checked` : ''}
             </Text>
             <View style={styles.toolbarActions}>
               <TouchableOpacity style={styles.iconAction} onPress={addBlank}><Plus size={14} color={CustomerColors.textSecondary} /></TouchableOpacity>
@@ -234,11 +283,7 @@ export default function BulkPurchaseScreen() {
             keyExtractor={i => i.id}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <View style={[styles.row, item.checked && styles.rowChecked, item.needsClarification && styles.rowFlagged]}>
-                {/* Checkbox */}
-                <TouchableOpacity style={[styles.checkbox, item.checked && styles.checkboxChecked]} onPress={() => toggleCheck(item.id)}>
-                  {item.checked && <Check size={11} color="#fff" strokeWidth={3} />}
-                </TouchableOpacity>
+              <View style={[styles.row, item.needsClarification && styles.rowFlagged]}>
                 {item.needsClarification && <HelpCircle size={13} color="#D97706" />}
 
                 {/* Fields column */}
@@ -326,6 +371,47 @@ export default function BulkPurchaseScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Login Required Modal */}
+      <Modal visible={showAuthModal} transparent animationType="fade" onRequestClose={() => setShowAuthModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                <Lock size={20} color={CustomerColors.teal600} />
+                <Text style={styles.modalTitle}>Login Required</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAuthModal(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.authModalBody}>
+              <View style={styles.authIconCircle}>
+                <ScanLine size={28} color={CustomerColors.teal600} />
+              </View>
+              <Text style={styles.authModalTitle}>Login to Manage Purchase List</Text>
+              <Text style={styles.authModalSub}>
+                Please sign in or register to add items manually, speak your list, or scan paper lists and compare nearby store prices.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.cameraActionBtn}
+              onPress={() => {
+                setShowAuthModal(false);
+                navigation.navigate('LoginRegister');
+              }}
+            >
+              <Text style={styles.cameraActionBtnText}>Log In / Register</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAuthModal(false)}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -386,5 +472,12 @@ const styles = StyleSheet.create({
   orText: { fontSize: 11, color: CustomerColors.textSecondary, fontWeight: '600' },
   galleryActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.steelBorder, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
   galleryActionBtnText: { color: CustomerColors.teal700, fontSize: FontSizes.sm, fontWeight: '700' },
+  authModalBody: { alignItems: 'center', gap: Spacing.xs, paddingVertical: Spacing.sm },
+  authIconCircle: { width: 56, height: 56, borderRadius: BorderRadius.lg, backgroundColor: CustomerColors.mint, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs },
+  authModalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black, textAlign: 'center' },
+  authModalSub: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, textAlign: 'center', lineHeight: 18 },
+  cancelBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, borderRadius: BorderRadius.md, backgroundColor: CustomerColors.bg, borderWidth: 1, borderColor: CustomerColors.steelBorder },
+  cancelBtnText: { color: CustomerColors.textSecondary, fontSize: FontSizes.sm, fontWeight: '600' },
 });
+
 

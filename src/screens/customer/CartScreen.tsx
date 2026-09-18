@@ -66,16 +66,13 @@ export default function CartScreen() {
           <TouchableOpacity
             style={styles.shopBtn}
             onPress={() => {
-              if (user?.role === 'store_owner') {
-                navigation.navigate('Suppliers');
-              } else {
-                navigation.navigate('CustomerTabs', {
-                  screen: 'Home',
-                });
-              }
+              navigation.navigate('Categories', {
+                screen: 'CategoryProducts',
+                params: { category: 'all' },
+              });
             }}
           >
-            <Text style={styles.shopBtnText}>Start Shopping</Text>
+            <Text style={styles.shopBtnText}>Continue Shopping</Text>
           </TouchableOpacity>
         </View>
       </View>

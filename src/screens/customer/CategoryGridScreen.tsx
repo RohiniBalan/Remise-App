@@ -237,8 +237,13 @@ export default function CategoryGridScreen() {
         contentContainerStyle={styles.grid}
         ListHeaderComponent={
           <View style={styles.pageHeading}>
-            <Text style={styles.eyebrow}>Browse</Text>
-            <Text style={styles.headerTitle}>Shop by Category</Text>
+            <View style={styles.pageHeadingRow}>
+              <View>
+                <Text style={styles.eyebrow}>Browse</Text>
+                <Text style={styles.headerTitle}>Shop by Category</Text>
+              </View>
+              <Text style={styles.headerCount}>{products.length} products</Text>
+            </View>
           </View>
         }
         ListEmptyComponent={
@@ -315,6 +320,17 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   pageHeading: { marginBottom: Spacing.lg },
+  pageHeadingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  headerCount: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.textSecondary,
+    paddingBottom: 2,
+  },
   eyebrow: {
     fontSize: 10,
     fontWeight: '800',
