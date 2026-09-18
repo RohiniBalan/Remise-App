@@ -94,7 +94,7 @@ export default function StoreManageBrandsScreen() {
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={styles.actionBtn}
-                  onPress={() => navigation.navigate('ProductDetail', { productId: p._id })}
+                  onPress={() => navigation.navigate('ProductDetail', { productId: p._id, hideBack: true, from: 'preview' })}
                 >
                   <Eye size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                 </TouchableOpacity>

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Trash2, ImageIcon, Plus, CheckCircle2 } from 'lucide-react-native';
@@ -56,17 +57,32 @@ export default function StoreBulkProductScanScreen() {
   const removeRow = (id: string) => setRows(rs => rs.filter(r => r.id !== id));
 
   const handleAddAll = async () => {
+    if (rows.length === 0) return;
+
+    // Upfront validation
+    const errors: string[] = [];
+    rows.forEach((row, i) => {
+      const missing: string[] = [];
+      if (!row.title?.trim()) missing.push('Product Title');
+      if (!row.price || isNaN(Number(row.price)) || Number(row.price) <= 0) missing.push('Price (> ₹0)');
+      if (row.totalStock === undefined || row.totalStock === '' || isNaN(Number(row.totalStock)) || Number(row.totalStock) < 0) missing.push('Stock Quantity (>= 0)');
+      if (missing.length > 0) {
+        errors.push(`• Item #${i + 1} "${row.title || 'Untitled'}": Missing ${missing.join(', ')}`);
+      }
+    });
+
+    if (errors.length > 0) {
+      Alert.alert(
+        'Incomplete Product Details',
+        'Please provide Title, Price, and Stock Quantity for all items before adding:\n\n' + errors.join('\n')
+      );
+      return;
+    }
+
     setStep('saving');
     let added = 0;
     const failed: { name: string; reason: string }[] = [];
     for (const row of rows) {
-      if (!row.title.trim() || !row.price.trim()) {
-        failed.push({
-          name: row.title || '(unnamed)',
-          reason: 'Missing name or price.',
-        });
-        continue;
-      }
       try {
         const fd = buildProductFormData(row, store?._id || '', {
           imageUrl: row.imageUrl,
@@ -110,12 +126,13 @@ export default function StoreBulkProductScanScreen() {
           </>
         )}
         <TouchableOpacity
-          style={styles.doneBtn}
+          style={[styles.doneBtn, { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' }]}
           onPress={() => {
             refresh();
             navigation.goBack();
           }}
         >
+          <CheckCircle2 size={18} color="#fff" />
           <Text style={styles.doneBtnText}>Done</Text>
         </TouchableOpacity>
       </View>

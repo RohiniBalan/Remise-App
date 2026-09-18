@@ -67,7 +67,8 @@ const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
 export default function ProductDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { productId: routeProductId } = route.params;
+  const { productId: routeProductId, hideBack, from } = route.params || {};
+  const isPreview = Boolean(hideBack || from === 'preview');
   const { user } = useAuth();
   const { addToCart, setBuyNowItem, cartCount } = useCart();
   const { isWishlisted: checkWishlisted, toggleWishlist } = useWishlist();
@@ -453,14 +454,16 @@ export default function ProductDetailScreen() {
     <View style={styles.container}>
       {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={handleBackToProducts}
-          activeOpacity={0.7}
-          accessibilityLabel="Back to products"
-        >
-          <ArrowLeft size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
+        {!isPreview && (
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={handleBackToProducts}
+            activeOpacity={0.7}
+            accessibilityLabel="Back to products"
+          >
+            <ArrowLeft size={20} color={colors.textPrimary} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle} numberOfLines={1}>
           {product.title}
         </Text>

@@ -1,13 +1,23 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, FlatList } from 'react-native';
-import { QrCode, Save, CheckCircle, RefreshCw, LogOut, ChevronDown, X } from 'lucide-react-native';
+import { View, Text, TextInput, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, FlatList, Platform } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { QrCode, Save, CheckCircle, RefreshCw, LogOut, ChevronDown, X, Camera, Store, CheckCircle2 } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { storeApi } from '../../api/storeApi';
+import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { indianStates, getCities } from '../../utils/indiaLocation';
 import { mergeCategories } from '../../utils/storeCategories';
+
+const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
+
+function resolveImageUri(url?: string) {
+  if (!url) return undefined;
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  return `${API}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 
 const STORE_CATEGORIES = ['Food & Beverages', 'Grocery', 'Fashion', 'Electronics', 'Pharmacy', 'Toys', 'Home & Living', 'Beauty', 'Sports', 'Other'];
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
@@ -19,6 +29,24 @@ export default function StoreSettingsScreen() {
   const { logout } = useAuth();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+
+  const [logoUri, setLogoUri] = useState<string | null>(store?.logo || null);
+  const [logoAsset, setLogoAsset] = useState<any>(null);
+
+  useEffect(() => {
+    if (store?.logo) {
+      setLogoUri(store.logo);
+    }
+  }, [store?.logo]);
+
+  const pickLogo = async () => {
+    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
+    const asset = res.assets?.[0];
+    if (asset?.uri) {
+      setLogoUri(asset.uri);
+      setLogoAsset(asset);
+    }
+  };
 
   const [form, setForm] = useState({
     name: store?.name || '', description: store?.description || '', phone: store?.phone || '', email: store?.email || '',
@@ -115,6 +143,16 @@ export default function StoreSettingsScreen() {
       fd.append('gstin', form.gstin.trim().toUpperCase());
       fd.append('upiId', upiId.trim());
       fd.append('fssai', form.category === 'Food & Beverages' ? fssai.trim() : '');
+      if (logoAsset?.uri) {
+        const uri = Platform.OS === 'android' ? logoAsset.uri : logoAsset.uri.replace('file://', '');
+        const type = logoAsset.type || 'image/jpeg';
+        const name = logoAsset.fileName || `store_logo_${Date.now()}.${type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg'}`;
+        fd.append('logo', {
+          uri,
+          type,
+          name,
+        } as any);
+      }
       await storeApi.update(store._id, fd);
       setSaved(true);
       refresh();
@@ -162,6 +200,27 @@ export default function StoreSettingsScreen() {
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.formCard}>
+        {/* Store Logo Section */}
+        <View style={styles.logoSection}>
+          <Text style={styles.label}>Store Logo</Text>
+          <View style={styles.logoRow}>
+            <View style={styles.logoPreviewBox}>
+              {logoUri ? (
+                <Image source={{ uri: resolveImageUri(logoUri) }} style={styles.logoPreviewImage} resizeMode="cover" />
+              ) : (
+                <Store size={28} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              )}
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <TouchableOpacity style={styles.changeLogoBtn} onPress={pickLogo}>
+                <Camera size={14} color="#fff" />
+                <Text style={styles.changeLogoBtnText}>{logoUri ? 'Change Logo' : 'Upload Logo'}</Text>
+              </TouchableOpacity>
+              <Text style={styles.logoHelpText}>JPG, PNG or WebP image</Text>
+            </View>
+          </View>
+        </View>
+
         <Field label="Store Name *" value={form.name} onChangeText={v => set('name', v)} styles={styles} isDark={isDark} />
         <Field
           label="Monthly Revenue Target (₹)"
@@ -477,6 +536,52 @@ const getStyles = (isDark: boolean) =>
     sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: Spacing.md },
     errorText: { color: isDark ? '#F87171' : CustomerColors.primary, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
     label: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#D1D5DB' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
+    logoSection: {
+      marginBottom: Spacing.md,
+      paddingBottom: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+    },
+    logoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+    },
+    logoPreviewBox: {
+      width: 64,
+      height: 64,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    logoPreviewImage: {
+      width: '100%',
+      height: '100%',
+    },
+    changeLogoBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      backgroundColor: CustomerColors.teal700,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 7,
+      borderRadius: BorderRadius.md,
+    },
+    changeLogoBtnText: {
+      color: '#fff',
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+    },
+    logoHelpText: {
+      fontSize: 11,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginTop: 4,
+    },
     input: {
       backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
       borderWidth: 1,

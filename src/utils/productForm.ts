@@ -13,13 +13,32 @@ export interface ProductFormFields {
   subcategory?: string;
   brand: string;
   totalStock: string;
+  stockUnit?: string;
+  unit?: string;
   availability: string;
   tags: string;
 }
 
 export const AVAILABILITY_OPTIONS = ['In Stock', 'Out Of Stock', 'Pre Order'];
 
-export function emptyProductForm(prefill?: Partial<ProductFormFields & { price: any; discountedPrice: any; totalStock: any; tags: any; subcategory?: any }>): ProductFormFields {
+export const STOCK_UNIT_OPTIONS = [
+  'Count',
+  'Pcs',
+  'kg',
+  'g',
+  'Litre',
+  'ml',
+  'Pack',
+  'Box',
+  'Dozen',
+  'Bottle',
+  'Can',
+  'Meter',
+  'Set',
+  'Bundle',
+] as const;
+
+export function emptyProductForm(prefill?: Partial<ProductFormFields & { price: any; discountedPrice: any; totalStock: any; stockUnit?: any; unit?: any; tags: any; subcategory?: any }>): ProductFormFields {
   return {
     title: prefill?.title || '',
     description: prefill?.description || '',
@@ -29,6 +48,8 @@ export function emptyProductForm(prefill?: Partial<ProductFormFields & { price: 
     subcategory: prefill?.subcategory || '',
     brand: prefill?.brand || '',
     totalStock: String(prefill?.totalStock ?? ''),
+    stockUnit: prefill?.stockUnit || prefill?.unit || 'Count',
+    unit: prefill?.unit || prefill?.stockUnit || 'Count',
     availability: prefill?.availability || 'In Stock',
     tags: Array.isArray(prefill?.tags) ? prefill!.tags.join(', ') : (prefill?.tags || ''),
   };
@@ -36,7 +57,7 @@ export function emptyProductForm(prefill?: Partial<ProductFormFields & { price: 
 
 const FIELD_KEYS: (keyof ProductFormFields)[] = [
   'title', 'description', 'price', 'discountedPrice',
-  'category', 'subcategory', 'brand', 'totalStock', 'availability', 'tags',
+  'category', 'subcategory', 'brand', 'totalStock', 'stockUnit', 'unit', 'availability', 'tags',
 ];
 
 export function buildProductFormData(

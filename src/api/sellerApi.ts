@@ -88,6 +88,8 @@ export interface ExtractedProductFields {
   description?: string;
   brand?: string;
   totalStock?: number;
+  stockUnit?: string;
+  unit?: string;
   imageUrl?: string;
 }
 

@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, FlatList } 
 import { ChevronDown, X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
-import { AVAILABILITY_OPTIONS, ProductFormFields } from '../../utils/productForm';
+import { AVAILABILITY_OPTIONS, STOCK_UNIT_OPTIONS, ProductFormFields } from '../../utils/productForm';
 import { mergeCategories } from '../../utils/storeCategories';
 import { getSubcategories } from '../../utils/categoryAttributes';
 
@@ -69,7 +69,23 @@ export default function ProductFieldsForm({
       />
 
       <Field label="Brand" value={form.brand} onChangeText={v => set('brand', v)} placeholder="e.g. Nivea" isDark={isDark} styles={styles} />
-      <Field label="Stock Quantity" value={form.totalStock} onChangeText={v => set('totalStock', v)} keyboardType="numeric" isDark={isDark} styles={styles} />
+      
+      <View style={styles.row2}>
+        <Field label="Stock Quantity *" value={form.totalStock} onChangeText={v => set('totalStock', v)} keyboardType="numeric" style={{ flex: 1.2 }} isDark={isDark} styles={styles} />
+        <SelectField
+          label="Stock Unit"
+          value={form.stockUnit || form.unit || 'Count'}
+          placeholder="Unit"
+          options={STOCK_UNIT_OPTIONS.map(u => ({ key: u, label: u }))}
+          onSelect={key => {
+            set('stockUnit', key);
+            set('unit', key);
+          }}
+          style={{ flex: 1 }}
+          isDark={isDark}
+          styles={styles}
+        />
+      </View>
 
       <Text style={styles.label}>Availability</Text>
       <View style={styles.chipRow}>
@@ -99,7 +115,7 @@ function Field({ label, style, isDark, styles, ...props }: { label: string; styl
 }
 
 function SelectField({
-  label, value, placeholder, options, disabled, onSelect, isDark, styles,
+  label, value, placeholder, options, disabled, onSelect, isDark, styles, style,
 }: {
   label: string;
   value: string;
@@ -109,10 +125,11 @@ function SelectField({
   onSelect: (key: string, label: string) => void;
   isDark: boolean;
   styles: any;
+  style?: any;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <View style={{ marginBottom: Spacing.md }}>
+    <View style={[{ marginBottom: Spacing.md }, style]}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
         style={[styles.input, styles.selectInput, disabled && styles.selectDisabled]}

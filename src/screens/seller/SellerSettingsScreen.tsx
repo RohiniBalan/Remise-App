@@ -7,12 +7,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  ActivityIndicator, Modal,
+  ActivityIndicator,
+  Modal,
   FlatList,
+  Platform,
 } from 'react-native';
-import { Save, CheckCircle, QrCode, ChevronDown, X  } from 'lucide-react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { Save, CheckCircle, QrCode, ChevronDown, X, Camera, Store } from 'lucide-react-native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { storeApi } from '../../api/storeApi';
+import { GATEWAY_URL } from '../../api/endpoints';
 import {
   CustomerColors,
   Spacing,
@@ -23,6 +27,14 @@ import { indianStates, getCities } from '../../utils/indiaLocation';
 import { normalizeLoc, lookupPincode } from '../../components/common/LocationSelectField';
 import { mergeCategories } from '../../utils/storeCategories';
 import { useTheme } from '../../context/ThemeContext';
+
+const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
+
+function resolveImageUri(url?: string) {
+  if (!url) return undefined;
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  return `${API}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const STORE_CATEGORIES = [
@@ -42,6 +54,25 @@ export default function SellerSettingsScreen() {
   const { store, refresh, categories } = useSellerDashboard();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+
+  const [logoUri, setLogoUri] = useState<string | null>(store?.logo || null);
+  const [logoAsset, setLogoAsset] = useState<any>(null);
+
+  useEffect(() => {
+    if (store?.logo) {
+      setLogoUri(store.logo);
+    }
+  }, [store?.logo]);
+
+  const pickLogo = async () => {
+    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
+    const asset = res.assets?.[0];
+    if (asset?.uri) {
+      setLogoUri(asset.uri);
+      setLogoAsset(asset);
+    }
+  };
+
   const [form, setForm] = useState({
     name: store?.name || '',
     description: store?.description || '',
@@ -147,6 +178,16 @@ export default function SellerSettingsScreen() {
         'fssai',
         form.category === 'Food & Beverages' ? fssai.trim() : '',
       );
+      if (logoAsset?.uri) {
+        const uri = Platform.OS === 'android' ? logoAsset.uri : logoAsset.uri.replace('file://', '');
+        const type = logoAsset.type || 'image/jpeg';
+        const name = logoAsset.fileName || `store_logo_${Date.now()}.${type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg'}`;
+        fd.append('logo', {
+          uri,
+          type,
+          name,
+        } as any);
+      }
       await storeApi.update(store._id, fd);
       setSaved(true);
       await refresh();
@@ -203,6 +244,27 @@ export default function SellerSettingsScreen() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
+
+        {/* Store Logo Section */}
+        <View style={styles.logoSection}>
+          <Text style={styles.label}>Business Logo</Text>
+          <View style={styles.logoRow}>
+            <View style={styles.logoPreviewBox}>
+              {logoUri ? (
+                <Image source={{ uri: resolveImageUri(logoUri) }} style={styles.logoPreviewImage} resizeMode="cover" />
+              ) : (
+                <Store size={28} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              )}
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <TouchableOpacity style={styles.changeLogoBtn} onPress={pickLogo}>
+                <Camera size={14} color="#fff" />
+                <Text style={styles.changeLogoBtnText}>{logoUri ? 'Change Logo' : 'Upload Logo'}</Text>
+              </TouchableOpacity>
+              <Text style={styles.logoHelpText}>JPG, PNG or WebP image</Text>
+            </View>
+          </View>
+        </View>
 
         <Field
           label="Business Name *"
@@ -553,6 +615,52 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     fontWeight: '800',
     color: isDark ? '#F9FAFB' : CustomerColors.black,
     marginBottom: Spacing.md,
+  },
+  logoSection: {
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#1F2937' : '#F5F5F5',
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  logoPreviewBox: {
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  changeLogoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: CustomerColors.teal700,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.md,
+  },
+  changeLogoBtnText: {
+    color: '#fff',
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+  },
+  logoHelpText: {
+    fontSize: 11,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    marginTop: 4,
   },
   field: { marginBottom: Spacing.sm },
   label: {

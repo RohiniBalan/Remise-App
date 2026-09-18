@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { IndianRupee, ShoppingBag, TrendingUp, Store, Clock, AlertCircle } from 'lucide-react-native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
@@ -10,6 +10,15 @@ import { MiniLineChart, MiniBarChart } from './MiniCharts';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { GATEWAY_URL } from '../../api/endpoints';
+
+const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
+
+function resolveImageUri(url?: string) {
+  if (!url) return undefined;
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  return `${API}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
   PENDING: { bg: '#FFFBEB', fg: '#B45309', darkBg: 'rgba(217, 119, 6, 0.15)', darkFg: '#FBBF24' },
@@ -62,16 +71,27 @@ export default function SellerOverviewScreen() {
       contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
       refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}
     >
-      {/* Role Banner */}
+      {/* Role & Store Header Banner */}
       <View style={styles.roleBanner}>
-        <Text style={styles.roleBannerText}>
-          {isWholesaler ? '📦 Wholesale Merchant Console' : '🏠 Home Business Console'}
-        </Text>
-        <Text style={styles.roleBannerSub}>
-          {isWholesaler
-            ? 'Track B2B volume, retailer orders, and bulk stock performance.'
-            : 'Track artisan production, custom orders, and direct sales.'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+          <View style={styles.storeLogoBox}>
+            {store?.logo ? (
+              <Image source={{ uri: resolveImageUri(store.logo) }} style={styles.storeLogo} />
+            ) : (
+              <Store size={22} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.roleBannerText} numberOfLines={1}>
+              {store?.name || (isWholesaler ? 'Wholesale Merchant Console' : 'Home Business Console')}
+            </Text>
+            <Text style={styles.roleBannerSub}>
+              {isWholesaler
+                ? '📦 Wholesale Merchant Console'
+                : '🏠 Artisan & Home Business Console'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Target revenue */}
@@ -242,6 +262,21 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.card,
+  },
+  storeLogoBox: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : '#F0FDFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  storeLogo: {
+    width: '100%',
+    height: '100%',
   },
   roleBannerText: {
     fontSize: FontSizes.sm,

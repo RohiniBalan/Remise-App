@@ -46,7 +46,7 @@ import {
   matchExtractedToAttributes,
   normalizeSpecifications,
 } from '../../utils/categoryAttributes';
-import { AVAILABILITY_OPTIONS } from '../../utils/productForm';
+import { AVAILABILITY_OPTIONS, STOCK_UNIT_OPTIONS } from '../../utils/productForm';
 
 export interface ProductImageItem {
   id: string;
@@ -76,6 +76,7 @@ export default function StoreProductFormScreen() {
     subcategory: product?.subcategory || '',
     brand: product?.brand || '',
     totalStock: product?.totalStock ? String(product.totalStock) : '',
+    stockUnit: product?.stockUnit || product?.unit || 'Count',
     availability: product?.availability || 'In Stock',
     tags: Array.isArray(product?.tags) ? product.tags.join(', ') : product?.tags || '',
   });
@@ -128,6 +129,7 @@ export default function StoreProductFormScreen() {
 
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [subcategoryModalVisible, setSubcategoryModalVisible] = useState(false);
+  const [stockUnitModalVisible, setStockUnitModalVisible] = useState(false);
 
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -717,7 +719,10 @@ export default function StoreProductFormScreen() {
               onChangeText={v => set('brand', v)}
             />
           </View>
-          <View style={styles.col}>
+        </View>
+
+        <View style={styles.row}>
+          <View style={{ flex: 1.2 }}>
             <Text style={styles.inputLabel}>Stock Quantity</Text>
             <TextInput
               style={styles.input}
@@ -727,6 +732,18 @@ export default function StoreProductFormScreen() {
               value={form.totalStock}
               onChangeText={v => set('totalStock', v)}
             />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.inputLabel}>Stock Unit</Text>
+            <TouchableOpacity
+              style={styles.selector}
+              onPress={() => setStockUnitModalVisible(true)}
+            >
+              <Text style={styles.selectorValue} numberOfLines={1}>
+                {form.stockUnit || 'Count'}
+              </Text>
+              <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -888,6 +905,46 @@ export default function StoreProductFormScreen() {
                     {item}
                   </Text>
                   {form.subcategory === item && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Stock Unit Modal Picker */}
+      <Modal visible={stockUnitModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Stock Unit</Text>
+              <TouchableOpacity onPress={() => setStockUnitModalVisible(false)}>
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={STOCK_UNIT_OPTIONS}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    (form.stockUnit || 'Count') === item && styles.modalItemActive,
+                  ]}
+                  onPress={() => {
+                    set('stockUnit', item);
+                    setStockUnitModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      (form.stockUnit || 'Count') === item && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {(form.stockUnit || 'Count') === item && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
                 </TouchableOpacity>
               )}
             />

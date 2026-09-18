@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, TextInput,
-  ActivityIndicator,
+  ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, Camera } from 'lucide-react-native';
+import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, Camera, Check, ChevronDown, X } from 'lucide-react-native';
+import { getCategories, getSubcategories } from '../../utils/categoryAttributes';
+import { STOCK_UNIT_OPTIONS } from '../../utils/productForm';
 
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { useAuth } from '../../context/AuthContext';
@@ -36,13 +38,39 @@ export default function SellerScanUploadScreen() {
     storePrice: string; storeDiscountedPrice: string; description: string; aboutDescription: string;
     aboutFeatures: string[]; specifications: Array<{ label: string; value: string }>;
     attributes: Record<string, any>; idealFor: string[];
-    brand: string; imageUrl: string; totalStock: string; availability: string; tags: string; moq: string;
+    brand: string; imageUrl: string; totalStock: string; stockUnit: string; unit: string; availability: string; tags: string; moq: string;
   }>({
     title: '', category: '', subcategory: '', price: '', discountedPrice: '', storePrice: '', storeDiscountedPrice: '',
     description: '', aboutDescription: '', aboutFeatures: [], specifications: [], attributes: {}, idealFor: [],
-    brand: '', imageUrl: '', totalStock: '', availability: 'In Stock', tags: '', moq: '1',
+    brand: '', imageUrl: '', totalStock: '', stockUnit: 'Count', unit: 'Count', availability: 'In Stock', tags: '', moq: '1',
   });
   const [tiers, setTiers] = useState<Tier[]>([]);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [subcategoryModalVisible, setSubcategoryModalVisible] = useState(false);
+  const [stockUnitModalVisible, setStockUnitModalVisible] = useState(false);
+
+  const categoryOptions = useMemo(() => {
+    const predefined = getCategories();
+    const dynamic = (categories || []).map((c: any) => (typeof c === 'string' ? c : c?.name)).filter(Boolean);
+    const custom = form.category ? [form.category] : [];
+    return Array.from(new Set([...predefined, ...dynamic, ...custom]));
+  }, [categories, form.category]);
+
+  const subcategoryOptions = useMemo(() => {
+    return getSubcategories(form.category);
+  }, [form.category]);
+
+  const handleCategorySelect = (selectedCat: string) => {
+    set('category', selectedCat);
+    set('subcategory', '');
+    setCategoryModalVisible(false);
+  };
+
+  const handleSubcategorySelect = (selectedSub: string) => {
+    set('subcategory', selectedSub);
+    setSubcategoryModalVisible(false);
+  };
+
   const set = (k: keyof typeof form, v: any) => setForm(f => ({ ...f, [k]: v }));
   const addTier = () => setTiers(t => [...t, { minQty: '', price: '' }]);
   const removeTier = (i: number) => setTiers(t => t.filter((_, idx) => idx !== i));
@@ -56,7 +84,7 @@ export default function SellerScanUploadScreen() {
     setForm({
       title: '', category: '', subcategory: '', price: '', discountedPrice: '', storePrice: '', storeDiscountedPrice: '',
       description: '', aboutDescription: '', aboutFeatures: [], specifications: [], attributes: {}, idealFor: [],
-      brand: '', imageUrl: '', totalStock: '', availability: 'In Stock', tags: '', moq: '1',
+      brand: '', imageUrl: '', totalStock: '', stockUnit: 'Count', unit: 'Count', availability: 'In Stock', tags: '', moq: '1',
     });
     setTiers([]);
   };
@@ -97,7 +125,7 @@ export default function SellerScanUploadScreen() {
         aboutFeatures: x.aboutFeatures || [], specifications: x.specifications || [],
         attributes: x.attributes || {}, idealFor: x.idealFor || [],
         brand: x.brand || '', imageUrl: x.imageUrl || '',
-        totalStock: '', availability: 'In Stock', tags: '', moq: '1',
+        totalStock: '', stockUnit: x.stockUnit || x.unit || 'Count', unit: x.stockUnit || x.unit || 'Count', availability: 'In Stock', tags: '', moq: '1',
       });
       setStep('review');
     } catch (err: any) {
@@ -107,7 +135,21 @@ export default function SellerScanUploadScreen() {
   };
 
   const handleCreate = async () => {
-    if (!form.title || !form.price) return;
+    if (!form.title.trim()) {
+      setErrMsg('Product Title is required.');
+      setStep('error');
+      return;
+    }
+    if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) {
+      setErrMsg('A valid Price greater than ₹0 is required.');
+      setStep('error');
+      return;
+    }
+    if (form.totalStock === '' || form.totalStock === undefined || isNaN(Number(form.totalStock)) || Number(form.totalStock) < 0) {
+      setErrMsg('Stock Quantity (>= 0) is required.');
+      setStep('error');
+      return;
+    }
     setStep('saving');
     try {
       const bulkPricing = tiers
@@ -123,6 +165,8 @@ export default function SellerScanUploadScreen() {
         description: form.description || '',
         imageUrl: form.imageUrl || '',
         totalStock: form.totalStock ? +form.totalStock : 0,
+        stockUnit: form.stockUnit || 'Count',
+        unit: form.stockUnit || 'Count',
         availability: form.availability,
         tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
         moq: form.moq ? +form.moq : 1,
@@ -229,12 +273,56 @@ export default function SellerScanUploadScreen() {
           )}
 
           <View style={styles.row2}>
-            <Field style={{ flex: 1 }} label="Category" value={form.category} onChangeText={(t: string) => set('category', t)} styles={styles} isDark={isDark} />
-            <Field style={{ flex: 1 }} label="Brand" value={form.brand} onChangeText={(t: string) => set('brand', t)} styles={styles} isDark={isDark} />
+            <View style={{ flex: 1, marginBottom: Spacing.sm }}>
+              <Text style={styles.label}>Category *</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => setCategoryModalVisible(true)}
+              >
+                <Text style={form.category ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
+                  {form.category || 'Select Category'}
+                </Text>
+                <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1, marginBottom: Spacing.sm }}>
+              <Text style={styles.label}>Subcategory</Text>
+              <TouchableOpacity
+                style={[styles.selector, (!form.category || subcategoryOptions.length === 0) && { opacity: 0.6 }]}
+                disabled={!form.category || subcategoryOptions.length === 0}
+                onPress={() => setSubcategoryModalVisible(true)}
+              >
+                <Text style={form.subcategory ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
+                  {!form.category
+                    ? 'Select Category first'
+                    : subcategoryOptions.length === 0
+                    ? 'No subcategories'
+                    : form.subcategory || 'Select Subcategory'}
+                </Text>
+                <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.row2}>
-            <Field style={{ flex: 1 }} label="Stock Quantity" value={form.totalStock} onChangeText={(t: string) => set('totalStock', t)} keyboardType="numeric" styles={styles} isDark={isDark} />
-            <Field style={{ flex: 1 }} label="Availability" value={form.availability} onChangeText={(t: string) => set('availability', t)} styles={styles} isDark={isDark} />
+            <Field style={{ flex: 1 }} label="Brand" value={form.brand} onChangeText={(t: string) => set('brand', t)} styles={styles} isDark={isDark} />
+            <Field style={{ flex: 1 }} label="Stock Quantity *" value={form.totalStock} onChangeText={(t: string) => set('totalStock', t)} keyboardType="numeric" styles={styles} isDark={isDark} />
+          </View>
+          <View style={styles.row2}>
+            <View style={{ flex: 1, marginBottom: Spacing.sm }}>
+              <Text style={styles.label}>Stock Unit</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => setStockUnitModalVisible(true)}
+              >
+                <Text style={styles.selectorValue} numberOfLines={1}>
+                  {form.stockUnit || 'Count'}
+                </Text>
+                <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field label="Availability" value={form.availability} onChangeText={(t: string) => set('availability', t)} styles={styles} isDark={isDark} />
+            </View>
           </View>
           <Field label="Tags (comma-separated)" value={form.tags} onChangeText={(t: string) => set('tags', t)} styles={styles} isDark={isDark} />
           <Field label="Description / Overview" value={form.description} onChangeText={(t: string) => set('description', t)} multiline styles={styles} isDark={isDark} />
@@ -261,16 +349,16 @@ export default function SellerScanUploadScreen() {
             </View>
           )}
 
-          <View style={styles.divider} />
-          <Field label="Minimum Order Quantity (MOQ) *" value={form.moq} onChangeText={(t: string) => set('moq', t)} keyboardType="numeric" styles={styles} isDark={isDark} />
           {!isStoreOwner && (
             <>
+              <View style={styles.divider} />
+              <Field label="Minimum Order Quantity (MOQ) *" value={form.moq} onChangeText={(t: string) => set('moq', t)} keyboardType="numeric" styles={styles} isDark={isDark} />
               <Text style={styles.label}>Bulk Pricing Tiers</Text>
               {tiers.map((t, i) => (
                 <View key={i} style={styles.tierRow}>
-                  <TextInput style={[styles.input, { flex: 1 }]} value={t.minQty} onChangeText={(v: string) => setTier(i, 'minQty', v)} placeholder="Min qty" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} keyboardType="numeric" />
+                  <TextInput style={[styles.input, { flex: 1, color: isDark ? '#FFFFFF' : CustomerColors.black, backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]} value={t.minQty} onChangeText={(v: string) => setTier(i, 'minQty', v)} placeholder="Min qty" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} keyboardType="numeric" />
                   <Text style={styles.tierAt}>units @ ₹</Text>
-                  <TextInput style={[styles.input, { flex: 1 }]} value={t.price} onChangeText={(v: string) => setTier(i, 'price', v)} placeholder="Price" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} keyboardType="numeric" />
+                  <TextInput style={[styles.input, { flex: 1, color: isDark ? '#FFFFFF' : CustomerColors.black, backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]} value={t.price} onChangeText={(v: string) => setTier(i, 'price', v)} placeholder="Price" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} keyboardType="numeric" />
                   <TouchableOpacity onPress={() => removeTier(i)}><Trash2 size={16} color={isDark ? '#9CA3AF' : '#9CA3AF'} /></TouchableOpacity>
                 </View>
               ))}
@@ -295,13 +383,140 @@ export default function SellerScanUploadScreen() {
           <View style={styles.successCircle}><CheckCircle2 size={30} color="#16A34A" /></View>
           <Text style={styles.successText}>Product created successfully!</Text>
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={reset}><Text style={styles.secondaryBtnText}>Scan Another</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: CustomerColors.teal600 }]} onPress={async () => { await refresh(); navigation.goBack(); }}>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={reset}><Text style={styles.secondaryBtnText}>Scan Another Paper</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: CustomerColors.teal600, flex: 1 }]} onPress={async () => { await refresh(); navigation.goBack(); }}>
+              <Check size={16} color="#fff" />
               <Text style={styles.primaryBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
+
+      {/* Category Modal Picker */}
+      <Modal visible={categoryModalVisible} transparent animationType="slide" onRequestClose={() => setCategoryModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={categoryOptions}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    form.category === item && styles.modalItemActive,
+                  ]}
+                  onPress={() => handleCategorySelect(item)}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      form.category === item && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {form.category === item && (
+                    <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Subcategory Modal Picker */}
+      <Modal visible={subcategoryModalVisible} transparent animationType="slide" onRequestClose={() => setSubcategoryModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Subcategory</Text>
+              <TouchableOpacity onPress={() => setSubcategoryModalVisible(false)}>
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={subcategoryOptions}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    form.subcategory === item && styles.modalItemActive,
+                  ]}
+                  onPress={() => handleSubcategorySelect(item)}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      form.subcategory === item && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {form.subcategory === item && (
+                    <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={{ textAlign: 'center', color: isDark ? '#9CA3AF' : '#6B7280', padding: 20 }}>
+                  No subcategories available
+                </Text>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Stock Unit Modal Picker */}
+      <Modal visible={stockUnitModalVisible} transparent animationType="slide" onRequestClose={() => setStockUnitModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Stock Unit</Text>
+              <TouchableOpacity onPress={() => setStockUnitModalVisible(false)}>
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={STOCK_UNIT_OPTIONS}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    (form.stockUnit || 'Count') === item && styles.modalItemActive,
+                  ]}
+                  onPress={() => {
+                    set('stockUnit', item);
+                    set('unit', item);
+                    setStockUnitModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      (form.stockUnit || 'Count') === item && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {(form.stockUnit || 'Count') === item && (
+                    <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -310,7 +525,15 @@ function Field({ label, style, styles, isDark, ...props }: any) {
   return (
     <View style={[{ marginBottom: Spacing.sm }, style]}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={[styles.input, props.multiline && { height: 70, textAlignVertical: 'top' }]} placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} {...props} />
+      <TextInput
+        style={[
+          styles.input,
+          { color: isDark ? '#FFFFFF' : CustomerColors.black, backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
+          props.multiline && { height: 70, textAlignVertical: 'top' }
+        ]}
+        placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+        {...props}
+      />
     </View>
   );
 }
@@ -412,9 +635,61 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
-    backgroundColor: isDark ? '#1F2937' : 'transparent',
+    backgroundColor: isDark ? '#1F2937' : '#fff',
   },
   secondaryBtnText: { color: isDark ? '#F9FAFB' : '#374151', fontWeight: '700', fontSize: FontSizes.sm },
   successCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7', alignItems: 'center', justifyContent: 'center' },
   successText: { fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, fontSize: FontSizes.md },
+  selector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+  },
+  selectorPlaceholder: {
+    fontSize: FontSizes.sm,
+    color: isDark ? '#6B7280' : '#9CA3AF',
+  },
+  selectorValue: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    maxHeight: '75%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
+  },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#1F2937' : '#F1F5F9',
+  },
+  modalItemActive: { backgroundColor: isDark ? '#134e4a' : '#F0FDFA' },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
+  modalItemTextActive: { fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
 });

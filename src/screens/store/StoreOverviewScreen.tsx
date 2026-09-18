@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { GATEWAY_URL } from '../../api/endpoints';
-import { Package, Tag, ShoppingBag, IndianRupee, Clock, AlertCircle, TrendingUp, Target } from 'lucide-react-native';
+import { Package, Tag, ShoppingBag, IndianRupee, Clock, AlertCircle, TrendingUp, Target, Store, CheckCircle2 } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
@@ -11,7 +11,9 @@ const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
 
 function resolveImageUri(url?: string) {
   if (!url) return undefined;
-  return url.startsWith('http') ? url : `${API}${url}`;
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  const base = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
 export default function StoreOverviewScreen() {
@@ -78,6 +80,27 @@ export default function StoreOverviewScreen() {
           {loadError ? (
             <View style={styles.errorBanner}><Text style={styles.errorText}>{loadError}</Text></View>
           ) : null}
+
+          {/* ── Store Brand & Logo Card ── */}
+          <View style={styles.storeHeaderCard}>
+            <View style={styles.storeLogoWrap}>
+              {store?.logo ? (
+                <Image source={{ uri: resolveImageUri(store.logo) }} style={styles.storeLogo} />
+              ) : (
+                <Store size={26} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              )}
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.storeNameText} numberOfLines={1}>{store?.name || 'My Store'}</Text>
+                {store?.isVerified ? (
+                  <CheckCircle2 size={16} color={CustomerColors.success} />
+                ) : null}
+              </View>
+              <Text style={styles.storeCategoryText}>{store?.category || 'General Store'}</Text>
+              {store?.phone ? <Text style={styles.storePhoneText}>{store.phone}</Text> : null}
+            </View>
+          </View>
 
           {/* ── Target Revenue card ── */}
           <View style={styles.targetCard}>
@@ -198,6 +221,49 @@ const getStyles = (isDark: boolean) =>
       marginBottom: Spacing.md,
     },
     errorText: { fontSize: FontSizes.xs, color: isDark ? '#fde68a' : '#92400E' },
+    storeHeaderCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.lg,
+      borderWidth: 1,
+      borderColor: isDark ? '#1f2937' : CustomerColors.steelBorder,
+      padding: Spacing.md,
+      marginBottom: Spacing.md,
+      ...Shadows.card,
+    },
+    storeLogoWrap: {
+      width: 54,
+      height: 54,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#1e293b' : '#DFF1F1',
+      borderWidth: 1,
+      borderColor: isDark ? '#334155' : '#BBD5DA',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    storeLogo: {
+      width: '100%',
+      height: '100%',
+      resizeMode: 'cover',
+    },
+    storeNameText: {
+      fontSize: FontSizes.md,
+      fontWeight: '800',
+      color: isDark ? '#F8FAFC' : CustomerColors.black,
+    },
+    storeCategoryText: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#94A3B8' : CustomerColors.textSecondary,
+      marginTop: 2,
+    },
+    storePhoneText: {
+      fontSize: 11,
+      color: isDark ? '#64748B' : '#6B7280',
+      marginTop: 1,
+    },
     targetCard: {
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
       borderRadius: BorderRadius.md,

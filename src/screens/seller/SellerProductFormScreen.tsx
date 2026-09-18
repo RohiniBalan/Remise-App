@@ -47,6 +47,7 @@ import {
   matchExtractedToAttributes,
   normalizeSpecifications,
 } from '../../utils/categoryAttributes';
+import { STOCK_UNIT_OPTIONS } from '../../utils/productForm';
 
 type BulkTier = { minQty: string; price: string };
 
@@ -83,6 +84,7 @@ export default function SellerProductFormScreen() {
     subcategory: product?.subcategory || '',
     brand: product?.brand || '',
     totalStock: product?.totalStock ? String(product.totalStock) : '',
+    stockUnit: product?.stockUnit || product?.unit || 'Count',
     availability: product?.availability || 'In Stock',
     tags: product?.tags?.join(', ') || '',
     moq: product?.moq ? String(product.moq) : '1',
@@ -140,6 +142,7 @@ export default function SellerProductFormScreen() {
 
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [subcategoryModalVisible, setSubcategoryModalVisible] = useState(false);
+  const [stockUnitModalVisible, setStockUnitModalVisible] = useState(false);
 
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
   const addTier = () => setBulkTiers(t => [...t, { minQty: '', price: '' }]);
@@ -747,7 +750,10 @@ export default function SellerProductFormScreen() {
               onChangeText={v => set('brand', v)}
             />
           </View>
-          <View style={styles.half}>
+        </View>
+
+        <View style={styles.row}>
+          <View style={{ flex: 1.2 }}>
             <Text style={styles.fieldLabel}>Stock Quantity</Text>
             <TextInput
               style={styles.input}
@@ -757,6 +763,18 @@ export default function SellerProductFormScreen() {
               value={form.totalStock}
               onChangeText={v => set('totalStock', v)}
             />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>Stock Unit</Text>
+            <TouchableOpacity
+              style={styles.selectBtn}
+              onPress={() => setStockUnitModalVisible(true)}
+            >
+              <Text style={styles.selectText} numberOfLines={1}>
+                {form.stockUnit || 'Count'}
+              </Text>
+              <ChevronDown size={18} color={CustomerColors.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -803,53 +821,51 @@ export default function SellerProductFormScreen() {
       )}
 
       {/* MOQ & Bulk Pricing */}
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Wholesale & Bulk Pricing</Text>
+      {!isStoreOwner && (
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Wholesale & Bulk Pricing</Text>
 
-        <Text style={styles.fieldLabel}>Minimum Order Quantity (MOQ) *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="1"
-          placeholderTextColor="#9CA3AF"
-          keyboardType="number-pad"
-          value={form.moq}
-          onChangeText={v => set('moq', v)}
-        />
+          <Text style={styles.fieldLabel}>Minimum Order Quantity (MOQ) *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="1"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="number-pad"
+            value={form.moq}
+            onChangeText={v => set('moq', v)}
+          />
 
-        {!isStoreOwner && (
-          <>
-            <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>Bulk Pricing Tiers</Text>
-            {bulkTiers.map((t, idx) => (
-              <View key={idx} style={styles.tierRow}>
-                <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="Min Qty"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="number-pad"
-                  value={t.minQty}
-                  onChangeText={v => setTier(idx, 'minQty', v)}
-                />
-                <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="Unit Price ₹"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="numeric"
-                  value={t.price}
-                  onChangeText={v => setTier(idx, 'price', v)}
-                />
-                <TouchableOpacity onPress={() => removeTier(idx)} style={styles.trashBtn}>
-                  <Trash2 size={18} color="#DC2626" />
-                </TouchableOpacity>
-              </View>
-            ))}
+          <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>Bulk Pricing Tiers</Text>
+          {bulkTiers.map((t, idx) => (
+            <View key={idx} style={styles.tierRow}>
+              <TextInput
+                style={[styles.input, styles.half]}
+                placeholder="Min Qty"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="number-pad"
+                value={t.minQty}
+                onChangeText={v => setTier(idx, 'minQty', v)}
+              />
+              <TextInput
+                style={[styles.input, styles.half]}
+                placeholder="Unit Price ₹"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                value={t.price}
+                onChangeText={v => setTier(idx, 'price', v)}
+              />
+              <TouchableOpacity onPress={() => removeTier(idx)} style={styles.trashBtn}>
+                <Trash2 size={18} color="#DC2626" />
+              </TouchableOpacity>
+            </View>
+          ))}
 
-            <TouchableOpacity style={styles.addTierBtn} onPress={addTier}>
-              <Plus size={14} color={CustomerColors.teal700} style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.addTierText}>Add Bulk Price Tier</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+          <TouchableOpacity style={styles.addTierBtn} onPress={addTier}>
+            <Plus size={14} color={CustomerColors.teal700} style={{ marginRight: Spacing.xs }} />
+            <Text style={styles.addTierText}>Add Bulk Price Tier</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Save Button */}
       <TouchableOpacity
@@ -957,6 +973,54 @@ export default function SellerProductFormScreen() {
               ListEmptyComponent={
                 <Text style={styles.modalEmpty}>No subcategories available</Text>
               }
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Stock Unit Modal */}
+      <Modal
+        visible={stockUnitModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setStockUnitModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setStockUnitModalVisible(false)}
+        >
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Stock Unit</Text>
+              <TouchableOpacity onPress={() => setStockUnitModalVisible(false)}>
+                <X size={20} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={STOCK_UNIT_OPTIONS}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    set('stockUnit', item);
+                    setStockUnitModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      (form.stockUnit || 'Count') === item && styles.modalItemTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {(form.stockUnit || 'Count') === item && (
+                    <Check size={16} color={CustomerColors.teal700} />
+                  )}
+                </TouchableOpacity>
+              )}
             />
           </View>
         </TouchableOpacity>

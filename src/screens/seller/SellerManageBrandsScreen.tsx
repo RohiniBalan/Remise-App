@@ -28,7 +28,8 @@ export default function SellerManageBrandsScreen() {
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { title, category, items: initialItems, brandCount, totalStock } = route.params;
   const { refresh, products } = useSellerDashboard();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isStoreOwner = user?.role === 'store_owner';
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const typeKey = title.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -91,8 +92,15 @@ export default function SellerManageBrandsScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={styles.brandName} numberOfLines={1}>{p.brand || 'Unbranded'}</Text>
-                <Text style={styles.price}>₹{p.discountedPrice || p.price}</Text>
-                <Text style={styles.moqText}>MOQ: {p.moq || 1} · {p.bulkPricing?.length || 0} tier{p.bulkPricing?.length === 1 ? '' : 's'}</Text>
+                <View style={styles.priceRow}>
+                  <Text style={styles.price}>₹{p.discountedPrice || p.price}</Text>
+                  {p.discountedPrice && Number(p.discountedPrice) !== Number(p.price) ? (
+                    <Text style={styles.originalPrice}>₹{p.price}</Text>
+                  ) : null}
+                </View>
+                {!isStoreOwner && (
+                  <Text style={styles.moqText}>MOQ: {p.moq || 1} · {p.bulkPricing?.length || 0} tier{p.bulkPricing?.length === 1 ? '' : 's'}</Text>
+                )}
                 <View style={styles.badgeRow}>
                   <View style={[styles.badge, { backgroundColor: badgeBg }]}>
                     <Text style={[styles.badgeText, { color: badgeFg }]}>{p.availability}</Text>
@@ -103,7 +111,7 @@ export default function SellerManageBrandsScreen() {
               <View style={styles.rowActions}>
                 <TouchableOpacity
                   style={styles.iconBtn}
-                  onPress={() => navigation.navigate('ProductDetail', { productId: p._id })}
+                  onPress={() => navigation.navigate('ProductDetail', { productId: p._id, hideBack: true, from: 'preview' })}
                 >
                   <Eye size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                 </TouchableOpacity>
@@ -149,7 +157,9 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   thumb: { width: 52, height: 52, borderRadius: BorderRadius.md, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   thumbImg: { width: '100%', height: '100%' },
   brandName: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
-  price: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.teal700, marginTop: 2 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 2 },
+  price: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+  originalPrice: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textDecorationLine: 'line-through' },
   moqText: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF', marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },

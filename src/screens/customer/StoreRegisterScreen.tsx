@@ -36,6 +36,8 @@ import {
   Lock,
   RefreshCw,
   Fingerprint,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -153,6 +155,8 @@ export default function StoreRegisterScreen() {
   const [bankData, setBankData] = useState<any>(null);
   const [bankError, setBankError] = useState('');
   const [verifyingBank, setVerifyingBank] = useState(false);
+  const [showAccountNumber, setShowAccountNumber] = useState(false);
+  const [showConfirmAccountNumber, setShowConfirmAccountNumber] = useState(false);
 
   const [ifscVerified, setIfscVerified] = useState(false);
   const [ifscData, setIfscData] = useState<any>(null);
@@ -160,6 +164,7 @@ export default function StoreRegisterScreen() {
   const [verifyingIfsc, setVerifyingIfsc] = useState(false);
 
   const [logoUri, setLogoUri] = useState<string | null>(null);
+  const [logoAsset, setLogoAsset] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [error, setError] = useState('');
@@ -178,8 +183,11 @@ export default function StoreRegisterScreen() {
 
   const pickLogo = async () => {
     const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
-    const uri = res.assets?.[0]?.uri;
-    if (uri) setLogoUri(uri);
+    const asset = res.assets?.[0];
+    if (asset?.uri) {
+      setLogoUri(asset.uri);
+      setLogoAsset(asset);
+    }
   };
 
   const lookupPincode = async (cityName: string) => {
@@ -787,10 +795,13 @@ export default function StoreRegisterScreen() {
       fd.append('verificationDetails', JSON.stringify(verificationDetails));
 
       if (logoUri) {
+        const filename = logoAsset?.fileName || logoUri.split('/').pop() || 'store-logo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const mimeType = logoAsset?.type || (match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : 'image/jpeg');
         fd.append('logo', {
-          uri: logoUri,
-          name: 'logo.jpg',
-          type: 'image/jpeg',
+          uri: Platform.OS === 'android' ? logoUri : logoUri.replace('file://', ''),
+          name: filename,
+          type: mimeType,
         } as any);
       }
 
@@ -1527,8 +1538,21 @@ export default function StoreRegisterScreen() {
                   if (bankVerified) setBankVerified(false);
                 }}
                 placeholder="e.g. 6285854908"
-                secureTextEntry
+                secureTextEntry={!showAccountNumber}
                 keyboardType="number-pad"
+                rightElement={
+                  <TouchableOpacity
+                    onPress={() => setShowAccountNumber(!showAccountNumber)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel={showAccountNumber ? "Hide bank account number" : "Show bank account number"}
+                  >
+                    {showAccountNumber ? (
+                      <EyeOff size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+                    ) : (
+                      <Eye size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+                    )}
+                  </TouchableOpacity>
+                }
               />
 
               <Field
@@ -1539,7 +1563,21 @@ export default function StoreRegisterScreen() {
                   if (bankVerified) setBankVerified(false);
                 }}
                 placeholder="Re-enter bank account number"
+                secureTextEntry={!showConfirmAccountNumber}
                 keyboardType="number-pad"
+                rightElement={
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmAccountNumber(!showConfirmAccountNumber)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel={showConfirmAccountNumber ? "Hide bank account number" : "Show bank account number"}
+                  >
+                    {showConfirmAccountNumber ? (
+                      <EyeOff size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+                    ) : (
+                      <Eye size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+                    )}
+                  </TouchableOpacity>
+                }
               />
 
               <View style={{ marginBottom: 12 }}>
@@ -2043,6 +2081,7 @@ interface FieldProps {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   secureTextEntry?: boolean;
   maxLength?: number;
+  rightElement?: React.ReactNode;
 }
 
 function Field({
@@ -2056,32 +2095,41 @@ function Field({
   autoCapitalize,
   secureTextEntry,
   maxLength,
+  rightElement,
 }: FieldProps) {
   const { isDark } = useTheme();
   return (
     <View style={styles.fieldWrapper}>
       <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>{label}</Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            color: isDark ? '#ffffff' : '#111827',
-            borderColor: isDark ? '#334155' : '#cbd5e1',
-          },
-          multiline && styles.textArea,
-        ]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-        multiline={multiline}
-        numberOfLines={numberOfLines}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        secureTextEntry={secureTextEntry}
-        maxLength={maxLength}
-      />
+      <View style={{ position: 'relative', justifyContent: 'center' }}>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              color: isDark ? '#ffffff' : '#111827',
+              borderColor: isDark ? '#334155' : '#cbd5e1',
+              paddingRight: rightElement ? 44 : Spacing.md,
+            },
+            multiline && styles.textArea,
+          ]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          secureTextEntry={secureTextEntry}
+          maxLength={maxLength}
+        />
+        {rightElement ? (
+          <View style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+            {rightElement}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }

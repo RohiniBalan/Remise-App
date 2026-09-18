@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, TextInput,
-  ActivityIndicator,
+  ActivityIndicator, Modal, FlatList, Alert,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, ListChecks, Camera } from 'lucide-react-native';
+import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, ListChecks, Camera, Check, ChevronDown, X } from 'lucide-react-native';
+import { getCategories } from '../../utils/categoryAttributes';
+import { STOCK_UNIT_OPTIONS } from '../../utils/productForm';
 
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { useAuth } from '../../context/AuthContext';
@@ -18,14 +20,14 @@ import { useTheme } from '../../context/ThemeContext';
 type Row = {
   id: string; title: string; category: string; price: string; discountedPrice: string;
   description: string; brand: string; imageUrl: string; totalStock: string;
-  availability: string; tags: string; moq: string;
+  stockUnit: string; unit: string; availability: string; tags: string; moq: string;
 };
 type FailedItem = { name: string; reason: string };
 type Step = 'idle' | 'scanning' | 'review' | 'saving' | 'done' | 'error';
 
 const blankRow = (overrides: Partial<Row> = {}): Row => ({
   id: `${Date.now()}-${Math.random()}`, title: '', category: '', price: '', discountedPrice: '',
-  description: '', brand: '', imageUrl: '', totalStock: '', availability: 'In Stock', tags: '', moq: '1',
+  description: '', brand: '', imageUrl: '', totalStock: '', stockUnit: 'Count', unit: 'Count', availability: 'In Stock', tags: '', moq: '1',
   ...overrides,
 });
 
@@ -33,8 +35,9 @@ export default function SellerBulkScanUploadScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
-  const { store, refresh } = useSellerDashboard();
-  const { token } = useAuth();
+  const { store, categories, refresh } = useSellerDashboard();
+  const { token, user } = useAuth();
+  const isStoreOwner = user?.role === 'store_owner';
 
   const [asset, setAsset] = useState<Asset | null>(null);
   const [step, setStep] = useState<Step>('idle');
@@ -42,6 +45,14 @@ export default function SellerBulkScanUploadScreen() {
   const [rows, setRows] = useState<Row[]>([]);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   const [summary, setSummary] = useState<{ added: number; failed: FailedItem[] }>({ added: 0, failed: [] });
+  const [activeCategoryRowId, setActiveCategoryRowId] = useState<string | null>(null);
+  const [activeStockUnitRowId, setActiveStockUnitRowId] = useState<string | null>(null);
+
+  const categoryOptions = useMemo(() => {
+    const predefined = getCategories();
+    const dynamic = (categories || []).map((c: any) => c.name).filter(Boolean);
+    return Array.from(new Set([...predefined, ...dynamic]));
+  }, [categories]);
 
   const reset = () => {
     setAsset(null); setStep('idle'); setErrMsg(''); setRows([]); setFailedItems([]);
@@ -78,7 +89,15 @@ export default function SellerBulkScanUploadScreen() {
       const res = await sellerAiApi.scanProductList(fd);
       if (!res.data.success) throw new Error(res.data.message || 'Scan failed.');
       const newRows: Row[] = (res.data.products || []).map(p =>
-        blankRow({ title: p.productName || '', category: p.category || '', description: p.description || '', brand: p.brand || '', imageUrl: p.imageUrl || '' }),
+        blankRow({
+          title: p.productName || '',
+          category: p.category || '',
+          description: p.description || '',
+          brand: p.brand || '',
+          imageUrl: p.imageUrl || '',
+          stockUnit: p.stockUnit || p.unit || 'Count',
+          unit: p.stockUnit || p.unit || 'Count',
+        }),
       );
       setRows(newRows);
       setFailedItems(res.data.failed || []);
@@ -104,6 +123,8 @@ export default function SellerBulkScanUploadScreen() {
       description: row.description || '',
       imageUrl: row.imageUrl || '',
       totalStock: row.totalStock ? +row.totalStock : 0,
+      stockUnit: row.stockUnit || 'Count',
+      unit: row.stockUnit || 'Count',
       availability: row.availability,
       tags,
       moq: row.moq ? +row.moq : 1,
@@ -112,12 +133,32 @@ export default function SellerBulkScanUploadScreen() {
   };
 
   const handleAddAll = async () => {
-    const valid = rows.filter(r => r.title && +r.price > 0);
-    if (valid.length === 0) return;
+    if (rows.length === 0) return;
+
+    // Upfront validation
+    const errors: string[] = [];
+    rows.forEach((row, i) => {
+      const missing: string[] = [];
+      if (!row.title?.trim()) missing.push('Product Title');
+      if (!row.price || isNaN(Number(row.price)) || Number(row.price) <= 0) missing.push('Price (> ₹0)');
+      if (row.totalStock === undefined || row.totalStock === '' || isNaN(Number(row.totalStock)) || Number(row.totalStock) < 0) missing.push('Stock Quantity (>= 0)');
+      if (missing.length > 0) {
+        errors.push(`• Item #${i + 1} "${row.title || 'Untitled'}": Missing ${missing.join(', ')}`);
+      }
+    });
+
+    if (errors.length > 0) {
+      Alert.alert(
+        'Incomplete Product Details',
+        'Please provide Title, Price, and Stock Quantity for all items before adding:\n\n' + errors.join('\n')
+      );
+      return;
+    }
+
     setStep('saving');
     let added = 0;
     const failed: FailedItem[] = [];
-    for (const r of valid) {
+    for (const r of rows) {
       try {
         await createOneProduct(r);
         added++;
@@ -202,18 +243,55 @@ export default function SellerBulkScanUploadScreen() {
                     value={row.title}
                     onChangeText={(v: string) => setRow(row.id, 'title', v)}
                     placeholder="Product Title *"
-                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
                   />
-                  <TouchableOpacity onPress={() => removeRow(row.id)}><Trash2 size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} /></TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeRow(row.id)}><Trash2 size={15} color={isDark ? '#94A3B8' : '#9CA3AF'} /></TouchableOpacity>
                 </View>
                 <View style={styles.rowGrid}>
-                  <TextInput style={styles.smallInput} value={row.price} onChangeText={(v: string) => setRow(row.id, 'price', v)} placeholder="Price ₹ *" keyboardType="numeric" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
-                  <TextInput style={styles.smallInput} value={row.totalStock} onChangeText={(v: string) => setRow(row.id, 'totalStock', v)} placeholder="Stock qty" keyboardType="numeric" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
-                  <TextInput style={styles.smallInput} value={row.moq} onChangeText={(v: string) => setRow(row.id, 'moq', v)} placeholder="MOQ" keyboardType="numeric" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <TextInput style={[styles.smallInput, { flex: 1.1 }]} value={row.price} onChangeText={(v: string) => setRow(row.id, 'price', v)} placeholder="Price ₹ *" keyboardType="numeric" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} />
+                  <TextInput style={[styles.smallInput, { flex: 1 }]} value={row.totalStock} onChangeText={(v: string) => setRow(row.id, 'totalStock', v)} placeholder="Stock Qty *" keyboardType="numeric" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} />
+                  <TouchableOpacity
+                    style={[styles.smallInput, { flex: 1, justifyContent: 'center' }]}
+                    onPress={() => setActiveStockUnitRowId(row.id)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: isDark ? '#FFFFFF' : CustomerColors.black,
+                          fontWeight: '600',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {row.stockUnit || 'Count'}
+                      </Text>
+                      <ChevronDown size={12} color={isDark ? '#94A3B8' : CustomerColors.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                  {!isStoreOwner && (
+                    <TextInput style={[styles.smallInput, { flex: 0.8 }]} value={row.moq} onChangeText={(v: string) => setRow(row.id, 'moq', v)} placeholder="MOQ" keyboardType="numeric" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} />
+                  )}
                 </View>
                 <View style={styles.rowGrid}>
-                  <TextInput style={styles.smallInput} value={row.category} onChangeText={(v: string) => setRow(row.id, 'category', v)} placeholder="Category" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
-                  <TextInput style={styles.smallInput} value={row.brand} onChangeText={(v: string) => setRow(row.id, 'brand', v)} placeholder="Brand" placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <TouchableOpacity
+                    style={[styles.smallInput, { justifyContent: 'center' }]}
+                    onPress={() => setActiveCategoryRowId(row.id)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: row.category ? (isDark ? '#FFFFFF' : CustomerColors.black) : (isDark ? '#94A3B8' : '#9CA3AF'),
+                          fontWeight: row.category ? '600' : 'normal',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {row.category || 'Select Category'}
+                      </Text>
+                      <ChevronDown size={14} color={isDark ? '#94A3B8' : CustomerColors.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                  <TextInput style={styles.smallInput} value={row.brand} onChangeText={(v: string) => setRow(row.id, 'brand', v)} placeholder="Brand" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} />
                 </View>
               </View>
             </View>
@@ -256,12 +334,109 @@ export default function SellerBulkScanUploadScreen() {
           )}
           <View style={styles.actionsRow}>
             <TouchableOpacity style={styles.secondaryBtn} onPress={reset}><Text style={styles.secondaryBtnText}>Scan Another List</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: CustomerColors.teal600 }]} onPress={async () => { await refresh(); navigation.goBack(); }}>
+            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: CustomerColors.teal600, flex: 1 }]} onPress={async () => { await refresh(); navigation.goBack(); }}>
+              <Check size={16} color="#fff" />
               <Text style={styles.primaryBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
+
+      {/* Category Modal Picker */}
+      <Modal visible={activeCategoryRowId !== null} transparent animationType="slide" onRequestClose={() => setActiveCategoryRowId(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setActiveCategoryRowId(null)}>
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={Array.from(new Set([...categoryOptions, ...(rows.find(r => r.id === activeCategoryRowId)?.category ? [rows.find(r => r.id === activeCategoryRowId)!.category] : [])]))}
+              keyExtractor={item => item}
+              renderItem={({ item }) => {
+                const currentRow = rows.find(r => r.id === activeCategoryRowId);
+                const isSelected = currentRow?.category === item;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      isSelected && styles.modalItemActive,
+                    ]}
+                    onPress={() => {
+                      if (activeCategoryRowId) {
+                        setRow(activeCategoryRowId, 'category', item);
+                      }
+                      setActiveCategoryRowId(null);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        isSelected && styles.modalItemTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {isSelected && (
+                      <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+      {/* Stock Unit Modal Picker */}
+      <Modal visible={activeStockUnitRowId !== null} transparent animationType="slide" onRequestClose={() => setActiveStockUnitRowId(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Stock Unit</Text>
+              <TouchableOpacity onPress={() => setActiveStockUnitRowId(null)}>
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={STOCK_UNIT_OPTIONS}
+              keyExtractor={item => item}
+              renderItem={({ item }) => {
+                const currentRow = rows.find(r => r.id === activeStockUnitRowId);
+                const isSelected = (currentRow?.stockUnit || 'Count') === item;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      isSelected && styles.modalItemActive,
+                    ]}
+                    onPress={() => {
+                      if (activeStockUnitRowId) {
+                        setRow(activeStockUnitRowId, 'stockUnit', item);
+                        setRow(activeStockUnitRowId, 'unit', item);
+                      }
+                      setActiveStockUnitRowId(null);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        isSelected && styles.modalItemTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {isSelected && (
+                      <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -383,9 +558,41 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
-    backgroundColor: isDark ? '#111827' : 'transparent',
+    backgroundColor: isDark ? '#1F2937' : '#fff',
   },
   secondaryBtnText: { color: isDark ? '#F9FAFB' : '#374151', fontWeight: '700', fontSize: FontSizes.sm },
   successCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7', alignItems: 'center', justifyContent: 'center' },
   successText: { fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, fontSize: FontSizes.md, textAlign: 'center' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    maxHeight: '75%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
+  },
+  modalTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#1F2937' : '#F1F5F9',
+  },
+  modalItemActive: { backgroundColor: isDark ? '#134e4a' : '#F0FDFA' },
+  modalItemText: { fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
+  modalItemTextActive: { fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
 });
