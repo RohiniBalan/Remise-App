@@ -148,7 +148,7 @@ export default function AdminUsersScreen() {
         const r = (u.role || 'user').toLowerCase();
         if (selectedRoleFilter === 'wholesaler' && (r === 'wholesaler' || r === 'whole_saler')) {
           // match
-        } else if (selectedRoleFilter === 'user' && (r === 'user' || r === 'customer')) {
+        } else if (selectedRoleFilter === 'user' && r === 'user') {
           // match
         } else if (r !== selectedRoleFilter) {
           return false;

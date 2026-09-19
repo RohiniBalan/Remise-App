@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { Filter, X, Search } from 'lucide-react-native';
+import { Filter, X, Search, ArrowLeft } from 'lucide-react-native';
 import { productApi, Product, productId } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -259,22 +259,31 @@ export default function CategoryScreen() {
     <View style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchBarContainer}>
-        <View style={styles.searchBar}>
-          <Search size={16} color={CustomerColors.textSecondary} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder={activeCategory ? `Search in ${activeCategory}…` : "Search all products…"}
-            placeholderTextColor={CustomerColors.textSecondary}
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <X size={16} color={CustomerColors.textSecondary} />
-            </TouchableOpacity>
-          ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+            style={styles.backHomeBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ArrowLeft size={20} color={CustomerColors.black} />
+          </TouchableOpacity>
+          <View style={[styles.searchBar, { flex: 1 }]}>
+            <Search size={16} color={CustomerColors.textSecondary} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={activeCategory ? `Search in ${activeCategory}…` : "Search all products…"}
+              placeholderTextColor={CustomerColors.textSecondary}
+              style={styles.searchInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <X size={16} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -429,6 +438,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs,
     backgroundColor: '#FFFFFF',
+  },
+  backHomeBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchBar: {
     height: 42,

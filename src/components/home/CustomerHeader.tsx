@@ -68,12 +68,12 @@ export default function CustomerHeader() {
             {isDark ? (
               <Sun size={20} color="#FBBF24" />
             ) : (
-              <Moon size={20} color={CustomerColors.black} />
+              <Moon size={20} color="#4B5563" />
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
-            <Bell size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+            <Bell size={20} color={isDark ? '#FFFFFF' : '#4B5563'} />
             {unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -81,7 +81,7 @@ export default function CustomerHeader() {
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Cart')}>
-            <ShoppingCart size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+            <ShoppingCart size={20} color={isDark ? '#FFFFFF' : '#4B5563'} />
             {cartCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>

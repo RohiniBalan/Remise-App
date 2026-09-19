@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator, Modal } from 'react-native';
-import { ShoppingBag, RefreshCw, Truck, ChevronDown, X, Check } from 'lucide-react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator, Modal } from 'react-native';
+import { ShoppingBag, RefreshCw, Truck, ChevronDown, X, Check, Search } from 'lucide-react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { sellerOrderApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
@@ -19,10 +19,12 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string; darkBg: string; dar
 };
 
 export default function SellerOrdersScreen() {
+  const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { orders, refresh, loading, markOrdersAsSeen } = useSellerDashboard();
   const [filter, setFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [updating, setUpdating] = useState<string | null>(null);
   const [deliveryModalOrder, setDeliveryModalOrder] = useState<any | null>(null);
@@ -38,11 +40,21 @@ export default function SellerOrdersScreen() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter]);
+  }, [filter, search]);
 
   const counts: Record<string, number> = { all: orders.length };
   ORDER_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.orderStatus === s).length; });
-  const filtered = useMemo(() => orders.filter(o => filter === 'all' || o.orderStatus === filter), [orders, filter]);
+  const filtered = useMemo(() => {
+    return orders.filter(o => {
+      const matchStatus = filter === 'all' || o.orderStatus === filter;
+      const matchSearch =
+        !search ||
+        (o.orderId && o.orderId.toLowerCase().includes(search.toLowerCase())) ||
+        (o._id && o._id.toLowerCase().includes(search.toLowerCase())) ||
+        (o.contactEmail && o.contactEmail.toLowerCase().includes(search.toLowerCase()));
+      return matchStatus && matchSearch;
+    });
+  }, [orders, filter, search]);
 
   const paginatedOrders = useMemo(
     () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
@@ -76,6 +88,33 @@ export default function SellerOrdersScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Top Search & Deliveries Log Action Bar */}
+      <View style={styles.topActionRow}>
+        <View style={styles.searchBox}>
+          <Search size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search orders by ID or email…"
+            placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <X size={14} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity
+          style={styles.deliveryLogsNavBtn}
+          onPress={() => navigation.navigate('StoreDeliveries')}
+          activeOpacity={0.8}
+        >
+          <Truck size={14} color="#FFFFFF" />
+          <Text style={styles.deliveryLogsNavBtnText}>Deliveries Log</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.filterRow}>
         {(['all', ...ORDER_STATUSES] as const).map(s => (
           <TouchableOpacity
@@ -240,6 +279,45 @@ export default function SellerOrdersScreen() {
 
 const getStyles = (isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+  topActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? '#111827' : '#FFFFFF',
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: 10,
+    height: 40,
+    gap: 6,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    paddingVertical: 0,
+  },
+  deliveryLogsNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: CustomerColors.teal700,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: BorderRadius.md,
+  },
+  deliveryLogsNavBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: 8 },
   filterChip: {
     paddingHorizontal: 12,

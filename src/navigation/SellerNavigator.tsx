@@ -8,6 +8,7 @@ import {
 } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import RemiseLoading from '../components/common/RemiseLoading';
 import { SellerDashboardProvider, useSellerDashboard } from '../context/SellerDashboardContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -196,7 +197,13 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={CustomerColors.primary} /></View>;
+    return (
+      <RemiseLoading
+        fullscreen
+        message="Loading Dashboard..."
+        subMessage="Fetching store profile & data"
+      />
+    );
   }
 
   if (noStore) {

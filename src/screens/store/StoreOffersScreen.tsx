@@ -14,8 +14,7 @@ import {
   Plus,
   Tag,
   Clock,
-  Eye,
-  ShoppingBag,
+  Edit2,
   Trash2,
 } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -141,22 +140,20 @@ export default function StoreOffersScreen() {
                   </Text>
                 </View>
                 <View style={styles.footerRow}>
-                  <View style={styles.statsRow}>
-                    <Eye size={10} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-                    <Text style={styles.statsText}>{offer.viewCount ?? 0}</Text>
-                    <ShoppingBag
-                      size={10}
-                      color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
-                    />
-                    <Text style={styles.statsText}>
-                      {offer.orderCount ?? 0}
-                    </Text>
-                  </View>
                   <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => navigation.navigate('NewOffer', { offer })}
+                  >
+                    <Edit2 size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    <Text style={styles.editBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
                     onPress={() => handleDelete(offer._id)}
                     disabled={deleting === offer._id}
                   >
-                    <Trash2 size={13} color={isDark ? '#F87171' : CustomerColors.primary} />
+                    <Trash2 size={12} color={isDark ? '#F87171' : CustomerColors.primary} />
+                    <Text style={styles.deleteBtnText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -286,11 +283,33 @@ const getStyles = (isDark: boolean) =>
       borderTopWidth: 1,
       borderTopColor: isDark ? '#1F2937' : '#F5F5F5',
     },
-    statsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    statsText: {
+    editBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: isDark ? 'rgba(45,212,191,0.1)' : '#DFF1F1',
+    },
+    editBtnText: {
       fontSize: 10,
-      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
-      marginRight: 6,
+      fontWeight: '700',
+      color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+    },
+    deleteBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: BorderRadius.sm,
+      backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEE2E2',
+    },
+    deleteBtnText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: isDark ? '#F87171' : CustomerColors.primary,
     },
     privateBadge: { position: 'absolute', top: 6, right: 6, maxWidth: '70%', backgroundColor: '#7C3AED', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     privateBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },

@@ -21,6 +21,7 @@ import AdminHotDropsScreen from '../screens/admin/AdminHotDropsScreen';
 import AdminStudioScreen from '../screens/admin/AdminStudioScreen';
 import AdminRalleyzScreen from '../screens/admin/AdminRalleyzScreen';
 import AdminStoresScreen from '../screens/admin/AdminStoresScreen';
+import AdminStoreRegistrationsScreen from '../screens/admin/AdminStoreRegistrationsScreen';
 import AdminBlogsScreen from '../screens/admin/AdminBlogsScreen';
 import AdminPressScreen from '../screens/admin/AdminPressScreen';
 import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
@@ -36,6 +37,7 @@ export type AdminDrawerParamList = {
   CustomerHome: undefined;
   AdminDashboard: undefined;
   AdminStores: undefined;
+  AdminStoreRegistrations: undefined;
   AdminHero: undefined;
   AdminHotDrops: undefined;
   AdminStudio: undefined;
@@ -86,6 +88,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="CustomerHome" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ title: 'Dashboard' }} />
       <Stack.Screen name="AdminStores" component={AdminStoresScreen} options={{ title: 'Store Management' }} />
+      <Stack.Screen name="AdminStoreRegistrations" component={AdminStoreRegistrationsScreen} options={{ title: 'Store Registrations' }} />
       {PORTFOLIO_GROUP.map(([name, title, Component]) => (
         <Stack.Screen key={name} name={name} component={Component} options={{ title }} />
       ))}

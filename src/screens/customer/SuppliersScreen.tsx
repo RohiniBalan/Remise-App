@@ -21,6 +21,7 @@ import {
   ChevronDown,
   X,
 } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { productApi } from '../../api/productApi';
 import { storeApi } from '../../api/storeApi';
@@ -51,6 +52,7 @@ import HomeFooter from '../../components/home/HomeFooter';
 const API_BASE = 'YOUR_API_BASE_URL';
 
 export default function SuppliersScreen() {
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
@@ -177,15 +179,16 @@ export default function SuppliersScreen() {
     price: number,
     tierLabel: string | null,
     group: ProductGroup,
-  ) => {
+  ): boolean => {
     if (
       !requireAuthForPurchase({
-        navigation: undefined,
+        navigation,
         isAuthenticated: Boolean(user?._id),
-        message: 'Please sign in to add supplier items to your cart.',
+        title: 'Login Required',
+        message: 'Please sign in or register to buy products from Home Sellers.',
       })
     )
-      return;
+      return false;
     setCart(c => ({
       ...c,
       [supplier.productId]: {
@@ -200,6 +203,7 @@ export default function SuppliersScreen() {
         tierLabel,
       },
     }));
+    return true;
   };
 
   const handleCheckoutComplete = () => {
@@ -363,7 +367,23 @@ export default function SuppliersScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {myOrders.length === 0 ? (
+          {!user?._id ? (
+            <View style={styles.centerBox}>
+              <ShoppingBag size={36} color={CustomerColors.teal600} />
+              <Text style={[styles.helperText, { fontWeight: '700', color: CustomerColors.black, fontSize: 14 }]}>
+                Please log in to view your orders
+              </Text>
+              <Text style={[styles.helperText, { marginTop: 4, marginBottom: 12 }]}>
+                Sign in to track your orders placed with Home Sellers.
+              </Text>
+              <TouchableOpacity
+                style={styles.loginPromptBtn}
+                onPress={() => navigation.navigate('LoginRegister')}
+              >
+                <Text style={styles.loginPromptBtnText}>Log In / Register</Text>
+              </TouchableOpacity>
+            </View>
+          ) : myOrders.length === 0 ? (
             <View style={styles.centerBox}>
               <ShoppingBag size={36} color={CustomerColors.border} />
               <Text style={styles.helperText}>No supplier orders yet.</Text>
@@ -413,9 +433,10 @@ export default function SuppliersScreen() {
             onPress={() => {
               if (
                 !requireAuthForPurchase({
-                  navigation: undefined,
+                  navigation,
                   isAuthenticated: Boolean(user?._id),
-                  message: 'Please sign in to place this wholesale order.',
+                  title: 'Login Required',
+                  message: 'Please sign in or register to place this wholesale order.',
                 })
               )
                 return;
@@ -836,4 +857,15 @@ const styles = StyleSheet.create({
   },
   modalItemText: { fontSize: FontSizes.sm, color: CustomerColors.black },
   modalItemTextActive: { color: CustomerColors.teal700, fontWeight: '700' },
+  loginPromptBtn: {
+    backgroundColor: CustomerColors.teal600,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  loginPromptBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: FontSizes.sm,
+  },
 });

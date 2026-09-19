@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import RemiseLoading from '../components/common/RemiseLoading';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -101,12 +102,12 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator
-          size="large"
-          color={CustomerColors.primary}
-        />
-      </View>
+      <RemiseLoading
+        fullscreen
+        size="lg"
+        message="Loading Remise..."
+        subMessage="Preparing your experience"
+      />
     );
   }
 

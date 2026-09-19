@@ -1,4 +1,4 @@
-import { legacyProductClient } from './client';
+import { legacyProductClient, gatewayClient } from './client';
 
 // Ported from client/app/admin/{order-history,product,users,dynamic-content}/page.tsx
 // — all four hit LEGACY_PRODUCT_URL (wow-lifebackend.onrender.com), same as
@@ -40,5 +40,10 @@ export const adminStoreApi = {
   updateStatus: (id: string, status: string, isActive: boolean) => legacyProductClient.patch(`/stores/${id}/status`, { status, isActive }),
   toggleVerify: (id: string, isVerified: boolean) => legacyProductClient.patch(`/stores/${id}/verify`, { isVerified }),
   updateStore: (id: string, data: any) => legacyProductClient.put(`/stores/${id}`, data),
+
+  // Store Registrations Management APIs (Gateway -> store-service)
+  getRegistrations: (params: any = {}) => gatewayClient.get('/api/stores/admin/registrations', { params }),
+  getRegistrationById: (id: string) => gatewayClient.get(`/api/stores/admin/registrations/${id}`),
+  resendRegistrationEmail: (id: string) => gatewayClient.post(`/api/stores/admin/registrations/${id}/resend-email`),
 };
 

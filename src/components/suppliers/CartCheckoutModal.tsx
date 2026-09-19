@@ -201,6 +201,7 @@ export default function CartCheckoutModal({
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <View style={styles.overlay}>
         <View style={styles.sheet}>

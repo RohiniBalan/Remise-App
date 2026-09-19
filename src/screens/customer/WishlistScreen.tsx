@@ -92,7 +92,7 @@ export default function WishlistScreen({ navigation }: any) {
             onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
             activeOpacity={0.85}
           >
-            <Text style={styles.exploreBtnText}>Explore Products</Text>
+            <Text style={styles.exploreBtnText}>Browse Products</Text>
             <ArrowRight size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>

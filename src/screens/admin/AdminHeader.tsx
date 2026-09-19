@@ -264,6 +264,7 @@ export default function AdminHeader({ navigation, options, route }: any) {
               <MenuItem label="View Store (Home)" textColor={AdminColors.primary} onPress={() => go('CustomerHome')} />
               <MenuItem label="Dashboard" textColor={themeColors.textPrimary} onPress={() => go('AdminDashboard')} />
               <MenuItem label="Stores" textColor={themeColors.textPrimary} onPress={() => go('AdminStores')} />
+              <MenuItem label="Store Registrations" textColor={themeColors.textPrimary} onPress={() => go('AdminStoreRegistrations')} />
 
               <Text style={[styles.groupLabel, { color: themeColors.textMuted }]}>Portfolio</Text>
               {PORTFOLIO_GROUP.map(([name, label]) => (

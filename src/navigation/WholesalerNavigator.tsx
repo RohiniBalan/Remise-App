@@ -27,6 +27,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import RemiseLoading from '../components/common/RemiseLoading';
 import {
   SellerDashboardProvider,
   useSellerDashboard,
@@ -46,6 +47,8 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
+import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../styles/theme';
 
@@ -75,6 +78,8 @@ export type WholesalerStackParamList = {
   };
   SellerScanUpload: undefined;
   SellerBulkScanUpload: undefined;
+  StoreDeliveries: undefined;
+  StoreOrderTracking: { orderId: string };
   Notifications: undefined;
   Profile: undefined;
   AccountSettings:
@@ -171,6 +176,10 @@ function WholesalerUserMenu() {
               <TouchableOpacity style={styles.menuItem} onPress={() => go('WholesalerTabs')}>
                 <Store size={15} color="#9CA3AF" />
                 <Text style={styles.menuItemText}>Wholesale Dashboard</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => go('StoreDeliveries')}>
+                <Truck size={15} color="#9CA3AF" />
+                <Text style={styles.menuItemText}>Deliveries Log</Text>
               </TouchableOpacity>
 
               <View style={styles.menuDivider} />
@@ -297,10 +306,11 @@ function WholesalerDashboardGate({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={CustomerColors.primary} />
-        <Text style={styles.loadingText}>Loading your wholesale business…</Text>
-      </View>
+      <RemiseLoading
+        fullscreen
+        message="Loading Wholesale Business..."
+        subMessage="Fetching wholesale inventory & orders"
+      />
     );
   }
 
@@ -380,6 +390,16 @@ export default function WholesalerNavigator() {
             name="AccountSettings"
             component={AccountSettingsScreen}
             options={{ headerShown: true, title: 'Settings' }}
+          />
+          <Stack.Screen
+            name="StoreDeliveries"
+            component={StoreDeliveriesScreen}
+            options={{ headerShown: true, title: 'Deliveries Log' }}
+          />
+          <Stack.Screen
+            name="StoreOrderTracking"
+            component={StoreOrderTrackingScreen}
+            options={{ headerShown: true, title: 'Live Order Tracking' }}
           />
           <Stack.Screen
             name="ProductDetail"

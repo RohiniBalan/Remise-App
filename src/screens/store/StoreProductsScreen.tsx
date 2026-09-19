@@ -201,7 +201,11 @@ export default function StoreProductsScreen() {
         }
         renderItem={({ item: pt }) => {
           const brandRows = pt.items
-            .map((p: any) => ({ brand: p.brand || 'Unbranded', stock: p.totalStock || 0 }))
+            .map((p: any) => ({
+              brand: p.brand || 'Unbranded',
+              stock: p.totalStock || 0,
+              stockUnit: p.stockUnit || p.unit || pt.stockUnit || 'Count',
+            }))
             .sort((a: any, b: any) => b.stock - a.stock);
           const visibleBrands = brandRows.slice(0, 3);
           const extraCount = brandRows.length - visibleBrands.length;
@@ -215,13 +219,15 @@ export default function StoreProductsScreen() {
                 <Text style={styles.category}>{pt.category || '—'}</Text>
                 <Text style={styles.title} numberOfLines={1}>{pt.title}</Text>
                 <Text style={styles.brandCountText}>{pt.brandCount} Brand{pt.brandCount !== 1 ? 's' : ''}</Text>
-                <Text style={styles.stock}>Total Stock: {pt.totalStock}</Text>
+                <Text style={styles.stock}>Total Stock: {pt.totalStock} {pt.stockUnit || 'Count'}</Text>
 
                 <View style={styles.brandList}>
                   {visibleBrands.map((b: any, i: number) => (
                     <View key={i} style={styles.brandRow}>
                       <Text style={styles.brandRowName} numberOfLines={1}>{b.brand}</Text>
-                      <Text style={[styles.brandRowStock, b.stock < 5 && styles.stockLow]}>{b.stock}</Text>
+                      <Text style={[styles.brandRowStock, b.stock < 5 && styles.stockLow]}>
+                        {b.stock} {b.stockUnit || 'Count'}
+                      </Text>
                     </View>
                   ))}
                   {extraCount > 0 && <Text style={styles.moreText}>+{extraCount} more</Text>}
@@ -229,7 +235,7 @@ export default function StoreProductsScreen() {
 
                 <TouchableOpacity
                   style={styles.manageBtn}
-                  onPress={() => navigation.navigate('ManageBrands', { typeKey: pt.typeKey, title: pt.title, category: pt.category, items: pt.items, brandCount: pt.brandCount, totalStock: pt.totalStock })}
+                  onPress={() => navigation.navigate('ManageBrands', { typeKey: pt.typeKey, title: pt.title, category: pt.category, items: pt.items, brandCount: pt.brandCount, totalStock: pt.totalStock, stockUnit: pt.stockUnit })}
                 >
                   <Text style={styles.manageBtnText}>Manage Brands →</Text>
                 </TouchableOpacity>
@@ -261,7 +267,7 @@ export default function StoreProductsScreen() {
 
             <Text style={styles.modalSub}>
               {scanModalType === 'bulk'
-                ? 'Take a photo of the grocery list, invoice, or handwritten list, or choose from gallery.'
+                ? 'Take a photo of the grocery list, invoice, or handwritten list (up to 10 products), or choose from gallery.'
                 : 'Take a clear photo of the product label or choose from gallery.'}
             </Text>
 

@@ -32,6 +32,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { storeApi } from '../../api/storeApi';
 import { offersApi } from '../../api/offersApi';
+import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -65,25 +66,38 @@ export default function NewOfferScreen() {
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
+  const editingOffer = route.params?.offer;
+  const isEditing = !!editingOffer;
+
   const [store, setStore] = useState<any>(contextStore || null);
-  const [imgUri, setImgUri] = useState<string | null>(null);
+  const [imgUri, setImgUri] = useState<string | null>(() => {
+    if (editingOffer?.image) {
+      return editingOffer.image.startsWith('http')
+        ? editingOffer.image
+        : `${GATEWAY_URL}${editingOffer.image}`;
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [error, setError] = useState('');
 
   // Form state
   const [form, setForm] = useState({
-    title: '',
-    description: '',
-    category: 'Groceries',
-    originalPrice: '',
-    offerPrice: '',
-    validUntil: '',
+    title: editingOffer?.title || '',
+    description: editingOffer?.description || '',
+    category: editingOffer?.category || 'Groceries',
+    originalPrice: editingOffer?.originalPrice !== undefined ? String(editingOffer.originalPrice) : '',
+    offerPrice: editingOffer?.offerPrice !== undefined ? String(editingOffer.offerPrice) : '',
+    validUntil: editingOffer?.validUntil ? new Date(editingOffer.validUntil).toISOString().slice(0, 16) : '',
   });
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   // Date / Time picker state
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (editingOffer?.validUntil) {
+      return new Date(editingOffer.validUntil);
+    }
     const d = new Date();
     d.setDate(d.getDate() + 7);
     d.setHours(23, 59, 0, 0);
@@ -102,8 +116,8 @@ export default function NewOfferScreen() {
   const [longitude, setLongitude] = useState('');
   const [locSource, setLocSource] = useState<'store' | 'gps' | 'manual'>('store');
 
-  const targetCustomerId = route.params?.targetCustomerId;
-  const targetCustomerName = route.params?.targetCustomerName;
+  const targetCustomerId = route.params?.targetCustomerId || editingOffer?.targetCustomerId;
+  const targetCustomerName = route.params?.targetCustomerName || editingOffer?.targetCustomerName;
 
   // Category options merged with store's categories
   const categoryOptions = useMemo(() => {
@@ -118,6 +132,10 @@ export default function NewOfferScreen() {
       setLocSource('store');
     }
   };
+
+  useEffect(() => {
+    navigation.setOptions({ title: isEditing ? 'Edit Offer' : 'New Offer' });
+  }, [isEditing, navigation]);
 
   useEffect(() => {
     // Initialise validUntil string
@@ -232,13 +250,15 @@ export default function NewOfferScreen() {
     setLoading(true);
     try {
       const fd = new FormData();
-      const fn = imgUri.split('/').pop() || 'photo.jpg';
-      const ext = fn.split('.').pop() || 'jpg';
-      fd.append('image', {
-        uri: imgUri,
-        name: fn,
-        type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
-      } as any);
+      if (imgUri.startsWith('file://') || imgUri.startsWith('content://')) {
+        const fn = imgUri.split('/').pop() || 'photo.jpg';
+        const ext = fn.split('.').pop() || 'jpg';
+        fd.append('image', {
+          uri: imgUri,
+          name: fn,
+          type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
+        } as any);
+      }
       fd.append('storeId', store._id);
       fd.append('storeName', store.name);
       fd.append('latitude', String(lat));
@@ -249,11 +269,16 @@ export default function NewOfferScreen() {
         fd.append('targetCustomerId', targetCustomerId);
         fd.append('targetCustomerName', targetCustomerName || '');
       }
-      await offersApi.create(fd);
+
+      if (isEditing) {
+        await offersApi.update(editingOffer._id, fd);
+      } else {
+        await offersApi.create(fd);
+      }
       refresh();
       setShowSuccessModal(true);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to publish offer.');
+      setError(err.response?.data?.message || (isEditing ? 'Failed to update offer.' : 'Failed to publish offer.'));
     } finally {
       setLoading(false);
     }
@@ -366,12 +391,12 @@ export default function NewOfferScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-            <Calendar size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
+            <Calendar size={18} color={isDark ? '#2DD4BF' : '#111827'} />
             <Text style={styles.selectValue}>
               {formatDisplayDate(selectedDate)}
             </Text>
           </View>
-          <Clock size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          <Clock size={16} color={isDark ? '#9CA3AF' : '#374151'} />
         </TouchableOpacity>
       </View>
 
@@ -439,7 +464,7 @@ export default function NewOfferScreen() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.submitBtnText}>Publish Offer</Text>
+          <Text style={styles.submitBtnText}>{isEditing ? 'Update Offer' : 'Publish Offer'}</Text>
         )}
       </TouchableOpacity>
 
@@ -483,9 +508,9 @@ export default function NewOfferScreen() {
             <View style={styles.successIconCircle}>
               <CheckCircle size={40} color="#FFFFFF" />
             </View>
-            <Text style={styles.successTitle}>Offer Published!</Text>
+            <Text style={styles.successTitle}>{isEditing ? 'Offer Updated!' : 'Offer Published!'}</Text>
             <Text style={styles.successSubtitle}>
-              Your offer has been created successfully.
+              {isEditing ? 'Your offer changes have been saved successfully.' : 'Your offer has been created successfully.'}
             </Text>
             <TouchableOpacity style={styles.successButton} onPress={handleSuccessClose} activeOpacity={0.85}>
               <Text style={styles.successButtonText}>View Offers</Text>
@@ -544,7 +569,7 @@ const getStyles = (isDark: boolean) =>
     label: {
       fontSize: FontSizes.xs,
       fontWeight: '700',
-      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      color: isDark ? '#E2E8F0' : CustomerColors.textSecondary,
       textTransform: 'uppercase',
       marginBottom: Spacing.xs,
     },

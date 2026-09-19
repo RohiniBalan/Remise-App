@@ -15,7 +15,10 @@ function resolveImageUri(url?: string) {
 
   if (
     url.startsWith('http://') ||
-    url.startsWith('https://')
+    url.startsWith('https://') ||
+    url.startsWith('data:') ||
+    url.startsWith('file:') ||
+    url.startsWith('blob:')
   ) {
     return url;
   }
@@ -77,9 +80,10 @@ function groupByType(products: any[]) {
     category: v.category,
     items: v.items,
     brandCount: v.items.length,
+    stockUnit: v.items.find((p: any) => p.stockUnit || p.unit)?.stockUnit || v.items.find((p: any) => p.stockUnit || p.unit)?.unit || 'Count',
     totalStock: v.items.reduce(
-      (s, p) => s + (p.totalStock || 0),
-      0
+      (s: number, p: any) => s + (p.totalStock || 0),
+      0,
     ),
   }));
 }
@@ -153,7 +157,7 @@ export default function SellerProductsScreen() {
           return (
             <TouchableOpacity
               style={styles.card}
-              onPress={() => navigation.navigate('SellerManageBrands', { typeKey: pt.typeKey, title: pt.title, category: pt.category, items: pt.items, brandCount: pt.brandCount, totalStock: pt.totalStock })}
+              onPress={() => navigation.navigate('SellerManageBrands', { typeKey: pt.typeKey, title: pt.title, category: pt.category, items: pt.items, brandCount: pt.brandCount, totalStock: pt.totalStock, stockUnit: (pt as any).stockUnit })}
             >
               <View style={styles.cardImageWrap}>
                 {img ? <Image source={{ uri: img }} style={styles.cardImage} /> : <Package size={30} color={isDark ? '#4B5563' : '#E5E7EB'} />}
@@ -162,7 +166,7 @@ export default function SellerProductsScreen() {
                 <Text style={styles.cardCategory} numberOfLines={1}>{pt.category || '—'}</Text>
                 <Text style={styles.cardTitle} numberOfLines={1}>{pt.title}</Text>
                 <Text style={styles.cardSub}>{pt.brandCount} Brand{pt.brandCount !== 1 ? 's' : ''}</Text>
-                <Text style={styles.cardSub}>Total Stock: {pt.totalStock}</Text>
+                <Text style={styles.cardSub}>Total Stock: {pt.totalStock} {(pt as any).stockUnit || 'Count'}</Text>
                 <View style={styles.manageBtn}><Text style={styles.manageBtnText}>Manage Brands →</Text></View>
               </View>
             </TouchableOpacity>

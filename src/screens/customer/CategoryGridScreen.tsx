@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Search, Package, Tag } from 'lucide-react-native';
+import { Search, Package, Tag, ArrowLeft } from 'lucide-react-native';
 import { productApi, Product, productImage } from '../../api/productApi';
 import {
   GoldColors,
@@ -238,9 +238,18 @@ export default function CategoryGridScreen() {
         ListHeaderComponent={
           <View style={styles.pageHeading}>
             <View style={styles.pageHeadingRow}>
-              <View>
-                <Text style={styles.eyebrow}>Browse</Text>
-                <Text style={styles.headerTitle}>Shop by Category</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+                  style={styles.backHomeBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <ArrowLeft size={22} color={CustomerColors.black} />
+                </TouchableOpacity>
+                <View>
+                  <Text style={styles.eyebrow}>Browse</Text>
+                  <Text style={styles.headerTitle}>Shop by Category</Text>
+                </View>
               </View>
               <Text style={styles.headerCount}>{products.length} products</Text>
             </View>
@@ -324,6 +333,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
+  },
+  backHomeBtn: {
+    padding: 4,
+    marginRight: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerCount: {
     fontSize: FontSizes.xs,

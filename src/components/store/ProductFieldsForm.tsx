@@ -22,10 +22,36 @@ export default function ProductFieldsForm({
     [categories],
   );
 
-  const subcategoryOptions = useMemo(
-    () => getSubcategories(form.category).map(s => ({ key: s, label: s })),
+  const baseSubcategories = useMemo(
+    () => getSubcategories(form.category),
     [form.category],
   );
+
+  const subcategoryOptions = useMemo(
+    () => [...baseSubcategories.map(s => ({ key: s, label: s })), { key: 'Other', label: 'Other' }],
+    [baseSubcategories],
+  );
+
+  const [isCustomSubcategory, setIsCustomSubcategory] = useState<boolean>(() => {
+    if (!form.subcategory) return false;
+    return !baseSubcategories.includes(form.subcategory);
+  });
+  const [customSubcategory, setCustomSubcategory] = useState<string>(() => {
+    if (!form.subcategory) return '';
+    return !baseSubcategories.includes(form.subcategory) ? form.subcategory : '';
+  });
+
+  // Keep state in sync if form.subcategory is modified externally
+  React.useEffect(() => {
+    if (form.subcategory) {
+      if (!baseSubcategories.includes(form.subcategory)) {
+        setIsCustomSubcategory(true);
+        setCustomSubcategory(form.subcategory);
+      } else {
+        setIsCustomSubcategory(false);
+      }
+    }
+  }, [form.subcategory, baseSubcategories]);
 
   return (
     <>
@@ -52,6 +78,8 @@ export default function ProductFieldsForm({
         onSelect={key => {
           set('category', key);
           set('subcategory', '');
+          setIsCustomSubcategory(false);
+          setCustomSubcategory('');
         }}
         isDark={isDark}
         styles={styles}
@@ -59,14 +87,36 @@ export default function ProductFieldsForm({
 
       <SelectField
         label="Subcategory"
-        value={form.subcategory || ''}
+        value={isCustomSubcategory ? 'Other' : (form.subcategory || '')}
         placeholder={form.category ? 'Select Subcategory' : 'Select a Category first'}
         options={subcategoryOptions}
         disabled={!form.category || subcategoryOptions.length === 0}
-        onSelect={key => set('subcategory', key)}
+        onSelect={key => {
+          if (key === 'Other') {
+            setIsCustomSubcategory(true);
+            set('subcategory', customSubcategory || '');
+          } else {
+            setIsCustomSubcategory(false);
+            set('subcategory', key);
+          }
+        }}
         isDark={isDark}
         styles={styles}
       />
+
+      {isCustomSubcategory && (
+        <Field
+          label="Custom Subcategory *"
+          value={customSubcategory}
+          onChangeText={v => {
+            setCustomSubcategory(v);
+            set('subcategory', v);
+          }}
+          placeholder="Enter custom subcategory"
+          isDark={isDark}
+          styles={styles}
+        />
+      )}
 
       <Field label="Brand" value={form.brand} onChangeText={v => set('brand', v)} placeholder="e.g. Nivea" isDark={isDark} styles={styles} />
       

@@ -199,7 +199,7 @@ export async function scanBulkList(base64: string, mimeType: string): Promise<Sc
 // one shot for scanBulkList's simpler {name, quantity} case above, so the
 // richer per-item shape just extends that same prompt convention instead of
 // doing a separate OCR-then-enrich round trip like the web route does).
-const MAX_BULK_ITEMS = 25;
+const MAX_BULK_ITEMS = 10;
 
 const BULK_PRODUCT_VISION_PROMPT = `This image shows a grocery list, invoice, or handwritten/printed list of product names in any language or script. Read every line and translate all text into standard English.
 Reply ONLY with a raw JSON array — no markdown, no code fences, no extra text — with at most ${MAX_BULK_ITEMS} entries:
@@ -530,7 +530,7 @@ export function buildProductImagePrompt(productName: string, category: string = 
   let itemType = 'packaged commercial retail product item';
   let categoryDescriptor = cat && cat.toLowerCase() !== 'general' ? `${cat} retail product` : 'retail merchandise';
   let disambiguatedName = name;
-  let negativeDirectives = 'no people, no human hands, no action, no live animals, no text, no watermark, no illustrations';
+  let negativeDirectives = 'no people, no human hands, no human face, no action, no live animals, no text, no watermark, no illustrations, no logos';
 
   // 1. Electronics / Gadgets / Tech / Appliances / Computers / Mobile
   if (
@@ -544,14 +544,20 @@ export function buildProductImagePrompt(productName: string, category: string = 
   ) {
     itemType = 'electronic hardware device or tech accessory';
     categoryDescriptor = 'Electronics';
-    negativeDirectives = 'no rodents, no live animals, no rat, no rodent paws, no people, no human hands, no animal charger, no horses, no vehicles, no swimming boats, no real fruit, no food, packaged hardware electronic accessory product only, no text, no watermark';
+    negativeDirectives = 'no rodents, no live animals, no rat, no rodent paws, no people, no human hands, no animal charger, no horses, no vehicles, no swimming boats, no real fruit, no food, packaged hardware electronic accessory product only, solid plain white background, no text, no watermark';
 
     if (/\b(mouse|mice)\b/i.test(nameLower)) {
-      disambiguatedName = `computer mouse hardware peripheral (${name})`;
+      disambiguatedName = `computer mouse USB optical hardware peripheral device (${name})`;
+    } else if (/\b(dslr|camera|canon|nikon|sony|eos)\b/i.test(nameLower)) {
+      disambiguatedName = `digital DSLR camera photography equipment device with kit lens (${name})`;
     } else if (/\b(charger|adapter|cable|cord|wire|power\s*bank)\b/i.test(nameLower)) {
       disambiguatedName = `electronic power charger adapter unit (${name})`;
-    } else if (/\b(apple)\b/i.test(nameLower)) {
-      disambiguatedName = `Apple electronic brand tech device hardware (${name})`;
+    } else if (/\b(apple|iphone|ipad|macbook)\b/i.test(nameLower)) {
+      disambiguatedName = `Apple brand electronic tech device hardware (${name})`;
+    } else if (/\b(phone|smartphone|mobile)\b/i.test(nameLower)) {
+      disambiguatedName = `modern smartphone mobile phone hardware device (${name})`;
+    } else if (/\b(laptop|notebook)\b/i.test(nameLower)) {
+      disambiguatedName = `laptop computer electronic device (${name})`;
     } else if (/\b(fan|cooler)\b/i.test(nameLower)) {
       disambiguatedName = `electric cooling fan room appliance (${name})`;
     } else if (/\b(pad|mat)\b/i.test(nameLower)) {
@@ -562,8 +568,14 @@ export function buildProductImagePrompt(productName: string, category: string = 
       disambiguatedName = `computer keyboard hardware peripheral (${name})`;
     } else if (/\b(battery|cell)\b/i.test(nameLower)) {
       disambiguatedName = `electronic battery pack cell unit (${name})`;
+    } else if (/\b(headphone|earphone|airpod|earbud|headset)\b/i.test(nameLower)) {
+      disambiguatedName = `wireless audio Bluetooth headphones earbuds device (${name})`;
     } else if (/\b(boat)\b/i.test(nameLower)) {
       disambiguatedName = `boAt audio electronic headphones earphones product (${name})`;
+    } else if (/\b(tv|television|monitor)\b/i.test(nameLower)) {
+      disambiguatedName = `smart LED display television monitor screen screen appliance (${name})`;
+    } else if (/\b(watch|smartwatch)\b/i.test(nameLower)) {
+      disambiguatedName = `smartwatch digital wrist wearable device (${name})`;
     } else if (/\b(iron)\b/i.test(nameLower)) {
       disambiguatedName = `electric dry clothes iron home appliance (${name})`;
     }
@@ -579,7 +591,7 @@ export function buildProductImagePrompt(productName: string, category: string = 
   ) {
     itemType = 'personal care cosmetic bottled or packaged retail product container';
     categoryDescriptor = 'Beauty & Personal Care';
-    negativeDirectives = 'no person washing hands, no human body, no people, no hands, no water splashing, no bathroom sink, no live birds, no real flowers in ponds, product container packaging bottle or jar only, no text, no watermark';
+    negativeDirectives = 'no person washing hands, no human body, no people, no hands, no water splashing, no bathroom sink, no live birds, no real flowers in ponds, product container packaging bottle or jar only, solid plain white background, no text, no watermark';
 
     if (/\b(hand\s*wash|handwash|soap)\b/i.test(nameLower)) {
       disambiguatedName = `liquid hand wash soap pump dispenser bottle packaging (${name})`;
@@ -603,7 +615,7 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('fruit')) {
     itemType = 'fresh raw edible agricultural fruit produce';
     categoryDescriptor = 'fresh Fruits grocery produce';
-    negativeDirectives = 'no electronic devices, no tech logos, no smartphones, no laptops, no computers, no people, no trees, no orchard, fresh edible fruit produce item only, solid white background, no text, no watermark';
+    negativeDirectives = 'no electronic devices, no tech logos, no smartphones, no laptops, no computers, no people, no trees, no orchard, fresh edible fruit produce item only, solid plain white background, no text, no watermark';
 
     if (/\b(apple)\b/i.test(nameLower)) {
       disambiguatedName = `fresh ripe red apple fruit produce (${name})`;
@@ -625,13 +637,13 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('veg') || catLower.includes('vegetable')) {
     itemType = 'fresh raw agricultural vegetable grocery produce';
     categoryDescriptor = 'fresh Vegetables grocery';
-    negativeDirectives = 'no cooked food, no cooking pots, no kitchen, no recipes, no people, fresh raw vegetable produce item only, solid white background, no text, no watermark';
+    negativeDirectives = 'no cooked food, no cooking pots, no kitchen, no recipes, no people, fresh raw vegetable produce item only, solid plain white background, no text, no watermark';
   }
   // 5. Dairy / Eggs
   else if (catLower.includes('dairy') || catLower.includes('egg')) {
     itemType = 'packaged dairy grocery product, milk carton, butter tub, or cheese pack';
     categoryDescriptor = 'Dairy';
-    negativeDirectives = 'no live cows, no farm animals, no farm, no people, packaged dairy food product only, solid white background, no text, no watermark';
+    negativeDirectives = 'no live cows, no farm animals, no farm, no people, packaged dairy food product only, solid plain white background, no text, no watermark';
     if (/\b(milk)\b/i.test(nameLower)) {
       disambiguatedName = `packaged fresh milk carton or bottle (${name})`;
     } else if (/\b(butter|cheese|paneer|curd|yogurt|ghee)\b/i.test(nameLower)) {
@@ -644,7 +656,7 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('beverage') || catLower.includes('drink') || catLower.includes('juice') || catLower.includes('tea') || catLower.includes('coffee')) {
     itemType = 'packaged beverage bottle or can retail drink product';
     categoryDescriptor = 'Beverages';
-    negativeDirectives = 'no people drinking, no hands, no glasses on table, no restaurant, packaged beverage bottle or can retail drink product only, solid white background, no text, no watermark';
+    negativeDirectives = 'no people drinking, no hands, no glasses on table, no restaurant, packaged beverage bottle or can retail drink product only, solid plain white background, no text, no watermark';
     if (/\b(apple)\b/i.test(nameLower)) {
       disambiguatedName = `apple juice beverage bottle or can drink (${name})`;
     } else if (/\b(orange)\b/i.test(nameLower)) {
@@ -657,13 +669,13 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('snack') || catLower.includes('bakery') || catLower.includes('sweet') || catLower.includes('biscuit')) {
     itemType = 'packaged retail snack food packet pouch or box';
     categoryDescriptor = 'Snacks';
-    negativeDirectives = 'no people eating, no hands, no dining table, packaged retail snack food packet pouch or box only, solid white background, no text, no watermark';
+    negativeDirectives = 'no people eating, no hands, no dining table, packaged retail snack food packet pouch or box only, solid plain white background, no text, no watermark';
   }
   // 8. Groceries / Food & Supermarket / Staples
   else if (catLower.includes('grocer') || catLower.includes('food') || catLower.includes('staple')) {
     itemType = 'packaged supermarket grocery food retail product';
     categoryDescriptor = 'Groceries';
-    negativeDirectives = 'no people cooking, no farm, no live animals, no swimming fish, no aquarium, packaged supermarket grocery food retail product only, solid white background, no text, no watermark';
+    negativeDirectives = 'no people cooking, no farm, no live animals, no swimming fish, no aquarium, packaged supermarket grocery food retail product only, solid plain white background, no text, no watermark';
     if (/\b(fish|salmon|tuna|prawn|shrimp)\b/i.test(nameLower)) {
       disambiguatedName = `fresh culinary food seafood item (${name})`;
       negativeDirectives = 'no aquarium, no swimming live fish, culinary food item only, no text';
@@ -673,7 +685,7 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('house') || catLower.includes('clean') || catLower.includes('home') || catLower.includes('laundry')) {
     itemType = 'household cleaning utility packaged retail product';
     categoryDescriptor = 'Household & Cleaning';
-    negativeDirectives = 'no people cleaning, no hands, no dirty dishes, no bathroom, packaged cleaning product bottle or box only, solid white background, no text, no watermark';
+    negativeDirectives = 'no people cleaning, no hands, no dirty dishes, no bathroom, packaged cleaning product bottle or box only, solid plain white background, no text, no watermark';
     if (/\b(hand\s*wash|handwash|soap)\b/i.test(nameLower)) {
       disambiguatedName = `liquid hand wash cleaning soap bottle dispenser (${name})`;
     } else if (/\b(wash|detergent|bleach|cleaner)\b/i.test(nameLower)) {
@@ -688,7 +700,7 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('cloth') || catLower.includes('apparel') || catLower.includes('fashion') || catLower.includes('wear') || catLower.includes('shoe')) {
     itemType = 'apparel clothing fashion garment product, neatly folded or flat lay display';
     categoryDescriptor = 'Clothing & Apparel';
-    negativeDirectives = 'no human model, no human face, no human body, no wild animals, no big cats, flat lay or retail folded garment product only, solid white background, no text, no watermark';
+    negativeDirectives = 'no human model, no human face, no human body, no wild animals, no big cats, flat lay or retail folded garment product only, solid plain white background, no text, no watermark';
     if (/\b(puma|jaguar)\b/i.test(nameLower)) {
       disambiguatedName = `branded athletic apparel footwear sportswear item (${name})`;
       negativeDirectives = 'no wild animals, no big cats, clothing apparel product only, no text';
@@ -698,13 +710,13 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('med') || catLower.includes('pharm') || catLower.includes('health')) {
     itemType = 'pharmaceutical healthcare medicine packaged box, bottle, or blister pack';
     categoryDescriptor = 'Medicine & Pharmacy';
-    negativeDirectives = 'no sick patients, no doctors, no hospital, packaged pharmaceutical medicine product only, solid white background, no text, no watermark';
+    negativeDirectives = 'no sick patients, no doctors, no hospital, packaged pharmaceutical medicine product only, solid plain white background, no text, no watermark';
   }
   // 12. Stationery / Office / Books
   else if (catLower.includes('station') || catLower.includes('office') || catLower.includes('school') || catLower.includes('book')) {
     itemType = 'stationery office school supply product';
     categoryDescriptor = 'Stationery & Office';
-    negativeDirectives = 'no people writing, no snakes, no reptiles, stationery product item only, solid white background, no text, no watermark';
+    negativeDirectives = 'no people writing, no snakes, no reptiles, stationery product item only, solid plain white background, no text, no watermark';
     if (/\b(mouse)\b/i.test(nameLower)) {
       disambiguatedName = `desk stationery mouse pad accessory or computer mouse (${name})`;
     } else if (/\b(python|java|c\+\+)\b/i.test(nameLower)) {
@@ -716,7 +728,7 @@ export function buildProductImagePrompt(productName: string, category: string = 
   else if (catLower.includes('toy') || catLower.includes('game') || catLower.includes('sport') || catLower.includes('kid') || catLower.includes('baby')) {
     itemType = 'packaged toy games retail merchandise product box';
     categoryDescriptor = 'Toys & Games';
-    negativeDirectives = 'no live animals, no flying bat animals, no children, toy retail product packaging only, solid white background, no text, no watermark';
+    negativeDirectives = 'no live animals, no flying bat animals, no children, toy retail product packaging only, solid plain white background, no text, no watermark';
     if (/\b(bat)\b/i.test(nameLower)) {
       disambiguatedName = `sports toy cricket or baseball bat wooden product (${name})`;
     }
@@ -726,12 +738,9 @@ export function buildProductImagePrompt(productName: string, category: string = 
 }
 
 // Pure URL builder — mobile equivalent of web's Pollinations.ai FLUX tier in
-// `getProductImage()` (client/app/api/_lib/productScan.ts). No fetch here:
-// the URL is handed straight to <Image> for preview and to the backend as a
-// plain `imageUrl` string on product creation, same as the web flow's
-// `imageResultToUrl` for a 'url' result.
+// `getProductImage()` (client/app/api/_lib/productScan.ts).
 export function buildGeneratedImageUrl(productName: string, category: string, seedOffset: number = 0): string {
   const prompt = buildProductImagePrompt(productName, category);
   const seed = Math.floor(Date.now() / 1000) + seedOffset;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true&seed=${seed}`;
 }

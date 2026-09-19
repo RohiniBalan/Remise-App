@@ -38,6 +38,9 @@ function normalizeSmartOrder(o: any) {
     deliveryStatus: o.deliveryStatus,
     vendorTransfers: o.vendorTransfers || [],
     rawItems: items,
+    refundStatus: o.refundStatus || (o.paymentStatus === 'REFUNDED' ? 'refunded' : 'none'),
+    totalRefundedAmount: o.totalRefundedAmount || (o.paymentStatus === 'REFUNDED' ? o.totalAmount : 0),
+    refunds: o.refunds || [],
     _source: 'smartOrder' as const,
   };
 }
@@ -54,7 +57,7 @@ interface StoreDashboardValue {
   refresh: () => void;
 }
 
-const StoreDashboardContext = createContext<StoreDashboardValue | undefined>(undefined);
+export const StoreDashboardContext = createContext<StoreDashboardValue | undefined>(undefined);
 
 export function StoreDashboardProvider({ children }: { children: React.ReactNode }) {
   const { user, token, login } = useAuth();
@@ -121,7 +124,12 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
       if (prodRes.status === 'fulfilled') setProducts(prodRes.value.data.data || []);
       if (catRes.status === 'fulfilled') setCategories(catRes.value.data.data || []);
 
-      const offerOrders = ordRes.status === 'fulfilled' ? ordRes.value.data.data || [] : [];
+      const offerOrders = ordRes.status === 'fulfilled' ? (ordRes.value.data.data || []).map((o: any) => ({
+        ...o,
+        refundStatus: o.refundStatus || (o.paymentStatus === 'Refunded' || o.paymentStatus === 'REFUNDED' ? 'refunded' : 'none'),
+        totalRefundedAmount: o.refundAmount || (o.paymentStatus === 'Refunded' || o.paymentStatus === 'REFUNDED' ? o.totalAmount : 0),
+        refunds: o.refunds || [],
+      })) : [];
       const smartOrders = smartOrdRes.status === 'fulfilled' ? (smartOrdRes.value.data.data || []).map(normalizeSmartOrder) : [];
       setOrders([...offerOrders, ...smartOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 

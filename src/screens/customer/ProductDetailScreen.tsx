@@ -326,7 +326,10 @@ export default function ProductDetailScreen() {
       product.subcategory,
     );
     if (product.totalStock !== undefined) {
-      specs.push({ label: 'Total Stock', value: `${product.totalStock} Units` });
+      specs.push({ label: 'Total Stock', value: `${product.totalStock} ${product.stockUnit || product.unit || 'Units'}` });
+      if (product.stockUnit || product.unit) {
+        specs.push({ label: 'Stock Unit', value: (product.stockUnit || product.unit) as string });
+      }
     }
     if (product.moq && Number(product.moq) > 1) {
       specs.push({ label: 'Min Order Qty', value: `${product.moq} Units` });
@@ -526,8 +529,8 @@ export default function ProductDetailScreen() {
                 {isOutOfStock
                   ? 'Out of Stock'
                   : product.totalStock < 5
-                  ? `Only ${product.totalStock} Left`
-                  : 'In Stock'}
+                  ? `Only ${product.totalStock} ${product.stockUnit || product.unit || 'Left'}`
+                  : `In Stock (${product.totalStock} ${product.stockUnit || product.unit || 'Units'})`}
               </Text>
             </View>
           </View>
@@ -685,6 +688,12 @@ export default function ProductDetailScreen() {
                 fill={isItemWishlisted ? '#DC2626' : 'none'}
               />
             </TouchableOpacity>
+
+            {!isOutOfStock && product.totalStock !== undefined && (
+              <Text style={{ fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600', marginLeft: Spacing.xs }}>
+                Stock: <Text style={{ color: isDark ? '#FFFFFF' : CustomerColors.black, fontWeight: '700' }}>{product.totalStock} {product.stockUnit || product.unit || 'Units'}</Text>
+              </Text>
+            )}
           </View>
 
           {/* Delivery Note */}

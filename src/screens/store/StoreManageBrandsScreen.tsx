@@ -43,8 +43,8 @@ export default function StoreManageBrandsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-          <Text style={styles.backText}>Back</Text>
+          <ArrowLeft size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+          <Text style={styles.backText}>Back to Products</Text>
         </TouchableOpacity>
         <View style={styles.headerTitleRow}>
           <View style={{ flex: 1 }}>
@@ -88,7 +88,9 @@ export default function StoreManageBrandsScreen() {
                 </View>
                 <View style={styles.metaRow}>
                   <Text style={styles.availability}>{p.availability}</Text>
-                  <Text style={[styles.stock, p.totalStock < 5 && styles.stockLow]}>Stock {p.totalStock}</Text>
+                  <Text style={[styles.stock, p.totalStock < 5 && styles.stockLow]}>
+                    Stock {p.totalStock} {p.stockUnit || p.unit || 'Count'}
+                  </Text>
                 </View>
               </TouchableOpacity>
               <View style={styles.actions}>
@@ -116,8 +118,24 @@ export default function StoreManageBrandsScreen() {
 const getStyles = (isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   header: { backgroundColor: isDark ? '#111827' : CustomerColors.white, padding: Spacing.md, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : CustomerColors.steelBorder },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.sm },
-  backText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#E5E7EB',
+    marginBottom: Spacing.sm,
+  },
+  backText: {
+    fontSize: FontSizes.xs,
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+    fontWeight: '700',
+  },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   headerTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
   headerSub: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },

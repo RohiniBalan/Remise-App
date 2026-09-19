@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, LayoutGrid, ClipboardList, MapPin, Heart, ShoppingCart, Package, User } from 'lucide-react-native';
+import { Home, LayoutGrid, ClipboardList, MapPin, Heart, ShoppingCart, Package, User, ArrowLeft } from 'lucide-react-native';
 import PlaceholderScreen from '../screens/common/PlaceholderScreen';
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
@@ -38,6 +38,7 @@ import ReturnsRefundsScreen from '../screens/customer/ReturnsRefundsScreen';
 import CareersScreen from '../screens/customer/CareersScreen';
 import BlogScreen from '../screens/customer/BlogScreen';
 import PressScreen from '../screens/customer/PressScreen';
+import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
 import { SmartOrderCartItem } from '../api/smartOrderApi';
 import { CustomerColors } from '../styles/theme';
 import { useAuth } from '../context/AuthContext';
@@ -98,6 +99,7 @@ export type CustomerStackParamList = {
   Blog: undefined;
   BlogNews: undefined;
   Press: undefined;
+  OrderTracking: { orderId: string };
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -113,9 +115,18 @@ function CategoriesNavigator() {
       <CategoriesStack.Screen
         name="CategoryProducts"
         component={CategoryScreen}
-        options={({ route }) => ({
+        options={({ route, navigation }: any) => ({
           headerShown: true,
           title: route.params?.category || 'Products',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+              style={{ marginRight: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <ArrowLeft size={22} color={CustomerColors.black} />
+            </TouchableOpacity>
+          ),
         })}
       />
     </CategoriesStack.Navigator>
@@ -133,7 +144,7 @@ function CustomerTabs() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: CustomerColors.primary,
-        tabBarInactiveTintColor: isDark ? '#94A3B8' : CustomerColors.textSecondary,
+        tabBarInactiveTintColor: isDark ? '#94A3B8' : '#4B5563',
         tabBarStyle: {
           backgroundColor: isDark ? '#0B1120' : '#FFFFFF',
           borderTopColor: isDark ? '#1E293B' : '#E2E8F0',
@@ -278,8 +289,40 @@ export default function CustomerNavigator() {
     >
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="BestSellers" component={BestSellersScreen} options={{ headerShown: true, title: 'Best Sellers' }} />
-      <Stack.Screen name="NewArrivals" component={NewArrivalsScreen} options={{ headerShown: true, title: 'New Arrivals' }} />
+      <Stack.Screen
+        name="BestSellers"
+        component={BestSellersScreen}
+        options={({ navigation }: any) => ({
+          headerShown: true,
+          title: 'Best Sellers',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+              style={{ marginRight: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <Stack.Screen
+        name="NewArrivals"
+        component={NewArrivalsScreen}
+        options={({ navigation }: any) => ({
+          headerShown: true,
+          title: 'New Arrivals',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+              style={{ marginRight: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+            </TouchableOpacity>
+          ),
+        })}
+      />
       <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, title: 'Your Cart' }} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true }} />
       <Stack.Screen name="PhonePeWebView" component={PhonePeWebViewScreen} options={{ headerShown: true, title: 'PhonePe' }} />
@@ -309,6 +352,7 @@ export default function CustomerNavigator() {
       <Stack.Screen name="Blog" component={BlogScreen} options={{ headerShown: true, title: 'Blogs & News' }} />
       <Stack.Screen name="BlogNews" component={BlogScreen} options={{ headerShown: true, title: 'Blogs & News' }} />
       <Stack.Screen name="Press" component={PressScreen} options={{ headerShown: true, title: 'Press' }} />
+      <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="LoginRegister"
         component={LoginRegisterScreen}

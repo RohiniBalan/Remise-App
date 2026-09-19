@@ -62,6 +62,7 @@ export default function SellerProductFormScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const product = route.params?.product;
+  const scanned = route.params?.scanned;
   const initialTitle = route.params?.initialTitle;
   const initialCategory = route.params?.initialCategory;
   const isEdit = !!product;
@@ -74,25 +75,28 @@ export default function SellerProductFormScreen() {
   const isStoreOwner = user?.role === 'store_owner';
 
   const [form, setForm] = useState({
-    title: product?.title || initialTitle || '',
-    description: product?.description || '',
-    price: product?.price ? String(product.price) : '',
-    discountedPrice: product?.discountedPrice ? String(product.discountedPrice) : '',
-    storePrice: product?.storePrice ? String(product.storePrice) : '',
-    storeDiscountedPrice: product?.storeDiscountedPrice ? String(product.storeDiscountedPrice) : '',
-    category: product?.category || initialCategory || '',
-    subcategory: product?.subcategory || '',
-    brand: product?.brand || '',
-    totalStock: product?.totalStock ? String(product.totalStock) : '',
-    stockUnit: product?.stockUnit || product?.unit || 'Count',
-    availability: product?.availability || 'In Stock',
-    tags: product?.tags?.join(', ') || '',
-    moq: product?.moq ? String(product.moq) : '1',
+    title: product?.title || scanned?.title || initialTitle || '',
+    description: product?.description || scanned?.description || '',
+    price: product?.price ? String(product.price) : scanned?.price ? String(scanned.price) : '',
+    discountedPrice: product?.discountedPrice ? String(product.discountedPrice) : scanned?.discountedPrice ? String(scanned.discountedPrice) : '',
+    storePrice: product?.storePrice ? String(product.storePrice) : scanned?.storePrice ? String(scanned.storePrice) : '',
+    storeDiscountedPrice: product?.storeDiscountedPrice ? String(product.storeDiscountedPrice) : scanned?.storeDiscountedPrice ? String(scanned.storeDiscountedPrice) : '',
+    category: product?.category || scanned?.category || initialCategory || '',
+    subcategory: product?.subcategory || scanned?.subcategory || '',
+    brand: product?.brand || scanned?.brand || '',
+    totalStock: product?.totalStock ? String(product.totalStock) : scanned?.totalStock ? String(scanned.totalStock) : '',
+    stockUnit: product?.stockUnit || product?.unit || scanned?.stockUnit || scanned?.unit || 'Count',
+    availability: product?.availability || scanned?.availability || 'In Stock',
+    tags: product?.tags?.join(', ') || (Array.isArray(scanned?.tags) ? scanned.tags.join(', ') : scanned?.tags) || '',
+    moq: product?.moq ? String(product.moq) : scanned?.moq ? String(scanned.moq) : '1',
   });
 
   const [dynamicAttributes, setDynamicAttributes] = useState<Record<string, string>>(() => {
     if (product?.attributes && typeof product.attributes === 'object') {
       return { ...product.attributes };
+    }
+    if (scanned?.attributes && typeof scanned.attributes === 'object') {
+      return { ...scanned.attributes };
     }
     if (Array.isArray(product?.specifications)) {
       const init: Record<string, string> = {};
@@ -116,7 +120,11 @@ export default function SellerProductFormScreen() {
         ? product.images
         : product?.imageUrl
           ? [product.imageUrl]
-          : [];
+          : Array.isArray(scanned?.images) && scanned.images.length > 0
+            ? scanned.images
+            : scanned?.imageUrl
+              ? [scanned.imageUrl]
+              : [];
 
     rawList.forEach((u: string, idx: number) => {
       if (u && typeof u === 'string') {
@@ -134,15 +142,104 @@ export default function SellerProductFormScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [aiAutofilling, setAiAutofilling] = useState(false);
-  const [aiSuccessMsg, setAiSuccessMsg] = useState('');
+  const [aiSuccessMsg, setAiSuccessMsg] = useState(scanned ? '✨ Product details auto-filled from scan!' : '');
+
+  const handleRefresh = () => {
+    setForm({
+      title: product?.title || scanned?.title || initialTitle || '',
+      description: product?.description || scanned?.description || '',
+      price: product?.price ? String(product.price) : scanned?.price ? String(scanned.price) : '',
+      discountedPrice: product?.discountedPrice ? String(product.discountedPrice) : scanned?.discountedPrice ? String(scanned.discountedPrice) : '',
+      storePrice: product?.storePrice ? String(product.storePrice) : scanned?.storePrice ? String(scanned.storePrice) : '',
+      storeDiscountedPrice: product?.storeDiscountedPrice ? String(product.storeDiscountedPrice) : scanned?.storeDiscountedPrice ? String(scanned.storeDiscountedPrice) : '',
+      category: product?.category || scanned?.category || initialCategory || '',
+      subcategory: product?.subcategory || scanned?.subcategory || '',
+      brand: product?.brand || scanned?.brand || '',
+      totalStock: product?.totalStock ? String(product.totalStock) : scanned?.totalStock ? String(scanned.totalStock) : '',
+      stockUnit: product?.stockUnit || product?.unit || scanned?.stockUnit || scanned?.unit || 'Count',
+      availability: product?.availability || scanned?.availability || 'In Stock',
+      tags: product?.tags?.join(', ') || (Array.isArray(scanned?.tags) ? scanned.tags.join(', ') : scanned?.tags) || '',
+      moq: product?.moq ? String(product.moq) : scanned?.moq ? String(scanned.moq) : '1',
+    });
+
+    if (product?.attributes && typeof product.attributes === 'object') {
+      setDynamicAttributes({ ...product.attributes });
+    } else if (scanned?.attributes && typeof scanned.attributes === 'object') {
+      setDynamicAttributes({ ...scanned.attributes });
+    } else if (Array.isArray(product?.specifications)) {
+      const init: Record<string, string> = {};
+      product.specifications.forEach((s: any) => {
+        if (s?.label && s?.value) init[s.label] = s.value;
+      });
+      setDynamicAttributes(init);
+    } else {
+      setDynamicAttributes({});
+    }
+
+    setBulkTiers(
+      product?.bulkPricing?.map((t: any) => ({ minQty: String(t.minQty), price: String(t.price) })) || [],
+    );
+
+    const initialList: ProductImageItem[] = [];
+    const rawList: string[] =
+      Array.isArray(product?.images) && product.images.length > 0
+        ? product.images
+        : product?.imageUrl
+          ? [product.imageUrl]
+          : Array.isArray(scanned?.images) && scanned.images.length > 0
+            ? scanned.images
+            : scanned?.imageUrl
+              ? [scanned.imageUrl]
+              : [];
+
+    rawList.forEach((u: string, idx: number) => {
+      if (u && typeof u === 'string') {
+        initialList.push({
+          id: `existing-${idx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          uri: u,
+          url: u,
+        });
+      }
+    });
+    setImages(initialList);
+    setNewImageUrl('');
+    setError('');
+    setAiSuccessMsg(scanned ? '✨ Product details auto-filled from scan!' : '');
+    setVoiceError('');
+  };
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: isEdit ? 'Edit Product' : 'Add New Product',
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleRefresh}
+          style={{ marginRight: Spacing.sm, padding: Spacing.xs }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <RefreshCw size={20} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, isEdit, isDark, product, initialTitle, initialCategory]);
 
   const [voiceLang, setVoiceLang] = useState<VoiceLanguageOption>(VOICE_LANGUAGES[0]);
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceError, setVoiceError] = useState('');
-
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [subcategoryModalVisible, setSubcategoryModalVisible] = useState(false);
   const [stockUnitModalVisible, setStockUnitModalVisible] = useState(false);
+
+  const [isCustomSubcategory, setIsCustomSubcategory] = useState<boolean>(() => {
+    if (!product?.subcategory) return false;
+    const initialSubs = getSubcategories(product?.category || '');
+    return !initialSubs.includes(product.subcategory);
+  });
+  const [customSubcategory, setCustomSubcategory] = useState<string>(() => {
+    if (!product?.subcategory) return '';
+    const initialSubs = getSubcategories(product?.category || '');
+    return !initialSubs.includes(product.subcategory) ? product.subcategory : '';
+  });
 
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
   const addTier = () => setBulkTiers(t => [...t, { minQty: '', price: '' }]);
@@ -194,12 +291,25 @@ export default function SellerProductFormScreen() {
       category: selectedCat,
       subcategory: '', // Reset subcategory when category changes
     }));
+    setIsCustomSubcategory(false);
+    setCustomSubcategory('');
     setCategoryModalVisible(false);
   };
 
   const handleSubcategorySelect = (selectedSub: string) => {
-    setForm(f => ({ ...f, subcategory: selectedSub }));
+    if (selectedSub === 'Other') {
+      setIsCustomSubcategory(true);
+      setForm(f => ({ ...f, subcategory: customSubcategory || '' }));
+    } else {
+      setIsCustomSubcategory(false);
+      setForm(f => ({ ...f, subcategory: selectedSub }));
+    }
     setSubcategoryModalVisible(false);
+  };
+
+  const handleCustomSubcategoryChange = (val: string) => {
+    setCustomSubcategory(val);
+    setForm(f => ({ ...f, subcategory: val }));
   };
 
   const handleAttributeChange = (key: string, value: string) => {
@@ -275,6 +385,17 @@ export default function SellerProductFormScreen() {
       const schema = getCategoryAttributes(targetCat, targetSub);
       const matched = matchExtractedToAttributes(schema, ext);
 
+      if (targetSub) {
+        const subs = getSubcategories(targetCat);
+        if (subs.includes(targetSub)) {
+          setIsCustomSubcategory(false);
+          setCustomSubcategory('');
+        } else {
+          setIsCustomSubcategory(true);
+          setCustomSubcategory(targetSub);
+        }
+      }
+
       setForm(f => ({
         ...f,
         title: ext.productName || f.title,
@@ -299,7 +420,7 @@ export default function SellerProductFormScreen() {
             uri: aiImg,
             url: aiImg,
           },
-          ...prev.filter(i => i.uri !== aiImg),
+          ...prev.filter(i => i.uri !== aiImg && (!targetAsset?.uri || (i.uri !== targetAsset.uri && i.asset?.uri !== targetAsset.uri))),
         ]);
       }
 
@@ -330,7 +451,7 @@ export default function SellerProductFormScreen() {
           uri: asset.uri || '',
           asset,
         }));
-        setImages(prev => [...prev, ...newItems]);
+        setImages(prev => [...newItems, ...prev]);
       }
     }
   };
@@ -339,12 +460,12 @@ export default function SellerProductFormScreen() {
     const trimmed = newImageUrl.trim();
     if (!trimmed) return;
     setImages(prev => [
-      ...prev,
       {
         id: `url-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         uri: trimmed,
         url: trimmed,
       },
+      ...prev,
     ]);
     setNewImageUrl('');
   };
@@ -364,9 +485,83 @@ export default function SellerProductFormScreen() {
 
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!form.title || !form.price) {
-      setError('Title and price are required.');
+    if (!form.title || !form.title.trim()) {
+      setError('Product title is required.');
       return;
+    }
+    if (form.title.trim().length < 2) {
+      setError('Product title must be at least 2 characters.');
+      return;
+    }
+    if (!form.category || !form.category.trim()) {
+      setError('Please select a product category.');
+      return;
+    }
+    if (isCustomSubcategory && !customSubcategory.trim()) {
+      setError('Please specify the custom subcategory.');
+      return;
+    }
+    if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) {
+      setError('Please enter a valid price greater than 0.');
+      return;
+    }
+    if (form.discountedPrice) {
+      const disc = Number(form.discountedPrice);
+      if (isNaN(disc) || disc < 0) {
+        setError('Discounted price must be a valid positive number.');
+        return;
+      }
+      if (disc >= Number(form.price)) {
+        setError('Discounted price must be less than the regular price.');
+        return;
+      }
+    }
+    if (form.storePrice) {
+      const sp = Number(form.storePrice);
+      if (isNaN(sp) || sp <= 0) {
+        setError('Store price must be a valid positive number.');
+        return;
+      }
+    }
+    if (form.storeDiscountedPrice) {
+      const sdp = Number(form.storeDiscountedPrice);
+      const basePrice = form.storePrice ? Number(form.storePrice) : Number(form.price);
+      if (isNaN(sdp) || sdp < 0) {
+        setError('Store discounted price must be a valid positive number.');
+        return;
+      }
+      if (sdp >= basePrice) {
+        setError('Store discounted price must be less than the store price.');
+        return;
+      }
+    }
+    if (form.totalStock) {
+      const stock = Number(form.totalStock);
+      if (isNaN(stock) || stock < 0) {
+        setError('Stock quantity cannot be negative.');
+        return;
+      }
+    }
+    if (form.moq) {
+      const moqVal = Number(form.moq);
+      if (isNaN(moqVal) || moqVal < 1) {
+        setError('Minimum Order Quantity (MOQ) must be at least 1.');
+        return;
+      }
+    }
+    if (bulkTiers && bulkTiers.length > 0) {
+      for (const tier of bulkTiers) {
+        if (tier.minQty || tier.price) {
+          if (!tier.minQty || isNaN(Number(tier.minQty)) || Number(tier.minQty) <= 1) {
+            setError('Bulk tier minimum quantity must be greater than 1.');
+            return;
+          }
+          if (!tier.price || isNaN(Number(tier.price)) || Number(tier.price) <= 0) {
+            setError('Bulk tier price must be greater than 0.');
+            return;
+          }
+        }
+      }
     }
     setSaving(true);
     setError('');
@@ -731,13 +926,28 @@ export default function SellerProductFormScreen() {
           onPress={() => form.category && setSubcategoryModalVisible(true)}
           disabled={!form.category}
         >
-          <Text style={form.subcategory ? styles.selectText : styles.placeholderText}>
+          <Text style={(isCustomSubcategory || form.subcategory) ? styles.selectText : styles.placeholderText}>
             {!form.category
               ? 'Select Category first'
+              : isCustomSubcategory
+              ? 'Other'
               : form.subcategory || 'Select Subcategory'}
           </Text>
           <ChevronDown size={18} color={CustomerColors.textSecondary} />
         </TouchableOpacity>
+
+        {isCustomSubcategory && (
+          <View style={{ marginBottom: Spacing.md }}>
+            <Text style={styles.fieldLabel}>Custom Subcategory *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter custom subcategory"
+              placeholderTextColor="#9CA3AF"
+              value={customSubcategory}
+              onChangeText={handleCustomSubcategoryChange}
+            />
+          </View>
+        )}
 
         <View style={styles.row}>
           <View style={styles.half}>
@@ -950,29 +1160,29 @@ export default function SellerProductFormScreen() {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={subcategoryOptions}
+              data={[...subcategoryOptions, 'Other']}
               keyExtractor={item => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => handleSubcategorySelect(item)}
-                >
-                  <Text
-                    style={[
-                      styles.modalItemText,
-                      form.subcategory === item && styles.modalItemTextActive,
-                    ]}
+              renderItem={({ item }) => {
+                const isActive = (isCustomSubcategory && item === 'Other') || (!isCustomSubcategory && form.subcategory === item);
+                return (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => handleSubcategorySelect(item)}
                   >
-                    {item}
-                  </Text>
-                  {form.subcategory === item && (
-                    <Check size={16} color={CustomerColors.teal700} />
-                  )}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <Text style={styles.modalEmpty}>No subcategories available</Text>
-              }
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        isActive && styles.modalItemTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {isActive && (
+                      <Check size={16} color={CustomerColors.teal700} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         </TouchableOpacity>

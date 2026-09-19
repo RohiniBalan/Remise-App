@@ -170,6 +170,8 @@ export default function StoreRegisterScreen() {
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
 
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   // Modals for Selection
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showStateModal, setShowStateModal] = useState(false);
@@ -178,8 +180,36 @@ export default function StoreRegisterScreen() {
 
   const isFoodCategory = form.category === 'Food & Beverages';
 
-  const set = (k: keyof typeof form, v: string) =>
+  const set = (k: keyof typeof form, v: string) => {
     setForm(f => ({ ...f, [k]: v }));
+    setFieldErrors(prev => {
+      if (!prev[k] && !(k === 'latitude' || k === 'longitude' ? prev.coordinates : false)) return prev;
+      const next = { ...prev };
+      delete next[k];
+      if (k === 'latitude' || k === 'longitude') delete next.coordinates;
+      return next;
+    });
+    if (k === 'pan' || k === 'panName') {
+      setPanError('');
+      if (panVerified) setPanVerified(false);
+    }
+    if (k === 'gstin') {
+      setGstinError('');
+      if (gstinVerified) setGstinVerified(false);
+    }
+    if (k === 'aadhaar' || k === 'aadhaarName') {
+      setAadhaarError('');
+      if (aadhaarVerified) setAadhaarVerified(false);
+    }
+    if (k === 'accountNumber' || k === 'confirmAccountNumber' || k === 'legalBusinessName') {
+      setBankError('');
+      if (bankVerified) setBankVerified(false);
+    }
+    if (k === 'ifscCode') {
+      setIfscError('');
+      if (ifscVerified) setIfscVerified(false);
+    }
+  };
 
   const pickLogo = async () => {
     const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
@@ -213,12 +243,22 @@ export default function StoreRegisterScreen() {
     const cityList = stateObj.isoCode ? getCities(stateObj.isoCode) : [];
     setCities(cityList);
     setShowStateModal(false);
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next.state;
+      return next;
+    });
   };
 
   const handleSelectCity = (cityName: string) => {
     set('city', cityName);
     setShowCityModal(false);
     lookupPincode(cityName);
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next.city;
+      return next;
+    });
   };
 
   // ── Cashfree Identity Verification Handlers ───────────────────
@@ -228,14 +268,17 @@ export default function StoreRegisterScreen() {
     const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     if (!cleanPan) {
       setPanError('Please enter a PAN number.');
+      setFieldErrors(prev => ({ ...prev, pan: 'PAN number is required.' }));
       return;
     }
     if (!PAN_REGEX.test(cleanPan)) {
       setPanError('Invalid PAN format (e.g. ABCDE1234F).');
+      setFieldErrors(prev => ({ ...prev, pan: 'Please enter a valid 10-character PAN number.' }));
       return;
     }
     if (!cleanPanName) {
       setPanError('Please enter the name as it appears on your PAN card.');
+      setFieldErrors(prev => ({ ...prev, panName: 'Name as on PAN Card is required.' }));
       return;
     }
     setVerifyingPan(true);
@@ -247,18 +290,26 @@ export default function StoreRegisterScreen() {
       );
       const data = res.data;
       if (data?.valid) {
-        // If live API was used and name doesn't match PAN records — block
-        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+        if (data.belongsToUser === false) {
           setPanVerified(false);
           const registeredName = data.registeredName ? `"${data.registeredName}"` : 'the PAN card holder';
           setPanError(`Name mismatch: PAN records show the name as ${registeredName}. Please enter your legal name exactly as it appears on your PAN card.`);
+          setFieldErrors(prev => ({ ...prev, panName: `Name does not match PAN card (${registeredName})` }));
           return;
         }
         setPanVerified(true);
         setPanData(data);
+        setPanError('');
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.pan;
+          delete next.panName;
+          return next;
+        });
       } else {
         setPanVerified(false);
         setPanError(data?.message || 'PAN verification failed.');
+        setFieldErrors(prev => ({ ...prev, pan: data?.message || 'PAN verification failed.' }));
       }
     } catch (err: any) {
       setPanError(
@@ -274,10 +325,12 @@ export default function StoreRegisterScreen() {
     const cleanAadhaarName = form.aadhaarName.trim();
     if (!cleanAadhaarName) {
       setAadhaarError('Please enter the name as it appears on your Aadhaar card.');
+      setFieldErrors(prev => ({ ...prev, aadhaarName: 'Name as on Aadhaar Card is required.' }));
       return;
     }
     if (cleanAadhaar.length !== 12) {
       setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
+      setFieldErrors(prev => ({ ...prev, aadhaar: 'Please enter a valid 12-digit Aadhaar number.' }));
       return;
     }
     setVerifyingAadhaar(true);
@@ -307,6 +360,7 @@ export default function StoreRegisterScreen() {
     const cleanAadhaarName = form.aadhaarName.trim();
     if (!cleanAadhaarName) {
       setAadhaarError('Please enter the name as it appears on your Aadhaar card.');
+      setFieldErrors(prev => ({ ...prev, aadhaarName: 'Name as on Aadhaar Card is required.' }));
       return;
     }
     if (!aadhaarOtp || aadhaarOtp.length < 4) {
@@ -323,14 +377,21 @@ export default function StoreRegisterScreen() {
       );
       const data = res.data;
       if (data?.valid) {
-        // If live API was used and name doesn't match Aadhaar records — block
-        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+        if (data.belongsToUser === false) {
           setAadhaarError(`Name mismatch: Aadhaar records show the name as "${data.nameOnAadhaar || 'the Aadhaar holder'}". Please use the legal name matching your Aadhaar.`);
+          setFieldErrors(prev => ({ ...prev, aadhaarName: `Name does not match Aadhaar (${data.nameOnAadhaar})` }));
           return;
         }
         setAadhaarVerified(true);
         setAadhaarData(data);
+        setAadhaarError('');
         setShowAadhaarOtpModal(false);
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.aadhaar;
+          delete next.aadhaarName;
+          return next;
+        });
       } else {
         setAadhaarError(data?.message || 'Invalid Aadhaar OTP.');
       }
@@ -348,10 +409,12 @@ export default function StoreRegisterScreen() {
     const cleanAadhaarName = form.aadhaarName.trim();
     if (!cleanAadhaarName) {
       setAadhaarError('Please enter the name as it appears on your Aadhaar card.');
+      setFieldErrors(prev => ({ ...prev, aadhaarName: 'Name as on Aadhaar Card is required.' }));
       return;
     }
     if (cleanAadhaar.length !== 12) {
       setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
+      setFieldErrors(prev => ({ ...prev, aadhaar: 'Please enter a valid 12-digit Aadhaar number.' }));
       return;
     }
     setVerifyingAadhaar(true);
@@ -363,13 +426,20 @@ export default function StoreRegisterScreen() {
       );
       const data = res.data;
       if (data?.valid) {
-        // If live API was used and name doesn't match Aadhaar records — block
-        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+        if (data.belongsToUser === false) {
           setAadhaarError(`Name mismatch: Aadhaar records show "${data.nameOnAadhaar || 'a different name'}". Please ensure your legal name matches your Aadhaar card.`);
+          setFieldErrors(prev => ({ ...prev, aadhaarName: `Name does not match Aadhaar (${data.nameOnAadhaar})` }));
           return;
         }
         setAadhaarVerified(true);
         setAadhaarData(data);
+        setAadhaarError('');
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.aadhaar;
+          delete next.aadhaarName;
+          return next;
+        });
       } else {
         setAadhaarError(
           data?.message || 'Aadhaar checksum validation failed.',
@@ -389,10 +459,12 @@ export default function StoreRegisterScreen() {
     const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
     if (!cleanGstin) {
       setGstinError('Please enter a GSTIN number.');
+      setFieldErrors(prev => ({ ...prev, gstin: 'GSTIN Number is required.' }));
       return;
     }
     if (!GSTIN_REGEX.test(cleanGstin)) {
       setGstinError('Invalid GSTIN format (e.g. 22AAAAA0000A1Z5).');
+      setFieldErrors(prev => ({ ...prev, gstin: 'Please enter a valid 15-character GSTIN.' }));
       return;
     }
     setVerifyingGstin(true);
@@ -405,7 +477,6 @@ export default function StoreRegisterScreen() {
       );
       const data = res.data;
       if (data?.valid) {
-        // If PAN was provided, check if the PAN embedded in GSTIN matches the entered PAN
         if (data.panMatches === false && form.pan.trim()) {
           setGstinVerified(false);
           setGstinError(
@@ -415,19 +486,27 @@ export default function StoreRegisterScreen() {
               form.pan.trim().toUpperCase()
             }). Please use the GSTIN registered to your PAN card.`,
           );
+          setFieldErrors(prev => ({ ...prev, gstin: `GSTIN PAN mismatch (${data.embeddedPan || 'mismatch'})` }));
           return;
         }
-        // If live API returned a business name mismatch — warn but allow
-        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+        if (data.belongsToUser === false) {
           setGstinVerified(false);
           setGstinError(`Business name mismatch: GSTIN records show "${data.legalName || 'a different name'}". Please verify your legal business name matches your GSTIN registration.`);
+          setFieldErrors(prev => ({ ...prev, gstin: `Business name does not match GSTIN (${data.legalName})` }));
           return;
         }
         setGstinVerified(true);
         setGstinData(data);
+        setGstinError('');
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.gstin;
+          return next;
+        });
       } else {
         setGstinVerified(false);
         setGstinError(data?.message || 'GSTIN verification failed.');
+        setFieldErrors(prev => ({ ...prev, gstin: data?.message || 'GSTIN verification failed.' }));
       }
     } catch (err: any) {
       setGstinError(
@@ -443,10 +522,12 @@ export default function StoreRegisterScreen() {
     const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
     if (!cleanIfsc) {
       setIfscError('Please enter an IFSC code.');
+      setFieldErrors(prev => ({ ...prev, ifscCode: 'IFSC Code is required.' }));
       return;
     }
     if (!IFSC_REGEX.test(cleanIfsc)) {
       setIfscError('Invalid IFSC format (must be 11 characters e.g. HDFC0001234).');
+      setFieldErrors(prev => ({ ...prev, ifscCode: 'Please enter a valid 11-character Indian IFSC code.' }));
       return;
     }
     setVerifyingIfsc(true);
@@ -458,10 +539,16 @@ export default function StoreRegisterScreen() {
         setIfscVerified(true);
         setIfscData(data);
         setIfscError('');
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.ifscCode;
+          return next;
+        });
       } else {
         setIfscVerified(false);
         setIfscData(null);
         setIfscError(data?.message || `IFSC Code "${cleanIfsc}" could not be verified.`);
+        setFieldErrors(prev => ({ ...prev, ifscCode: data?.message || 'Invalid IFSC code.' }));
       }
     } catch (err: any) {
       setIfscVerified(false);
@@ -475,20 +562,24 @@ export default function StoreRegisterScreen() {
   const verifyBankWithCashfree = async () => {
     if (!form.legalBusinessName.trim()) {
       setBankError('Legal Business / Account Holder Name is required.');
+      setFieldErrors(prev => ({ ...prev, legalBusinessName: 'Legal Business / Account Holder Name is required.' }));
       return;
     }
     if (!form.accountNumber.trim()) {
       setBankError('Bank Account Number is required.');
+      setFieldErrors(prev => ({ ...prev, accountNumber: 'Bank Account Number is required.' }));
       return;
     }
     if (form.accountNumber !== form.confirmAccountNumber) {
       setBankError('Account numbers do not match.');
+      setFieldErrors(prev => ({ ...prev, confirmAccountNumber: 'Bank Account Number and Confirm Account Number do not match.' }));
       return;
     }
     const cleanIfsc = form.ifscCode.trim().toUpperCase();
     const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
     if (!IFSC_REGEX.test(cleanIfsc)) {
       setBankError('Invalid IFSC format (e.g. IDIB000K073).');
+      setFieldErrors(prev => ({ ...prev, ifscCode: 'Please enter a valid 11-character Indian IFSC code.' }));
       return;
     }
     setVerifyingBank(true);
@@ -506,18 +597,28 @@ export default function StoreRegisterScreen() {
         if (data.ifscDetails) {
           setIfscVerified(true);
           setIfscData(data.ifscDetails);
+          setIfscError('');
         } else {
           setIfscVerified(true);
         }
-        // If live API was used and name doesn't match bank account holder — block
-        if (data.source === 'cashfree_live' && data.belongsToUser === false) {
+        if (data.belongsToUser === false) {
           setBankVerified(false);
           const nameAtBank = data.nameAtBank ? `"${data.nameAtBank}"` : 'a different account holder';
           setBankError(`Name mismatch: Bank records show the account belongs to ${nameAtBank}. Please ensure the legal business name matches the bank account holder name.`);
+          setFieldErrors(prev => ({ ...prev, legalBusinessName: `Name does not match bank records (${nameAtBank})` }));
           return;
         }
         setBankVerified(true);
         setBankData(data);
+        setBankError('');
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.accountNumber;
+          delete next.confirmAccountNumber;
+          delete next.legalBusinessName;
+          delete next.ifscCode;
+          return next;
+        });
       } else {
         setBankVerified(false);
         if (data?.ifscValid === false) {
@@ -556,6 +657,11 @@ export default function StoreRegisterScreen() {
         }
         set('latitude', String(latitude));
         set('longitude', String(longitude));
+        setFieldErrors(prev => {
+          const next = { ...prev };
+          delete next.coordinates;
+          return next;
+        });
       },
       () => {
         setDetecting(false);
@@ -569,129 +675,111 @@ export default function StoreRegisterScreen() {
 
   const validateStep = (step: number): boolean => {
     setError('');
+    const errs: Record<string, string> = {};
+
     if (step === 1) {
       if (!form.name.trim()) {
-        setError('Store Name is required.');
-        return false;
+        errs.name = 'Store Name is required.';
       }
       if (!form.phone.trim()) {
-        setError('Contact Phone is required.');
-        return false;
-      }
-      const cleanPhone = form.phone.replace(/[\s\-()]/g, '');
-      const PHONE_REGEX = /^(?:\+91|0)?[6-9]\d{9}$/;
-      if (!PHONE_REGEX.test(cleanPhone)) {
-        setError('Please enter a valid 10-digit mobile number (e.g. 9876543210 or +91 98765 43210).');
-        return false;
+        errs.phone = 'Contact Phone is required.';
+      } else {
+        const cleanPhone = form.phone.replace(/[\s\-()]/g, '');
+        const PHONE_REGEX = /^(?:\+91|0)?[6-9]\d{9}$/;
+        if (!PHONE_REGEX.test(cleanPhone)) {
+          errs.phone = 'Please enter a valid 10-digit mobile number (e.g. 9876543210).';
+        }
       }
       if (!form.email.trim()) {
-        setError('Contact Email is required.');
-        return false;
+        errs.email = 'Contact Email is required.';
+      } else {
+        const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!EMAIL_REGEX.test(form.email.trim())) {
+          errs.email = 'Please enter a valid email address (e.g. store@email.com).';
+        }
       }
-      const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!EMAIL_REGEX.test(form.email.trim())) {
-        setError('Please enter a valid email address (e.g. store@email.com).');
-        return false;
-      }
-      return true;
     }
 
     if (step === 2) {
       if (hasGstin === 'yes') {
         if (!form.gstin.trim()) {
-          setError('GSTIN Number is required.');
-          return false;
-        }
-        const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-        if (!GSTIN_REGEX.test(form.gstin.trim().toUpperCase())) {
-          setError('Please enter a valid 15-character GSTIN (e.g. 22AAAAA0000A1Z5).');
-          return false;
+          errs.gstin = 'GSTIN Number is required.';
+        } else {
+          const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+          if (!GSTIN_REGEX.test(form.gstin.trim().toUpperCase())) {
+            errs.gstin = 'Please enter a valid 15-character GSTIN (e.g. 22AAAAA0000A1Z5).';
+          }
         }
       } else {
         if (!form.pan.trim()) {
-          setError('PAN number is mandatory for merchant onboarding.');
-          return false;
-        }
-        const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-        if (!PAN_REGEX.test(form.pan.trim().toUpperCase())) {
-          setError(
-            'Please enter a valid 10-character PAN number (e.g. ABCDE1234F).',
-          );
-          return false;
+          errs.pan = 'PAN number is mandatory for merchant onboarding.';
+        } else {
+          const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+          if (!PAN_REGEX.test(form.pan.trim().toUpperCase())) {
+            errs.pan = 'Please enter a valid 10-character PAN number (e.g. ABCDE1234F).';
+          }
         }
         if (!form.panName.trim()) {
-          setError('Name as on PAN Card is required.');
-          return false;
+          errs.panName = 'Name as on PAN Card is required.';
         }
-      }
-
-      if (!form.aadhaar.trim()) {
-        setError('Aadhaar number is mandatory for identity verification.');
-        return false;
-      }
-      const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
-      if (cleanAadhaar.length !== 12) {
-        setError('Please enter a valid 12-digit Aadhaar number.');
-        return false;
-      }
-      if (!form.aadhaarName.trim()) {
-        setError('Name as on Aadhaar Card is required.');
-        return false;
       }
 
       if (isFoodCategory) {
         if (!form.fssaiNumber.trim()) {
-          setError('FSSAI License Number is mandatory for Food & Beverages.');
-          return false;
-        }
-        const FSSAI_REGEX = /^[0-9]{14}$/;
-        if (!FSSAI_REGEX.test(form.fssaiNumber.trim())) {
-          setError('Please enter a valid 14-digit numeric FSSAI License Number.');
-          return false;
+          errs.fssaiNumber = 'FSSAI License Number is mandatory for Food & Beverages.';
+        } else {
+          const FSSAI_REGEX = /^[0-9]{14}$/;
+          if (!FSSAI_REGEX.test(form.fssaiNumber.trim())) {
+            errs.fssaiNumber = 'Please enter a valid 14-digit numeric FSSAI License Number.';
+          }
         }
       }
-
-      return true;
     }
 
     if (step === 3) {
-      if (!form.street.trim() || !form.state.trim() || !form.city.trim()) {
-        setError('Please complete street, state, and city address fields.');
-        return false;
+      if (!form.street.trim()) {
+        errs.street = 'Street address is required.';
+      }
+      if (!form.state) {
+        errs.state = 'Please select a state.';
+      }
+      if (!form.city) {
+        errs.city = 'Please select a city.';
+      }
+      if (!form.pinCode.trim()) {
+        errs.pinCode = 'PIN Code is required.';
       }
       if (!form.latitude || !form.longitude) {
-        setError('Store GPS location (latitude & longitude) is required.');
-        return false;
+        errs.coordinates = 'Store GPS location (latitude & longitude) is required.';
+      } else {
+        const lat = parseFloat(form.latitude);
+        const lng = parseFloat(form.longitude);
+        if (!isValidLatLng(lat, lng)) {
+          errs.coordinates = 'Invalid coordinates. Latitude must be -90 to 90.';
+        }
       }
-      const lat = parseFloat(form.latitude);
-      const lng = parseFloat(form.longitude);
-      if (!isValidLatLng(lat, lng)) {
-        setError('Invalid coordinates. Latitude must be -90 to 90.');
-        return false;
-      }
-      return true;
     }
 
     if (step === 4) {
+      if (!form.legalBusinessName.trim()) {
+        errs.legalBusinessName = 'Legal Business / Account Holder Name is required.';
+      }
       if (!form.accountNumber.trim()) {
-        setError('Bank Account Number is required for settlement payouts.');
-        return false;
+        errs.accountNumber = 'Bank Account Number is required for settlement payouts.';
       }
       if (form.accountNumber !== form.confirmAccountNumber) {
-        setError('Bank Account Number and Confirm Account Number do not match.');
-        return false;
+        errs.confirmAccountNumber = 'Bank Account Number and Confirm Account Number do not match.';
       }
       if (
         !form.ifscCode ||
         !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifscCode.trim().toUpperCase())
       ) {
-        setError('Please enter a valid 11-character Indian IFSC code.');
-        return false;
+        errs.ifscCode = 'Please enter a valid 11-character Indian IFSC code.';
       }
-      return true;
     }
 
-    return true;
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleNext = () => {
@@ -711,12 +799,20 @@ export default function StoreRegisterScreen() {
       return;
     }
 
-    if (
-      !validateStep(1) ||
-      !validateStep(2) ||
-      !validateStep(3) ||
-      !validateStep(4)
-    ) {
+    if (!validateStep(1)) {
+      setCurrentStep(1);
+      return;
+    }
+    if (!validateStep(2)) {
+      setCurrentStep(2);
+      return;
+    }
+    if (!validateStep(3)) {
+      setCurrentStep(3);
+      return;
+    }
+    if (!validateStep(4)) {
+      setCurrentStep(4);
       return;
     }
 
@@ -957,6 +1053,7 @@ export default function StoreRegisterScreen() {
                 value={form.name}
                 onChangeText={v => set('name', v)}
                 placeholder="e.g. Smart Electronics"
+                error={fieldErrors.name}
               />
 
               <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Category *</Text>
@@ -978,6 +1075,7 @@ export default function StoreRegisterScreen() {
                 placeholder="9876543210"
                 keyboardType="number-pad"
                 maxLength={10}
+                error={fieldErrors.phone}
               />
 
               <Field
@@ -987,6 +1085,7 @@ export default function StoreRegisterScreen() {
                 placeholder="store@email.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                error={fieldErrors.email}
               />
 
               <Field
@@ -996,6 +1095,7 @@ export default function StoreRegisterScreen() {
                 placeholder="Tell nearby customers what your store offers…"
                 multiline
                 numberOfLines={3}
+                error={fieldErrors.description}
               />
             </View>
           </View>
@@ -1058,6 +1158,13 @@ export default function StoreRegisterScreen() {
                     onPress={() => {
                       setHasGstin('yes');
                       setError('');
+                      setFieldErrors(prev => {
+                        const next = { ...prev };
+                        delete next.gstin;
+                        delete next.pan;
+                        delete next.panName;
+                        return next;
+                      });
                     }}
                   >
                     <View
@@ -1112,6 +1219,13 @@ export default function StoreRegisterScreen() {
                     onPress={() => {
                       setHasGstin('no');
                       setError('');
+                      setFieldErrors(prev => {
+                        const next = { ...prev };
+                        delete next.gstin;
+                        delete next.pan;
+                        delete next.panName;
+                        return next;
+                      });
                     }}
                   >
                     <View
@@ -1172,7 +1286,7 @@ export default function StoreRegisterScreen() {
                         {
                           backgroundColor: isDark ? '#020617' : '#ffffff',
                           color: isDark ? '#ffffff' : '#111827',
-                          borderColor: isDark ? '#334155' : '#cbd5e1',
+                          borderColor: fieldErrors.gstin ? '#dc2626' : (isDark ? '#334155' : '#cbd5e1'),
                         },
                       ]}
                       value={form.gstin}
@@ -1199,6 +1313,12 @@ export default function StoreRegisterScreen() {
                       )}
                     </TouchableOpacity>
                   </View>
+                  {fieldErrors.gstin ? (
+                    <View style={styles.fieldErrorRow}>
+                      <AlertCircle size={13} color="#dc2626" />
+                      <Text style={styles.fieldErrorText}>{fieldErrors.gstin}</Text>
+                    </View>
+                  ) : null}
                   {gstinError ? <Text style={styles.panErrorText}>{gstinError}</Text> : null}
                   {gstinVerified && gstinData && (
                     <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
@@ -1255,7 +1375,7 @@ export default function StoreRegisterScreen() {
                         {
                           backgroundColor: isDark ? '#020617' : '#ffffff',
                           color: isDark ? '#ffffff' : '#111827',
-                          borderColor: isDark ? '#334155' : '#cbd5e1',
+                          borderColor: fieldErrors.panName ? '#dc2626' : (isDark ? '#334155' : '#cbd5e1'),
                         },
                       ]}
                       value={form.panName}
@@ -1267,6 +1387,12 @@ export default function StoreRegisterScreen() {
                       placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
                       autoCapitalize="words"
                     />
+                    {fieldErrors.panName ? (
+                      <View style={styles.fieldErrorRow}>
+                        <AlertCircle size={13} color="#dc2626" />
+                        <Text style={styles.fieldErrorText}>{fieldErrors.panName}</Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
@@ -1280,7 +1406,7 @@ export default function StoreRegisterScreen() {
                         {
                           backgroundColor: isDark ? '#020617' : '#ffffff',
                           color: isDark ? '#ffffff' : '#111827',
-                          borderColor: isDark ? '#334155' : '#cbd5e1',
+                          borderColor: fieldErrors.pan ? '#dc2626' : (isDark ? '#334155' : '#cbd5e1'),
                         },
                       ]}
                       value={form.pan}
@@ -1307,6 +1433,12 @@ export default function StoreRegisterScreen() {
                       )}
                     </TouchableOpacity>
                   </View>
+                  {fieldErrors.pan ? (
+                    <View style={styles.fieldErrorRow}>
+                      <AlertCircle size={13} color="#dc2626" />
+                      <Text style={styles.fieldErrorText}>{fieldErrors.pan}</Text>
+                    </View>
+                  ) : null}
                   {panError ? <Text style={styles.panErrorText}>{panError}</Text> : null}
                   {panVerified && panData && (
                     <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
@@ -1355,7 +1487,7 @@ export default function StoreRegisterScreen() {
                       {
                         backgroundColor: isDark ? '#020617' : '#ffffff',
                         color: isDark ? '#ffffff' : '#111827',
-                        borderColor: isDark ? '#334155' : '#fde68a',
+                        borderColor: fieldErrors.fssaiNumber ? '#dc2626' : (isDark ? '#334155' : '#fde68a'),
                       },
                     ]}
                     value={form.fssaiNumber}
@@ -1365,6 +1497,12 @@ export default function StoreRegisterScreen() {
                     maxLength={14}
                     keyboardType="number-pad"
                   />
+                  {fieldErrors.fssaiNumber ? (
+                    <View style={styles.fieldErrorRow}>
+                      <AlertCircle size={13} color="#dc2626" />
+                      <Text style={styles.fieldErrorText}>{fieldErrors.fssaiNumber}</Text>
+                    </View>
+                  ) : null}
                   <Text style={[styles.fieldHint, { color: isDark ? '#fde68a' : '#b45309' }]}>
                     14-digit food safety registration / license issued by FSSAI.
                   </Text>
@@ -1390,6 +1528,7 @@ export default function StoreRegisterScreen() {
                 value={form.street}
                 onChangeText={v => set('street', v)}
                 placeholder="e.g. 123 Bazaar Road, 2nd Cross"
+                error={fieldErrors.street}
               />
 
               {/* State Dropdown */}
@@ -1398,6 +1537,7 @@ export default function StoreRegisterScreen() {
                 style={[
                   styles.dropdownButton,
                   isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  fieldErrors.state && { borderColor: '#dc2626' },
                 ]}
                 onPress={() => setShowStateModal(true)}
               >
@@ -1415,6 +1555,12 @@ export default function StoreRegisterScreen() {
                 </Text>
                 <ChevronDown size={18} color={isDark ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
+              {fieldErrors.state ? (
+                <View style={styles.fieldErrorRow}>
+                  <AlertCircle size={13} color="#dc2626" />
+                  <Text style={styles.fieldErrorText}>{fieldErrors.state}</Text>
+                </View>
+              ) : null}
 
               {/* City Dropdown */}
               <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>City *</Text>
@@ -1422,6 +1568,7 @@ export default function StoreRegisterScreen() {
                 style={[
                   styles.dropdownButton,
                   isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  fieldErrors.city && { borderColor: '#dc2626' },
                   !form.state && { opacity: 0.6 },
                 ]}
                 disabled={!form.state}
@@ -1441,6 +1588,12 @@ export default function StoreRegisterScreen() {
                 </Text>
                 <ChevronDown size={18} color={isDark ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
+              {fieldErrors.city ? (
+                <View style={styles.fieldErrorRow}>
+                  <AlertCircle size={13} color="#dc2626" />
+                  <Text style={styles.fieldErrorText}>{fieldErrors.city}</Text>
+                </View>
+              ) : null}
 
               {/* PIN Code */}
               <Field
@@ -1450,6 +1603,7 @@ export default function StoreRegisterScreen() {
                 placeholder="e.g. 600001"
                 maxLength={6}
                 keyboardType="number-pad"
+                error={fieldErrors.pinCode}
               />
               <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>Auto-populated on city select</Text>
 
@@ -1494,6 +1648,13 @@ export default function StoreRegisterScreen() {
                   </View>
                 </View>
 
+                {fieldErrors.coordinates ? (
+                  <View style={[styles.fieldErrorRow, { marginTop: 6 }]}>
+                    <AlertCircle size={13} color="#dc2626" />
+                    <Text style={styles.fieldErrorText}>{fieldErrors.coordinates}</Text>
+                  </View>
+                ) : null}
+
                 {form.latitude && form.longitude ? (
                   <View style={[styles.locationTag, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' }]}>
                     <CheckCircle size={15} color="#047857" />
@@ -1527,6 +1688,7 @@ export default function StoreRegisterScreen() {
                 value={form.legalBusinessName}
                 onChangeText={v => set('legalBusinessName', v)}
                 placeholder="e.g. Rohini B"
+                error={fieldErrors.legalBusinessName}
               />
               <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>Must match your bank passbook name</Text>
 
@@ -1540,6 +1702,7 @@ export default function StoreRegisterScreen() {
                 placeholder="e.g. 6285854908"
                 secureTextEntry={!showAccountNumber}
                 keyboardType="number-pad"
+                error={fieldErrors.accountNumber}
                 rightElement={
                   <TouchableOpacity
                     onPress={() => setShowAccountNumber(!showAccountNumber)}
@@ -1565,6 +1728,7 @@ export default function StoreRegisterScreen() {
                 placeholder="Re-enter bank account number"
                 secureTextEntry={!showConfirmAccountNumber}
                 keyboardType="number-pad"
+                error={fieldErrors.confirmAccountNumber}
                 rightElement={
                   <TouchableOpacity
                     onPress={() => setShowConfirmAccountNumber(!showConfirmAccountNumber)}
@@ -1598,6 +1762,7 @@ export default function StoreRegisterScreen() {
                       styles.input,
                       { flex: 1, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', letterSpacing: 1 },
                       isDark && { backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' },
+                      fieldErrors.ifscCode && { borderColor: '#dc2626' },
                     ]}
                     value={form.ifscCode}
                     onChangeText={v => {
@@ -1637,6 +1802,12 @@ export default function StoreRegisterScreen() {
                     )}
                   </TouchableOpacity>
                 </View>
+                {fieldErrors.ifscCode ? (
+                  <View style={styles.fieldErrorRow}>
+                    <AlertCircle size={13} color="#dc2626" />
+                    <Text style={styles.fieldErrorText}>{fieldErrors.ifscCode}</Text>
+                  </View>
+                ) : null}
                 {ifscError ? <Text style={styles.panErrorText}>{ifscError}</Text> : null}
                 {ifscVerified && ifscData ? (
                   <View style={[styles.verifiedDetailBox, { marginTop: 6 }, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
@@ -2082,6 +2253,7 @@ interface FieldProps {
   secureTextEntry?: boolean;
   maxLength?: number;
   rightElement?: React.ReactNode;
+  error?: string;
 }
 
 function Field({
@@ -2096,6 +2268,7 @@ function Field({
   secureTextEntry,
   maxLength,
   rightElement,
+  error,
 }: FieldProps) {
   const { isDark } = useTheme();
   return (
@@ -2108,7 +2281,7 @@ function Field({
             {
               backgroundColor: isDark ? '#0f172a' : '#ffffff',
               color: isDark ? '#ffffff' : '#111827',
-              borderColor: isDark ? '#334155' : '#cbd5e1',
+              borderColor: error ? '#dc2626' : (isDark ? '#334155' : '#cbd5e1'),
               paddingRight: rightElement ? 44 : Spacing.md,
             },
             multiline && styles.textArea,
@@ -2130,6 +2303,12 @@ function Field({
           </View>
         ) : null}
       </View>
+      {error ? (
+        <View style={styles.fieldErrorRow}>
+          <AlertCircle size={13} color="#dc2626" />
+          <Text style={styles.fieldErrorText}>{error}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -2755,5 +2934,18 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     fontWeight: '700',
     color: '#475569',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  fieldErrorText: {
+    fontSize: 12,
+    color: '#dc2626',
+    fontWeight: '500',
+    flex: 1,
   },
 });

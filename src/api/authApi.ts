@@ -10,7 +10,7 @@ interface RegisterPayload {
   email: string;
   mobilenumber: string;
   password: string;
-  role: 'user' | 'customer' | 'store_owner' | 'wholesaler' | 'whole_saler' | 'home_business';
+  role: 'user' | 'store_owner' | 'wholesaler' | 'whole_saler' | 'home_business';
 }
 
 

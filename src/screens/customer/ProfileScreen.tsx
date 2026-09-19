@@ -155,9 +155,9 @@ export default function ProfileScreen() {
     fullname: user?.fullname || '',
     email: user?.email || '',
     mobilenumber: user?.mobilenumber || '',
-    dob: '',
-    gender: '',
-    avatar: '',
+    dob: user?.dob || (user?.profileData as any)?.dob || '',
+    gender: user?.gender || (user?.profileData as any)?.gender || '',
+    avatar: user?.avatar || (user?.profileData as any)?.avatar || '',
 
     profileData: {
       addresses: [],
@@ -188,9 +188,55 @@ export default function ProfileScreen() {
         fssai: '',
       },
 
-      ...(user?.profileData || {}),
+      ...((user?.profileData as any) || {}),
     },
   });
+
+  const [initialForm, setInitialForm] = useState<typeof form | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [addressErrors, setAddressErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (user && !initialForm) {
+      const initForm = {
+        fullname: user.fullname || '',
+        email: user.email || '',
+        mobilenumber: user.mobilenumber || '',
+        dob: user.dob || (user.profileData as any)?.dob || '',
+        gender: user.gender || (user.profileData as any)?.gender || '',
+        avatar: user.avatar || (user.profileData as any)?.avatar || '',
+        profileData: {
+          addresses: [],
+          paymentMethods: [],
+          wishlist: [],
+          savedCart: [],
+          rewardsCoupons: [],
+          recentOrders: [],
+          recentlyViewedProducts: [],
+          favoriteStores: [],
+          upiId: '',
+          storeProfile: {
+            name: '',
+            category: '',
+            address: '',
+            workingHours: '',
+            deliveryRadius: '',
+            minimumOrderAmount: '',
+          },
+          businessDetails: {
+            gst: '',
+            license: '',
+            taxDetails: '',
+            pan: '',
+            fssai: '',
+          },
+          ...((user.profileData as any) || {}),
+        },
+      };
+      setForm(initForm);
+      setInitialForm(initForm);
+    }
+  }, [user, initialForm]);
 
   useEffect(() => {
   const loadCategories = async () => {
@@ -290,12 +336,104 @@ export default function ProfileScreen() {
     return base;
   }, [user?.role]);
 
+  const validatePersonalDetails = () => {
+    const errors: Record<string, string> = {};
+    if (!form.fullname || !form.fullname.trim()) {
+      errors.fullname = 'Full name is required';
+    } else if (form.fullname.trim().length < 2) {
+      errors.fullname = 'Full name must be at least 2 characters';
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!form.email || !form.email.trim()) {
+      errors.email = 'Email address is required';
+    } else if (!emailRegex.test(form.email.trim())) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (form.mobilenumber && form.mobilenumber.trim()) {
+      const cleanPhone = form.mobilenumber.replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        errors.mobilenumber = 'Mobile number must be exactly 10 digits';
+      }
+    }
+
+    if (form.dob) {
+      const d = new Date(form.dob);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (isNaN(d.getTime())) {
+        errors.dob = 'Please select a valid date';
+      } else if (d > today) {
+        errors.dob = 'Date of birth cannot be in the future';
+      }
+    }
+
+    return errors;
+  };
+
+  const validateAddressDraft = () => {
+    const errors: Record<string, string> = {};
+    if (!addressDraft.label || !addressDraft.label.trim()) {
+      errors.label = 'Label is required (e.g. Home, Work)';
+    }
+    if (!addressDraft.fullName || !addressDraft.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    } else if (addressDraft.fullName.trim().length < 2) {
+      errors.fullName = 'Full name must be at least 2 characters';
+    }
+    const cleanPhone = (addressDraft.phone || '').replace(/\D/g, '');
+    if (!cleanPhone) {
+      errors.phone = 'Phone number is required';
+    } else if (cleanPhone.length !== 10) {
+      errors.phone = 'Phone number must be exactly 10 digits';
+    }
+    if (!addressDraft.street || !addressDraft.street.trim()) {
+      errors.street = 'Street address is required';
+    } else if (addressDraft.street.trim().length < 5) {
+      errors.street = 'Street address must be at least 5 characters';
+    }
+    if (!addressDraft.state || !addressDraft.state.trim()) {
+      errors.state = 'Please select a state';
+    }
+    if (!addressDraft.city || !addressDraft.city.trim()) {
+      errors.city = 'Please select a city';
+    }
+    const cleanPin = (addressDraft.pinCode || '').trim();
+    if (!cleanPin) {
+      errors.pinCode = 'Pin code is required';
+    } else if (!/^\d{6}$/.test(cleanPin)) {
+      errors.pinCode = 'Pin code must be exactly 6 digits';
+    }
+    return errors;
+  };
+
+  const isProfileDirty = () => {
+    if (!initialForm) return false;
+    if ((form.fullname || '').trim() !== (initialForm.fullname || '').trim()) return true;
+    if ((form.email || '').trim().toLowerCase() !== (initialForm.email || '').trim().toLowerCase()) return true;
+    const cleanPhone = (form.mobilenumber || '').replace(/\D/g, '');
+    const initialPhone = (initialForm.mobilenumber || '').replace(/\D/g, '');
+    if (cleanPhone !== initialPhone) return true;
+    if ((form.dob || '') !== (initialForm.dob || '')) return true;
+    if ((form.gender || '') !== (initialForm.gender || '')) return true;
+    if ((form.avatar || '') !== (initialForm.avatar || '')) return true;
+
+    // Check store fields if present
+    if (JSON.stringify(form.profileData?.storeProfile || {}) !== JSON.stringify(initialForm.profileData?.storeProfile || {})) return true;
+    if (JSON.stringify(form.profileData?.businessDetails || {}) !== JSON.stringify(initialForm.profileData?.businessDetails || {})) return true;
+    if ((form.profileData?.upiId || '') !== (initialForm.profileData?.upiId || '')) return true;
+
+    return false;
+  };
+
   const saveProfile = async (nextForm?: typeof form) => {
     setSaving(true);
     try {
       const payload = nextForm || form;
       await authApi.updateProfile(payload);
       await updateUser({ ...payload, profileData: payload.profileData });
+      setInitialForm(payload);
       setFeedbackModal({
         visible: true,
         type: 'success',
@@ -312,6 +450,32 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveProfileClicked = async () => {
+    if (!isProfileDirty()) {
+      setFeedbackModal({
+        visible: true,
+        type: 'error',
+        title: 'No Changes',
+        message: 'No changes have been made to your profile details.',
+      });
+      return;
+    }
+
+    const errors = validatePersonalDetails();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setFeedbackModal({
+        visible: true,
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Please fix the highlighted errors before saving.',
+      });
+      return;
+    }
+
+    await saveProfile(form);
   };
 
   const handlePasswordChange = async () => {
@@ -402,7 +566,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.saveBtn}
-              onPress={() => saveProfile()}
+              onPress={() => handleSaveProfileClicked()}
               activeOpacity={0.8}
             >
               <Save size={15} color="#fff" />
@@ -474,45 +638,63 @@ export default function ProfileScreen() {
           <View style={styles.cardSection}>
             <Text style={styles.sectionTitle}>Personal details</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, fieldErrors.fullname && styles.inputError]}
               value={form.fullname}
               placeholder="Full Name"
               placeholderTextColor="#9CA3AF"
-              onChangeText={value =>
-                setForm(prev => ({ ...prev, fullname: value }))
-              }
+              onChangeText={value => {
+                setForm(prev => ({ ...prev, fullname: value }));
+                if (fieldErrors.fullname) setFieldErrors(prev => ({ ...prev, fullname: '' }));
+              }}
             />
+            {fieldErrors.fullname ? (
+              <Text style={styles.errorText}>{fieldErrors.fullname}</Text>
+            ) : null}
+
             <TextInput
-              style={styles.input}
+              style={[styles.input, fieldErrors.email && styles.inputError]}
               value={form.email}
               placeholder="Email"
               placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
-              onChangeText={value =>
-                setForm(prev => ({ ...prev, email: value }))
-              }
+              onChangeText={value => {
+                setForm(prev => ({ ...prev, email: value }));
+                if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
+              }}
             />
+            {fieldErrors.email ? (
+              <Text style={styles.errorText}>{fieldErrors.email}</Text>
+            ) : null}
+
             <TextInput
-              style={styles.input}
+              style={[styles.input, fieldErrors.mobilenumber && styles.inputError]}
               value={form.mobilenumber}
               placeholder="Mobile number"
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
-              onChangeText={value =>
-                setForm(prev => ({ ...prev, mobilenumber: value }))
-              }
+              onChangeText={value => {
+                setForm(prev => ({ ...prev, mobilenumber: value }));
+                if (fieldErrors.mobilenumber) setFieldErrors(prev => ({ ...prev, mobilenumber: '' }));
+              }}
             />
+            {fieldErrors.mobilenumber ? (
+              <Text style={styles.errorText}>{fieldErrors.mobilenumber}</Text>
+            ) : null}
 
             {/* Date of birth — calendar picker */}
             <TouchableOpacity
-              style={[styles.input, styles.dobInput]}
+              style={[styles.input, styles.dobInput, fieldErrors.dob && styles.inputError]}
               onPress={() => setShowDobPicker(true)}
             >
               <Text style={form.dob ? styles.dobValue : styles.dobPlaceholder}>
                 {form.dob ? formatDob(form.dob) : 'Date of birth'}
               </Text>
-              <Calendar size={16} color={CustomerColors.textSecondary} />
+              <Calendar size={16} color={isDark ? '#F9FAFB' : CustomerColors.textSecondary} />
             </TouchableOpacity>
+            {fieldErrors.dob ? (
+              <Text style={styles.errorText}>{fieldErrors.dob}</Text>
+            ) : null}
+
             {showDobPicker && (
               <DateTimePicker
                 value={
@@ -528,6 +710,7 @@ export default function ProfileScreen() {
                   if (event.type === 'set' && selectedDate) {
                     const iso = selectedDate.toISOString().slice(0, 10); // YYYY-MM-DD
                     setForm(prev => ({ ...prev, dob: iso }));
+                    if (fieldErrors.dob) setFieldErrors(prev => ({ ...prev, dob: '' }));
                   }
                 }}
               />
@@ -562,6 +745,7 @@ export default function ProfileScreen() {
                     pinCode: '',
                     isDefault: true,
                   });
+                  setAddressErrors({});
                   setAddressEditorOpen(true);
                 }}
               >
@@ -571,42 +755,62 @@ export default function ProfileScreen() {
             {addressEditorOpen && (
               <View style={{ marginTop: Spacing.md }}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, addressErrors.label && styles.inputError]}
                   value={addressDraft.label}
-                  placeholder="Label"
+                  placeholder="Label (e.g. Home, Work)"
                   placeholderTextColor="#9CA3AF"
-                  onChangeText={value =>
-                    setAddressDraft(prev => ({ ...prev, label: value }))
-                  }
+                  onChangeText={value => {
+                    setAddressDraft(prev => ({ ...prev, label: value }));
+                    if (addressErrors.label) setAddressErrors(prev => ({ ...prev, label: '' }));
+                  }}
                 />
+                {addressErrors.label ? (
+                  <Text style={styles.errorText}>{addressErrors.label}</Text>
+                ) : null}
+
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, addressErrors.fullName && styles.inputError]}
                   value={addressDraft.fullName}
                   placeholder="Full name"
                   placeholderTextColor="#9CA3AF"
-                  onChangeText={value =>
-                    setAddressDraft(prev => ({ ...prev, fullName: value }))
-                  }
+                  onChangeText={value => {
+                    setAddressDraft(prev => ({ ...prev, fullName: value }));
+                    if (addressErrors.fullName) setAddressErrors(prev => ({ ...prev, fullName: '' }));
+                  }}
                 />
+                {addressErrors.fullName ? (
+                  <Text style={styles.errorText}>{addressErrors.fullName}</Text>
+                ) : null}
+
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, addressErrors.phone && styles.inputError]}
                   value={addressDraft.phone}
                   placeholder="Phone"
                   placeholderTextColor="#9CA3AF"
                   keyboardType="phone-pad"
-                  onChangeText={value =>
-                    setAddressDraft(prev => ({ ...prev, phone: value }))
-                  }
+                  onChangeText={value => {
+                    setAddressDraft(prev => ({ ...prev, phone: value }));
+                    if (addressErrors.phone) setAddressErrors(prev => ({ ...prev, phone: '' }));
+                  }}
                 />
+                {addressErrors.phone ? (
+                  <Text style={styles.errorText}>{addressErrors.phone}</Text>
+                ) : null}
+
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, addressErrors.street && styles.inputError]}
                   value={addressDraft.street}
                   placeholder="Street"
                   placeholderTextColor="#9CA3AF"
-                  onChangeText={value =>
-                    setAddressDraft(prev => ({ ...prev, street: value }))
-                  }
+                  onChangeText={value => {
+                    setAddressDraft(prev => ({ ...prev, street: value }));
+                    if (addressErrors.street) setAddressErrors(prev => ({ ...prev, street: '' }));
+                  }}
                 />
+                {addressErrors.street ? (
+                  <Text style={styles.errorText}>{addressErrors.street}</Text>
+                ) : null}
+
                 <LocationSelectField
                   label="State"
                   value={addressDraft.state}
@@ -614,6 +818,10 @@ export default function ProfileScreen() {
                   options={stateOptions}
                   onSelect={handleDraftStateSelect}
                 />
+                {addressErrors.state ? (
+                  <Text style={styles.errorText}>{addressErrors.state}</Text>
+                ) : null}
+
                 <LocationSelectField
                   label="City"
                   value={addressDraft.city}
@@ -624,42 +832,87 @@ export default function ProfileScreen() {
                   disabled={!addressDraft.state}
                   onSelect={handleDraftCitySelect}
                 />
+                {addressErrors.city ? (
+                  <Text style={styles.errorText}>{addressErrors.city}</Text>
+                ) : null}
+
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, addressErrors.pinCode && styles.inputError]}
                   value={addressDraft.pinCode}
                   placeholder="Pin code"
                   placeholderTextColor="#9CA3AF"
-                  onChangeText={value =>
-                    setAddressDraft(prev => ({ ...prev, pinCode: value }))
-                  }
+                  onChangeText={value => {
+                    setAddressDraft(prev => ({ ...prev, pinCode: value }));
+                    if (addressErrors.pinCode) setAddressErrors(prev => ({ ...prev, pinCode: '' }));
+                  }}
                 />
+                {addressErrors.pinCode ? (
+                  <Text style={styles.errorText}>{addressErrors.pinCode}</Text>
+                ) : null}
+
                 <View style={styles.inlineRow}>
                   <TouchableOpacity
                     style={styles.secondaryBtn}
-                    onPress={() => setAddressEditorOpen(false)}
+                    onPress={() => {
+                      setAddressEditorOpen(false);
+                      setAddressErrors({});
+                    }}
                   >
                     <Text style={styles.secondaryBtnText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.saveBtn}
                     onPress={() => {
+                      const errors = validateAddressDraft();
+                      setAddressErrors(errors);
+                      if (Object.keys(errors).length > 0) {
+                        setFeedbackModal({
+                          visible: true,
+                          type: 'error',
+                          title: 'Invalid Address',
+                          message: 'Please fill in all address fields correctly.',
+                        });
+                        return;
+                      }
+                      setAddressErrors({});
+
                       const addresses = [...(form.profileData.addresses || [])];
-                      const nextAddress = { ...addressDraft };
+                      const nextAddress: Address = {
+                        ...addressDraft,
+                        label: addressDraft.label.trim(),
+                        fullName: addressDraft.fullName.trim(),
+                        phone: addressDraft.phone.replace(/\D/g, ''),
+                        street: addressDraft.street.trim(),
+                        pinCode: addressDraft.pinCode.trim(),
+                      };
                       const index = addresses.findIndex(
                         (item: Address) => item.id === nextAddress.id,
                       );
                       if (index >= 0) addresses[index] = nextAddress;
                       else addresses.push(nextAddress);
+                      if (!addresses.some((item: Address) => item.isDefault)) {
+                        nextAddress.isDefault = true;
+                      }
                       const nextProfileData = {
                         ...form.profileData,
                         addresses,
                       };
-                      setForm(prev => ({
-                        ...prev,
-                        profileData: nextProfileData,
-                      }));
-                      saveProfile({ ...form, profileData: nextProfileData });
+                      const nextFormState = { ...form, profileData: nextProfileData };
+                      setForm(nextFormState);
+                      saveProfile(nextFormState);
                       setAddressEditorOpen(false);
+                      setAddressDraft({
+                        id: `${Date.now()}`,
+                        label: 'Home',
+                        fullName: '',
+                        phone: '',
+                        street: '',
+                        city: '',
+                        state: '',
+                        pinCode: '',
+                        isDefault: true,
+                      });
+                      setDraftCities([]);
                     }}
                   >
                     <Text style={styles.saveBtnText}>Save</Text>
@@ -1191,7 +1444,9 @@ const getStyles = (isDark: boolean) =>
     notifBtn: {
       padding: 8,
       borderRadius: BorderRadius.md,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F3F4F6',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : CustomerColors.steelBorder,
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
@@ -1316,6 +1571,16 @@ const getStyles = (isDark: boolean) =>
       fontSize: FontSizes.sm,
       color: isDark ? '#F9FAFB' : CustomerColors.black,
       backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    },
+    inputError: {
+      borderColor: CustomerColors.danger,
+    },
+    errorText: {
+      color: CustomerColors.danger,
+      fontSize: 11,
+      marginTop: -4,
+      marginBottom: Spacing.sm,
+      marginLeft: 4,
     },
     label: {
       fontSize: FontSizes.xs,

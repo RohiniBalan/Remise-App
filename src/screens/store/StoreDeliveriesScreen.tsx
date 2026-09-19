@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -23,14 +24,22 @@ import {
   RefreshCw,
   ShoppingBag,
 } from 'lucide-react-native';
-import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { StoreDashboardContext } from '../../context/StoreDashboardContext';
+import { SellerDashboardContext } from '../../context/SellerDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
 import PaginationControl from '../../components/common/PaginationControl';
 
 export default function StoreDeliveriesScreen() {
-  const { orders, loading, refresh } = useStoreDashboard();
+  const navigation = useNavigation<any>();
+  const storeDashboard = React.useContext(StoreDashboardContext);
+  const sellerDashboard = React.useContext(SellerDashboardContext);
+
+  const rawOrders = storeDashboard?.orders || sellerDashboard?.orders || [];
+  const loading = storeDashboard?.loading ?? sellerDashboard?.loading ?? false;
+  const refresh = storeDashboard?.refresh || sellerDashboard?.refresh || (() => {});
+
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [search, setSearch] = useState('');
@@ -45,11 +54,58 @@ export default function StoreDeliveriesScreen() {
     setCurrentPage(1);
   }, [search, statusFilter, modeFilter]);
 
+  const orders = useMemo(() => {
+    return rawOrders.map((o: any) => {
+      const addr = o.shippingAddress || {};
+      const items = o.items || o.rawItems || [];
+      const offerTitle =
+        o.offerTitle ||
+        (items.length
+          ? items.map((i: any) => `${i.quantity}x ${i.title || 'Item'}`).join(', ')
+          : `Order ${o.orderId || o._id?.slice(-6) || ''}`);
+
+      const customerName =
+        o.customerName ||
+        (typeof o.shippingAddress === 'object'
+          ? [addr.firstName, addr.lastName].filter(Boolean).join(' ')
+          : '') ||
+        o.contactEmail ||
+        'Customer';
+
+      const customerPhone =
+        o.customerPhone ||
+        (typeof o.shippingAddress === 'object' ? addr.phone : '') ||
+        '';
+
+      const deliveryAddress =
+        o.deliveryAddress ||
+        (typeof o.shippingAddress === 'object'
+          ? [addr.address, addr.city, addr.state, addr.pinCode].filter(Boolean).join(', ')
+          : typeof o.shippingAddress === 'string'
+          ? o.shippingAddress
+          : '');
+
+      return {
+        ...o,
+        offerTitle,
+        customerName,
+        customerPhone,
+        deliveryAddress,
+        deliveryStatus:
+          o.deliveryStatus ||
+          (o.orderStatus === 'Delivered' || o.status === 'Delivered' ? 'Delivered' : 'Pending'),
+        deliveryPerson: o.deliveryPerson || null,
+        deliveryMode: o.deliveryMode || 'own_delivery',
+      };
+    });
+  }, [rawOrders]);
+
   const deliveryOrders = orders.filter((o: any) => {
     const isDelivery =
       o.deliveryMethod !== 'pickup' &&
       (o.deliveryMethod === 'delivery' ||
         !!o.deliveryAddress ||
+        !!o.shippingAddress ||
         !!o.deliveryPerson?.name ||
         !!o.deliveryStatus);
     return isDelivery;
@@ -337,7 +393,7 @@ export default function StoreDeliveriesScreen() {
               </View>
 
               <View style={styles.footerRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={styles.itemsSummary} numberOfLines={1}>
                     {o.offerTitle}
                   </Text>
@@ -347,17 +403,27 @@ export default function StoreDeliveriesScreen() {
                   </Text>
                 </View>
 
-                {!isCompleted && (
+                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                   <TouchableOpacity
-                    style={styles.manageDeliveryBtn}
-                    onPress={() => setSelectedDeliveryOrder(o)}
+                    style={styles.trackDeliveryBtn}
+                    onPress={() => navigation.navigate('StoreOrderTracking', { orderId: o.orderId || o._id })}
                   >
-                    <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.manageDeliveryBtnText}>
-                      {o.deliveryToken ? 'View Link' : 'Manage'}
-                    </Text>
+                    <Navigation size={12} color="#2563EB" />
+                    <Text style={styles.trackDeliveryBtnText}>Live Track</Text>
                   </TouchableOpacity>
-                )}
+
+                  {!isCompleted && (
+                    <TouchableOpacity
+                      style={styles.manageDeliveryBtn}
+                      onPress={() => setSelectedDeliveryOrder(o)}
+                    >
+                      <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                      <Text style={styles.manageDeliveryBtnText}>
+                        {o.deliveryToken ? 'View Link' : 'Manage'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
           );
@@ -512,4 +578,16 @@ const getStyles = (isDark: boolean) =>
       borderRadius: BorderRadius.md,
     },
     manageDeliveryBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    trackDeliveryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? '#1e3a8a' : '#EFF6FF',
+      borderWidth: 1,
+      borderColor: isDark ? '#3b82f6' : '#BFDBFE',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+    },
+    trackDeliveryBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#93C5FD' : '#1D4ED8' },
   });

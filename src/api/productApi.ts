@@ -43,6 +43,8 @@ export interface Product {
   images?: string[];
   imageUrl?: string;
   totalStock: number;
+  stockUnit?: string;
+  unit?: string;
   availability?: string;
   deliveryTime?: string;
   description?: string;

@@ -9,7 +9,7 @@ interface Props {
   group: ProductGroup | null;
   visible: boolean;
   onClose: () => void;
-  onAddToCart: (supplier: GroupedSupplier, qty: number, price: number, tierLabel: string | null, group: ProductGroup) => void;
+  onAddToCart: (supplier: GroupedSupplier, qty: number, price: number, tierLabel: string | null, group: ProductGroup) => void | boolean;
 }
 
 export default function CompareSheet({ group, visible, onClose, onAddToCart }: Props) {
@@ -42,13 +42,14 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
 
   const handleAdd = () => {
     if (!selected) return;
-    onAddToCart(selected, qty, price, label, group);
+    const res = onAddToCart(selected, qty, price, label, group);
+    if (res === false) return;
     setAdded(true);
     setTimeout(onClose, 900);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
         <View style={[styles.sheet, isDark && { backgroundColor: '#111827' }]}>
           <View style={[styles.header, isDark && { backgroundColor: '#1F2937' }]}>

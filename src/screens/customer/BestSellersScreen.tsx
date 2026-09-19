@@ -3,12 +3,14 @@ import {
   View,
   Text,
   FlatList,
+  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
   Platform,
   ToastAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { ArrowLeft } from 'lucide-react-native';
 import { productApi, Product, productId, productImage } from '../../api/productApi';
 import ProductCard from '../../components/common/ProductCard';
 import { useCart } from '../../context/CartContext';
@@ -61,6 +63,13 @@ export default function BestSellersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+          style={styles.backHomeBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <ArrowLeft size={20} color={CustomerColors.black} />
+        </TouchableOpacity>
         <Text style={styles.count}>{products.length} products</Text>
       </View>
       <FlatList
@@ -122,11 +131,16 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: '#EAEAEA',
+  },
+  backHomeBtn: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   count: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
   grid: { padding: Spacing.sm },

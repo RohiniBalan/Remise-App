@@ -6,7 +6,7 @@ import {
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, ListChecks, Camera, Check, ChevronDown, X } from 'lucide-react-native';
-import { getCategories } from '../../utils/categoryAttributes';
+import { getCategories, getSubcategories } from '../../utils/categoryAttributes';
 import { STOCK_UNIT_OPTIONS } from '../../utils/productForm';
 
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
@@ -18,7 +18,7 @@ import { requestCameraPermission } from '../../utils/permissions';
 import { useTheme } from '../../context/ThemeContext';
 
 type Row = {
-  id: string; title: string; category: string; price: string; discountedPrice: string;
+  id: string; title: string; category: string; subcategory?: string; price: string; discountedPrice: string;
   description: string; brand: string; imageUrl: string; totalStock: string;
   stockUnit: string; unit: string; availability: string; tags: string; moq: string;
 };
@@ -26,7 +26,7 @@ type FailedItem = { name: string; reason: string };
 type Step = 'idle' | 'scanning' | 'review' | 'saving' | 'done' | 'error';
 
 const blankRow = (overrides: Partial<Row> = {}): Row => ({
-  id: `${Date.now()}-${Math.random()}`, title: '', category: '', price: '', discountedPrice: '',
+  id: `${Date.now()}-${Math.random()}`, title: '', category: '', subcategory: '', price: '', discountedPrice: '',
   description: '', brand: '', imageUrl: '', totalStock: '', stockUnit: 'Count', unit: 'Count', availability: 'In Stock', tags: '', moq: '1',
   ...overrides,
 });
@@ -46,7 +46,10 @@ export default function SellerBulkScanUploadScreen() {
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   const [summary, setSummary] = useState<{ added: number; failed: FailedItem[] }>({ added: 0, failed: [] });
   const [activeCategoryRowId, setActiveCategoryRowId] = useState<string | null>(null);
+  const [activeSubcategoryRowId, setActiveSubcategoryRowId] = useState<string | null>(null);
   const [activeStockUnitRowId, setActiveStockUnitRowId] = useState<string | null>(null);
+  const [isCustomSubRows, setIsCustomSubRows] = useState<Record<string, boolean>>({});
+  const [customSubs, setCustomSubs] = useState<Record<string, string>>({});
 
   const categoryOptions = useMemo(() => {
     const predefined = getCategories();
@@ -56,6 +59,7 @@ export default function SellerBulkScanUploadScreen() {
 
   const reset = () => {
     setAsset(null); setStep('idle'); setErrMsg(''); setRows([]); setFailedItems([]);
+    setIsCustomSubRows({}); setCustomSubs({});
   };
   const setRow = (id: string, k: keyof Row, v: string) => setRows(rs => rs.map(r => (r.id === id ? { ...r, [k]: v } : r)));
   const removeRow = (id: string) => setRows(rs => rs.filter(r => r.id !== id));
@@ -88,17 +92,31 @@ export default function SellerBulkScanUploadScreen() {
       fd.append('image', { uri: asset.uri, name: asset.fileName || 'list.jpg', type: asset.type || 'image/jpeg' } as any);
       const res = await sellerAiApi.scanProductList(fd);
       if (!res.data.success) throw new Error(res.data.message || 'Scan failed.');
-      const newRows: Row[] = (res.data.products || []).map(p =>
-        blankRow({
+      const customSubMap: Record<string, boolean> = {};
+      const customSubValueMap: Record<string, string> = {};
+      const newRows: Row[] = (res.data.products || []).map(p => {
+        const cat = p.category || '';
+        const rawSub = p.subcategory || '';
+        const validSubs = cat ? getSubcategories(cat) : [];
+        const isCustom = rawSub && !validSubs.includes(rawSub);
+        const row = blankRow({
           title: p.productName || '',
-          category: p.category || '',
+          category: cat,
+          subcategory: isCustom ? 'Other' : rawSub,
           description: p.description || '',
           brand: p.brand || '',
           imageUrl: p.imageUrl || '',
           stockUnit: p.stockUnit || p.unit || 'Count',
           unit: p.stockUnit || p.unit || 'Count',
-        }),
-      );
+        });
+        if (isCustom) {
+          customSubMap[row.id] = true;
+          customSubValueMap[row.id] = rawSub;
+        }
+        return row;
+      });
+      setIsCustomSubRows(customSubMap);
+      setCustomSubs(customSubValueMap);
       setRows(newRows);
       setFailedItems(res.data.failed || []);
       setStep('review');
@@ -114,14 +132,20 @@ export default function SellerBulkScanUploadScreen() {
     const existing = (catList.data.data || []).find((c: any) => c.name.toLowerCase() === row.category.toLowerCase());
     if (!existing && row.category) await storeProductApi.createCategory(row.category);
 
+    const finalSubcategory = isCustomSubRows[row.id]
+      ? (customSubs[row.id]?.trim() || '')
+      : (row.subcategory === 'Other' ? '' : (row.subcategory || ''));
+
     const payload: any = {
       title: row.title,
       price: +row.price,
       discountedPrice: row.discountedPrice ? +row.discountedPrice : +row.price,
       category: row.category || 'General',
+      ...(finalSubcategory ? { subcategory: finalSubcategory } : {}),
       brand: row.brand || 'Generic',
       description: row.description || '',
       imageUrl: row.imageUrl || '',
+      images: row.imageUrl ? [row.imageUrl] : [],
       totalStock: row.totalStock ? +row.totalStock : 0,
       stockUnit: row.stockUnit || 'Count',
       unit: row.stockUnit || 'Count',
@@ -181,6 +205,9 @@ export default function SellerBulkScanUploadScreen() {
               <>
                 <ListChecks size={36} color={CustomerColors.teal600} />
                 <Text style={styles.dropTitle}>Tap to select invoice, bill, or product list photo</Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '600', marginTop: 4 }}>
+                  Up to 10 products per scan
+                </Text>
               </>
             )}
           </TouchableOpacity>
@@ -274,7 +301,7 @@ export default function SellerBulkScanUploadScreen() {
                 </View>
                 <View style={styles.rowGrid}>
                   <TouchableOpacity
-                    style={[styles.smallInput, { justifyContent: 'center' }]}
+                    style={[styles.smallInput, { flex: 1, justifyContent: 'center' }]}
                     onPress={() => setActiveCategoryRowId(row.id)}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -286,13 +313,40 @@ export default function SellerBulkScanUploadScreen() {
                         }}
                         numberOfLines={1}
                       >
-                        {row.category || 'Select Category'}
+                        {row.category || 'Category'}
                       </Text>
                       <ChevronDown size={14} color={isDark ? '#94A3B8' : CustomerColors.textSecondary} />
                     </View>
                   </TouchableOpacity>
-                  <TextInput style={styles.smallInput} value={row.brand} onChangeText={(v: string) => setRow(row.id, 'brand', v)} placeholder="Brand" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} />
+                  <TouchableOpacity
+                    style={[styles.smallInput, { flex: 1, justifyContent: 'center' }]}
+                    onPress={() => setActiveSubcategoryRowId(row.id)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: (isCustomSubRows[row.id] || row.subcategory) ? (isDark ? '#FFFFFF' : CustomerColors.black) : (isDark ? '#94A3B8' : '#9CA3AF'),
+                          fontWeight: (isCustomSubRows[row.id] || row.subcategory) ? '600' : 'normal',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {isCustomSubRows[row.id] ? (customSubs[row.id] ? `Other (${customSubs[row.id]})` : 'Other') : (row.subcategory || 'Subcategory')}
+                      </Text>
+                      <ChevronDown size={14} color={isDark ? '#94A3B8' : CustomerColors.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                  <TextInput style={[styles.smallInput, { flex: 0.9 }]} value={row.brand} onChangeText={(v: string) => setRow(row.id, 'brand', v)} placeholder="Brand" placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'} />
                 </View>
+                {isCustomSubRows[row.id] && (
+                  <TextInput
+                    style={[styles.smallInput, { marginTop: 4 }]}
+                    value={customSubs[row.id] || ''}
+                    onChangeText={(v: string) => setCustomSubs(prev => ({ ...prev, [row.id]: v }))}
+                    placeholder="Enter Custom Subcategory *"
+                    placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+                  />
+                )}
               </View>
             </View>
           ))}
@@ -367,8 +421,71 @@ export default function SellerBulkScanUploadScreen() {
                     onPress={() => {
                       if (activeCategoryRowId) {
                         setRow(activeCategoryRowId, 'category', item);
+                        setRow(activeCategoryRowId, 'subcategory', '');
+                        setIsCustomSubRows(prev => ({ ...prev, [activeCategoryRowId]: false }));
+                        setCustomSubs(prev => ({ ...prev, [activeCategoryRowId]: '' }));
                       }
                       setActiveCategoryRowId(null);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        isSelected && styles.modalItemTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {isSelected && (
+                      <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Subcategory Modal Picker */}
+      <Modal visible={activeSubcategoryRowId !== null} transparent animationType="slide" onRequestClose={() => setActiveSubcategoryRowId(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Subcategory</Text>
+              <TouchableOpacity onPress={() => setActiveSubcategoryRowId(null)}>
+                <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={(() => {
+                const currentRow = rows.find(r => r.id === activeSubcategoryRowId);
+                const base = currentRow?.category ? getSubcategories(currentRow.category) : [];
+                return [...base, 'Other'];
+              })()}
+              keyExtractor={item => item}
+              renderItem={({ item }) => {
+                const currentRow = rows.find(r => r.id === activeSubcategoryRowId);
+                const isSelected = isCustomSubRows[activeSubcategoryRowId || '']
+                  ? item === 'Other'
+                  : currentRow?.subcategory === item;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      isSelected && styles.modalItemActive,
+                    ]}
+                    onPress={() => {
+                      if (activeSubcategoryRowId) {
+                        if (item === 'Other') {
+                          setIsCustomSubRows(prev => ({ ...prev, [activeSubcategoryRowId]: true }));
+                          setRow(activeSubcategoryRowId, 'subcategory', 'Other');
+                        } else {
+                          setIsCustomSubRows(prev => ({ ...prev, [activeSubcategoryRowId]: false }));
+                          setRow(activeSubcategoryRowId, 'subcategory', item);
+                        }
+                      }
+                      setActiveSubcategoryRowId(null);
                     }}
                   >
                     <Text

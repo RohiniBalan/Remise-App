@@ -4,9 +4,6 @@ import { gatewayClient } from './client';
 export const storeApi = {
   register: (formData: FormData) =>
     gatewayClient.post('/api/stores', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
       transformRequest: (data) => data,
     }),
 
@@ -16,9 +13,6 @@ export const storeApi = {
 
   update: (id: string, formData: FormData) =>
     gatewayClient.put(`/api/stores/${id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
       transformRequest: (data) => data,
     }),
 

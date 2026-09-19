@@ -11,7 +11,7 @@ import {
   ToastAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Filter, X, Sparkles } from 'lucide-react-native';
+import { Filter, X, Sparkles, ArrowLeft } from 'lucide-react-native';
 import { productApi, Product, productId } from '../../api/productApi';
 import { NEW_ARRIVAL_WINDOW_DAYS } from '../../api/homeSectionsApi';
 import { useCart } from '../../context/CartContext';
@@ -218,13 +218,24 @@ export default function NewArrivalsScreen() {
     <View style={styles.container}>
       {/* Header Eyebrow & Filter Bar */}
       <View style={styles.headerBar}>
-        <View style={styles.eyebrowRow}>
-          <Sparkles size={13} color={CustomerColors.primary} />
-          <Text style={styles.eyebrowText}>Just In</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+            style={styles.backHomeBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ArrowLeft size={22} color={CustomerColors.black} />
+          </TouchableOpacity>
+          <View>
+            <View style={styles.eyebrowRow}>
+              <Sparkles size={13} color={CustomerColors.primary} />
+              <Text style={styles.eyebrowText}>Just In</Text>
+            </View>
+            <Text style={styles.pageTitle}>
+              {activeCategory ? activeCategory : 'New Arrivals'}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.pageTitle}>
-          {activeCategory ? activeCategory : 'New Arrivals'}
-        </Text>
       </View>
 
       <View style={styles.topBar}>
@@ -405,10 +416,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xs,
     backgroundColor: '#FFFFFF',
   },
+  backHomeBtn: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     marginBottom: 2,
   },
   eyebrowText: {

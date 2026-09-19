@@ -53,6 +53,10 @@ export const smartOrderApi = {
   getMyOrders: (userId: string, email: string) =>
     gatewayClient.get('/api/orders/my-orders', { params: { userId, email } }),
 
+  // Live order tracking data for Customer & Store Owner
+  getOrderTracking: (orderId: string) =>
+    gatewayClient.get(`/api/orders/${orderId}/track`),
+
   createRefund: (payload: RefundRequest) =>
     gatewayClient.post('/api/payment/refund', payload),
 
@@ -109,9 +113,13 @@ export const smartOrderApi = {
     return `${base}/api/orders/${orderId}/invoice/pdf`;
   },
 
-  // Store Owner: Generate unique delivery link for an order
-  generateDeliveryLink: (orderId: string, payload: { deliveryPersonName?: string; deliveryPersonPhone?: string; notes?: string }) =>
+  // Store Owner: Generate unique delivery link for an order (Store / Own delivery person)
+  generateDeliveryLink: (orderId: string, payload: { deliveryPersonName?: string; deliveryPersonPhone?: string; vehicleType?: string; vehicleNumber?: string; notes?: string }) =>
     gatewayClient.post(`/api/orders/${orderId}/delivery-link`, payload),
+
+  // Store Owner: Request Remise Delivery Network partner for an order
+  requestRemiseDelivery: (orderId: string, payload: { distanceKm?: number; deliveryFee?: number; pickupAddress?: string; dropAddress?: string; instructions?: string }) =>
+    gatewayClient.post(`/api/orders/${orderId}/request-remise-delivery`, payload),
 
   // Store Owner: Set delivery mode (own_delivery, portal_delivery, self_arrange)
   setDeliveryMode: (orderId: string, payload: { mode: 'own_delivery' | 'portal_delivery' | 'self_arrange'; notes?: string }) =>
@@ -124,6 +132,19 @@ export const smartOrderApi = {
   // Store Owner: Enroll / Update Remise Delivery Portal Network
   enrollDeliveryPortal: (payload: { enabled?: boolean; hasOwnDelivery?: boolean }) =>
     gatewayClient.patch('/api/stores/delivery-portal/enroll', payload),
+
+  // Store Owner: Delivery Persons Management
+  getStoreDeliveryPersons: () =>
+    gatewayClient.get('/api/stores/delivery-persons'),
+
+  addStoreDeliveryPerson: (payload: { name: string; phone: string; vehicleType?: string }) =>
+    gatewayClient.post('/api/stores/delivery-persons', payload),
+
+  updateStoreDeliveryPerson: (personId: string, payload: { name?: string; phone?: string; vehicleType?: string; status?: string; isActive?: boolean }) =>
+    gatewayClient.patch(`/api/stores/delivery-persons/${personId}`, payload),
+
+  deleteStoreDeliveryPerson: (personId: string) =>
+    gatewayClient.delete(`/api/stores/delivery-persons/${personId}`),
 };
 
 

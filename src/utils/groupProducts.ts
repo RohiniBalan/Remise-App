@@ -6,6 +6,7 @@ export type ProductTypeGroup = {
   items: any[];
   brandCount: number;
   totalStock: number;
+  stockUnit?: string;
 };
 
 // Mirrors client/app/store/dashboard/page.tsx's groupProductsByType exactly —
@@ -34,6 +35,7 @@ export function groupProductsByType(products: any[]): ProductTypeGroup[] {
     category: v.category,
     items: v.items,
     brandCount: v.items.length,
+    stockUnit: v.items.find((p: any) => p.stockUnit || p.unit)?.stockUnit || v.items.find((p: any) => p.stockUnit || p.unit)?.unit || 'Count',
     totalStock: v.items.reduce((s: number, p: any) => s + (p.totalStock || 0), 0),
   }));
 }

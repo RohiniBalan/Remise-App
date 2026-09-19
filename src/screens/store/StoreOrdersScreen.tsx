@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
-import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard } from 'lucide-react-native';
+import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard, RotateCcw } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -120,11 +120,38 @@ export default function StoreOrdersScreen() {
           <View style={styles.card}>
             <View style={styles.orderHeaderRow}>
               <Text style={styles.orderTitle} numberOfLines={1}>{o.offerTitle || o.productName || o.customerName || 'Order'}</Text>
-              {o.deliveryStatus ? (
-                <View style={styles.deliveryBadge}>
-                  <Text style={styles.deliveryBadgeText}>Delivery: {o.deliveryStatus}</Text>
+              <View style={styles.badgeGroup}>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>{o.status}</Text>
                 </View>
-              ) : null}
+                {o.deliveryStatus ? (
+                  <View style={styles.deliveryBadge}>
+                    <Text style={styles.deliveryBadgeText}>Delivery: {o.deliveryStatus}</Text>
+                  </View>
+                ) : null}
+                {o.refundStatus && o.refundStatus !== 'none' ? (
+                  <View style={[
+                    styles.refundBadge,
+                    (o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? styles.refundBadgeCompleted : styles.refundBadgePending
+                  ]}>
+                    <RotateCcw size={10} color={(o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? '#9333EA' : '#D97706'} />
+                    <Text style={[
+                      styles.refundBadgeText,
+                      (o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? styles.refundBadgeTextCompleted : styles.refundBadgeTextPending
+                    ]}>
+                      {o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED'
+                        ? `Refunded: ₹${o.totalRefundedAmount || o.totalAmount}`
+                        : o.refundStatus === 'partially_refunded'
+                        ? `Partially Refunded: ₹${o.totalRefundedAmount}`
+                        : o.refundStatus === 'requested'
+                        ? 'Refund Requested'
+                        : o.refundStatus === 'processing'
+                        ? 'Refund Processing'
+                        : `Refund: ${o.refundStatus}`}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
             <Text style={styles.orderCustomer}>
               {o.customerName}
@@ -139,9 +166,19 @@ export default function StoreOrdersScreen() {
                   {o.deliveryMethod === 'pickup' ? <Store size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : <Truck size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />}
                   <Text style={styles.metaChipText}>{o.deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}</Text>
                 </View>
-                <View style={styles.metaChip}>
+                <View style={[styles.metaChip, (o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded') && { backgroundColor: isDark ? '#3b0764' : '#FAF5FF', borderColor: '#E9D5FF' }]}>
                   <CreditCard size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                  <Text style={styles.metaChipText}>{o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR' : o.paymentMethod === 'cod' ? 'Cash' : (o.paymentMethod || 'Online')} · {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'}</Text>
+                  <Text style={[styles.metaChipText, (o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded') && { color: '#9333EA', fontWeight: '700' }]}>
+                    {o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR' : o.paymentMethod === 'cod' ? 'Cash' : (o.paymentMethod || 'Online')} · {
+                      o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded'
+                        ? 'Refunded'
+                        : o.refundStatus === 'requested'
+                        ? 'Refund Requested'
+                        : o.paymentStatus === 'SUCCESS'
+                        ? 'Paid'
+                        : 'Pending'
+                    }
+                  </Text>
                 </View>
                 {o.vendorTransfers?.[0] ? (
                   <View style={[styles.metaChip, { backgroundColor: isDark ? '#134e4a' : '#F0FDFA' }]}>
@@ -152,6 +189,35 @@ export default function StoreOrdersScreen() {
                 ) : null}
               </View>
             )}
+
+            {o.refundStatus && o.refundStatus !== 'none' ? (
+              <View style={[
+                styles.refundNoticeBox,
+                (o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? styles.refundNoticeBoxCompleted : styles.refundNoticeBoxPending
+              ]}>
+                <RotateCcw size={13} color={(o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? '#9333EA' : '#D97706'} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[
+                    styles.refundNoticeTitle,
+                    (o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? styles.refundNoticeTitleCompleted : styles.refundNoticeTitlePending
+                  ]}>
+                    {o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED'
+                      ? `Refund Completed (₹${o.totalRefundedAmount || o.totalAmount})`
+                      : o.refundStatus === 'partially_refunded'
+                      ? `Partially Refunded (₹${o.totalRefundedAmount})`
+                      : o.refundStatus === 'requested'
+                      ? 'Customer Requested a Refund'
+                      : o.refundStatus === 'processing'
+                      ? 'Refund Processing via Gateway'
+                      : `Refund Status: ${o.refundStatus}`}
+                  </Text>
+                  {o.refunds?.[0]?.reason ? (
+                    <Text style={styles.refundNoticeReason}>Reason: "{o.refunds[0].reason}"</Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+
             <Text style={styles.orderDate}>
               {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </Text>
@@ -164,6 +230,17 @@ export default function StoreOrdersScreen() {
 
               {/* Action Buttons Row */}
               <View style={styles.actionButtonsRow}>
+                {o.deliveryMethod !== 'pickup' &&
+                  (o.deliveryMethod === 'delivery' || !!o.deliveryAddress) && (
+                    <TouchableOpacity
+                      style={styles.trackOrderBtn}
+                      onPress={() => navigation.navigate('StoreOrderTracking', { orderId: o.orderId || o._id })}
+                    >
+                      <Truck size={12} color="#2563EB" />
+                      <Text style={styles.trackOrderBtnText}>Live Track</Text>
+                    </TouchableOpacity>
+                  )}
+
                 {o.deliveryMethod !== 'pickup' &&
                   (o.deliveryMethod === 'delivery' || !!o.deliveryAddress) &&
                   o.status !== 'Delivered' &&
@@ -179,17 +256,9 @@ export default function StoreOrdersScreen() {
                     </TouchableOpacity>
                   )}
 
-                {o._source === 'smartOrder' ? (
-                  <View style={styles.statusBadge}><Text style={styles.statusBadgeText}>{o.status}</Text></View>
-                ) : (
-                  <View style={styles.statusChipRow}>
-                    {ORDER_STATUSES.map(s => (
-                      <TouchableOpacity key={s} style={[styles.statusOption, o.status === s && styles.statusOptionActive]} onPress={() => handleStatus(o._id, s)} disabled={updating === o._id}>
-                        <Text style={[styles.statusOptionText, o.status === s && styles.statusOptionTextActive]}>{s}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>{o.status}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -268,7 +337,7 @@ const getStyles = (isDark: boolean) =>
       padding: Spacing.md,
       marginBottom: Spacing.sm,
     },
-    orderTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
+    orderTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, flex: 1 },
     orderCustomer: { fontSize: FontSizes.xs, color: isDark ? '#D1D5DB' : '#4B5563', marginTop: 2 },
     orderAddress: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
     chipRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs, flexWrap: 'wrap' },
@@ -286,10 +355,36 @@ const getStyles = (isDark: boolean) =>
     metaChipText: { fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', fontWeight: '600' },
     footerRow: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F5F5F5' },
     orderAmount: { fontSize: FontSizes.md, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginBottom: Spacing.xs },
-    orderHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6 },
+    orderHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+    badgeGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
     deliveryBadge: { backgroundColor: isDark ? '#134e4a' : CustomerColors.mint, borderWidth: 1, borderColor: isDark ? '#115e59' : CustomerColors.steelBorder, paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
     deliveryBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    refundBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
+    refundBadgePending: { backgroundColor: isDark ? '#451a03' : '#FEF3C7', borderColor: isDark ? '#78350f' : '#FDE68A' },
+    refundBadgeCompleted: { backgroundColor: isDark ? '#3b0764' : '#F3E8FF', borderColor: isDark ? '#6b21a8' : '#E9D5FF' },
+    refundBadgeText: { fontSize: 9, fontWeight: '700' },
+    refundBadgeTextPending: { color: isDark ? '#FBBF24' : '#D97706' },
+    refundBadgeTextCompleted: { color: isDark ? '#C084FC' : '#9333EA' },
+    refundNoticeBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 8, borderRadius: BorderRadius.sm, borderWidth: 1, marginTop: 8 },
+    refundNoticeBoxPending: { backgroundColor: isDark ? '#451a03' : '#FFFBEB', borderColor: isDark ? '#78350f' : '#FDE68A' },
+    refundNoticeBoxCompleted: { backgroundColor: isDark ? '#3b0764' : '#FAF5FF', borderColor: isDark ? '#6b21a8' : '#F3E8FF' },
+    refundNoticeTitle: { fontSize: 11, fontWeight: '700' },
+    refundNoticeTitlePending: { color: isDark ? '#FBBF24' : '#B45309' },
+    refundNoticeTitleCompleted: { color: isDark ? '#C084FC' : '#7E22CE' },
+    refundNoticeReason: { fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 },
     actionButtonsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+    trackOrderBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? '#1e3a8a' : '#EFF6FF',
+      borderWidth: 1,
+      borderColor: isDark ? '#3b82f6' : '#BFDBFE',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+    },
+    trackOrderBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#93C5FD' : '#1D4ED8' },
     deliveryFlowBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -304,18 +399,6 @@ const getStyles = (isDark: boolean) =>
     deliveryFlowBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
     statusBadge: { alignSelf: 'flex-start', backgroundColor: isDark ? '#134e4a' : CustomerColors.mint, paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.pill },
     statusBadgeText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
-    statusChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-    statusOption: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: BorderRadius.pill,
-      backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
-      borderWidth: 1,
-      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
-    },
-    statusOptionActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
-    statusOptionText: { fontSize: 9, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
-    statusOptionTextActive: { color: '#fff' },
     orderNotes: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontStyle: 'italic', marginTop: 2 },
     orderDate: { fontSize: 10, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 4 },
     footerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },

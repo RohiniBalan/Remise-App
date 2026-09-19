@@ -54,6 +54,7 @@ import {
   Flower2,
   Pill,
   Dumbbell,
+  Store,
 } from 'lucide-react-native';
 import HeroCarousel from '../../components/home/HeroCarousel';
 import HomeFooter from '../../components/home/HomeFooter';
@@ -104,11 +105,20 @@ interface NearbyOffer {
 
 type NearbyStatus = 'idle' | 'locating' | 'loading' | 'done' | 'denied' | 'error';
 
-const DEAL_STRIP = [
+interface DealStripItem {
+  icon: any;
+  title: string;
+  subtitle: string;
+  color: string;
+  route: string;
+  isNotification?: boolean;
+}
+
+const DEAL_STRIP: DealStripItem[] = [
   { icon: Percent, title: 'Up to 50% Off', subtitle: 'On select products', color: '#FF0000', route: 'Categories' },
   { icon: MapPin, title: 'Nearby Offers', subtitle: 'Deals around you', color: '#0FA3B1', route: 'Nearby' },
-  { icon: Bell, title: 'Notifications', subtitle: 'Alerts & updates', color: '#EA580C', route: 'Notifications', isNotification: true },
   { icon: ShoppingBasket, title: 'Monthly / Bulk', subtitle: 'Smart grocery list', color: '#0d9488', route: 'BulkPurchase' },
+  { icon: Store, title: 'Home Seller', subtitle: 'Buy from home sellers', color: '#8B5CF6', route: 'Suppliers' },
 ];
 
 const INFO_STRIP = [
@@ -347,7 +357,11 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Shop by Offers Nearby ─────────────────────────────────────── */}
-        <Section title="Shop by Offers Nearby" onViewAll={() => navigation.navigate('Nearby')}>
+        <Section
+          title="Shop by Offers Nearby"
+          onViewAll={() => navigation.navigate('Nearby')}
+          showViewAll={nearbyStatus === 'done' && nearbyOffers.length > 3}
+        >
           {nearbyStatus === 'idle' && (
             <View style={styles.locationPrompt}>
               <View style={styles.locationPromptIcon}>
@@ -448,7 +462,11 @@ export default function HomeScreen() {
 
         {/* ── Shop by Category ─────────────────────────────────────────── */}
         <View onLayout={e => setCategorySectionY(e.nativeEvent.layout.y)}>
-          <Section title="Shop by Category" onViewAll={() => navigation.navigate('Categories')}>
+          <Section
+            title="Shop by Category"
+            onViewAll={() => navigation.navigate('Categories')}
+            showViewAll={categories.filter(cat => cat.count > 0).length > 3}
+          >
             <FlatList
               data={categories.filter(cat => cat.count > 0)}
               horizontal
@@ -491,7 +509,11 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Best Sellers ─────────────────────────────────────────────── */}
-        <Section title="Best Sellers" onViewAll={() => navigation.navigate('BestSellers')}>
+        <Section
+          title="Best Sellers"
+          onViewAll={() => navigation.navigate('BestSellers')}
+          showViewAll={bestSellers.filter(p => (p.totalStock ?? 1) > 0).length > 3}
+        >
           <FlatList
             data={bestSellers.filter(p => (p.totalStock ?? 1) > 0)}
             horizontal
@@ -565,7 +587,11 @@ export default function HomeScreen() {
 
         {/* ── New Arrivals ─────────────────────────────────────────────── */}
         {newArrivals.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0).length > 0 && (
-          <Section title="New Arrivals" onViewAll={() => navigation.navigate('NewArrivals')}>
+          <Section
+            title="New Arrivals"
+            onViewAll={() => navigation.navigate('NewArrivals')}
+            showViewAll={newArrivals.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0).length > 3}
+          >
             <FlatList
               data={newArrivals.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0)}
               horizontal
@@ -662,16 +688,28 @@ export default function HomeScreen() {
   );
 }
 
-function Section({ title, onViewAll, children }: { title: string; onViewAll: () => void; children: React.ReactNode }) {
+function Section({
+  title,
+  onViewAll,
+  showViewAll = true,
+  children,
+}: {
+  title: string;
+  onViewAll?: () => void;
+  showViewAll?: boolean;
+  children: React.ReactNode;
+}) {
   const { isDark } = useTheme();
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, isDark && { color: '#F1F5F9' }]}>{title}</Text>
-        <TouchableOpacity style={styles.viewAllBtn} onPress={onViewAll}>
-          <Text style={styles.viewAllText}>View All</Text>
-          <ChevronRight size={14} color={CustomerColors.teal600} />
-        </TouchableOpacity>
+        {showViewAll && onViewAll && (
+          <TouchableOpacity style={styles.viewAllBtn} onPress={onViewAll}>
+            <Text style={styles.viewAllText}>View All</Text>
+            <ChevronRight size={14} color={CustomerColors.teal600} />
+          </TouchableOpacity>
+        )}
       </View>
       {children}
     </View>

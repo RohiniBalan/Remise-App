@@ -49,6 +49,9 @@ export default function SellerScanUploadScreen() {
   const [subcategoryModalVisible, setSubcategoryModalVisible] = useState(false);
   const [stockUnitModalVisible, setStockUnitModalVisible] = useState(false);
 
+  const [isCustomSubcategory, setIsCustomSubcategory] = useState(false);
+  const [customSubcategory, setCustomSubcategory] = useState('');
+
   const categoryOptions = useMemo(() => {
     const predefined = getCategories();
     const dynamic = (categories || []).map((c: any) => (typeof c === 'string' ? c : c?.name)).filter(Boolean);
@@ -63,12 +66,25 @@ export default function SellerScanUploadScreen() {
   const handleCategorySelect = (selectedCat: string) => {
     set('category', selectedCat);
     set('subcategory', '');
+    setIsCustomSubcategory(false);
+    setCustomSubcategory('');
     setCategoryModalVisible(false);
   };
 
   const handleSubcategorySelect = (selectedSub: string) => {
-    set('subcategory', selectedSub);
+    if (selectedSub === 'Other') {
+      setIsCustomSubcategory(true);
+      set('subcategory', customSubcategory || '');
+    } else {
+      setIsCustomSubcategory(false);
+      set('subcategory', selectedSub);
+    }
     setSubcategoryModalVisible(false);
+  };
+
+  const handleCustomSubcategoryChange = (val: string) => {
+    setCustomSubcategory(val);
+    set('subcategory', val);
   };
 
   const set = (k: keyof typeof form, v: any) => setForm(f => ({ ...f, [k]: v }));
@@ -81,6 +97,8 @@ export default function SellerScanUploadScreen() {
     setStep('idle');
     setErrMsg('');
     setEngine('');
+    setIsCustomSubcategory(false);
+    setCustomSubcategory('');
     setForm({
       title: '', category: '', subcategory: '', price: '', discountedPrice: '', storePrice: '', storeDiscountedPrice: '',
       description: '', aboutDescription: '', aboutFeatures: [], specifications: [], attributes: {}, idealFor: [],
@@ -117,8 +135,23 @@ export default function SellerScanUploadScreen() {
       if (!res.data.success) throw new Error(res.data.message || 'Scan failed.');
       const x = res.data.extracted;
       setEngine(res.data.engine || 'ocr');
+      const targetCat = x.category || '';
+      const targetSub = x.subcategory || '';
+      if (targetSub) {
+        const subs = getSubcategories(targetCat);
+        if (subs.includes(targetSub)) {
+          setIsCustomSubcategory(false);
+          setCustomSubcategory('');
+        } else {
+          setIsCustomSubcategory(true);
+          setCustomSubcategory(targetSub);
+        }
+      } else {
+        setIsCustomSubcategory(false);
+        setCustomSubcategory('');
+      }
       setForm({
-        title: x.productName || '', category: x.category || '', subcategory: x.subcategory || '',
+        title: x.productName || '', category: targetCat, subcategory: targetSub,
         price: String(x.price || ''), discountedPrice: String(x.discountedPrice || x.price || ''),
         storePrice: String(x.storePrice || ''), storeDiscountedPrice: String(x.storeDiscountedPrice || ''),
         description: x.description || '', aboutDescription: x.aboutDescription || x.description || '',
@@ -288,21 +321,31 @@ export default function SellerScanUploadScreen() {
             <View style={{ flex: 1, marginBottom: Spacing.sm }}>
               <Text style={styles.label}>Subcategory</Text>
               <TouchableOpacity
-                style={[styles.selector, (!form.category || subcategoryOptions.length === 0) && { opacity: 0.6 }]}
-                disabled={!form.category || subcategoryOptions.length === 0}
+                style={[styles.selector, !form.category && { opacity: 0.6 }]}
+                disabled={!form.category}
                 onPress={() => setSubcategoryModalVisible(true)}
               >
-                <Text style={form.subcategory ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
+                <Text style={(isCustomSubcategory || form.subcategory) ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
                   {!form.category
                     ? 'Select Category first'
-                    : subcategoryOptions.length === 0
-                    ? 'No subcategories'
+                    : isCustomSubcategory
+                    ? 'Other'
                     : form.subcategory || 'Select Subcategory'}
                 </Text>
                 <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
+          {isCustomSubcategory && (
+            <Field
+              label="Custom Subcategory *"
+              placeholder="Enter custom subcategory"
+              value={customSubcategory}
+              onChangeText={handleCustomSubcategoryChange}
+              styles={styles}
+              isDark={isDark}
+            />
+          )}
           <View style={styles.row2}>
             <Field style={{ flex: 1 }} label="Brand" value={form.brand} onChangeText={(t: string) => set('brand', t)} styles={styles} isDark={isDark} />
             <Field style={{ flex: 1 }} label="Stock Quantity *" value={form.totalStock} onChangeText={(t: string) => set('totalStock', t)} keyboardType="numeric" styles={styles} isDark={isDark} />
@@ -442,34 +485,32 @@ export default function SellerScanUploadScreen() {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={subcategoryOptions}
+              data={[...subcategoryOptions, 'Other']}
               keyExtractor={item => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.modalItem,
-                    form.subcategory === item && styles.modalItemActive,
-                  ]}
-                  onPress={() => handleSubcategorySelect(item)}
-                >
-                  <Text
+              renderItem={({ item }) => {
+                const isActive = (isCustomSubcategory && item === 'Other') || (!isCustomSubcategory && form.subcategory === item);
+                return (
+                  <TouchableOpacity
                     style={[
-                      styles.modalItemText,
-                      form.subcategory === item && styles.modalItemTextActive,
+                      styles.modalItem,
+                      isActive && styles.modalItemActive,
                     ]}
+                    onPress={() => handleSubcategorySelect(item)}
                   >
-                    {item}
-                  </Text>
-                  {form.subcategory === item && (
-                    <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                  )}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <Text style={{ textAlign: 'center', color: isDark ? '#9CA3AF' : '#6B7280', padding: 20 }}>
-                  No subcategories available
-                </Text>
-              }
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        isActive && styles.modalItemTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {isActive && (
+                      <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         </View>

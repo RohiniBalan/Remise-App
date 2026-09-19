@@ -502,15 +502,39 @@ function OrderModal({
         pinCode: form.pinCode,
         deliveryMethod,
         paymentMethod: 'razorpay',
-        paymentStatus: 'Completed',
+        paymentStatus: 'Pending',
         quantity: parseInt(form.quantity, 10) || 1,
       });
 
-      const placedOrderId = res.data?.data?._id || res.data?.data?.orderId || 'ORD-' + Math.random().toString(36).substring(2, 9).toUpperCase();
-      setOrderId(placedOrderId);
-      setStep('success');
+      const placedOrderId = res.data?.data?._id || res.data?.data?.orderId;
+      if (!placedOrderId) {
+        throw new Error('Failed to create offer order.');
+      }
+
+      const options = {
+        provider: 'razorpay',
+        order_id: placedOrderId,
+        amount: Math.round(Number(total) * 100),
+        amountPaise: Math.round(Number(total) * 100),
+        currency: 'INR',
+        name: offer.storeName || 'Remise Marketplace',
+        description: `Nearby Offer: ${offer.title}`,
+        customer: {
+          name: `${form.firstName} ${form.lastName}`.trim() || user?.fullname || user?.name || 'Customer',
+          email: form.contactEmail || user?.email || '',
+          contact: form.phone || user?.mobilenumber || '',
+        },
+      };
+
+      setStep('payment');
+      onClose();
+      navigation.navigate('RazorpayWebView', {
+        options,
+        orderId: placedOrderId,
+        returnScreen: 'NearbyOffers',
+      });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Order failed. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Order failed. Please try again.');
       setStep('payment');
     }
   };

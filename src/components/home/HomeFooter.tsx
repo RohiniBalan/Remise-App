@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 const QUICK_LINKS = [
   { label: 'New Arrivals', route: 'NewArrivals' },
   { label: 'Best Sellers', route: 'BestSellers' },
+  { label: 'Home Seller', route: 'Suppliers' },
   { label: 'About Us', route: 'About' },
   { label: 'Our Services', route: 'Services' },
   { label: 'Help Center', route: 'HelpCenter' },

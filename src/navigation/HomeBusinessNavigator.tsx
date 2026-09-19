@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Layers,
   Plus,
+  Truck,
 } from 'lucide-react-native';
 import {
   View,
@@ -27,6 +28,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import RemiseLoading from '../components/common/RemiseLoading';
 import {
   SellerDashboardProvider,
   useSellerDashboard,
@@ -46,6 +48,8 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
+import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../styles/theme';
 
@@ -75,6 +79,8 @@ export type HomeBusinessStackParamList = {
   };
   SellerScanUpload: undefined;
   SellerBulkScanUpload: undefined;
+  StoreDeliveries: undefined;
+  StoreOrderTracking: { orderId: string };
   Notifications: undefined;
   Profile: undefined;
   AccountSettings:
@@ -174,6 +180,13 @@ function HomeBusinessUserMenu() {
               >
                 <Store size={15} color="#9CA3AF" />
                 <Text style={styles.menuItemText}>Home Business Dashboard</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => go('StoreDeliveries')}
+              >
+                <Truck size={15} color="#9CA3AF" />
+                <Text style={styles.menuItemText}>Deliveries Log</Text>
               </TouchableOpacity>
 
               <View style={styles.menuDivider} />
@@ -300,10 +313,11 @@ function HomeBusinessDashboardGate({ children }: { children: React.ReactNode }) 
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={CustomerColors.primary} />
-        <Text style={styles.loadingText}>Loading your home business…</Text>
-      </View>
+      <RemiseLoading
+        fullscreen
+        message="Loading Home Business..."
+        subMessage="Fetching home business inventory & orders"
+      />
     );
   }
 
@@ -383,6 +397,16 @@ export default function HomeBusinessNavigator() {
             name="AccountSettings"
             component={AccountSettingsScreen}
             options={{ headerShown: true, title: 'Settings' }}
+          />
+          <Stack.Screen
+            name="StoreDeliveries"
+            component={StoreDeliveriesScreen}
+            options={{ headerShown: true, title: 'Deliveries Log' }}
+          />
+          <Stack.Screen
+            name="StoreOrderTracking"
+            component={StoreOrderTrackingScreen}
+            options={{ headerShown: true, title: 'Live Order Tracking' }}
           />
           <Stack.Screen
             name="ProductDetail"

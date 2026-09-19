@@ -19,7 +19,7 @@ export interface ProductFormFields {
   tags: string;
 }
 
-export const AVAILABILITY_OPTIONS = ['In Stock', 'Out Of Stock', 'Pre Order'];
+export const AVAILABILITY_OPTIONS = ['In Stock', 'Out Of Stock'];
 
 export const STOCK_UNIT_OPTIONS = [
   'Count',
@@ -75,7 +75,10 @@ export function buildProductFormData(
     const v = form[k];
     if (v !== undefined && v !== '') fd.append(k, String(v));
   });
-  if (opts.imageUrl) fd.append('imageUrl', opts.imageUrl);
+  if (opts.imageUrl) {
+    fd.append('imageUrl', opts.imageUrl);
+    fd.append('images', JSON.stringify([opts.imageUrl]));
+  }
   if (opts.attributes) fd.append('attributes', JSON.stringify(opts.attributes));
   if (opts.specifications) fd.append('specifications', JSON.stringify(opts.specifications));
   fd.append('storeId', storeId);

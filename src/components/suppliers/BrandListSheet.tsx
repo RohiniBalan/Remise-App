@@ -27,7 +27,7 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
   const goNext = () => setIndex(i => (i + 1) % total);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
         <View style={[styles.sheet, isDark && { backgroundColor: '#111827' }]}>
           <View style={[styles.header, isDark && { backgroundColor: '#1F2937' }]}>

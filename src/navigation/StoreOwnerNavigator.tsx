@@ -28,6 +28,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import RemiseLoading from '../components/common/RemiseLoading';
 import { Store } from 'lucide-react-native';
 import {
   StoreDashboardProvider,
@@ -49,6 +50,7 @@ import StoreOffersScreen from '../screens/store/StoreOffersScreen';
 import StoreSettingsScreen from '../screens/store/StoreSettingsScreen';
 import StoreMoreScreen from '../screens/store/StoreMoreScreen';
 import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
+import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import NewOfferScreen from '../screens/store/NewOfferScreen';
 
 import CartScreen from '../screens/customer/CartScreen';
@@ -85,11 +87,12 @@ export type StoreOwnerTabParamList = {
 export type StoreOwnerStackParamList = {
   StoreOwnerTabs: undefined;
   StoreDeliveries: undefined;
+  StoreOrderTracking: { orderId: string };
   StoreOwnerCategories: undefined;
   Suppliers: { initialView?: 'browse' | 'orders' } | undefined;
   StoreOwnerCustomers: undefined;
   StoreSettings: undefined;
-  NewOffer: undefined;
+  NewOffer: { offer?: any; targetCustomerId?: string; targetCustomerName?: string } | undefined;
 
   ProductForm: {
     product?: any;
@@ -432,9 +435,11 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.primary} />
-      </View>
+      <RemiseLoading
+        fullscreen
+        message="Loading Store Dashboard..."
+        subMessage="Fetching store inventory & orders"
+      />
     );
   }
 
@@ -485,6 +490,11 @@ export default function StoreOwnerNavigator() {
               name="StoreDeliveries"
               component={StoreDeliveriesScreen}
               options={{ ...stackHeaderOptions, title: 'Deliveries Log' }}
+            />
+            <Stack.Screen
+              name="StoreOrderTracking"
+              component={StoreOrderTrackingScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="StoreOwnerCategories"

@@ -45,7 +45,7 @@ interface SellerDashboardValue {
   markOrdersAsSeen: () => Promise<void>;
 }
 
-const SellerDashboardContext = createContext<SellerDashboardValue | undefined>(undefined);
+export const SellerDashboardContext = createContext<SellerDashboardValue | undefined>(undefined);
 
 export function SellerDashboardProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
