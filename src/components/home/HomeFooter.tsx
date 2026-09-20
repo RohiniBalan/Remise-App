@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Linking, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Linking, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Phone, MapPin, Shield, CreditCard, Truck, Mail, Send } from 'lucide-react-native';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { newsletterApi } from '../../api/newsletterApi';
 import { useAuth } from '../../context/AuthContext';
+import AuthRequiredModal from '../common/AuthRequiredModal';
 
 // Compact mobile counterpart of client/app/components-sections/Footer.tsx.
 // Web's link columns (Company/Support/Shop) mostly point at '#' (no real
@@ -40,6 +41,7 @@ export default function HomeFooter() {
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [hasInputError, setHasInputError] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: 'success' | 'error' | 'duplicate';
     text: string;
@@ -56,17 +58,7 @@ export default function HomeFooter() {
     if (!user && !token) {
       setHasInputError(true);
       setStatusMessage({ type: 'error', text: 'Please log in first to subscribe' });
-      Alert.alert(
-        'Login Required',
-        'Please log in first to subscribe to the newsletter.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Log In',
-            onPress: () => navigation.navigate('LoginRegister'),
-          },
-        ]
-      );
+      setShowAuthModal(true);
       return;
     }
 
@@ -267,6 +259,14 @@ export default function HomeFooter() {
 
         <Text style={styles.copyright}>© 2026 Remise. All rights reserved.</Text>
       </View>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Subscribe"
+        subtitle="Please sign in or register to subscribe to the newsletter updates."
+        onLogin={() => navigation.navigate('LoginRegister')}
+      />
     </View>
   );
 }

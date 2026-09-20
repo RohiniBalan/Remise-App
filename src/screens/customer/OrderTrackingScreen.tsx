@@ -29,6 +29,7 @@ import {
   RefreshCw,
   ExternalLink,
   Bike,
+  RotateCcw,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { useTheme } from '../../context/ThemeContext';
@@ -98,11 +99,21 @@ export default function OrderTrackingScreen() {
     return () => clearInterval(interval);
   }, [fetchTracking]);
 
-  const currentStatus = order?.deliveryStatus || order?.orderStatus || 'Pending';
+  const isRefundedOrCancelled =
+    order?.paymentStatus === 'REFUNDED' ||
+    order?.orderStatus === 'Cancelled' ||
+    order?.deliveryStatus === 'Cancelled' ||
+    (order as any)?.refundStatus === 'refunded' ||
+    (order as any)?.refundStatus === 'processing';
+
+  const currentStatus = isRefundedOrCancelled
+    ? 'Refund Processing'
+    : order?.deliveryStatus || order?.orderStatus || 'Pending';
   const driver = order?.deliveryPerson || {};
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
 
   const getActiveStepIndex = () => {
+    if (isRefundedOrCancelled) return 0;
     if (currentStatus === 'Delivered' || order?.orderStatus === 'Delivered') return 6;
     if (currentStatus === 'Out for Delivery') return 5;
     if (currentStatus === 'Picked Up') return 4;
@@ -176,23 +187,29 @@ export default function OrderTrackingScreen() {
           }
         >
           {/* Status Header Banner */}
-          <View style={styles.statusCard}>
+          <View style={[styles.statusCard, isRefundedOrCancelled && { borderColor: '#F59E0B' }]}>
             <View style={styles.statusHeaderRow}>
-              <View style={styles.statusIconWrap}>
-                {currentStatus === 'Delivered' ? (
+              <View style={[styles.statusIconWrap, isRefundedOrCancelled && { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                {isRefundedOrCancelled ? (
+                  <RotateCcw size={24} color="#D97706" />
+                ) : currentStatus === 'Delivered' ? (
                   <CheckCircle2 size={24} color="#15803D" />
                 ) : (
                   <Truck size={24} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.statusEta}>
-                  {currentStatus === 'Delivered'
+                <Text style={[styles.statusEta, isRefundedOrCancelled && { color: '#D97706' }]}>
+                  {isRefundedOrCancelled
+                    ? 'Refund in Progress'
+                    : currentStatus === 'Delivered'
                     ? 'Fulfillment Completed'
                     : 'Estimated Arrival: ~15-20 Mins'}
                 </Text>
                 <Text style={styles.statusMainText}>
-                  {currentStatus === 'Delivered'
+                  {isRefundedOrCancelled
+                    ? 'Order Cancelled · Refund Processing'
+                    : currentStatus === 'Delivered'
                     ? 'Order Delivered!'
                     : currentStatus === 'Out for Delivery'
                     ? 'Out for Delivery!'
@@ -208,6 +225,14 @@ export default function OrderTrackingScreen() {
                 </Text>
               </View>
             </View>
+
+            {isRefundedOrCancelled ? (
+              <View style={{ marginTop: 10, padding: 10, backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#FFFBEB', borderRadius: 8, borderWidth: 1, borderColor: '#FDE68A' }}>
+                <Text style={{ fontSize: 11, color: isDark ? '#FDE68A' : '#92400E', lineHeight: 16, fontWeight: '500' }}>
+                  This order was cancelled. Your refund of ₹{order?.totalAmount} is currently being processed by Razorpay (5-7 business days).
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Stepper Milestone List */}
@@ -375,8 +400,31 @@ export default function OrderTrackingScreen() {
             <View style={[styles.divider, { marginTop: 10 }]} />
 
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Paid / Due:</Text>
-              <Text style={styles.totalValue}>₹{order.totalAmount}</Text>
+              <Text style={styles.totalLabel}>
+                {isRefundedOrCancelled ? 'Refund Amount:' : 'Total Amount:'}
+              </Text>
+              <Text style={[styles.totalValue, isRefundedOrCancelled && { color: '#D97706' }]}>
+                ₹{order.totalAmount}
+              </Text>
+            </View>
+
+            <View style={[styles.totalRow, { marginTop: 4 }]}>
+              <Text style={styles.totalLabel}>Payment Status:</Text>
+              <Text
+                style={[
+                  styles.totalValue,
+                  {
+                    fontSize: 12,
+                    color: isRefundedOrCancelled
+                      ? '#D97706'
+                      : order.paymentStatus === 'SUCCESS'
+                      ? '#16A34A'
+                      : '#D97706',
+                  },
+                ]}
+              >
+                {isRefundedOrCancelled ? 'REFUND PROCESSING' : order.paymentStatus}
+              </Text>
             </View>
 
             {isCod && order.paymentStatus !== 'SUCCESS' ? (

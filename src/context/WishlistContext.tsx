@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { View, Text, StyleSheet, Animated, Platform, ToastAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 // Ported from web's WishlistContext.tsx — persists wishlist to AsyncStorage
 // (web uses localStorage) and shows a toast notification on add/remove.
@@ -85,10 +86,11 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         showToast('Removed from wishlist');
         return prev.filter(item => item.id !== productId);
       }
-      const img =
+      const rawImg =
         product.images?.length > 0
           ? product.images[0]
           : product.imageUrl || product.image;
+      const img = resolveImageUrl(rawImg) || '';
       showToast('Added to wishlist ❤️');
       return [
         ...prev,

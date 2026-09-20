@@ -7,6 +7,7 @@ import AdminContentLayout from '../../components/admin/AdminContentLayout';
 import AdminField from '../../components/admin/AdminField';
 import AdminArrayCard from '../../components/admin/AdminArrayCard';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 // Ported from client/app/admin/reviews/page.tsx — same shape
 // ({reviews:[{id,name,rating,text,date,avatar}], photos:[{id,url}]}), same
@@ -66,7 +67,7 @@ export default function AdminReviewsScreen() {
           <View style={styles.photoGrid}>
             {data.photos.map((p, idx) => (
               <View key={p.id} style={styles.photoCard}>
-                <Image source={{ uri: p.url }} style={styles.photoImage} />
+                <Image source={{ uri: resolveImageUrl(p.url) }} style={styles.photoImage} />
                 <AdminField label="URL" value={p.url} onChangeText={v => updatePhoto(idx, v)} />
                 <TouchableOpacity style={styles.photoRemove} onPress={() => removePhoto(idx)}>
                   <X size={14} color="#DC2626" />

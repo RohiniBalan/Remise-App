@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,10 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
-import { requireAuthForPurchase } from '../../utils/authGuard';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
 // Ported from client/app/components-main/CartDrawer.tsx — same qty +/-,
 // remove, subtotal, and the ₹499 free-delivery nudge, and "Proceed to
@@ -33,6 +34,7 @@ export default function CartScreen() {
   const { user, token } = useAuth();
   const { cart, removeFromCart, decreaseQuantity, addToCart, setBuyNowItem } =
     useCart();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, i) => sum + i.price * i.quantity, 0),
@@ -44,14 +46,10 @@ export default function CartScreen() {
   );
 
   const handleCheckout = () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to proceed to checkout.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     setBuyNowItem(null);
     navigation.navigate('Checkout');
   };
@@ -119,6 +117,14 @@ export default function CartScreen() {
           <Text style={styles.checkoutBtnText}>Proceed to Checkout</Text>
         </TouchableOpacity>
       </View>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Checkout"
+        subtitle="Please sign in or register to proceed to checkout."
+        onLogin={() => navigation.navigate('LoginRegister')}
+      />
     </View>
   );
 }
@@ -137,7 +143,7 @@ function CartRow({
   return (
     <View style={styles.row}>
       <Image
-        source={{ uri: item.image ?? undefined }}
+        source={{ uri: resolveImageUrl(item.image) }}
         style={styles.rowImage}
       />
       <View style={styles.rowInfo}>

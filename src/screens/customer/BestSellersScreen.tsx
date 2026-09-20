@@ -10,11 +10,14 @@ import {
   ToastAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Flame } from 'lucide-react-native';
 import { productApi, Product, productId, productImage } from '../../api/productApi';
 import ProductCard from '../../components/common/ProductCard';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { CustomerColors, Spacing, FontSizes } from '../../styles/theme';
 
 // Mirrors web's /bestsellers page — fetches all products sorted by
@@ -22,24 +25,29 @@ import { CustomerColors, Spacing, FontSizes } from '../../styles/theme';
 
 export default function BestSellersScreen() {
   const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { isDark } = useTheme();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     productApi
       .getProductsViaGateway({
-        ownerRole: 'store_owner',
         sort: 'bestselling',
         limit: 10000,
       })
       .then(res => {
         const data = res.data;
-        const arr = Array.isArray(data)
+        const rawArr = Array.isArray(data)
           ? data
           : data?.products || data?.data || [];
+        const arr = rawArr.filter(
+          (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+        );
         setProducts(arr);
       })
       .catch(() => setProducts([]))
@@ -52,26 +60,49 @@ export default function BestSellersScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('CustomerTabs', { screen: 'Home' });
+    }
+  };
+
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, isDark && { backgroundColor: '#0B1120' }]}>
         <ActivityIndicator size="large" color={CustomerColors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
-          style={styles.backHomeBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <ArrowLeft size={20} color={CustomerColors.black} />
-        </TouchableOpacity>
-        <Text style={styles.count}>{products.length} products</Text>
+    <View style={[styles.container, isDark && { backgroundColor: '#0B1120' }]}>
+      {/* Header Eyebrow & Title Bar */}
+      <View style={[styles.headerBar, isDark && { backgroundColor: '#0F172A', borderBottomColor: '#1E293B' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backHomeBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+          </TouchableOpacity>
+          <View>
+            <View style={styles.eyebrowRow}>
+              <Flame size={13} color={CustomerColors.primary} />
+              <Text style={styles.eyebrowText}>Popular Picks</Text>
+            </View>
+            <Text style={[styles.pageTitle, isDark && { color: '#FFFFFF' }]}>
+              Best Sellers
+            </Text>
+          </View>
+        </View>
+        <Text style={[styles.count, isDark && { color: '#94A3B8' }]}>
+          {products.length} products
+        </Text>
       </View>
+
       <FlatList
         data={products}
         numColumns={2}
@@ -89,6 +120,10 @@ export default function BestSellersScreen() {
             }
             onToggleWishlist={() => toggleWishlist(item)}
             onAddToCart={() => {
+              if (!user || !token) {
+                setShowAuthModal(true);
+                return;
+              }
               addToCart({
                 id: productId(item),
                 title: item.title,
@@ -100,6 +135,10 @@ export default function BestSellersScreen() {
               showToast('Added to cart ✓');
             }}
             onBuyNow={() => {
+              if (!user || !token) {
+                setShowAuthModal(true);
+                return;
+              }
               setBuyNowItem({
                 id: productId(item),
                 title: item.title,
@@ -113,8 +152,18 @@ export default function BestSellersScreen() {
           />
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>No best sellers found.</Text>
+          <Text style={[styles.empty, isDark && { color: '#94A3B8' }]}>
+            No best sellers found.
+          </Text>
         }
+      />
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Purchase"
+        subtitle="Please sign in or register to complete this purchase."
+        onLogin={() => navigation.navigate('LoginRegister')}
       />
     </View>
   );
@@ -128,12 +177,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
-  topBar: {
+  headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#EAEAEA',
   },
@@ -142,7 +193,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  count: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  eyebrowText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.primary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  pageTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  count: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, fontWeight: '600' },
   grid: { padding: Spacing.sm },
   row: { gap: Spacing.sm, marginBottom: Spacing.sm },
   empty: {

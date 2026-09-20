@@ -44,12 +44,12 @@ import {
   Shadows,
 } from '../../styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { requireAuthForPurchase } from '../../utils/authGuard';
+import { navigateToAuthFlow } from '../../utils/authGuard';
 import { mergeCategories } from '../../utils/storeCategories';
 import { useTheme } from '../../context/ThemeContext';
 import HomeFooter from '../../components/home/HomeFooter';
-
-const API_BASE = 'YOUR_API_BASE_URL';
+import { resolveImageUrl } from '../../utils/imageUrl';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
 export default function SuppliersScreen() {
   const navigation = useNavigation<any>();
@@ -72,6 +72,7 @@ export default function SuppliersScreen() {
     useState<TitleGroup | null>(null);
   const [compareGroup, setCompareGroup] = useState<ProductGroup | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
   productApi
@@ -180,15 +181,10 @@ export default function SuppliersScreen() {
     tierLabel: string | null,
     group: ProductGroup,
   ): boolean => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(user?._id),
-        title: 'Login Required',
-        message: 'Please sign in or register to buy products from Home Sellers.',
-      })
-    )
+    if (!user?._id) {
+      setShowAuthModal(true);
       return false;
+    }
     setCart(c => ({
       ...c,
       [supplier.productId]: {
@@ -313,11 +309,7 @@ export default function SuppliersScreen() {
           ) : (
             <View style={styles.grid}>
               {titleGroups.map(tg => {
-                const img = tg.image
-                  ? tg.image.startsWith('http')
-                    ? tg.image
-                    : `${API_BASE}${tg.image}`
-                  : '';
+                const img = resolveImageUrl(tg.image) || '';
                 return (
                   <TouchableOpacity
                     key={tg.titleKey}
@@ -358,6 +350,7 @@ export default function SuppliersScreen() {
               })}
             </View>
           )}
+          <View style={{ height: Spacing.xl }} />
           <HomeFooter />
         </ScrollView>
       ) : (
@@ -414,6 +407,7 @@ export default function SuppliersScreen() {
               </View>
             ))
           )}
+          <View style={{ height: Spacing.xl }} />
           <HomeFooter />
         </ScrollView>
       )}
@@ -431,15 +425,10 @@ export default function SuppliersScreen() {
           <TouchableOpacity
             style={styles.placeOrderBtn}
             onPress={() => {
-              if (
-                !requireAuthForPurchase({
-                  navigation,
-                  isAuthenticated: Boolean(user?._id),
-                  title: 'Login Required',
-                  message: 'Please sign in or register to place this wholesale order.',
-                })
-              )
+              if (!user?._id) {
+                setShowAuthModal(true);
                 return;
+              }
               setShowCheckout(true);
             }}
           >
@@ -482,6 +471,14 @@ export default function SuppliersScreen() {
         visible={showCheckout}
         onClose={() => setShowCheckout(false)}
         onComplete={handleCheckoutComplete}
+      />
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login Required"
+        subtitle="Please sign in or register to buy products from Home Sellers."
+        onLogin={() => navigateToAuthFlow(navigation)}
       />
     </View>
   );
@@ -683,6 +680,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: Spacing.sm,
     gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   productCard: {
     width: '47%',

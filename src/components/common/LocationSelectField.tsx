@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react-native';
 import { ChevronDown, X } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
-import { useTheme } from '../../context/ThemeContext';
 
 export function LocationSelectField({
   label, value, placeholder, options, disabled, onSelect, style,
@@ -15,34 +14,32 @@ export function LocationSelectField({
   onSelect: (key: string, label: string) => void;
   style?: any;
 }) {
-  const { isDark } = useTheme();
   const [open, setOpen] = useState(false);
   return (
     <View style={[{ marginBottom: Spacing.sm }, style]}>
-      <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>{label}</Text>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <TouchableOpacity
         style={[
           styles.input,
           styles.selectInput,
-          isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
           disabled && styles.selectDisabled,
         ]}
         onPress={() => !disabled && setOpen(true)}
         disabled={disabled}
       >
-        <Text style={[value ? styles.selectValue : styles.selectPlaceholder, isDark && value ? { color: '#FFFFFF' } : isDark ? { color: '#6B7280' } : null]} numberOfLines={1}>
+        <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
           {value || placeholder}
         </Text>
-        <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+        <ChevronDown size={16} color={CustomerColors.textSecondary} />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
-          <View style={[styles.modalSheet, isDark && { backgroundColor: '#111827' }]} onStartShouldSetResponder={() => true}>
-            <View style={[styles.modalHeader, isDark && { borderBottomColor: '#1F2937' }]}>
-              <Text style={[styles.modalTitle, isDark && { color: '#FFFFFF' }]}>{label}</Text>
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{label || 'Select'}</Text>
               <TouchableOpacity onPress={() => setOpen(false)}>
-                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                <X size={20} color={CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -51,10 +48,10 @@ export function LocationSelectField({
               style={{ maxHeight: 400 }}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.modalItem, isDark && { borderBottomColor: '#1F2937' }]}
+                  style={styles.modalItem}
                   onPress={() => { onSelect(item.key, item.label); setOpen(false); }}
                 >
-                  <Text style={[styles.modalItemText, isDark && { color: '#E5E7EB' }, item.label === value && styles.modalItemTextActive]}>
+                  <Text style={[styles.modalItemText, item.label === value && styles.modalItemTextActive]}>
                     {item.label}
                   </Text>
                 </TouchableOpacity>
@@ -87,9 +84,9 @@ export async function lookupPincode(cityName: string): Promise<string | null> {
 
 const styles = StyleSheet.create({
   label: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.xs },
-  input: { backgroundColor: CustomerColors.white, borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, fontSize: FontSizes.sm, color: CustomerColors.black },
-  selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  selectDisabled: { opacity: 0.5 },
+  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 10, fontSize: FontSizes.sm, color: CustomerColors.black },
+  selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  selectDisabled: { backgroundColor: '#FFFFFF', borderColor: CustomerColors.steelBorder },
   selectValue: { fontSize: FontSizes.sm, color: CustomerColors.black, flex: 1 },
   selectPlaceholder: { fontSize: FontSizes.sm, color: '#9CA3AF', flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },

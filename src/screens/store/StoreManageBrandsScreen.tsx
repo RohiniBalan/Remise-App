@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ArrowLeft, Plus, Edit2, Trash2, Package, Eye } from 'lucide-react-native';
 import { storeProductApi } from '../../api/storeProductApi';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export default function StoreManageBrandsScreen() {
   const navigation = useNavigation<any>();
@@ -15,28 +16,23 @@ export default function StoreManageBrandsScreen() {
   const { title, category, items: initialItems, brandCount, totalStock, typeKey } = route.params;
   const { refresh } = useStoreDashboard();
   const [items, setItems] = useState(initialItems);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete this product?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(id);
-          try {
-            await storeProductApi.delete(id);
-            setItems((rows: any[]) => rows.filter(r => r._id !== id));
-            refresh();
-          } catch {
-            Alert.alert('Error', 'Failed to delete product.');
-          } finally {
-            setDeleting(null);
-          }
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget._id;
+    setDeleting(id);
+    try {
+      await storeProductApi.delete(id);
+      setItems((rows: any[]) => rows.filter(r => r._id !== id));
+      refresh();
+      setDeleteTarget(null);
+    } catch {
+      Alert.alert('Error', 'Failed to delete product.');
+    } finally {
+      setDeleting(null);
+    }
   };
 
   return (
@@ -66,7 +62,7 @@ export default function StoreManageBrandsScreen() {
         keyExtractor={p => p._id}
         contentContainerStyle={{ padding: Spacing.md }}
         renderItem={({ item: p }) => {
-          const img = p.imageUrl || p.images?.[0];
+          const img = resolveImageUrl(p.images?.[0] || p.imageUrl);
           return (
             <View style={styles.row}>
               <TouchableOpacity
@@ -103,7 +99,7 @@ export default function StoreManageBrandsScreen() {
                 <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ProductForm', { product: p })}>
                   <Edit2 size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(p._id)} disabled={deleting === p._id}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => setDeleteTarget(p)} disabled={deleting === p._id}>
                   <Trash2 size={15} color={CustomerColors.primary} />
                 </TouchableOpacity>
               </View>
@@ -111,6 +107,47 @@ export default function StoreManageBrandsScreen() {
           );
         }}
       />
+
+      {/* Custom Delete Confirmation Modal */}
+      <Modal
+        visible={Boolean(deleteTarget)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteTarget(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.deleteIconWrap}>
+              <Trash2 size={26} color="#EF4444" />
+            </View>
+            <Text style={styles.modalTitle}>Delete this product?</Text>
+            <Text style={styles.modalSubtitle}>
+              Are you sure you want to delete "{deleteTarget?.brand || deleteTarget?.title || 'this item'}"? This action cannot be undone.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setDeleteTarget(null)}
+                disabled={Boolean(deleting)}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                onPress={confirmDelete}
+                disabled={Boolean(deleting)}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.confirmDeleteBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -154,4 +191,77 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   stockLow: { color: '#D97706', fontWeight: '700' },
   actions: { flexDirection: 'row', gap: Spacing.xs },
   actionBtn: { padding: 8, backgroundColor: isDark ? '#1F2937' : CustomerColors.bg, borderRadius: BorderRadius.sm },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: isDark ? '#111827' : '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+  },
+  deleteIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  modalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '800',
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.xs,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: Spacing.lg,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#E2E8F0',
+  },
+  cancelBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: isDark ? '#E5E7EB' : '#475569',
+  },
+  confirmDeleteBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+  },
+  confirmDeleteBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });

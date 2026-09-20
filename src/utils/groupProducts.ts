@@ -1,3 +1,5 @@
+import { resolveImageUrl } from './imageUrl';
+
 export type ProductTypeGroup = {
   typeKey: string;
   title: string;
@@ -20,7 +22,7 @@ export function groupProductsByType(products: any[]): ProductTypeGroup[] {
     if (!byTitle[key]) {
       byTitle[key] = {
         title: p.title,
-        image: p.imageUrl || p.images?.[0] || '',
+        image: resolveImageUrl(p.images?.[0] || p.imageUrl) || '',
         category: p.category || '',
         items: [],
       };

@@ -34,14 +34,11 @@ import {
 } from '../../api/paymentApi';
 import AddressFormFields from '../../components/common/AddressFormFields';
 import BrandHeader from '../../components/common/BrandHeader';
-import {
-  CustomerColors,
-  Spacing,
-  FontSizes,
-  BorderRadius,
-} from '../../styles/theme';
+import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { useTheme } from '../../context/ThemeContext';
-import { requireAuthForPurchase } from '../../utils/authGuard';
+import { navigateToAuthFlow } from '../../utils/authGuard';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
 const emptyAddress = (): AddressData => ({
   country: 'India',
@@ -70,6 +67,7 @@ export default function CheckoutScreen() {
   } = useCart();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [shippingAddress, setShippingAddress] = useState<AddressData>(() => {
     const base = emptyAddress();
@@ -117,14 +115,10 @@ export default function CheckoutScreen() {
   const isFormValid = isShippingValid && isBillingValid;
 
   const handlePayment = async () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to place your order.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
 
     if (!isEmailValid(contactEmail)) {
       setError('Please enter a valid email address.');
@@ -280,7 +274,7 @@ export default function CheckoutScreen() {
           {itemsToCheckout.map(item => (
             <View key={item.id} style={[styles.lineItem, isDark && { borderBottomColor: '#1F2937' }]}>
               <Image
-                source={{ uri: item.image ?? undefined }}
+                source={{ uri: resolveImageUrl(item.image) }}
                 style={[styles.lineImage, isDark && { backgroundColor: '#1F2937' }]}
               />
               <View style={styles.lineInfo}>
@@ -713,6 +707,14 @@ export default function CheckoutScreen() {
           </View>
         )}
       </ScrollView>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Place Order"
+        subtitle="Please sign in or register to place your order."
+        onLogin={() => navigateToAuthFlow(navigation)}
+      />
     </View>
   );
 }

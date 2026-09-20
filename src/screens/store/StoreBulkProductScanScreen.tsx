@@ -20,6 +20,7 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   buildProductFormData,
   ProductFormFields,
@@ -171,7 +172,7 @@ export default function StoreBulkProductScanScreen() {
               <View style={styles.imageBox}>
                 {row.imageUrl && !failedImages[row.id] ? (
                   <Image
-                    source={{ uri: row.imageUrl }}
+                    source={{ uri: resolveImageUrl(row.imageUrl) }}
                     style={styles.imagePreview}
                     onError={() =>
                       setFailedImages(f => ({ ...f, [row.id]: true }))

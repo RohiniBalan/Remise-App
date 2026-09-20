@@ -8,6 +8,7 @@ import AdminContentLayout from '../../components/admin/AdminContentLayout';
 import AdminField from '../../components/admin/AdminField';
 import AdminArrayCard from '../../components/admin/AdminArrayCard';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 // Ported from client/app/admin/RalleyzSection/page.tsx (full-bleed rotating
 // banner) — same fields (title*/subtitle*/location*/description*/bg), same
@@ -60,7 +61,7 @@ export default function AdminRalleyzScreen() {
           <AdminField label="Description *" value={item.description} onChangeText={v => update(idx, { description: v })} multiline />
           <Text style={styles.label}>Background Image</Text>
           <View style={styles.uploadRow}>
-            {item.bg ? <Image source={{ uri: item.bg }} style={styles.preview} /> : <View style={styles.previewEmpty} />}
+            {item.bg ? <Image source={{ uri: resolveImageUrl(item.bg) }} style={styles.preview} /> : <View style={styles.previewEmpty} />}
             <TouchableOpacity style={styles.uploadBtn} onPress={() => uploadImage(idx, item.id)} disabled={uploadingId === item.id}>
               {uploadingId === item.id ? <ActivityIndicator size="small" color={AdminColors.primary} /> : <Text style={styles.uploadBtnText}>Upload Image</Text>}
             </TouchableOpacity>

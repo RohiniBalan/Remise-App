@@ -1,4 +1,5 @@
 import { productApi, Product } from './productApi';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 // Ported from web's ShopByCategorySection.tsx, BestSellersSection.tsx, and NewArrivalsSection.tsx.
 // All fetch from the product-service via the gateway (same as the web),
@@ -94,7 +95,8 @@ export function badgeForCount(count: number): string {
 // Maps a raw product document from the product-service into a BestSellerItem
 // — same logic as web's BestSellersSection.tsx mapProduct().
 export function mapProduct(p: any): BestSellerItem {
-  const img = p.images?.length > 0 ? p.images[0] : p.imageUrl;
+  const rawImg = p.images?.length > 0 ? p.images[0] : p.imageUrl;
+  const img = resolveImageUrl(rawImg) || '';
   const hasDiscount = p.discountedPrice != null && p.discountedPrice < p.price;
   return {
     id: p._id || p.id,
@@ -147,14 +149,19 @@ export async function buildCategoryItems(forceRefresh = false): Promise<Category
   try {
     const [catRes, prodRes] = await Promise.all([
       productApi.getCategoriesViaGateway(),
-      productApi.getProductsViaGateway({ limit: 200, ownerRole: 'store_owner' }),
+      productApi.getProductsViaGateway({ limit: 200 }),
     ]);
 
     const apiCategories: { _id: string; name: string }[] =
       catRes?.data?.success && Array.isArray(catRes.data.data) ? catRes.data.data : [];
-    const products: any[] = Array.isArray(prodRes?.data?.data)
+    const rawProducts: any[] = Array.isArray(prodRes?.data?.data)
       ? prodRes.data.data
+      : Array.isArray(prodRes?.data)
+      ? prodRes.data
       : [];
+    const products = rawProducts.filter(
+      (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+    );
 
     // Merge admin-added categories with the fixed default list — same approach
     // as the web — so a default with zero products still shows up.
@@ -179,9 +186,10 @@ export async function buildCategoryItems(forceRefresh = false): Promise<Category
       const withImage = catProducts.find(
         (p: any) => (p.images && p.images[0]) || p.imageUrl,
       );
-      const img = withImage
+      const rawImg = withImage
         ? withImage.images?.[0] || withImage.imageUrl
         : '';
+      const img = resolveImageUrl(rawImg) || '';
       const palette = COLOR_PALETTE[i % COLOR_PALETTE.length];
 
       return {
@@ -220,11 +228,12 @@ export async function fetchBestSellers(forceRefresh = false): Promise<BestSeller
 
   try {
     const res = await productApi.getProductsViaGateway({
-      ownerRole: 'store_owner',
       sort: 'bestselling',
       limit: 50,
     });
-    const raw = Array.isArray(res?.data?.data) ? res.data.data : [];
+    const raw = (Array.isArray(res?.data?.data) ? res.data.data : []).filter(
+      (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+    );
     const inStock = raw.filter((p: any) => (p.totalStock ?? p.stock ?? 1) > 0);
     const result = inStock.length === 0 ? BEST_SELLER_FALLBACK : inStock.map(mapProduct);
     cachedBestSellers = result;
@@ -248,12 +257,14 @@ export async function fetchNewArrivals(forceRefresh = false): Promise<Product[]>
   try {
     const res = await productApi.getProductsViaGateway({
       limit: 50,
-      ownerRole: 'store_owner',
     });
     const data = res.data;
-    const products: Product[] = Array.isArray(data)
+    const rawProducts: Product[] = Array.isArray(data)
       ? data
       : data?.products || data?.data || [];
+    const products = rawProducts.filter(
+      (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+    );
 
     const cutoff = Date.now() - NEW_ARRIVAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
     const filtered = products
@@ -302,5 +313,5 @@ export const BEST_SELLER_FALLBACK: BestSellerItem[] = [
 // by the HomeScreen (which now calls buildCategoryItems / fetchBestSellers).
 export const homeSectionsApi = {
   getShopByCategory: () => productApi.getCategoriesViaGateway(),
-  getBestSellers: () => productApi.getProductsViaGateway({ ownerRole: 'store_owner', sort: 'bestselling', limit: 5 }),
+  getBestSellers: () => productApi.getProductsViaGateway({ sort: 'bestselling', limit: 5 }),
 };

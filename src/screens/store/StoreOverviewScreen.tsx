@@ -6,15 +6,7 @@ import { Package, Tag, ShoppingBag, IndianRupee, Clock, AlertCircle, TrendingUp,
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
-
-const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
-
-function resolveImageUri(url?: string) {
-  if (!url) return undefined;
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  const base = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
-  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
-}
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export default function StoreOverviewScreen() {
   const navigation = useNavigation<any>();
@@ -85,7 +77,7 @@ export default function StoreOverviewScreen() {
           <View style={styles.storeHeaderCard}>
             <View style={styles.storeLogoWrap}>
               {store?.logo ? (
-                <Image source={{ uri: resolveImageUri(store.logo) }} style={styles.storeLogo} />
+                <Image source={{ uri: resolveImageUrl(store.logo) }} style={styles.storeLogo} />
               ) : (
                 <Store size={26} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
               )}
@@ -179,7 +171,7 @@ export default function StoreOverviewScreen() {
             ) : (
               topProducts.map(p => (
                 <View key={p._id} style={styles.listRow}>
-                  <Image source={{ uri: resolveImageUri(p.imageUrl || p.images?.[0]) }} style={styles.productThumb} />
+                  <Image source={{ uri: resolveImageUrl(p.images?.[0] || p.imageUrl) }} style={styles.productThumb} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.listRowTitle} numberOfLines={1}>{p.title}</Text>
                     <Text style={styles.listRowSub}>{p.category || '—'}</Text>

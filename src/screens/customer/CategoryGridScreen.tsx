@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Search, Package, Tag, ArrowLeft } from 'lucide-react-native';
 import { productApi, Product, productImage } from '../../api/productApi';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   GoldColors,
   CustomerColors,
@@ -84,13 +85,12 @@ export default function CategoryGridScreen() {
       productApi.getCategoriesViaGateway(),
       productApi.getProductsViaGateway({
         t: Date.now(),
-        ownerRole: 'store_owner',
         limit: 10000,
       }),
     ]).then(([catResult, prodResult]) => {
       if (cancelled) return;
 
-      const prodArr: Product[] =
+      const rawProdArr: Product[] =
         prodResult.status === 'fulfilled'
           ? (() => {
               const data = prodResult.value.data;
@@ -99,6 +99,9 @@ export default function CategoryGridScreen() {
                 : data?.products || data?.data || [];
             })()
           : [];
+      const prodArr = rawProdArr.filter(
+        (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+      );
       setProducts(prodArr);
 
       if (prodResult.status !== 'fulfilled' && __DEV__) {
@@ -276,7 +279,7 @@ export default function CategoryGridScreen() {
           >
             <View style={styles.imageWrap}>
               {item.img ? (
-                <Image source={{ uri: item.img }} style={styles.image} />
+                <Image source={{ uri: resolveImageUrl(item.img) }} style={styles.image} />
               ) : (
                 <View style={styles.iconFallback}>
                   <Tag size={22} color={CustomerColors.black} />

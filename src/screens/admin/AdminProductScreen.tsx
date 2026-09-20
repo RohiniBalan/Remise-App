@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, Image, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, Image, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Modal } from 'react-native';
 import { Search, Plus, Edit2, Trash2, Package } from 'lucide-react-native';
 import { adminProductApi, adminCategoryApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import PaginationControl from '../../components/common/PaginationControl';
 
 export default function AdminProductScreen() {
@@ -44,14 +45,21 @@ export default function AdminProductScreen() {
     [filtered, currentPage]
   );
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete this product?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        setDeleting(id);
-        try { await adminProductApi.delete(id); load(); } catch { Alert.alert('Error', 'Failed to delete product.'); } finally { setDeleting(null); }
-      } },
-    ]);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget._id;
+    setDeleting(id);
+    try {
+      await adminProductApi.delete(id);
+      load();
+      setDeleteTarget(null);
+    } catch {
+      Alert.alert('Error', 'Failed to delete product.');
+    } finally {
+      setDeleting(null);
+    }
   };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={AdminColors.primary} /></View>;
@@ -71,19 +79,26 @@ export default function AdminProductScreen() {
     <View style={styles.container}>
       <View style={styles.toolbar}>
         <View style={styles.searchBox}>
-          <Search size={14} color={AdminColors.textSecondary} />
-          <TextInput style={styles.searchInput} value={search} onChangeText={setSearch} placeholder="Search products…" />
+          <Search size={15} color="#9CA3AF" />
+          <TextInput style={styles.searchInput} value={search} onChangeText={setSearch} placeholder="Search products…" placeholderTextColor="#9CA3AF" />
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)}><Plus size={16} color="#fff" /></TouchableOpacity>
+        <TouchableOpacity style={styles.addBtn} onPress={() => { setEditing(null); setShowForm(true); }}>
+          <Plus size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       <FlatList
         data={paginated}
-        keyExtractor={(p: any, i) => p._id || p.id || String(i)}
+        keyExtractor={(p: any) => p._id}
         numColumns={2}
         columnWrapperStyle={{ gap: Spacing.sm }}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<View style={styles.empty}><Package size={40} color="#E5E7EB" /><Text style={styles.emptyText}>No products found</Text></View>}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Package size={40} color="#E5E7EB" />
+            <Text style={styles.emptyText}>{products.length === 0 ? 'No products found' : 'No matching products'}</Text>
+          </View>
+        }
         ListFooterComponent={
           <PaginationControl
             currentPage={currentPage}
@@ -94,18 +109,59 @@ export default function AdminProductScreen() {
         }
         renderItem={({ item: p }) => (
           <View style={styles.card}>
-            <Image source={{ uri: p.images?.[0] }} style={styles.image} />
+            <Image source={{ uri: resolveImageUrl(p.images?.[0] || p.imageUrl) }} style={styles.image} />
             <View style={styles.cardBody}>
               <Text style={styles.title} numberOfLines={1}>{p.title}</Text>
               <Text style={styles.price}>₹{p.price}</Text>
               <View style={styles.actionsRow}>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => { setEditing(p); setShowForm(true); }}><Edit2 size={13} color={AdminColors.primary} /></TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(p._id)} disabled={deleting === p._id}><Trash2 size={13} color="#DC2626" /></TouchableOpacity>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => setDeleteTarget(p)} disabled={deleting === p._id}><Trash2 size={13} color="#DC2626" /></TouchableOpacity>
               </View>
             </View>
           </View>
         )}
       />
+
+      {/* Custom Delete Confirmation Modal */}
+      <Modal
+        visible={Boolean(deleteTarget)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteTarget(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.deleteIconWrap}>
+              <Trash2 size={26} color="#EF4444" />
+            </View>
+            <Text style={styles.modalTitle}>Delete this product?</Text>
+            <Text style={styles.modalSubtitle}>
+              Are you sure you want to delete "{deleteTarget?.title || 'this item'}"? This action cannot be undone.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.cancelBtn, { flex: 1, alignItems: 'center' }]}
+                onPress={() => setDeleteTarget(null)}
+                disabled={Boolean(deleting)}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                onPress={confirmDelete}
+                disabled={Boolean(deleting)}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.confirmDeleteBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -252,4 +308,62 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: '#374151', fontWeight: '700' },
   submitBtn: { alignItems: 'center', justifyContent: 'center', backgroundColor: AdminColors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
   submitBtnText: { color: '#fff', fontWeight: '800' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: AdminColors.border,
+  },
+  deleteIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  modalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '800',
+    color: AdminColors.textPrimary,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.xs,
+    color: AdminColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: Spacing.lg,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    width: '100%',
+  },
+  confirmDeleteBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+  },
+  confirmDeleteBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });

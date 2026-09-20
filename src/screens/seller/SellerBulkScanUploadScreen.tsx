@@ -16,6 +16,7 @@ import { sellerAiApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { requestCameraPermission } from '../../utils/permissions';
 import { useTheme } from '../../context/ThemeContext';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 type Row = {
   id: string; title: string; category: string; subcategory?: string; price: string; discountedPrice: string;
@@ -144,24 +145,25 @@ export default function SellerBulkScanUploadScreen() {
       ? (customSubs[row.id]?.trim() || '')
       : (row.subcategory === 'Other' ? '' : (row.subcategory || ''));
 
-    const payload: any = {
-      title: row.title,
-      price: +row.price,
-      discountedPrice: row.discountedPrice ? +row.discountedPrice : +row.price,
-      category: row.category || 'General',
-      ...(finalSubcategory ? { subcategory: finalSubcategory } : {}),
-      brand: row.brand || 'Generic',
-      description: row.description || '',
-      imageUrl: row.imageUrl || '',
-      images: row.imageUrl ? [row.imageUrl] : [],
-      totalStock: row.totalStock ? +row.totalStock : 0,
-      stockUnit: row.stockUnit || 'Count',
-      unit: row.stockUnit || 'Count',
-      availability: row.availability,
-      tags,
-      moq: row.moq ? +row.moq : 1,
-    };
-    return storeProductApi.create(payload);
+    const fd = new FormData();
+    fd.append('title', row.title.trim());
+    fd.append('price', String(+row.price));
+    fd.append('discountedPrice', String(row.discountedPrice ? +row.discountedPrice : +row.price));
+    fd.append('category', row.category || 'General');
+    if (finalSubcategory) fd.append('subcategory', finalSubcategory);
+    fd.append('brand', row.brand || 'Generic');
+    fd.append('description', row.description || '');
+    fd.append('imageUrl', row.imageUrl || '');
+    fd.append('images', JSON.stringify(row.imageUrl ? [row.imageUrl] : []));
+    fd.append('totalStock', String(row.totalStock ? +row.totalStock : 0));
+    fd.append('stockUnit', row.stockUnit || 'Count');
+    fd.append('unit', row.stockUnit || 'Count');
+    fd.append('availability', row.availability);
+    fd.append('tags', JSON.stringify(tags));
+    fd.append('moq', String(row.moq ? +row.moq : 1));
+    if (store?._id) fd.append('storeId', store._id);
+
+    return storeProductApi.create(fd);
   };
 
   const handleAddAll = async () => {
@@ -270,7 +272,7 @@ export default function SellerBulkScanUploadScreen() {
             <View key={row.id} style={styles.rowCard}>
               <View style={styles.rowThumb}>
                 {row.imageUrl ? (
-                  <Image source={{ uri: row.imageUrl }} style={styles.rowThumbImg} />
+                  <Image source={{ uri: resolveImageUrl(row.imageUrl) }} style={styles.rowThumbImg} />
                 ) : (
                   <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF' }}>#{idx + 1}</Text>
                 )}

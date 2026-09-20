@@ -25,7 +25,7 @@ import {
 } from '../../styles/theme';
 
 import { GATEWAY_URL } from '../../api/endpoints';
-import { requireAuthForPurchase } from '../../utils/authGuard';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
 interface Offer {
   _id: string;
@@ -49,29 +49,31 @@ function hoursLeftLabel(validUntil: string) {
   return `${Math.floor(hours / 24)}d left`;
 }
 
-function OrderModal({
-  offer,
-  visible,
-  onClose,
-  onSuccess,
-}: {
+interface ClaimOfferModalProps {
   offer: Offer | null;
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
-}) {
+}
+
+function ClaimOfferModal({
+  offer,
+  visible,
+  onClose,
+  onSuccess,
+}: ClaimOfferModalProps) {
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
   const [form, setForm] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
+    customerName: user?.fullname || user?.name || '',
+    customerPhone: user?.mobilenumber || '',
+    customerEmail: user?.email || '',
     deliveryAddress: '',
     quantity: '1',
-    notes: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   if (!offer) return null;
@@ -79,14 +81,10 @@ function OrderModal({
   const total = (offer.offerPrice * qty).toFixed(0);
 
   const handleOrder = async () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to place this offer order.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     if (!form.customerName || !form.customerPhone || !form.deliveryAddress) {
       setError('Please fill in all required fields.');
       return;
@@ -188,6 +186,17 @@ function OrderModal({
           </TouchableOpacity>
         </View>
       </View>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Place Offer Order"
+        subtitle="Please sign in or register to place this offer order."
+        onLogin={() => {
+          onClose();
+          navigation.navigate('LoginRegister');
+        }}
+      />
     </Modal>
   );
 }
@@ -361,7 +370,7 @@ export default function MyOffersScreen() {
         </ScrollView>
       )}
 
-      <OrderModal
+      <ClaimOfferModal
         offer={selectedOffer}
         visible={!!selectedOffer && !orderSuccess}
         onClose={() => setSelectedOffer(null)}

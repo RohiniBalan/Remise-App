@@ -41,8 +41,16 @@ function normalizeSmartOrder(o: any) {
   const items = o.items || [];
   return {
     _id: o._id,
+    orderId: o.orderId || o._id,
+    orderNumber: o.orderNumber,
+    deliveryToken: o.deliveryToken,
+    deliveryPerson: o.deliveryPerson,
+    deliveryStatus: o.deliveryStatus,
+    deliveryMode: o.deliveryMode,
+    deliveryTimeline: o.deliveryTimeline,
+    shippingAddress: o.shippingAddress,
     status: o.orderStatus,
-    offerTitle: items.length ? items.map((i: any) => `${i.quantity}x ${i.title}`).join(', ') : `Order ${o.orderId}`,
+    offerTitle: items.length ? items.map((i: any) => `${i.quantity}x ${i.title}`).join(', ') : `Order ${o.orderId || o._id}`,
     customerName: [addr.firstName, addr.lastName].filter(Boolean).join(' ') || o.contactEmail,
     customerPhone: addr.phone,
     customerEmail: o.contactEmail,
@@ -55,7 +63,6 @@ function normalizeSmartOrder(o: any) {
     deliveryMethod: o.deliveryMethod,
     paymentMethod: o.paymentMethod,
     paymentStatus: o.paymentStatus,
-    deliveryStatus: o.deliveryStatus,
     vendorTransfers: o.vendorTransfers || [],
     rawItems: items,
     refundStatus: o.refundStatus || (o.paymentStatus === 'REFUNDED' ? 'refunded' : 'none'),
@@ -170,6 +177,17 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
 
       const offerOrders = ordRes.status === 'fulfilled' ? (ordRes.value.data.data || []).map((o: any) => ({
         ...o,
+        orderId: o.orderId || o._id,
+        shippingAddress: o.shippingAddress || {
+          firstName: o.customerName?.split(' ')[0] || '',
+          lastName: o.customerName?.split(' ').slice(1).join(' ') || '',
+          phone: o.customerPhone,
+          address: o.deliveryAddress,
+          city: o.city,
+          state: o.state,
+          pinCode: o.pinCode,
+        },
+        _source: 'offerOrder' as const,
         refundStatus: o.refundStatus || (o.paymentStatus === 'Refunded' || o.paymentStatus === 'REFUNDED' ? 'refunded' : 'none'),
         totalRefundedAmount: o.refundAmount || (o.paymentStatus === 'Refunded' || o.paymentStatus === 'REFUNDED' ? o.totalAmount : 0),
         refunds: o.refunds || [],

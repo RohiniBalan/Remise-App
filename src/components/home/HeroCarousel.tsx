@@ -43,8 +43,8 @@ function HomeHeroMark({ isDark }: { isDark: boolean }) {
             <Stop offset="1" stopColor="#B30000" />
           </LinearGradient>
           <LinearGradient id="appHomeGoldGrad" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#F5D061" />
-            <Stop offset="1" stopColor="#D4AF37" />
+            <Stop offset="0" stopColor="#FF4D4D" />
+            <Stop offset="1" stopColor="#B30000" />
           </LinearGradient>
           <LinearGradient id="appHomeBagGrad" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#FF4D4D" />
@@ -52,7 +52,7 @@ function HomeHeroMark({ isDark }: { isDark: boolean }) {
           </LinearGradient>
           <RadialGradient id="appHomeOrbGrad" cx="50%" cy="50%" r="50%">
             <Stop offset="0" stopColor="#FF4D4D" stopOpacity={isDark ? "0.25" : "0.18"} />
-            <Stop offset="0.6" stopColor="#D4AF37" stopOpacity={isDark ? "0.12" : "0.08"} />
+            <Stop offset="0.6" stopColor="#FF3333" stopOpacity={isDark ? "0.10" : "0.06"} />
             <Stop offset="1" stopColor="#FF0000" stopOpacity="0" />
           </RadialGradient>
         </Defs>
@@ -167,10 +167,10 @@ function HomeHeroMark({ isDark }: { isDark: boolean }) {
         </G>
 
         {/* Small sparkle dots */}
-        <Circle cx="115" cy="80" r="3" fill="#D4AF37" />
+        <Circle cx="115" cy="80" r="3" fill="#FF4D4D" />
         <Circle cx="280" cy="170" r="2.5" fill="#FF4D4D" />
         <Circle cx="95" cy="205" r="2" fill="#10B981" />
-        <Circle cx="240" cy="300" r="3" fill="#D4AF37" />
+        <Circle cx="240" cy="300" r="3" fill="#0FA3B1" />
       </Svg>
     </View>
   );
@@ -244,12 +244,12 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FEF9EE',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3E8D2',
+    borderBottomColor: '#F3F4F6',
   },
   containerDark: {
     backgroundColor: '#111827',
@@ -267,28 +267,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm + 4,
     paddingVertical: 5,
     borderRadius: BorderRadius.pill,
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    backgroundColor: 'rgba(255, 0, 0, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
+    borderColor: 'rgba(255, 0, 0, 0.25)',
   },
   eyebrowBadgeDark: {
-    backgroundColor: 'rgba(212, 175, 55, 0.2)',
-    borderColor: 'rgba(212, 175, 55, 0.45)',
+    backgroundColor: 'rgba(255, 0, 0, 0.15)',
+    borderColor: 'rgba(255, 0, 0, 0.35)',
   },
   eyebrowDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#D4AF37',
+    backgroundColor: CustomerColors.primary,
   },
   eyebrowText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#8C701C',
+    color: CustomerColors.primary,
     letterSpacing: 0.8,
   },
   eyebrowTextDark: {
-    color: '#F5D061',
+    color: '#FF6666',
   },
   title: {
     fontSize: FontSizes.xl + 4,
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   titleAccent: {
-    color: '#D4AF37',
+    color: CustomerColors.primary,
   },
   subtitle: {
     fontSize: FontSizes.sm,

@@ -1,4 +1,5 @@
 import { legacyProductClient, gatewayClient } from './client';
+import { resolveImageUrl } from '../utils/imageUrl';
 // Ported 1:1 from client/app/category/[categoryId]/page.tsx and
 // client/app/product/[productId]/page.tsx — both fetch the FULL product
 // list from this one endpoint (no server-side filtering/detail endpoint is
@@ -119,7 +120,8 @@ export const productApi = {
 
 
 export function productImage(p: Product): string | undefined {
-  return p.images && p.images.length > 0 ? p.images[0] : p.imageUrl;
+  const raw = p.images && p.images.length > 0 ? p.images[0] : p.imageUrl;
+  return resolveImageUrl(raw);
 }
 
 export function productId(p: Product): string {

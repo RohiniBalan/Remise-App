@@ -6,7 +6,7 @@ import {
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, Camera, Check, ChevronDown, X } from 'lucide-react-native';
-import { getCategories, getSubcategories } from '../../utils/categoryAttributes';
+import { getCategories, getSubcategories, normalizeSpecifications } from '../../utils/categoryAttributes';
 import { STOCK_UNIT_OPTIONS } from '../../utils/productForm';
 
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
@@ -16,6 +16,7 @@ import { sellerAiApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { requestCameraPermission } from '../../utils/permissions';
 import { useTheme } from '../../context/ThemeContext';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 type Step = 'idle' | 'scanning' | 'review' | 'saving' | 'done' | 'error';
 type Tier = { minQty: string; price: string };
@@ -209,38 +210,55 @@ export default function SellerScanUploadScreen() {
         .filter(t => +t.minQty > 0 && +t.price > 0)
         .map(t => ({ minQty: +t.minQty, price: +t.price }));
 
-      const payload: any = {
-        title: form.title,
-        price: +form.price,
-        discountedPrice: form.discountedPrice ? +form.discountedPrice : +form.price,
-        category: form.category || 'General',
-        brand: form.brand || 'Generic',
-        description: form.description || '',
-        imageUrl: form.imageUrl || '',
-        totalStock: form.totalStock ? +form.totalStock : 0,
-        stockUnit: form.stockUnit || 'Count',
-        unit: form.stockUnit || 'Count',
-        availability: form.availability,
-        tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
-        moq: form.moq ? +form.moq : 1,
-        bulkPricing,
-      };
-      if (form.subcategory) payload.subcategory = form.subcategory;
-      if (form.aboutDescription) payload.aboutDescription = form.aboutDescription;
-      if (form.aboutFeatures && form.aboutFeatures.length) payload.aboutFeatures = form.aboutFeatures;
-      if (form.specifications && form.specifications.length) payload.specifications = form.specifications;
-      if (form.attributes && Object.keys(form.attributes).length) payload.attributes = form.attributes;
-      if (form.idealFor && form.idealFor.length) payload.idealFor = form.idealFor;
+      const cleanSpecs = normalizeSpecifications(
+        form.attributes,
+        form.specifications,
+        form.category,
+        form.subcategory,
+      );
 
-      if (isHomeBusiness) {
-        if (form.storePrice) payload.storePrice = +form.storePrice;
-        if (form.storeDiscountedPrice) payload.storeDiscountedPrice = +form.storeDiscountedPrice;
+      const cleanAttributes: Record<string, string> = {};
+      if (form.attributes && typeof form.attributes === 'object') {
+        Object.entries(form.attributes).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && typeof v !== 'object') {
+            cleanAttributes[k] = String(v);
+          }
+        });
       }
 
-      await storeProductApi.create(payload);
+      const fd = new FormData();
+      fd.append('title', form.title.trim());
+      fd.append('price', String(+form.price));
+      fd.append('discountedPrice', String(form.discountedPrice ? +form.discountedPrice : +form.price));
+      fd.append('category', form.category || 'General');
+      if (form.subcategory) fd.append('subcategory', form.subcategory);
+      fd.append('brand', form.brand || 'Generic');
+      fd.append('description', form.description || '');
+      fd.append('imageUrl', form.imageUrl || '');
+      fd.append('images', JSON.stringify(form.imageUrl ? [form.imageUrl] : []));
+      fd.append('totalStock', String(form.totalStock ? +form.totalStock : 0));
+      fd.append('stockUnit', form.stockUnit || 'Count');
+      fd.append('unit', form.stockUnit || 'Count');
+      fd.append('availability', form.availability);
+      fd.append('tags', JSON.stringify(form.tags.split(',').map(s => s.trim()).filter(Boolean)));
+      fd.append('moq', String(form.moq ? +form.moq : 1));
+      if (bulkPricing.length) fd.append('bulkPricing', JSON.stringify(bulkPricing));
+      if (cleanSpecs.length) fd.append('specifications', JSON.stringify(cleanSpecs));
+      if (Object.keys(cleanAttributes).length) fd.append('attributes', JSON.stringify(cleanAttributes));
+      if (form.aboutDescription) fd.append('aboutDescription', form.aboutDescription);
+      if (form.aboutFeatures && form.aboutFeatures.length) fd.append('aboutFeatures', JSON.stringify(form.aboutFeatures));
+      if (form.idealFor && form.idealFor.length) fd.append('idealFor', JSON.stringify(form.idealFor));
+      if (store?._id) fd.append('storeId', store._id);
+
+      if (isHomeBusiness) {
+        if (form.storePrice) fd.append('storePrice', String(+form.storePrice));
+        if (form.storeDiscountedPrice) fd.append('storeDiscountedPrice', String(+form.storeDiscountedPrice));
+      }
+
+      await storeProductApi.create(fd);
       setStep('done');
     } catch (err: any) {
-      setErrMsg(err?.response?.data?.message || 'Failed to create product.');
+      setErrMsg(err?.response?.data?.message || err?.message || 'Failed to create product.');
       setStep('error');
     }
   };
@@ -308,7 +326,7 @@ export default function SellerScanUploadScreen() {
 
           {form.imageUrl ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: Spacing.md, padding: Spacing.sm, backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: isDark ? '#374151' : '#E5E7EB' }}>
-              <Image source={{ uri: form.imageUrl }} style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#eee' }} resizeMode="cover" />
+              <Image source={{ uri: resolveImageUrl(form.imageUrl) }} style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#eee' }} resizeMode="cover" />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>Product Image</Text>
                 <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280' }}>Clean product image matched & generated for this product.</Text>
@@ -742,7 +760,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   selectorPlaceholder: {
     fontSize: FontSizes.sm,
-    color: isDark ? '#6B7280' : '#9CA3AF',
+    color: isDark ? '#9CA3AF' : '#9CA3AF',
   },
   selectorValue: {
     fontSize: FontSizes.sm,

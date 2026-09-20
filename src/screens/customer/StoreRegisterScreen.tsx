@@ -42,6 +42,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { storeApi } from '../../api/storeApi';
+import { contactApi } from '../../api/contentApi';
 import SuccessModal from '../../components/common/SuccessModal';
 import {
   CustomerColors,
@@ -725,6 +726,16 @@ export default function StoreRegisterScreen() {
         }
       }
 
+      if (form.aadhaar.trim()) {
+        const cleanAadhaar = form.aadhaar.replace(/\D/g, '');
+        if (cleanAadhaar.length !== 12) {
+          errs.aadhaar = 'Aadhaar Number must be 12 digits.';
+        }
+        if (!form.aadhaarName.trim()) {
+          errs.aadhaarName = 'Name as on Aadhaar Card is required.';
+        }
+      }
+
       if (isFoodCategory) {
         if (!form.fssaiNumber.trim()) {
           errs.fssaiNumber = 'FSSAI License Number is mandatory for Food & Beverages.';
@@ -905,6 +916,61 @@ export default function StoreRegisterScreen() {
       }
 
       const res = await storeApi.register(fd);
+
+      // Automatically send registration details email from the person's email to porulontechnologies@gmail.com
+      try {
+        const storeTypeLabel =
+          storeType === 'whole_saler'
+            ? 'Wholesaler (B2B/Bulk)'
+            : storeType === 'home_business'
+              ? 'Home Business / Artisan'
+              : 'Store Owner (Retail)';
+        const fullAddr = [form.street, form.city, form.state, form.pinCode].filter(Boolean).join(', ') || 'Not specified';
+        const emailBody = `🎉 NEW STORE REGISTRATION ON REMISE
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏪 STORE DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Store Name: ${form.name}
+• Store / Business Type: ${storeTypeLabel}
+• Category: ${form.category || 'General'}
+• Owner Name: ${user?.fullname || form.name}
+• Contact Email: ${form.email}
+• Contact Phone: ${form.phone}
+• Address: ${fullAddr}
+• Description: ${form.description || 'None'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ KYC & LEGAL IDENTIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Legal Business Name: ${form.legalBusinessName || form.name}
+• PAN: ${form.pan || (hasGstin === 'yes' && form.gstin.length === 15 ? form.gstin.substring(2, 12).toUpperCase() : 'Not provided')} ${panVerified ? '(✓ Verified via Cashfree)' : ''}
+• Aadhaar: ${form.aadhaar || 'Not provided'} ${aadhaarVerified ? '(✓ Verified via Cashfree)' : ''}
+• GSTIN: ${hasGstin === 'yes' && form.gstin ? form.gstin : 'Not provided'} ${gstinVerified ? '(✓ Verified via Cashfree)' : ''}
+• FSSAI License: ${form.fssaiNumber || 'Not provided'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏦 BANKING & PAYOUT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Account Holder Name: ${form.legalBusinessName || form.name}
+• Bank Account Number: ${form.accountNumber ? `${form.accountNumber}` : 'Not provided'}
+• IFSC Code: ${form.ifscCode || 'Not provided'} ${bankVerified ? '(✓ Verified via Cashfree)' : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+`;
+
+        contactApi.sendMessage({
+          name: user?.fullname || form.name || 'Merchant',
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          subject: `[Remise Registration] New Store Created: ${form.name} (${storeTypeLabel})`,
+          message: emailBody,
+        }).catch(e => console.warn('Email dispatch error:', e));
+      } catch (mailErr) {
+        console.warn('Store creation email notification notice:', mailErr);
+      }
+
       const newToken = res.data?.token;
       const targetRole =
         storeType === 'whole_saler'
@@ -1269,9 +1335,9 @@ export default function StoreRegisterScreen() {
                   ]}
                 >
                   <View style={styles.rowBetween}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
                       <Building2 size={16} color={gstinVerified ? '#047857' : (isDark ? '#38bdf8' : '#0284c7')} />
-                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>GSTIN Number *</Text>
+                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>GSTIN Number *</Text>
                     </View>
                     {gstinVerified ? (
                       <View style={styles.verifiedBadge}>
@@ -1356,9 +1422,9 @@ export default function StoreRegisterScreen() {
                   ]}
                 >
                   <View style={styles.rowBetween}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
                       <FileText size={16} color={panVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')} />
-                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Permanent Account Number (PAN) *</Text>
+                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>Permanent Account Number (PAN) *</Text>
                     </View>
                     {panVerified ? (
                       <View style={styles.verifiedBadge}>
@@ -1468,13 +1534,205 @@ export default function StoreRegisterScreen() {
                 </View>
               )}
 
-              {/* 4. Conditional FSSAI Number for Food & Beverages */}
+              {/* 4. Aadhaar Number Card (UIDAI Paperless e-KYC) */}
+              <View
+                style={[
+                  styles.verifyCard,
+                  isDark && { backgroundColor: '#0f172a', borderColor: '#334155' },
+                  aadhaarVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
+                ]}
+              >
+                <View style={styles.rowBetween}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
+                    <Fingerprint size={16} color={aadhaarVerified ? '#047857' : (isDark ? '#38bdf8' : '#0284c7')} />
+                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>
+                      Aadhaar Number (UIDAI OKYC)
+                    </Text>
+                  </View>
+                  {aadhaarVerified ? (
+                    <View style={styles.verifiedBadge}>
+                      <BadgeCheck size={13} color="#047857" />
+                      <Text style={styles.verifiedBadgeText}>Aadhaar Verified</Text>
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: isDark ? '#94a3b8' : '#64748b' }}>
+                      UIDAI e-KYC
+                    </Text>
+                  )}
+                </View>
+
+                {/* Name as on Aadhaar Card */}
+                <View style={{ marginTop: 6, marginBottom: 8 }}>
+                  <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                    Name as on Aadhaar Card
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: fieldErrors.aadhaarName ? '#dc2626' : (isDark ? '#334155' : '#cbd5e1'),
+                      },
+                    ]}
+                    value={form.aadhaarName}
+                    onChangeText={v => {
+                      set('aadhaarName', v);
+                      if (aadhaarVerified) setAadhaarVerified(false);
+                      if (aadhaarOtpSent) setAadhaarOtpSent(false);
+                    }}
+                    placeholder="e.g. JOHN DOE"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                    autoCapitalize="words"
+                  />
+                  {fieldErrors.aadhaarName ? (
+                    <View style={styles.fieldErrorRow}>
+                      <AlertCircle size={13} color="#dc2626" />
+                      <Text style={styles.fieldErrorText}>{fieldErrors.aadhaarName}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {/* Aadhaar Number Input */}
+                <Text style={[styles.fieldLabel, { fontSize: 10, marginBottom: 4, textTransform: 'none' }, isDark && { color: '#cbd5e1' }]}>
+                  Aadhaar Number (12 digits)
+                </Text>
+                <View style={styles.inputActionRow}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.monoInput,
+                      {
+                        backgroundColor: isDark ? '#020617' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#111827',
+                        borderColor: fieldErrors.aadhaar ? '#dc2626' : (isDark ? '#334155' : '#cbd5e1'),
+                      },
+                    ]}
+                    value={form.aadhaar}
+                    onChangeText={v => {
+                      const clean = v.replace(/\D/g, '').slice(0, 12);
+                      set('aadhaar', clean);
+                      if (aadhaarVerified) setAadhaarVerified(false);
+                      if (aadhaarOtpSent) setAadhaarOtpSent(false);
+                    }}
+                    placeholder="e.g. 123456789012"
+                    placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                    maxLength={12}
+                    keyboardType="number-pad"
+                  />
+                  {!aadhaarOtpSent ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.actionButton,
+                        (verifyingAadhaar || form.aadhaar.length < 12 || !form.aadhaarName.trim()) && { opacity: 0.6 },
+                      ]}
+                      onPress={sendAadhaarOtpWithCashfree}
+                      disabled={verifyingAadhaar || form.aadhaar.length < 12 || !form.aadhaarName.trim()}
+                    >
+                      {verifyingAadhaar ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text style={styles.actionButtonText}>Verify Aadhaar</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                {fieldErrors.aadhaar ? (
+                  <View style={styles.fieldErrorRow}>
+                    <AlertCircle size={13} color="#dc2626" />
+                    <Text style={styles.fieldErrorText}>{fieldErrors.aadhaar}</Text>
+                  </View>
+                ) : null}
+
+                {/* Aadhaar OTP Section */}
+                {aadhaarOtpSent && !aadhaarVerified && (
+                  <View
+                    style={{
+                      marginTop: 10,
+                      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.2)' : '#f0fdfa',
+                      borderWidth: 1,
+                      borderColor: isDark ? '#115e59' : '#99f6e4',
+                      borderRadius: BorderRadius.md,
+                      padding: Spacing.sm + 2,
+                      gap: 6,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: isDark ? '#5eead4' : '#0f766e',
+                      }}
+                    >
+                      Enter 6-digit OTP sent to your Aadhaar-linked mobile:
+                    </Text>
+                    <View style={styles.inputActionRow}>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          styles.monoInput,
+                          {
+                            backgroundColor: isDark ? '#020617' : '#ffffff',
+                            color: isDark ? '#ffffff' : '#111827',
+                            textAlign: 'center',
+                            fontSize: 16,
+                            letterSpacing: 4,
+                          },
+                        ]}
+                        value={aadhaarOtp}
+                        onChangeText={v => setAadhaarOtp(v.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="6-digit OTP"
+                        placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+                        maxLength={6}
+                        keyboardType="number-pad"
+                      />
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          { backgroundColor: '#059669' },
+                          (verifyingAadhaarOtp || aadhaarOtp.length < 4) && { opacity: 0.6 },
+                        ]}
+                        onPress={verifyAadhaarOtpWithCashfree}
+                        disabled={verifyingAadhaarOtp || aadhaarOtp.length < 4}
+                      >
+                        {verifyingAadhaarOtp ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.actionButtonText}>Submit OTP</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {aadhaarError ? <Text style={styles.panErrorText}>{aadhaarError}</Text> : null}
+
+                {aadhaarVerified && aadhaarData && (
+                  <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
+                    <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
+                      <Text style={{ fontWeight: '700' }}>Aadhaar Holder: </Text>
+                      {aadhaarData.nameOnAadhaar}
+                    </Text>
+                    {aadhaarData.belongsToUser && (
+                      <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
+                        ✓ Aadhaar identity confirmed and matches store applicant.
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                <Text style={[styles.fieldHint, isDark && { color: '#94a3b8' }]}>
+                  Your 12-digit Unique Identification Authority of India (UIDAI) citizen number.
+                </Text>
+              </View>
+
+              {/* 5. Conditional FSSAI Number for Food & Beverages */}
               {isFoodCategory && (
                 <View style={[styles.fssaiCard, isDark && { backgroundColor: 'rgba(120, 53, 15, 0.2)', borderColor: '#78350f' }]}>
                   <View style={styles.rowBetween}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
                       <Utensils size={16} color={isDark ? '#fbbf24' : '#b45309'} />
-                      <Text style={[styles.fieldLabel, { color: isDark ? '#fde68a' : '#92400e', marginBottom: 0 }]}>
+                      <Text style={[styles.fieldLabel, { color: isDark ? '#fde68a' : '#92400e', marginBottom: 0 }]} numberOfLines={1}>
                         FSSAI License Number *
                       </Text>
                     </View>
@@ -1749,9 +2007,11 @@ export default function StoreRegisterScreen() {
 
               <View style={{ marginBottom: 12 }}>
                 <View style={[styles.rowBetween, { marginBottom: 4 }]}>
-                  <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>
-                    Bank IFSC Code *
-                  </Text>
+                  <View style={{ flex: 1, marginRight: 6 }}>
+                    <Text style={[styles.fieldLabel, { marginBottom: 0 }, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>
+                      Bank IFSC Code *
+                    </Text>
+                  </View>
                   {ifscVerified && ifscData ? (
                     <View style={styles.verifiedBadge}>
                       <CheckCircle size={11} color="#047857" />
@@ -1844,12 +2104,14 @@ export default function StoreRegisterScreen() {
                 ]}
               >
                 <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
                     <BadgeCheck
                       size={16}
                       color={bankVerified ? '#047857' : '#0d9488'}
                     />
-                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]}>Cashfree Bank Verification</Text>
+                    <Text style={[styles.fieldLabel, { marginBottom: 0, flexShrink: 1 }, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>
+                      Cashfree Bank Verification
+                    </Text>
                   </View>
                   {bankVerified ? (
                     <View style={styles.verifiedBadge}>
@@ -2575,14 +2837,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#d1fae5',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     borderRadius: 12,
+    flexShrink: 0,
   },
   verifiedBadgeText: {
     fontSize: 10,
@@ -2632,6 +2901,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#fde68a',
+    flexShrink: 0,
   },
   fssaiBadgeText: {
     fontSize: 9,
@@ -2866,11 +3136,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: '#dc2626',
     fontWeight: '600',
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   modalOverlay: {
     flex: 1,

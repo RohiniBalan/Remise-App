@@ -55,10 +55,13 @@ import {
   Pill,
   Dumbbell,
   Store,
+  LayoutGrid,
+  ShoppingBag,
 } from 'lucide-react-native';
 import HeroCarousel from '../../components/home/HeroCarousel';
 import HomeFooter from '../../components/home/HomeFooter';
 import BrandHeader from '../../components/common/BrandHeader';
+import { ProductGroup } from '../../utils/supplierGrouping';
 import { offersApi } from '../../api/offersApi';
 import {
   CategoryItem,
@@ -79,8 +82,11 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { GATEWAY_URL } from '../../api/endpoints';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { navigateToAuthFlow } from '../../utils/authGuard';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
 // The actual Home screen — previously this file was an accidental duplicate
 // of components/home/HeroCarousel.tsx (the carousel only). Rebuilt to match
@@ -118,7 +124,7 @@ const DEAL_STRIP: DealStripItem[] = [
   { icon: Percent, title: 'Up to 50% Off', subtitle: 'On select products', color: '#FF0000', route: 'Categories' },
   { icon: MapPin, title: 'Nearby Offers', subtitle: 'Deals around you', color: '#0FA3B1', route: 'Nearby' },
   { icon: ShoppingBasket, title: 'Monthly / Bulk', subtitle: 'Smart grocery list', color: '#0d9488', route: 'BulkPurchase' },
-  { icon: Store, title: 'Home Seller', subtitle: 'Buy from home sellers', color: '#8B5CF6', route: 'Suppliers' },
+  { icon: Store, title: 'Home Supplier', subtitle: 'Buy from home sellers', color: '#8B5CF6', route: 'Suppliers' },
 ];
 
 const INFO_STRIP = [
@@ -144,13 +150,14 @@ const CATEGORY_TINTS = ['#10B981', '#EC4899', '#F97316', '#8B5CF6', '#0FA3B1', '
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const { cart, cartCount, addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { unreadCount } = useUnreadNotifications();
   const { theme, toggleTheme, isDark, colors } = useTheme();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [categories, setCategories] = useState<CategoryItem[]>(() => getCachedCategories() || CATEGORY_FALLBACK);
   const [bestSellers, setBestSellers] = useState<BestSellerItem[]>(() => getCachedBestSellers() || BEST_SELLER_FALLBACK);
   const [newArrivals, setNewArrivals] = useState<Product[]>(() => getCachedNewArrivals() || []);
@@ -172,7 +179,7 @@ export default function HomeScreen() {
   );
 
   const visibleDealStrip = isMerchantOrAdmin
-    ? DEAL_STRIP.filter(deal => deal.route !== 'Suppliers' && deal.title !== 'Home Seller')
+    ? DEAL_STRIP.filter(deal => deal.route !== 'Suppliers')
     : DEAL_STRIP;
 
   const handleShopNow = () => {
@@ -297,8 +304,7 @@ export default function HomeScreen() {
   };
 
   const resolveImage = (img?: string) => {
-    if (!img) return 'https://via.placeholder.com/300x200?text=Offer';
-    return img.startsWith('http') ? img : `${GATEWAY_URL}${img}`;
+    return resolveImageUrl(img) || 'https://via.placeholder.com/300x200?text=Offer';
   };
 
   const insets = useSafeAreaInsets();
@@ -325,6 +331,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         )}
+
         <HeroCarousel onShopNow={handleShopNow} />
 
         {/* ── Deal Strip ── */}
@@ -577,6 +584,10 @@ export default function HomeScreen() {
                       style={styles.sellerCartBtn}
                       activeOpacity={0.7}
                       onPress={() => {
+                        if (!user || !token) {
+                          setShowAuthModal(true);
+                          return;
+                        }
                         addToCart({
                           id: String(item.id),
                           title: item.name,
@@ -670,6 +681,10 @@ export default function HomeScreen() {
                         style={styles.newArrivalCartBtn}
                         activeOpacity={0.7}
                         onPress={() => {
+                          if (!user || !token) {
+                            setShowAuthModal(true);
+                            return;
+                          }
                           addToCart({
                             id: productId(item),
                             title: item.title,
@@ -699,6 +714,14 @@ export default function HomeScreen() {
         <View style={{ height: Spacing.xl }} />
         <HomeFooter />
       </ScrollView>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Add to Cart"
+        subtitle="Please sign in or register to add items to your cart."
+        onLogin={() => navigateToAuthFlow(navigation)}
+      />
     </View>
   );
 }

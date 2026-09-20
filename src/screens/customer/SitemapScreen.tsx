@@ -156,7 +156,11 @@ const QUICK_NAV: QuickNavGroup[] = [
 export default function SitemapScreen({ navigation }: any) {
     const goTo = (route?: string) => {
         if (!navigation || !route) return;
-        const tabRoutes = ['Home', 'Categories', 'BulkPurchase', 'Suppliers', 'Nearby', 'Orders'];
+        if (route === 'BestSellers' || route === 'NewArrivals') {
+            navigation.navigate('CustomerTabs', { screen: 'Home', params: { screen: route } });
+            return;
+        }
+        const tabRoutes = ['Home', 'Categories', 'BulkPurchase', 'Suppliers', 'Nearby', 'Orders', 'Wishlist', 'Cart', 'Profile'];
         if (tabRoutes.includes(route)) {
             navigation.navigate('CustomerTabs', { screen: route });
             return;

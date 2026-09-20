@@ -40,6 +40,7 @@ import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { requestCameraPermission } from '../../utils/permissions';
 import { useTheme } from '../../context/ThemeContext';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   getCategories,
   getSubcategories,
@@ -130,7 +131,7 @@ export default function SellerProductFormScreen() {
       if (u && typeof u === 'string') {
         initialList.push({
           id: `existing-${idx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          uri: u,
+          uri: resolveImageUrl(u) || u,
           url: u,
         });
       }
@@ -196,7 +197,7 @@ export default function SellerProductFormScreen() {
       if (u && typeof u === 'string') {
         initialList.push({
           id: `existing-${idx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          uri: u,
+          uri: resolveImageUrl(u) || u,
           url: u,
         });
       }
@@ -785,7 +786,7 @@ export default function SellerProductFormScreen() {
           >
             {images.map((img, idx) => (
               <View key={img.id} style={[styles.thumbCard, idx === 0 && styles.coverThumbCard]}>
-                <Image source={{ uri: img.uri }} style={styles.thumbImage} resizeMode="cover" />
+                <Image source={{ uri: resolveImageUrl(img.uri) || img.uri }} style={styles.thumbImage} resizeMode="cover" />
 
                 {/* Cover Badge or Set Cover Button */}
                 {idx === 0 ? (

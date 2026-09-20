@@ -1,43 +1,36 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, TextInput, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  TextInput,
+  RefreshControl,
+  Modal,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Search, Plus, ScanLine, ListChecks, Package } from 'lucide-react-native';
+import { Search, Plus, ScanLine, ListChecks, Package, Camera, ImageIcon, X } from 'lucide-react-native';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
-import { GATEWAY_URL } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-
-const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
-
-function resolveImageUri(url?: string) {
-  if (!url) return undefined;
-
-  if (
-    url.startsWith('http://') ||
-    url.startsWith('https://') ||
-    url.startsWith('data:') ||
-    url.startsWith('file:') ||
-    url.startsWith('blob:')
-  ) {
-    return url;
-  }
-
-  const base = API.replace(/\/api\/?$/, '');
-
-  return url.startsWith('/')
-    ? `${base}${url}`
-    : `${base}/${url}`;
-}
+import { resolveImageUrl } from '../../utils/imageUrl';
+import { requestCameraPermission } from '../../utils/permissions';
+import { sellerAiApi } from '../../api/sellerApi';
 
 function getProductImage(p: any): string {
-  return (
+  const raw =
+    p?.images?.[0] ||
     p?.imageUrl ||
     p?.image ||
     p?.productImage ||
-    p?.images?.[0] ||
-    ''
-  );
+    '';
+  return resolveImageUrl(raw) || '';
 }
 
 function groupByType(products: any[]) {
@@ -95,6 +88,8 @@ export default function SellerProductsScreen() {
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { products, refresh, loading } = useSellerDashboard();
   const [search, setSearch] = useState('');
+  const [scanModalType, setScanModalType] = useState<'single' | 'bulk' | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const isWholesaler = user?.role === 'whole_saler' || user?.role === 'wholesaler';
 
@@ -103,6 +98,85 @@ export default function SellerProductsScreen() {
     [products, search],
   );
   const productTypes = useMemo(() => groupByType(filtered), [filtered]);
+
+  const handleScanSingle = async (asset: any) => {
+    if (!asset?.uri) return;
+    setScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', {
+        uri: asset.uri,
+        name: asset.fileName || 'product.jpg',
+        type: asset.type || 'image/jpeg',
+      } as any);
+
+      const res = await sellerAiApi.scanSingleProduct(fd);
+      if (!res.data.success) throw new Error(res.data.message || 'Scan failed.');
+      const ext = res.data.extracted;
+      navigation.navigate('SellerProductForm', {
+        scanned: {
+          title: ext.productName || '',
+          category: ext.category || '',
+          subcategory: ext.subcategory || '',
+          price: ext.price ? String(ext.price) : '',
+          discountedPrice: ext.discountedPrice ? String(ext.discountedPrice) : '',
+          storePrice: ext.storePrice ? String(ext.storePrice) : '',
+          storeDiscountedPrice: ext.storeDiscountedPrice ? String(ext.storeDiscountedPrice) : '',
+          description: ext.description || '',
+          brand: ext.brand || '',
+          imageUrl: ext.imageUrl || '',
+          stockUnit: ext.stockUnit || ext.unit || 'Count',
+          unit: ext.stockUnit || ext.unit || 'Count',
+          availability: 'In Stock',
+          attributes: ext.attributes || {},
+          specifications: ext.specifications || [],
+        },
+      });
+    } catch (err: any) {
+      Alert.alert('Scan Failed', err?.message || 'Could not detect product details from that image. Opening form to enter manually.', [
+        { text: 'OK', onPress: () => navigation.navigate('SellerProductForm', {}) },
+      ]);
+    } finally {
+      setScanning(false);
+      setScanModalType(null);
+    }
+  };
+
+  const handleCamera = async () => {
+    const isSingle = scanModalType === 'single';
+    setScanModalType(null);
+    const granted = await requestCameraPermission();
+    if (!granted) return;
+
+    if (!isSingle) {
+      navigation.navigate('SellerBulkScanUpload');
+      return;
+    }
+
+    const res = await launchCamera({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
+    if (res.didCancel || res.errorCode) return;
+    const picked = res.assets?.[0];
+    if (picked) {
+      handleScanSingle(picked);
+    }
+  };
+
+  const handleGallery = async () => {
+    const isSingle = scanModalType === 'single';
+    setScanModalType(null);
+
+    if (!isSingle) {
+      navigation.navigate('SellerBulkScanUpload');
+      return;
+    }
+
+    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
+    if (res.didCancel || res.errorCode) return;
+    const picked = res.assets?.[0];
+    if (picked) {
+      handleScanSingle(picked);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -120,11 +194,17 @@ export default function SellerProductsScreen() {
       </View>
 
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('SellerScanUpload')}>
-          <ScanLine size={15} color="#fff" />
-          <Text style={styles.actionBtnText}>Scan Paper</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setScanModalType('single')} disabled={scanning}>
+          {scanning ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <ScanLine size={15} color="#fff" />
+              <Text style={styles.actionBtnText}>Scan Paper</Text>
+            </>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('SellerBulkScanUpload')}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('SellerBulkScanUpload')} disabled={scanning}>
           <ListChecks size={15} color="#fff" />
           <Text style={styles.actionBtnText}>Scan List</Text>
         </TouchableOpacity>
@@ -153,7 +233,7 @@ export default function SellerProductsScreen() {
           </View>
         }
         renderItem={({ item: pt }) => {
-          const img = resolveImageUri(pt.image);
+          const img = resolveImageUrl(pt.image);
           return (
             <TouchableOpacity
               style={styles.card}
@@ -173,6 +253,43 @@ export default function SellerProductsScreen() {
           );
         }}
       />
+
+      {/* Scan Modal */}
+      <Modal visible={Boolean(scanModalType)} transparent animationType="fade" onRequestClose={() => setScanModalType(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                <ScanLine size={20} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
+                <Text style={styles.modalTitle}>Scan Paper Label</Text>
+              </View>
+              <TouchableOpacity onPress={() => setScanModalType(null)}>
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSub}>
+              Take a clear photo of the product label/packaging or choose from gallery to auto-detect details.
+            </Text>
+
+            <TouchableOpacity style={styles.cameraActionBtn} onPress={handleCamera}>
+              <Camera size={18} color="#fff" />
+              <Text style={styles.cameraActionBtnText}>Take Photo with Camera</Text>
+            </TouchableOpacity>
+
+            <View style={styles.orDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.orText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity style={styles.galleryActionBtn} onPress={handleGallery}>
+              <ImageIcon size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Text style={styles.galleryActionBtnText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -216,4 +333,80 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   cardSub: { fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 },
   manageBtn: { marginTop: 8, backgroundColor: CustomerColors.teal600, borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
   manageBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: isDark ? '#111827' : '#fff',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    ...Shadows.card,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  },
+  modalTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
+  },
+  modalSub: {
+    fontSize: FontSizes.xs,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    marginBottom: Spacing.md,
+    lineHeight: 18,
+  },
+  cameraActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: CustomerColors.teal600,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.md,
+  },
+  cameraActionBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: FontSizes.sm,
+  },
+  orDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: isDark ? '#374151' : '#E5E7EB',
+  },
+  orText: {
+    fontSize: FontSizes.xs,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+  },
+  galleryActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: isDark ? '#1F2937' : '#F0FDF4',
+    paddingVertical: 12,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#BBF7D0',
+  },
+  galleryActionBtnText: {
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+    fontWeight: '700',
+    fontSize: FontSizes.sm,
+  },
 });

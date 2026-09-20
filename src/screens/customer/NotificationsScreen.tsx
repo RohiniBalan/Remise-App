@@ -14,6 +14,7 @@ import { Bell, BellOff, CheckCheck } from 'lucide-react-native';
 import { notificationApi } from '../../api/notificationApi';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -223,7 +224,7 @@ export default function NotificationsScreen() {
             activeOpacity={0.8}
           >
             {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.rowImage} />
+              <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.rowImage} />
             ) : (
               <View
                 style={[

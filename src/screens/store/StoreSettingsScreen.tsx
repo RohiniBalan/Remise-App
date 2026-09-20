@@ -10,14 +10,7 @@ import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { indianStates, getCities } from '../../utils/indiaLocation';
 import { mergeCategories } from '../../utils/storeCategories';
-
-const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
-
-function resolveImageUri(url?: string) {
-  if (!url) return undefined;
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  return `${API}${url.startsWith('/') ? '' : '/'}${url}`;
-}
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const STORE_CATEGORIES = ['Food & Beverages', 'Grocery', 'Fashion', 'Electronics', 'Pharmacy', 'Toys', 'Home & Living', 'Beauty', 'Sports', 'Other'];
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
@@ -206,7 +199,7 @@ export default function StoreSettingsScreen() {
           <View style={styles.logoRow}>
             <View style={styles.logoPreviewBox}>
               {logoUri ? (
-                <Image source={{ uri: resolveImageUri(logoUri) }} style={styles.logoPreviewImage} resizeMode="cover" />
+                <Image source={{ uri: resolveImageUrl(logoUri) }} style={styles.logoPreviewImage} resizeMode="cover" />
               ) : (
                 <Store size={28} color={isDark ? '#6B7280' : '#9CA3AF'} />
               )}
@@ -318,7 +311,7 @@ export default function StoreSettingsScreen() {
           <Text style={styles.qrSubtitle}>Enter your UPI ID to generate a scannable QR code. Customers who choose QR payment will see this.</Text>
           <View style={styles.qrRow}>
             <View style={styles.qrPreviewBox}>
-              {store?.qrCodeImage ? <Image source={{ uri: store.qrCodeImage }} style={styles.qrPreviewImage} /> : <QrCode size={22} color={isDark ? '#6B7280' : '#D1D5DB'} />}
+              {store?.qrCodeImage ? <Image source={{ uri: resolveImageUrl(store.qrCodeImage) }} style={styles.qrPreviewImage} /> : <QrCode size={22} color={isDark ? '#6B7280' : '#D1D5DB'} />}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>UPI ID</Text>

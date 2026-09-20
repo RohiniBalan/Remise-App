@@ -2,11 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ArrowLeft, ChevronLeft, ChevronRight, Package, Eye } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TitleGroup } from '../../utils/supplierTypes';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 
 export default function StoreSupplierBrandsScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDark } = useTheme();
@@ -23,7 +25,7 @@ export default function StoreSupplierBrandsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.xs }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ArrowLeft size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           <Text style={styles.backText}>Back</Text>

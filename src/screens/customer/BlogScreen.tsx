@@ -32,10 +32,12 @@ import {
   Calendar,
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { newsletterApi } from '../../api/newsletterApi';
 import { blogApi } from '../../api/blogApi';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
 const BRAND_RED = CustomerColors.primary;
 
@@ -201,6 +203,7 @@ export default function BlogScreen({ navigation }: any) {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Dynamic live articles state
   const [articles, setArticles] = useState<Article[]>(DEFAULT_ARTICLES);
@@ -294,17 +297,7 @@ export default function BlogScreen({ navigation }: any) {
 
   const handleSubscribe = async () => {
     if (!user && !token) {
-      Alert.alert(
-        'Login Required',
-        'Please log in first to subscribe to the newsletter.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Log In',
-            onPress: () => navigation.navigate('LoginRegister'),
-          },
-        ]
-      );
+      setShowAuthModal(true);
       return;
     }
 
@@ -410,7 +403,7 @@ export default function BlogScreen({ navigation }: any) {
           >
             {featured.image ? (
               <Image
-                source={{ uri: featured.image }}
+                source={{ uri: resolveImageUrl(featured.image) }}
                 style={styles.featuredCoverImage}
                 resizeMode="cover"
               />
@@ -467,7 +460,7 @@ export default function BlogScreen({ navigation }: any) {
                 >
                   {article.image ? (
                     <Image
-                      source={{ uri: article.image }}
+                      source={{ uri: resolveImageUrl(article.image) }}
                       style={styles.articleThumbImage}
                       resizeMode="cover"
                     />
@@ -659,7 +652,7 @@ export default function BlogScreen({ navigation }: any) {
 
               {selectedArticle.image ? (
                 <Image
-                  source={{ uri: selectedArticle.image }}
+                  source={{ uri: resolveImageUrl(selectedArticle.image) }}
                   style={[styles.readerCoverImage, { backgroundColor: themeColors.card }]}
                   resizeMode="cover"
                 />
@@ -679,6 +672,14 @@ export default function BlogScreen({ navigation }: any) {
           )}
         </View>
       </Modal>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Subscribe"
+        subtitle="Please sign in or register to subscribe to the newsletter."
+        onLogin={() => navigation.navigate('LoginRegister')}
+      />
     </ScrollView>
   );
 }

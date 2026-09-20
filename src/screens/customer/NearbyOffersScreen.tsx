@@ -44,7 +44,9 @@ import {
   Spacing,
   FontSizes,
   BorderRadius,
+  Shadows,
 } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import {
@@ -52,7 +54,8 @@ import {
   lookupPincode,
 } from '../../components/common/LocationSelectField';
 import { indianStates, getCities } from '../../utils/indiaLocation';
-import { requireAuthForPurchase } from '../../utils/authGuard';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import HomeFooter from '../../components/home/HomeFooter';
 
 export interface Offer {
   _id: string;
@@ -86,7 +89,7 @@ async function requestLocationPermission(): Promise<
       {
         title: 'Location Permission',
         message: 'Remise needs your location to show nearby offers.',
-        buttonPositive: 'Allow',
+        buttonPositive: 'OK',
         buttonNegative: 'Deny',
       },
     );
@@ -99,13 +102,12 @@ async function requestLocationPermission(): Promise<
 }
 
 const resolveImage = (img?: string) => {
-  if (!img) return 'https://via.placeholder.com/300x200?text=Offer';
-  if (img.startsWith('http')) return img;
-  return `${GATEWAY_URL}${img.startsWith('/') ? img : `/${img}`}`;
+  return resolveImageUrl(img) || 'https://via.placeholder.com/300x200?text=Offer';
 };
 
 export default function NearbyOffersScreen() {
-  const { token } = useAuth();
+  const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -116,6 +118,7 @@ export default function NearbyOffersScreen() {
   const [locError, setLocError] = useState('');
   const [permBlocked, setPermBlocked] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const loadOffers = useCallback(async (loc?: { lat: number; lng: number } | null, r = radius) => {
     setLoading(true);
@@ -360,7 +363,13 @@ export default function NearbyOffersScreen() {
                   </View>
                   <TouchableOpacity
                     style={styles.orderBtn}
-                    onPress={() => setSelectedOffer(item)}
+                    onPress={() => {
+                      if (!token || !user) {
+                        setShowAuthModal(true);
+                        return;
+                      }
+                      setSelectedOffer(item);
+                    }}
                   >
                     <ShoppingBag size={13} color="#fff" />
                     <Text style={styles.orderBtnText}>Order Now</Text>
@@ -369,6 +378,11 @@ export default function NearbyOffersScreen() {
               </View>
             );
           }}
+          ListFooterComponent={
+            <View style={{ marginTop: Spacing.xl }}>
+              <HomeFooter />
+            </View>
+          }
         />
       )}
 
@@ -385,6 +399,14 @@ export default function NearbyOffersScreen() {
           />
         )}
       </Modal>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Place Offer Order"
+        subtitle="Please sign in or register to place this offer order."
+        onLogin={() => navigation.navigate('LoginRegister')}
+      />
     </View>
   );
 }
@@ -422,6 +444,7 @@ function OrderModal({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   // Cities for selected state
@@ -433,14 +456,10 @@ function OrderModal({
   const total = (offer.offerPrice * (parseInt(form.quantity, 10) || 1)).toFixed(0);
 
   const handleNextToDelivery = () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to place this offer order.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
 
     if (!form.firstName.trim()) {
       setError('Please enter your first name.');
@@ -481,14 +500,10 @@ function OrderModal({
   };
 
   const handlePlaceOrder = async () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to place this order.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
 
     if (!deliveryMethod) return;
 
@@ -1030,6 +1045,17 @@ function OrderModal({
           )}
         </ScrollView>
       </View>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Place Offer Order"
+        subtitle="Please sign in or register to place this offer order."
+        onLogin={() => {
+          onClose();
+          navigation.navigate('LoginRegister');
+        }}
+      />
     </View>
   );
 }
@@ -1116,7 +1142,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   radiusChipTextActive: { color: CustomerColors.teal700 },
-  list: { padding: Spacing.sm },
+  list: { padding: Spacing.sm, paddingBottom: Spacing.xl },
   row: { gap: Spacing.sm },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: {

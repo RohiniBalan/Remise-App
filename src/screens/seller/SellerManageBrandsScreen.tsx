@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Plus, Edit2, Trash2, Package, Eye, ArrowLeft } from 'lucide-react-native';
 import { GATEWAY_URL } from '../../api/endpoints';
@@ -8,14 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { storeProductApi } from '../../api/storeProductApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
-
-const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
-function resolveImageUri(url?: string) {
-  if (!url) return undefined;
-  return url.startsWith('http') || url.startsWith('data:') || url.startsWith('file:') || url.startsWith('blob:')
-    ? url
-    : `${API}${url.startsWith('/') ? '' : '/'}${url}`;
-}
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const AVAILABILITY_STYLE: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
   'In Stock': { bg: '#F0FDF4', fg: '#15803D', darkBg: 'rgba(22, 163, 74, 0.15)', darkFg: '#4ADE80' },
@@ -32,29 +25,26 @@ export default function SellerManageBrandsScreen() {
   const { refresh, products } = useSellerDashboard();
   const { token, user } = useAuth();
   const isStoreOwner = user?.role === 'store_owner';
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const typeKey = title.toLowerCase().trim().replace(/\s+/g, ' ');
   const items = products.filter((p: any) => (p.title || '').toLowerCase().trim().replace(/\s+/g, ' ') === typeKey);
   const list = items.length ? items : initialItems;
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete this product?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          setDeleting(id);
-          try {
-            await storeProductApi.delete(id);
-            await refresh();
-          } catch {
-            Alert.alert('Failed', 'Could not delete product.');
-          } finally {
-            setDeleting(null);
-          }
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget._id;
+    setDeleting(id);
+    try {
+      await storeProductApi.delete(id);
+      await refresh();
+      setDeleteTarget(null);
+    } catch {
+      Alert.alert('Failed', 'Could not delete product.');
+    } finally {
+      setDeleting(null);
+    }
   };
 
   return (
@@ -81,7 +71,7 @@ export default function SellerManageBrandsScreen() {
         keyExtractor={(p: any) => p._id}
         contentContainerStyle={{ paddingBottom: Spacing.xxl }}
         renderItem={({ item: p }: { item: any }) => {
-          const img = resolveImageUri(p.imageUrl || p.images?.[0]);
+          const img = resolveImageUrl(p.images?.[0] || p.imageUrl);
           const avail = AVAILABILITY_STYLE[p.availability] || AVAILABILITY_STYLE['In Stock'];
           const badgeBg = isDark ? avail.darkBg : avail.bg;
           const badgeFg = isDark ? avail.darkFg : avail.fg;
@@ -128,7 +118,7 @@ export default function SellerManageBrandsScreen() {
                 <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('SellerProductForm', { product: p })}>
                   <Edit2 size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => handleDelete(p._id)} disabled={deleting === p._id}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => setDeleteTarget(p)} disabled={deleting === p._id}>
                   {deleting === p._id ? <ActivityIndicator size="small" /> : <Trash2 size={16} color="#FF0000" />}
                 </TouchableOpacity>
               </View>
@@ -136,6 +126,47 @@ export default function SellerManageBrandsScreen() {
           );
         }}
       />
+
+      {/* Custom Delete Confirmation Modal */}
+      <Modal
+        visible={Boolean(deleteTarget)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteTarget(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.deleteIconWrap}>
+              <Trash2 size={26} color="#EF4444" />
+            </View>
+            <Text style={styles.modalTitle}>Delete this product?</Text>
+            <Text style={styles.modalSubtitle}>
+              Are you sure you want to delete "{deleteTarget?.brand || deleteTarget?.title || 'this item'}"? This action cannot be undone.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setDeleteTarget(null)}
+                disabled={Boolean(deleting)}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                onPress={confirmDelete}
+                disabled={Boolean(deleting)}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.confirmDeleteBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -198,4 +229,77 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   stockText: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF' },
   rowActions: { flexDirection: 'row', gap: 4 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: isDark ? '#111827' : '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+  },
+  deleteIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  modalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '800',
+    color: isDark ? '#F9FAFB' : CustomerColors.black,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: FontSizes.xs,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: Spacing.lg,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#E2E8F0',
+  },
+  cancelBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: isDark ? '#E5E7EB' : '#475569',
+  },
+  confirmDeleteBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+  },
+  confirmDeleteBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });

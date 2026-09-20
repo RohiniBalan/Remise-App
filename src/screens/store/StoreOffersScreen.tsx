@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -21,6 +22,7 @@ import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { offersApi } from '../../api/offersApi';
 import { GATEWAY_URL } from '../../api/endpoints';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   CustomerColors,
   Spacing,
@@ -33,27 +35,21 @@ export default function StoreOffersScreen() {
   const { offers, loading, refresh } = useStoreDashboard();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+  const [deleteTargetOffer, setDeleteTargetOffer] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete this offer?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(id);
-          try {
-            await offersApi.delete(id);
-            refresh();
-          } catch {
-            Alert.alert('Error', 'Failed to delete offer.');
-          } finally {
-            setDeleting(null);
-          }
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    if (!deleteTargetOffer) return;
+    setDeleting(deleteTargetOffer._id);
+    try {
+      await offersApi.delete(deleteTargetOffer._id);
+      refresh();
+      setDeleteTargetOffer(null);
+    } catch {
+      Alert.alert('Error', 'Failed to delete offer.');
+    } finally {
+      setDeleting(null);
+    }
   };
 
   if (loading) {
@@ -96,9 +92,7 @@ export default function StoreOffersScreen() {
         }
         renderItem={({ item: offer }) => {
           const expired = new Date(offer.validUntil) < new Date();
-          const imageUri = offer.image?.startsWith('http')
-            ? offer.image
-            : `${GATEWAY_URL}${offer.image}`;
+          const imageUri = resolveImageUrl(offer.image);
           return (
             <View style={[styles.card, expired && styles.cardExpired]}>
               <View style={styles.imageWrap}>
@@ -149,7 +143,7 @@ export default function StoreOffersScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.deleteBtn}
-                    onPress={() => handleDelete(offer._id)}
+                    onPress={() => setDeleteTargetOffer(offer)}
                     disabled={deleting === offer._id}
                   >
                     <Trash2 size={12} color={isDark ? '#F87171' : CustomerColors.primary} />
@@ -161,6 +155,47 @@ export default function StoreOffersScreen() {
           );
         }}
       />
+
+      {/* Custom Delete Confirmation Modal */}
+      <Modal
+        visible={Boolean(deleteTargetOffer)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteTargetOffer(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.deleteIconWrap}>
+              <Trash2 size={26} color="#EF4444" />
+            </View>
+            <Text style={styles.modalTitle}>Delete this offer?</Text>
+            <Text style={styles.modalSubtitle}>
+              Are you sure you want to delete "{deleteTargetOffer?.title}"? This offer will be removed from customer feeds.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setDeleteTargetOffer(null)}
+                disabled={Boolean(deleting)}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                onPress={confirmDelete}
+                disabled={Boolean(deleting)}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.confirmDeleteBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -313,4 +348,77 @@ const getStyles = (isDark: boolean) =>
     },
     privateBadge: { position: 'absolute', top: 6, right: 6, maxWidth: '70%', backgroundColor: '#7C3AED', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     privateBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.lg,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 340,
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.lg,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    },
+    deleteIconWrap: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.sm,
+    },
+    modalTitle: {
+      fontSize: FontSizes.lg,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    modalSubtitle: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+      marginBottom: Spacing.lg,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+      width: '100%',
+    },
+    cancelBtn: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+    },
+    cancelBtnText: {
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+      color: isDark ? '#E5E7EB' : '#475569',
+    },
+    confirmDeleteBtn: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#DC2626',
+    },
+    confirmDeleteBtnText: {
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
   });

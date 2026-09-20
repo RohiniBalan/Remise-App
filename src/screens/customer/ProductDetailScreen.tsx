@@ -42,6 +42,7 @@ import {
   ProductReview,
   ReviewStats,
 } from '../../api/productApi';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useTheme, ThemeColors } from '../../context/ThemeContext';
@@ -54,8 +55,8 @@ import {
   Shadows,
 } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
-import { requireAuthForPurchase } from '../../utils/authGuard';
 import { normalizeSpecifications } from '../../utils/categoryAttributes';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -64,12 +65,14 @@ const TABS = ['About', 'Specifications', 'Highlights', 'Shipping', 'Reviews'] as
 // Roles that see store-owner pricing instead of the direct-customer price
 const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
 
+type SortOption = 'newest' | 'highest' | 'lowest' | 'helpful';
+
 export default function ProductDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { productId: routeProductId, hideBack, from } = route.params || {};
   const isPreview = Boolean(hideBack || from === 'preview');
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { addToCart, setBuyNowItem, cartCount } = useCart();
   const { isWishlisted: checkWishlisted, toggleWishlist } = useWishlist();
   const { unreadCount } = useUnreadNotifications();
@@ -82,6 +85,7 @@ export default function ProductDetailScreen() {
   const [activeImage, setActiveImage] = useState<string | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<(typeof TABS)[number]>('About');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Reviews State
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -311,9 +315,15 @@ export default function ProductDetailScreen() {
 
   const gallery = useMemo(() => {
     if (!product) return [];
-    if (Array.isArray(product.images) && product.images.length > 0)
-      return product.images.filter(Boolean);
-    return product.imageUrl ? [product.imageUrl] : [];
+    const list =
+      Array.isArray(product.images) && product.images.length > 0
+        ? product.images.filter(Boolean)
+        : product.imageUrl
+        ? [product.imageUrl]
+        : [];
+    return list
+      .map(img => resolveImageUrl(img))
+      .filter((img): img is string => Boolean(img));
   }, [product]);
 
   // Dynamic specifications normalization (filtering out empty fields)
@@ -424,7 +434,10 @@ export default function ProductDetailScreen() {
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
-    if (!requireAuthForPurchase(navigation)) return;
+    if (!token || !user) {
+      setShowAuthModal(true);
+      return;
+    }
 
     for (let i = 0; i < quantity; i++) {
       addToCart({
@@ -440,7 +453,10 @@ export default function ProductDetailScreen() {
 
   const handleBuyNow = () => {
     if (isOutOfStock) return;
-    if (!requireAuthForPurchase(navigation)) return;
+    if (!token || !user) {
+      setShowAuthModal(true);
+      return;
+    }
 
     setBuyNowItem({
       id: pId,
@@ -1171,6 +1187,14 @@ export default function ProductDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Purchase"
+        subtitle="Please sign in or register to complete this purchase."
+        onLogin={() => navigation.navigate('LoginRegister')}
+      />
     </View>
   );
 }

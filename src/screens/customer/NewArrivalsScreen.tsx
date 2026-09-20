@@ -12,13 +12,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Filter, X, Sparkles, ArrowLeft } from 'lucide-react-native';
-import { productApi, Product, productId } from '../../api/productApi';
+import { productApi, Product, productId, productImage } from '../../api/productApi';
 import { NEW_ARRIVAL_WINDOW_DAYS } from '../../api/homeSectionsApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
-import { requireAuthForPurchase } from '../../utils/authGuard';
 import ProductCard from '../../components/common/ProductCard';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import { useTheme } from '../../context/ThemeContext';
 import {
   CustomerColors,
   GoldColors,
@@ -52,10 +53,12 @@ export default function NewArrivalsScreen() {
   const { user, token } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { isDark } = useTheme();
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -67,14 +70,16 @@ export default function NewArrivalsScreen() {
     productApi
       .getProductsViaGateway({
         t: Date.now(),
-        ownerRole: 'store_owner',
         limit: 10000,
       })
       .then(res => {
         const data = res.data;
-        const arr: Product[] = Array.isArray(data)
+        const rawArr: Product[] = Array.isArray(data)
           ? data
           : data?.products || data?.data || [];
+        const arr = rawArr.filter(
+          (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+        );
         setAllProducts(arr);
       })
       .catch(() => setAllProducts([]))
@@ -166,20 +171,16 @@ export default function NewArrivalsScreen() {
 
   const handleAddToCart = (p: Product) => {
     if (p.totalStock <= 0) return;
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to add items to your cart.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     addToCart({
       id: productId(p),
       title: p.title,
       price: p.discountedPrice ?? p.price,
       quantity: 1,
-      image: p.images?.[0] ?? p.imageUrl,
+      image: productImage(p) || '',
       totalStock: p.totalStock,
     });
     showToast('Added to cart ✓');
@@ -187,68 +188,72 @@ export default function NewArrivalsScreen() {
 
   const handleBuyNow = (p: Product) => {
     if (p.totalStock <= 0) return;
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to complete this purchase.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     setBuyNowItem({
       id: productId(p),
       title: p.title,
       price: p.discountedPrice ?? p.price,
       quantity: 1,
-      image: p.images?.[0] ?? p.imageUrl,
+      image: productImage(p) || '',
       totalStock: p.totalStock,
     });
     navigation.navigate('Checkout');
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('CustomerTabs', { screen: 'Home' });
+    }
+  };
+
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, isDark && { backgroundColor: '#0B1120' }]}>
         <ActivityIndicator size="large" color={CustomerColors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: '#0B1120' }]}>
       {/* Header Eyebrow & Filter Bar */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, isDark && { backgroundColor: '#0F172A', borderBottomColor: '#1E293B' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+            onPress={handleBack}
             style={styles.backHomeBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ArrowLeft size={22} color={CustomerColors.black} />
+            <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
           </TouchableOpacity>
           <View>
             <View style={styles.eyebrowRow}>
               <Sparkles size={13} color={CustomerColors.primary} />
               <Text style={styles.eyebrowText}>Just In</Text>
             </View>
-            <Text style={styles.pageTitle}>
+            <Text style={[styles.pageTitle, isDark && { color: '#FFFFFF' }]}>
               {activeCategory ? activeCategory : 'New Arrivals'}
             </Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, isDark && { backgroundColor: '#0B1120', borderBottomColor: '#1E293B' }]}>
         <TouchableOpacity
-          style={styles.filterToggle}
+          style={[styles.filterToggle, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}
           onPress={() => setFiltersOpen(o => !o)}
         >
           <Filter size={13} color={CustomerColors.primary} />
-          <Text style={styles.filterToggleText}>
+          <Text style={[styles.filterToggleText, isDark && { color: '#F1F5F9' }]}>
             Filters{hasActiveFilters ? ' •' : ''}
           </Text>
         </TouchableOpacity>
-        <Text style={styles.count}>{filtered.length} products</Text>
+        <Text style={[styles.count, isDark && { color: '#94A3B8' }]}>{filtered.length} products</Text>
       </View>
 
       {filtersOpen && (
@@ -376,6 +381,14 @@ export default function NewArrivalsScreen() {
             onBuyNow={() => handleBuyNow(item)}
           />
         )}
+      />
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Purchase"
+        subtitle="Please sign in or register to complete this purchase."
+        onLogin={() => navigation.navigate('LoginRegister')}
       />
     </View>
   );

@@ -46,7 +46,8 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
-import { requireAuthForPurchase } from '../../utils/authGuard';
+import { navigateToAuthFlow } from '../../utils/authGuard';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { indianStates, getCities } from '../../utils/indiaLocation';
 import {
   LocationSelectField,
@@ -117,6 +118,7 @@ export default function CompareStoresScreen() {
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
   const [orderId, setOrderId] = useState('');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
 
   const [form, setForm] = useState<AddressForm>({
@@ -301,14 +303,10 @@ export default function CompareStoresScreen() {
   };
 
   const handleConfirmDetails = () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to continue with this bulk purchase.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     if (
       !chosen ||
       !form.firstName.trim() ||
@@ -326,14 +324,10 @@ export default function CompareStoresScreen() {
   };
 
   const handlePlaceOrder = async () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to place this order.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     if (!chosen || !deliveryMethod) return;
     setStep('placing');
     setErrorMsg('');
@@ -859,6 +853,14 @@ export default function CompareStoresScreen() {
           onClose={() => setShowInvoiceModal(false)}
         />
       ) : null}
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Place Order"
+        subtitle="Please sign in or register to continue with your bulk purchase."
+        onLogin={() => navigateToAuthFlow(navigation)}
+      />
     </View>
   );
 }

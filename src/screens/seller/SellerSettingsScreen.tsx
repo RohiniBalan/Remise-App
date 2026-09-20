@@ -27,14 +27,7 @@ import { indianStates, getCities } from '../../utils/indiaLocation';
 import { normalizeLoc, lookupPincode } from '../../components/common/LocationSelectField';
 import { mergeCategories } from '../../utils/storeCategories';
 import { useTheme } from '../../context/ThemeContext';
-
-const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
-
-function resolveImageUri(url?: string) {
-  if (!url) return undefined;
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  return `${API}${url.startsWith('/') ? '' : '/'}${url}`;
-}
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const STORE_CATEGORIES = [
@@ -251,7 +244,7 @@ export default function SellerSettingsScreen() {
           <View style={styles.logoRow}>
             <View style={styles.logoPreviewBox}>
               {logoUri ? (
-                <Image source={{ uri: resolveImageUri(logoUri) }} style={styles.logoPreviewImage} resizeMode="cover" />
+                <Image source={{ uri: resolveImageUrl(logoUri) }} style={styles.logoPreviewImage} resizeMode="cover" />
               ) : (
                 <Store size={28} color={isDark ? '#6B7280' : '#9CA3AF'} />
               )}
@@ -382,7 +375,7 @@ export default function SellerSettingsScreen() {
           <View style={styles.qrBox}>
             {store?.qrCodeImage ? (
               <Image
-                source={{ uri: store.qrCodeImage }}
+                source={{ uri: resolveImageUrl(store.qrCodeImage) }}
                 style={styles.qrImage}
                 resizeMode="contain"
               />

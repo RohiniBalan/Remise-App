@@ -1378,10 +1378,10 @@ export default function ProfileScreen() {
         onRequestClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
       >
         <Pressable
-          style={styles.modalBackdrop}
+          style={styles.feedbackModalBackdrop}
           onPress={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
         >
-          <Pressable style={styles.feedbackCard} onPress={() => {}}>
+          <Pressable style={styles.feedbackCard} onPress={(e) => e.stopPropagation?.()}>
             <View
               style={[
                 styles.feedbackIconWrap,
@@ -1815,12 +1815,19 @@ const getStyles = (isDark: boolean) =>
       fontSize: FontSizes.base,
       fontWeight: '700',
     },
+    feedbackModalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.lg,
+    },
     feedbackCard: {
       backgroundColor: isDark ? '#111827' : '#FFFFFF',
       borderRadius: BorderRadius.xl,
       padding: Spacing.xl,
       alignItems: 'center',
-      width: '85%',
+      width: '100%',
       maxWidth: 340,
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : '#E5E7EB',

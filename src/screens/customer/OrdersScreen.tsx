@@ -23,6 +23,7 @@ import {
   RotateCcw,
   MapPin,
 } from 'lucide-react-native';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { useAuth } from '../../context/AuthContext';
 import { orderApi, OrderData } from '../../api/orderApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
@@ -76,12 +77,17 @@ function getStatusUI(
   deliveryDate: string,
   deliveryStatus?: string,
 ) {
-  if (status === 'REFUNDED')
+  if (
+    status === 'REFUNDED' ||
+    status === 'Refund Processing' ||
+    status === 'Cancelled' ||
+    deliveryStatus === 'Cancelled'
+  )
     return {
-      color: CustomerColors.success,
-      text: `Refund initiated on ${orderDate}`,
+      color: '#D97706',
+      text: `Cancelled · Refund Processing`,
       subText:
-        'Razorpay is processing the refund to your original payment method.',
+        'Razorpay is processing the refund to your original payment method (5-7 business days).',
     };
   if (status === 'Delivered' || deliveryStatus === 'Delivered')
     return {
@@ -246,14 +252,14 @@ export default function OrdersScreen() {
       setOrders(prev =>
         prev.map(order =>
           (order.orderId || order._id) === selectedRefund.orderId
-            ? { ...order, paymentStatus: 'REFUNDED' }
+            ? { ...order, paymentStatus: 'REFUNDED', orderStatus: 'Cancelled', deliveryStatus: 'Cancelled' }
             : order,
         ),
       );
       setSelectedRefund(null);
       Alert.alert(
-        'Refund initiated',
-        `Rs ${amount.toLocaleString()} will be processed by Razorpay normally. It usually reaches the original payment method within 5-7 working days.`,
+        'Refund Initiated',
+        `₹${amount.toLocaleString()} is currently processing via Razorpay. It usually reaches the original payment method within 5-7 business days.`,
       );
     } catch (error: any) {
       setRefundError(
@@ -282,6 +288,13 @@ export default function OrdersScreen() {
               });
         const orderIdentifier = order._id || order.orderId || `ord-${orderIdx}`;
         const itemIdentifier = item.productId || (item as any)._id || idx;
+        const isRefundedOrCancelled =
+          order.paymentStatus === 'REFUNDED' ||
+          order.orderStatus === 'Cancelled' ||
+          order.deliveryStatus === 'Cancelled' ||
+          (order as any).refundStatus === 'refunded' ||
+          (order as any).refundStatus === 'processing';
+
         return {
           key: `${orderIdentifier}-${orderIdx}-${idx}-${itemIdentifier}`,
           orderId: order.orderId || order._id || '',
@@ -292,7 +305,9 @@ export default function OrdersScreen() {
           price: item.price,
           quantity: item.quantity,
           image: item.image,
-          displayStatus: order.orderStatus || 'Processing',
+          displayStatus: isRefundedOrCancelled
+            ? 'Refund Processing'
+            : order.orderStatus || 'Processing',
           orderDate: fmt(orderDateObj),
           deliveryDate: fmt(deliveryDateObj),
           createdAt: order.createdAt || '',
@@ -332,12 +347,14 @@ export default function OrdersScreen() {
       matchesStatus = statusFilters.some(filter => {
         const isCancelled =
           item.displayStatus === 'Cancelled' ||
+          item.displayStatus === 'Refund Processing' ||
           item.deliveryStatus === 'Cancelled';
         const isDelivered =
           item.displayStatus === 'Delivered' ||
           item.deliveryStatus === 'Delivered';
         const isReturned =
           item.displayStatus === 'Returned' ||
+          item.displayStatus === 'Refund Processing' ||
           item.paymentStatus === 'REFUNDED';
 
         if (filter === 'Cancelled') return isCancelled;
@@ -504,7 +521,7 @@ export default function OrdersScreen() {
 
           return (
             <View style={styles.orderCard}>
-              <Image source={{ uri: item.image }} style={styles.orderImage} />
+              <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.orderImage} />
               <View style={styles.orderInfo}>
                 <Text style={styles.orderTitle} numberOfLines={2}>
                   {item.title}

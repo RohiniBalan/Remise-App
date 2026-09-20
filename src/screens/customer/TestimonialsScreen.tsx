@@ -3,6 +3,7 @@ import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from 're
 import { Star } from 'lucide-react-native';
 import { testimonialsApi } from '../../api/contentApi';
 import { GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 // Ported from client/app/testimonials/page.tsx — same GET
 // /enhanced-testimonials shape (hero/spotlight/cta page-settings + a
@@ -49,7 +50,7 @@ export default function TestimonialsScreen() {
 
       {spotlight && (
         <View style={styles.spotlightCard}>
-          {spotlight.image ? <Image source={{ uri: spotlight.image }} style={styles.spotlightImage} /> : null}
+          {spotlight.image ? <Image source={{ uri: resolveImageUrl(spotlight.image) }} style={styles.spotlightImage} /> : null}
           <Text style={styles.spotlightQuote}>&ldquo;{spotlight.quote}&rdquo;</Text>
           <Text style={styles.spotlightName}>{spotlight.name}</Text>
           <Text style={styles.spotlightRole}>{spotlight.role}</Text>
@@ -59,7 +60,7 @@ export default function TestimonialsScreen() {
       {reviews.map((r, i) => (
         <View key={i} style={styles.reviewCard}>
           <View style={styles.reviewHeader}>
-            {r.image ? <Image source={{ uri: r.image }} style={styles.reviewAvatar} /> : <View style={styles.reviewAvatarFallback} />}
+            {r.image ? <Image source={{ uri: resolveImageUrl(r.image) }} style={styles.reviewAvatar} /> : <View style={styles.reviewAvatarFallback} />}
             <View style={{ flex: 1 }}>
               <Text style={styles.reviewName}>{r.name}</Text>
               {r.role ? <Text style={styles.reviewRole}>{r.role}</Text> : null}

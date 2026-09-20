@@ -12,6 +12,7 @@ import { requestCameraPermission } from '../../utils/permissions';
 import { BulkProductRow } from './StoreBulkProductScanScreen';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { groupProductsByType } from '../../utils/groupProducts';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export default function StoreProductsScreen() {
   const navigation = useNavigation<any>();
@@ -211,7 +212,7 @@ export default function StoreProductsScreen() {
           return (
             <View style={styles.card}>
               <View style={styles.imageWrap}>
-                {pt.image ? <Image source={{ uri: pt.image }} style={styles.image} /> : <Package size={28} color={isDark ? '#4B5563' : '#E5E7EB'} />}
+                {pt.image ? <Image source={{ uri: resolveImageUrl(pt.image) }} style={styles.image} /> : <Package size={28} color={isDark ? '#4B5563' : '#E5E7EB'} />}
               </View>
               <View style={styles.cardBody}>
                 <Text style={styles.category}>{pt.category || '—'}</Text>

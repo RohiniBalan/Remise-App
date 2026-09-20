@@ -510,6 +510,21 @@ export default function StoreOwnerNavigator() {
               options={{ ...stackHeaderOptions, title: 'Order Stock' }}
             />
             <Stack.Screen
+              name="SupplierBrands"
+              component={StoreSupplierBrandsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SupplierCompare"
+              component={StoreSupplierCompareScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SupplierCart"
+              component={StoreSupplierCartScreen}
+              options={{ ...stackHeaderOptions, title: 'Supplier Cart' }}
+            />
+            <Stack.Screen
               name="StoreOwnerCustomers"
               component={StoreCustomersScreen}
               options={{ ...stackHeaderOptions, title: 'Customers' }}

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, LayoutGrid, ClipboardList, MapPin, Heart, ShoppingCart, Package, User, ArrowLeft } from 'lucide-react-native';
+import { Home, LayoutGrid, ClipboardList, MapPin, Heart, ShoppingCart, Package, User, ArrowLeft, Store } from 'lucide-react-native';
 import PlaceholderScreen from '../screens/common/PlaceholderScreen';
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
@@ -50,12 +50,19 @@ export type CustomerTabParamList = {
   Home: undefined;
   Categories: undefined;
   BulkPurchase: undefined;
+  Suppliers: undefined;
   Nearby: undefined;
   Wishlist: undefined;
   Orders: undefined;
   Cart: undefined;
   Profile: undefined;
-  Suppliers?: undefined;
+};
+
+export type HomeStackParamList = {
+  HomeScreen: undefined;
+  BestSellers: undefined;
+  NewArrivals: undefined;
+  Suppliers: undefined;
 };
 
 export type CategoriesStackParamList = {
@@ -104,7 +111,21 @@ export type CustomerStackParamList = {
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
 const Stack = createNativeStackNavigator<CustomerStackParamList>();
+const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const CategoriesStack = createNativeStackNavigator<CategoriesStackParamList>();
+
+// Nested stack inside the Home tab — keeps the bottom tab bar visible
+// when navigating to Best Sellers, New Arrivals, or Suppliers.
+function HomeNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
+      <HomeStack.Screen name="BestSellers" component={BestSellersScreen} />
+      <HomeStack.Screen name="NewArrivals" component={NewArrivalsScreen} />
+      <HomeStack.Screen name="Suppliers" component={SuppliersScreen} />
+    </HomeStack.Navigator>
+  );
+}
 
 // Nested stack inside the Categories tab — keeps the bottom tab bar visible
 // when navigating from the category grid to the product listing.
@@ -162,7 +183,7 @@ function CustomerTabs() {
       }}>
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeNavigator}
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => <Home color={color} size={20} />,
@@ -182,6 +203,14 @@ function CustomerTabs() {
         options={{
           tabBarLabel: 'Bulk',
           tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={20} />,
+        }}
+      />
+      <Tab.Screen
+        name="Suppliers"
+        component={SuppliersScreen}
+        options={{
+          tabBarLabel: 'Supplier',
+          tabBarIcon: ({ color, size }) => <Store color={color} size={20} />,
         }}
       />
       <Tab.Screen
@@ -289,40 +318,6 @@ export default function CustomerNavigator() {
     >
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen
-        name="BestSellers"
-        component={BestSellersScreen}
-        options={({ navigation }: any) => ({
-          headerShown: true,
-          title: 'Best Sellers',
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
-              style={{ marginRight: 12 }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
-            </TouchableOpacity>
-          ),
-        })}
-      />
-      <Stack.Screen
-        name="NewArrivals"
-        component={NewArrivalsScreen}
-        options={({ navigation }: any) => ({
-          headerShown: true,
-          title: 'New Arrivals',
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
-              style={{ marginRight: 12 }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
-            </TouchableOpacity>
-          ),
-        })}
-      />
       <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, title: 'Your Cart' }} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true }} />
       <Stack.Screen name="PhonePeWebView" component={PhonePeWebViewScreen} options={{ headerShown: true, title: 'PhonePe' }} />

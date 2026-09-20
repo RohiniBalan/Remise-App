@@ -43,8 +43,7 @@ import RefundModal from '../../components/common/RefundModal';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import { groupByTitle, TitleGroup } from '../../utils/supplierTypes';
 import { mergeCategories } from '../../utils/storeCategories';
-
-const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Processing: { bg: '#FEF3C7', text: '#92400E' },
@@ -344,11 +343,7 @@ export default function StoreSuppliersScreen() {
               renderItem={({ item: tg }) => {
                 if (tg.__filler)
                   return <View style={[styles.card, styles.cardFiller]} />;
-                const img = tg.image
-                  ? tg.image.startsWith('http')
-                    ? tg.image
-                    : `${API}${tg.image}`
-                  : '';
+                const img = resolveImageUrl(tg.image) || '';
                 return (
                   <View style={styles.card}>
                     <View style={styles.imageWrap}>

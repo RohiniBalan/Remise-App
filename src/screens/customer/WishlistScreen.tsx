@@ -13,6 +13,7 @@ import BrandHeader from '../../components/common/BrandHeader';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export default function WishlistScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -38,7 +39,7 @@ export default function WishlistScreen({ navigation }: any) {
     >
       <View style={styles.imageWrap}>
         {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.image} resizeMode="contain" />
+          <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.image} resizeMode="contain" />
         ) : (
           <View style={styles.imagePlaceholder}>
             <ShoppingBag size={24} color="#9CA3AF" />

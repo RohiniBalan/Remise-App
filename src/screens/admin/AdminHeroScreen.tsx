@@ -6,6 +6,7 @@ import { useAdminContent } from '../../hooks/useAdminContent';
 import AdminContentLayout from '../../components/admin/AdminContentLayout';
 import AdminField from '../../components/admin/AdminField';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 // Ported from client/app/admin/hero/page.tsx — same fields (badgeText/
 // title/titleGradient/description/primaryButtonText/secondaryButtonText),
@@ -55,7 +56,7 @@ export default function AdminHeroScreen() {
       <Text style={styles.sectionTitle}>Car Images ({data.carImages.length}/10)</Text>
       {data.carImages.map((url, idx) => (
         <View key={idx} style={styles.listRow}>
-          <Image source={{ uri: url }} style={styles.thumb} />
+          <Image source={{ uri: resolveImageUrl(url) }} style={styles.thumb} />
           <Text style={styles.urlText} numberOfLines={1}>{url}</Text>
           <TouchableOpacity onPress={() => removeCarImage(idx)}><X size={16} color="#DC2626" /></TouchableOpacity>
         </View>
@@ -70,7 +71,7 @@ export default function AdminHeroScreen() {
       <Text style={styles.sectionTitle}>Brand Logos</Text>
       {data.brands.map((b, idx) => (
         <View key={idx} style={styles.listRow}>
-          <Image source={{ uri: b.src }} style={styles.thumb} />
+          <Image source={{ uri: resolveImageUrl(b.src) }} style={styles.thumb} />
           <Text style={styles.urlText} numberOfLines={1}>{b.name}</Text>
           <TouchableOpacity onPress={() => removeBrand(idx)}><X size={16} color="#DC2626" /></TouchableOpacity>
         </View>

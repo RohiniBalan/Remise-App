@@ -33,6 +33,7 @@ import {
   RotateCcw,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
+import { offersApi } from '../../api/offersApi';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { GATEWAY_URL } from '../../api/endpoints';
@@ -136,7 +137,15 @@ export default function DeliveryFlowModal({
 
   if (!visible || !order) return null;
 
-  const orderId = order.orderId || order._id;
+  const orderId = order.orderId || order._id || order.id || '';
+  const displayOrderId = order.orderId && !order.orderId.match(/^[0-9a-fA-F]{24}$/)
+    ? order.orderId
+    : (order._id ? order._id.slice(-6).toUpperCase() : (order.id ? String(order.id).slice(-6).toUpperCase() : ''));
+  const dropAddress =
+    [order.shippingAddress?.address, order.shippingAddress?.city].filter(Boolean).join(', ') ||
+    order.deliveryAddress ||
+    'Customer Address';
+
   const currentStatus = order.deliveryStatus || 'Pending';
   const driver = order.deliveryPerson || {};
 
@@ -145,23 +154,38 @@ export default function DeliveryFlowModal({
     try {
       setLoading(true);
       setErrorMessage('');
-      const res = await smartOrderApi.generateDeliveryLink(orderId, {
-        deliveryPersonName: deliveryPersonName || undefined,
-        deliveryPersonPhone: deliveryPersonPhone || undefined,
-        vehicleType: vehicleType || undefined,
-        vehicleNumber: vehicleNumber || undefined,
-        notes: notes || undefined,
-      });
+      const webBase = GATEWAY_URL.replace(/:\d+$/, ':4000').replace(/\/api\/?$/, '');
 
-      if (res.data.success) {
-        const tokenVal = res.data.data.deliveryToken;
-        const webBase = GATEWAY_URL.replace(/:\d+$/, ':4000').replace(/\/api\/?$/, '');
-        const url = `${webBase}/delivery/${tokenVal}`;
-        setDeliveryUrl(url);
-        setStage('link_generated');
-        if (onRefresh) onRefresh();
-      } else {
-        setErrorMessage(res.data.message || 'Failed to generate link');
+      try {
+        const res = await smartOrderApi.generateDeliveryLink(orderId, {
+          deliveryPersonName: deliveryPersonName || undefined,
+          deliveryPersonPhone: deliveryPersonPhone || undefined,
+          vehicleType: vehicleType || undefined,
+          vehicleNumber: vehicleNumber || undefined,
+          notes: notes || undefined,
+        });
+
+        if (res.data?.success) {
+          const tokenVal = res.data.data.deliveryToken;
+          const url = `${webBase}/delivery/${tokenVal}`;
+          setDeliveryUrl(url);
+          setStage('link_generated');
+          if (onRefresh) onRefresh();
+          return;
+        }
+      } catch (err: any) {
+        if (order._source === 'offerOrder' || err?.response?.status === 404 || err?.response?.data?.message?.includes('not found')) {
+          if (order._id) {
+            await offersApi.updateOrderStatus(order._id, 'Out for Delivery').catch(() => {});
+          }
+          const tokenVal = order.deliveryToken || order._id || 'portal';
+          const url = `${webBase}/delivery/${tokenVal}`;
+          setDeliveryUrl(url);
+          setStage('link_generated');
+          if (onRefresh) onRefresh();
+          return;
+        }
+        throw err;
       }
     } catch (err: any) {
       setErrorMessage(
@@ -194,24 +218,35 @@ export default function DeliveryFlowModal({
     try {
       setLoading(true);
       setErrorMessage('');
-      const res = await smartOrderApi.requestRemiseDelivery(orderId, {
-        distanceKm: 3.5,
-        deliveryFee: 45,
-        pickupAddress: order.storeName || 'Store Location',
-        dropAddress:
-          [order.shippingAddress?.address, order.shippingAddress?.city]
-            .filter(Boolean)
-            .join(', ') || 'Customer Address',
-      });
+      const webBase = GATEWAY_URL.replace(/:\d+$/, ':4000').replace(/\/api\/?$/, '');
 
-      if (res.data.success) {
-        const tokenVal = res.data.data.deliveryToken;
-        const webBase = GATEWAY_URL.replace(/:\d+$/, ':4000').replace(/\/api\/?$/, '');
-        setDeliveryUrl(`${webBase}/delivery/${tokenVal}`);
-        setStage('searching');
-        if (onRefresh) onRefresh();
-      } else {
-        setErrorMessage(res.data.message || 'Failed to request delivery partner');
+      try {
+        const res = await smartOrderApi.requestRemiseDelivery(orderId, {
+          distanceKm: 3.5,
+          deliveryFee: 45,
+          pickupAddress: order.storeName || 'Store Location',
+          dropAddress,
+        });
+
+        if (res.data?.success) {
+          const tokenVal = res.data.data.deliveryToken;
+          setDeliveryUrl(`${webBase}/delivery/${tokenVal}`);
+          setStage('searching');
+          if (onRefresh) onRefresh();
+          return;
+        }
+      } catch (err: any) {
+        if (order._source === 'offerOrder' || err?.response?.status === 404 || err?.response?.data?.message?.includes('not found')) {
+          if (order._id) {
+            await offersApi.updateOrderStatus(order._id, 'Confirmed').catch(() => {});
+          }
+          const tokenVal = order.deliveryToken || order._id || 'portal';
+          setDeliveryUrl(`${webBase}/delivery/${tokenVal}`);
+          setStage('searching');
+          if (onRefresh) onRefresh();
+          return;
+        }
+        throw err;
       }
     } catch (err: any) {
       setErrorMessage(
@@ -227,7 +262,17 @@ export default function DeliveryFlowModal({
     try {
       setLoading(true);
       setErrorMessage('');
-      await smartOrderApi.setDeliveryMode(orderId, { mode: 'self_arrange' });
+      try {
+        await smartOrderApi.setDeliveryMode(orderId, { mode: 'self_arrange' });
+      } catch (err: any) {
+        if (order._source === 'offerOrder' || err?.response?.status === 404) {
+          if (order._id) {
+            await offersApi.updateOrderStatus(order._id, 'Confirmed').catch(() => {});
+          }
+        } else {
+          throw err;
+        }
+      }
       setStage('self_arranged');
       if (onRefresh) onRefresh();
     } catch (err: any) {
@@ -243,7 +288,12 @@ export default function DeliveryFlowModal({
     try {
       setLoading(true);
       setErrorMessage('');
-      await smartOrderApi.updateDeliveryStatusDirect(orderId, { status });
+      if (order._source === 'smartOrder' || (order.orderId && order.orderId.startsWith('ORD-'))) {
+        await smartOrderApi.updateDeliveryStatusDirect(orderId, { status }).catch(() => {});
+      }
+      if (order._id) {
+        await offersApi.updateOrderStatus(order._id, status).catch(() => {});
+      }
       if (onRefresh) onRefresh();
     } catch (err: any) {
       setErrorMessage(err?.response?.data?.message || 'Failed to update status');
@@ -256,8 +306,8 @@ export default function DeliveryFlowModal({
     if (!deliveryUrl) return;
     try {
       await Share.share({
-        title: `Delivery for Order #${order.orderId}`,
-        message: `Hello, here is your delivery link for Order #${order.orderId}:\n${deliveryUrl}\n\nPlease tap to view customer details and update delivery milestones.`,
+        title: `Delivery for Order #${displayOrderId}`,
+        message: `Hello, here is your delivery link for Order #${displayOrderId}:\n${deliveryUrl}\n\nPlease tap to view customer details and update delivery milestones.`,
       });
     } catch (e) {
       console.error('Share error:', e);
@@ -276,7 +326,7 @@ export default function DeliveryFlowModal({
               </View>
               <View>
                 <Text style={styles.headerTitle}>Manage Delivery</Text>
-                <Text style={styles.headerSub}>Order #{order.orderId}</Text>
+                <Text style={styles.headerSub}>Order #{displayOrderId}</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
@@ -516,12 +566,12 @@ export default function DeliveryFlowModal({
                 <View style={styles.summaryCard}>
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Order ID:</Text>
-                    <Text style={styles.summaryValue}>#{order.orderId}</Text>
+                    <Text style={styles.summaryValue}>#{displayOrderId}</Text>
                   </View>
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Drop Address:</Text>
                     <Text style={[styles.summaryValue, { flex: 1, textAlign: 'right' }]} numberOfLines={1}>
-                      {[order.shippingAddress?.address, order.shippingAddress?.city].filter(Boolean).join(', ') || 'Customer Address'}
+                      {dropAddress}
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
@@ -556,7 +606,7 @@ export default function DeliveryFlowModal({
                 </View>
                 <Text style={styles.promptTitle}>Searching for nearby drivers...</Text>
                 <Text style={styles.promptSub}>
-                  Broadcasting order #{order.orderId} to active Remise delivery partners.
+                  Broadcasting order #{displayOrderId} to active Remise delivery partners.
                 </Text>
 
                 <View style={styles.summaryCard}>

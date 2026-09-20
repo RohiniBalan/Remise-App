@@ -33,7 +33,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { storeApi } from '../../api/storeApi';
 import { offersApi } from '../../api/offersApi';
 import { GATEWAY_URL } from '../../api/endpoints';
-import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { mergeCategories } from '../../utils/storeCategories';
@@ -262,9 +263,17 @@ export default function NewOfferScreen() {
       fd.append('storeId', store._id);
       fd.append('storeName', store.name);
       fd.append('latitude', String(lat));
-      fd.append('longitude', String(lng));
-      fd.append('validUntil', selectedDate.toISOString());
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      const finalIso = (selectedDate instanceof Date && !isNaN(selectedDate.getTime()))
+        ? selectedDate.toISOString()
+        : new Date(form.validUntil || Date.now()).toISOString();
+      fd.append('validUntil', finalIso);
+
+      Object.entries(form).forEach(([k, v]) => {
+        if (k === 'validUntil') return;
+        if (v !== undefined && v !== null && v !== '') {
+          fd.append(k, String(v));
+        }
+      });
       if (targetCustomerId) {
         fd.append('targetCustomerId', targetCustomerId);
         fd.append('targetCustomerName', targetCustomerName || '');
@@ -313,7 +322,7 @@ export default function NewOfferScreen() {
       <Text style={styles.label}>Offer Image *</Text>
       <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
         {imgUri ? (
-          <Image source={{ uri: imgUri }} style={styles.imagePreview} />
+          <Image source={{ uri: resolveImageUrl(imgUri) || imgUri }} style={styles.imagePreview} />
         ) : (
           <View style={styles.imagePlaceholder}>
             <ImageIcon size={28} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
@@ -391,12 +400,12 @@ export default function NewOfferScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-            <Calendar size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+            <Calendar size={18} color={isDark ? '#FFFFFF' : '#000000'} />
             <Text style={styles.selectValue}>
               {formatDisplayDate(selectedDate)}
             </Text>
           </View>
-          <Clock size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+          <Clock size={16} color={isDark ? '#FFFFFF' : '#000000'} />
         </TouchableOpacity>
       </View>
 

@@ -10,15 +10,7 @@ import { MiniLineChart, MiniBarChart } from './MiniCharts';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { GATEWAY_URL } from '../../api/endpoints';
-
-const API = process.env.EXPO_PUBLIC_API_URL || GATEWAY_URL;
-
-function resolveImageUri(url?: string) {
-  if (!url) return undefined;
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  return `${API}${url.startsWith('/') ? '' : '/'}${url}`;
-}
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
   PENDING: { bg: '#FFFBEB', fg: '#B45309', darkBg: 'rgba(217, 119, 6, 0.15)', darkFg: '#FBBF24' },
@@ -76,7 +68,7 @@ export default function SellerOverviewScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
           <View style={styles.storeLogoBox}>
             {store?.logo ? (
-              <Image source={{ uri: resolveImageUri(store.logo) }} style={styles.storeLogo} />
+              <Image source={{ uri: resolveImageUrl(store.logo) }} style={styles.storeLogo} />
             ) : (
               <Store size={22} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
             )}

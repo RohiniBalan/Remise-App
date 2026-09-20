@@ -12,10 +12,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Filter, X, Search, ArrowLeft } from 'lucide-react-native';
-import { productApi, Product, productId } from '../../api/productApi';
+import { productApi, Product, productId, productImage } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import ProductCard from '../../components/common/ProductCard';
+import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import {
   CustomerColors,
   Spacing,
@@ -23,7 +24,6 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
-import { requireAuthForPurchase } from '../../utils/authGuard';
 
 // Ported from client/app/category/[categoryId]/page.tsx — same single
 // full-catalog fetch, same client-side filter/sort logic (category
@@ -56,6 +56,7 @@ export default function CategoryScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(route.params?.category ?? null);
   const [searchQuery, setSearchQuery] = useState<string>(route.params?.search ?? '');
@@ -69,14 +70,16 @@ export default function CategoryScreen() {
     productApi
       .getProductsViaGateway({
         t: Date.now(),
-        ownerRole: 'store_owner',
         limit: 10000,
       })
       .then(res => {
         const data = res.data;
-        const arr = Array.isArray(data)
+        const rawArr = Array.isArray(data)
           ? data
           : data.products || data.data || [];
+        const arr = rawArr.filter(
+          (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+        );
         setProducts(arr);
       })
       .catch(() => setProducts([]))
@@ -206,42 +209,34 @@ export default function CategoryScreen() {
 
   const handleAddToCart = (p: Product) => {
     if (p.totalStock <= 0) return;
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to add items to your cart.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     const effectivePrice = getEffectivePrice(p);
     addToCart({
       id: productId(p),
       title: p.title,
       price: effectivePrice,
       quantity: 1,
-      image: p.images?.[0] ?? p.imageUrl,
+      image: productImage(p) || '',
       totalStock: p.totalStock,
     });
   };
 
   const handleBuyNow = (p: Product) => {
     if (p.totalStock <= 0) return;
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to complete this purchase.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     const effectivePrice = getEffectivePrice(p);
     setBuyNowItem({
       id: productId(p),
       title: p.title,
       price: effectivePrice,
       quantity: 1,
-      image: p.images?.[0] ?? p.imageUrl,
+      image: productImage(p) || '',
       totalStock: p.totalStock,
     });
     navigation.navigate('Checkout');
@@ -399,6 +394,14 @@ export default function CategoryScreen() {
             onBuyNow={() => handleBuyNow(item)}
           />
         )}
+      />
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login to Purchase"
+        subtitle="Please sign in or register to complete this purchase."
+        onLogin={() => navigation.navigate('LoginRegister')}
       />
     </View>
   );

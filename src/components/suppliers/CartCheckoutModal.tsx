@@ -31,7 +31,8 @@ import {
 } from '../../styles/theme';
 import { CartLine } from '../../utils/supplierGrouping';
 import { useAuth } from '../../context/AuthContext';
-import { requireAuthForPurchase } from '../../utils/authGuard';
+import { navigateToAuthFlow } from '../../utils/authGuard';
+import AuthRequiredModal from '../common/AuthRequiredModal';
 
 const indianStates = State.getStatesOfCountry('IN');
 const getCities = (stateCode: string) => City.getCitiesOfState('IN', stateCode);
@@ -71,6 +72,7 @@ export default function CartCheckoutModal({
   const [step, setStep] = useState<Step>('contact');
   const [groupIndex, setGroupIndex] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [cities, setCities] = useState<any[]>([]);
   const [form, setForm] = useState({
     firstName: prefill?.firstName || '',
@@ -140,14 +142,10 @@ export default function CartCheckoutModal({
   };
 
   const handleContinueOrSubmit = async () => {
-    if (
-      !requireAuthForPurchase({
-        navigation,
-        isAuthenticated: Boolean(token && user),
-        message: 'Please sign in to place this order.',
-      })
-    )
+    if (!token || !user) {
+      setShowAuthModal(true);
       return;
+    }
     if (groupIndex < groups.length - 1) {
       setGroupIndex(i => i + 1);
       return;
@@ -431,6 +429,17 @@ export default function CartCheckoutModal({
           </ScrollView>
         </View>
       </View>
+
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Login Required"
+        subtitle="Please sign in or register to place this order."
+        onLogin={() => {
+          onClose();
+          navigateToAuthFlow(navigation);
+        }}
+      />
     </Modal>
   );
 }
