@@ -169,6 +169,41 @@ export default function SellerOrdersScreen() {
                       <Truck size={10} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                       <Text style={styles.deliveryBadgeText}>{currentDeliveryStatus}</Text>
                     </View>
+                    {((o as any).refundStatus && (o as any).refundStatus !== 'none') || o.paymentStatus === 'REFUNDED' ? (
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor:
+                              o.paymentStatus === 'REFUNDED' || (o as any).refundStatus === 'refunded'
+                                ? isDark ? '#3b0764' : '#F3E8FF'
+                                : isDark ? '#451a03' : '#FEF3C7',
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            {
+                              color:
+                                o.paymentStatus === 'REFUNDED' || (o as any).refundStatus === 'refunded'
+                                  ? isDark ? '#C084FC' : '#9333EA'
+                                  : isDark ? '#FBBF24' : '#D97706',
+                            },
+                          ]}
+                        >
+                          {o.paymentStatus === 'REFUNDED' || (o as any).refundStatus === 'refunded'
+                            ? `Refunded: ₹${(o as any).totalRefundedAmount || o.totalAmount}`
+                            : (o as any).refundStatus === 'partially_refunded'
+                              ? `Partially Refunded: ₹${(o as any).totalRefundedAmount}`
+                              : (o as any).refundStatus === 'requested'
+                                ? 'Refund Requested'
+                                : (o as any).refundStatus === 'processing'
+                                  ? 'Refund Processing'
+                                  : `Refund: ${(o as any).refundStatus}`}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                   <Text style={styles.email}>{(o as any).user?.email || (o as any).shippingAddress?.phone}</Text>
                   {o.items?.map((it: any, i: number) => (
@@ -193,86 +228,20 @@ export default function SellerOrdersScreen() {
 
               <View style={styles.cardBottom}>
                 <Text style={styles.orderShortId}>#{o._id.slice(-6).toUpperCase()}</Text>
-                
-                <View style={styles.actionsContainer}>
-                  {/* Delivery Status Dropdown / Trigger */}
-                  <TouchableOpacity
-                    style={styles.deliveryPickerBtn}
-                    onPress={() => setDeliveryModalOrder(o)}
-                    disabled={updating === o._id}
-                  >
-                    <Truck size={11} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.deliveryPickerBtnText}>{currentDeliveryStatus}</Text>
-                    <ChevronDown size={11} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                  </TouchableOpacity>
-
-                  {/* Order Status Options */}
-                  <View style={styles.statusPicker}>
-                    {ORDER_STATUSES.map(s => (
-                      <TouchableOpacity
-                        key={s}
-                        disabled={updating === o._id}
-                        onPress={() => handleStatus(o._id, s)}
-                        style={[styles.statusOption, o.orderStatus === s && { backgroundColor: CustomerColors.teal600 }]}
-                      >
-                        <Text style={[styles.statusOptionText, o.orderStatus === s && { color: '#fff' }]}>{s}</Text>
-                      </TouchableOpacity>
-                    ))}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <View style={[styles.statusBadge, { backgroundColor: badgeBg }]}>
+                    <Text style={[styles.statusBadgeText, { color: badgeFg }]}>Order: {o.orderStatus}</Text>
+                  </View>
+                  <View style={styles.deliveryBadge}>
+                    <Truck size={10} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    <Text style={styles.deliveryBadgeText}>Delivery: {currentDeliveryStatus}</Text>
                   </View>
                 </View>
-                {updating === o._id && <ActivityIndicator size="small" color={CustomerColors.teal600} />}
               </View>
             </View>
           );
         }}
       />
-
-      {/* Delivery Status Picker Modal */}
-      {deliveryModalOrder && (
-        <Modal
-          visible={!!deliveryModalOrder}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setDeliveryModalOrder(null)}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setDeliveryModalOrder(null)}
-          >
-            <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
-              <View style={styles.modalHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Truck size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                  <Text style={styles.modalTitle}>Update Delivery Status</Text>
-                </View>
-                <TouchableOpacity onPress={() => setDeliveryModalOrder(null)}>
-                  <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={DELIVERY_STATUSES}
-                keyExtractor={item => item}
-                renderItem={({ item }) => {
-                  const currentSt = deliveryModalOrder.deliveryStatus || (deliveryModalOrder.orderStatus === 'Delivered' ? 'Delivered' : 'Pending');
-                  const isSelected = currentSt === item;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.modalItem, isSelected && styles.modalItemActive]}
-                      onPress={() => handleDeliveryStatus(deliveryModalOrder.orderId || deliveryModalOrder._id, item)}
-                    >
-                      <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>
-                        {item}
-                      </Text>
-                      {isSelected && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-            </View>
-          </TouchableOpacity>
-        </Modal>
-      )}
     </View>
   );
 }

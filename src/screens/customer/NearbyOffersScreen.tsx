@@ -36,6 +36,8 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { offersApi } from '../../api/offersApi';
+import { smartOrderApi } from '../../api/smartOrderApi';
+import { productApi } from '../../api/productApi';
 import { GATEWAY_URL } from '../../api/endpoints';
 import {
   CustomerColors,
@@ -296,6 +298,7 @@ export default function NearbyOffersScreen() {
                   <Image
                     source={{ uri: resolveImage(item.image) }}
                     style={styles.image}
+                    resizeMode="cover"
                   />
                   {item.discountPercent > 0 && (
                     <View style={styles.discountBadge}>
@@ -492,33 +495,97 @@ function OrderModal({
     setStep('placing');
     setError('');
     try {
-      const res = await offersApi.placeOrder(offer._id, {
-        customerName: `${form.firstName} ${form.lastName}`.trim(),
-        customerPhone: form.phone,
-        customerEmail: form.contactEmail,
-        deliveryAddress: form.address,
-        city: form.city,
-        state: form.state,
-        pinCode: form.pinCode,
+      const qty = parseInt(form.quantity, 10) || 1;
+      const totalAmount = Number(total);
+
+      // Pre-resolve product from store by matching title if possible
+      let targetProductId = offer._id;
+      try {
+        if (offer.storeId) {
+          const prodRes = await productApi.getByStore(offer.storeId);
+          const storeProducts = prodRes.data?.data || prodRes.data || [];
+          const matched = storeProducts.find(
+            (p: any) => p.title?.trim().toLowerCase() === offer.title?.trim().toLowerCase()
+          );
+          if (matched?._id || matched?.id) {
+            targetProductId = matched._id || matched.id;
+          }
+        }
+      } catch (e) {
+        // Fallback to offer._id, backend will fallback match by title
+      }
+
+      const cartItems = [
+        {
+          id: targetProductId,
+          productId: targetProductId,
+          title: offer.title,
+          price: offer.offerPrice,
+          quantity: qty,
+          storeId: offer.storeId,
+          storeName: offer.storeName,
+          image: offer.image?.startsWith('http')
+            ? offer.image
+            : offer.image
+            ? `${GATEWAY_URL}${offer.image}`
+            : undefined,
+        },
+      ];
+
+      const res = await smartOrderApi.placeOrder({
+        amount: totalAmount,
+        cartItems,
+        contactEmail: form.contactEmail || user?.email || '',
+        shippingAddress: {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          state: form.state,
+          pinCode: form.pinCode,
+        },
+        userId: user?._id || null,
+        storeId: offer.storeId,
+        storeName: offer.storeName,
         deliveryMethod,
         paymentMethod: 'razorpay',
-        paymentStatus: 'Pending',
-        quantity: parseInt(form.quantity, 10) || 1,
       });
 
-      const placedOrderId = res.data?.data?._id || res.data?.data?.orderId;
-      if (!placedOrderId) {
-        throw new Error('Failed to create offer order.');
+      // Also sync offers-service order
+      offersApi
+        .placeOrder(offer._id, {
+          customerName: `${form.firstName} ${form.lastName}`.trim(),
+          customerPhone: form.phone,
+          customerEmail: form.contactEmail || user?.email || '',
+          deliveryAddress: form.address,
+          city: form.city,
+          state: form.state,
+          pinCode: form.pinCode,
+          deliveryMethod,
+          paymentMethod: 'razorpay',
+          paymentStatus: 'Pending',
+          quantity: qty,
+        })
+        .catch(() => {});
+
+      if (!res.data.success) {
+        throw new Error(res.data.message || 'Order failed.');
+      }
+
+      const data = res.data;
+      if (!data.razorpayOrderId && !data.keyId) {
+        throw new Error('Failed to initialize Razorpay payment session.');
       }
 
       const options = {
         provider: 'razorpay',
-        order_id: placedOrderId,
-        amount: Math.round(Number(total) * 100),
-        amountPaise: Math.round(Number(total) * 100),
-        currency: 'INR',
-        name: offer.storeName || 'Remise Marketplace',
-        description: `Nearby Offer: ${offer.title}`,
+        order_id: data.razorpayOrderId || data.orderId,
+        key: data.keyId || data.key,
+        amount: data.amountPaise || Math.round(totalAmount * 100),
+        currency: data.currency || 'INR',
+        name: data.name || offer.storeName || 'Remise Marketplace',
+        description: data.description || `Nearby Offer: ${offer.title}`,
         customer: {
           name: `${form.firstName} ${form.lastName}`.trim() || user?.fullname || user?.name || 'Customer',
           email: form.contactEmail || user?.email || '',
@@ -530,7 +597,7 @@ function OrderModal({
       onClose();
       navigation.navigate('RazorpayWebView', {
         options,
-        orderId: placedOrderId,
+        orderId: data.orderId,
         returnScreen: 'NearbyOffers',
       });
     } catch (err: any) {
@@ -1072,7 +1139,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: Spacing.sm,
   },
-  imageWrap: { aspectRatio: 16 / 9, backgroundColor: '#F5F5F5' },
+  imageWrap: { width: '100%', height: 120, backgroundColor: '#F5F5F5', overflow: 'hidden', position: 'relative' },
   image: { width: '100%', height: '100%' },
   discountBadge: {
     position: 'absolute',

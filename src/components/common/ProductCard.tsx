@@ -68,7 +68,7 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.brand}>{product.brand}</Text>
+        <Text style={styles.brand} numberOfLines={1}>{product.brand || ' '}</Text>
         <Text style={styles.title} numberOfLines={2}>{product.title}</Text>
         <View style={styles.priceRow}>
           <Text style={styles.price}>₹{effectivePrice?.toLocaleString()}</Text>
@@ -106,7 +106,7 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', ...Shadows.card },
+  card: { flex: 1, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', ...Shadows.card, justifyContent: 'space-between' },
   imageWrap: { aspectRatio: 1.15, backgroundColor: '#F9F9F9' },
   image: { width: '100%', height: '100%' },
   imageDimmed: { opacity: 0.5 },
@@ -117,18 +117,18 @@ const styles = StyleSheet.create({
   discountBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFF' },
   wishBtn: { position: 'absolute', top: 8, right: 8, zIndex: 3, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' },
   wishBtnActive: { backgroundColor: '#FFE5E5' },
-  info: { padding: Spacing.xs, paddingHorizontal: Spacing.sm, gap: 1 },
-  brand: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: CustomerColors.textSecondary },
-  title: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.primary, minHeight: 28 },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 1 },
+  info: { padding: Spacing.xs, paddingHorizontal: Spacing.sm, gap: 1, flex: 1, justifyContent: 'space-between' },
+  brand: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: CustomerColors.textSecondary, minHeight: 13 },
+  title: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.primary, height: 32, minHeight: 32 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 'auto', paddingTop: 2 },
   price: { fontSize: FontSizes.sm, fontWeight: '700', color: '#111827' },
   originalPrice: { fontSize: 10, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
-  ctaRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: CustomerColors.border },
+  ctaRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: CustomerColors.border, marginTop: 'auto' },
   cartBtn: { width: 38, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xs + 2, borderRightWidth: 1, borderRightColor: CustomerColors.border },
   cartBtnFull: { flex: 1, width: undefined, flexDirection: 'row', gap: 5, borderRightWidth: 0 },
   cartBtnText: { fontSize: 10, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.3 },
   buyBtn: { flex: 1, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xs + 2, backgroundColor: CustomerColors.primary },
   buyBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: '#FFF', textTransform: 'uppercase' },
-  outOfStockRow: { borderTopWidth: 1, borderTopColor: CustomerColors.border, paddingVertical: Spacing.xs + 2, alignItems: 'center' },
+  outOfStockRow: { borderTopWidth: 1, borderTopColor: CustomerColors.border, paddingVertical: Spacing.xs + 2, alignItems: 'center', marginTop: 'auto' },
   outOfStockText: { fontSize: 10, fontWeight: '700', color: CustomerColors.textSecondary, textTransform: 'uppercase' },
 });

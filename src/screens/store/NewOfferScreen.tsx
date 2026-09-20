@@ -391,12 +391,12 @@ export default function NewOfferScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-            <Calendar size={18} color={isDark ? '#2DD4BF' : '#111827'} />
+            <Calendar size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
             <Text style={styles.selectValue}>
               {formatDisplayDate(selectedDate)}
             </Text>
           </View>
-          <Clock size={16} color={isDark ? '#9CA3AF' : '#374151'} />
+          <Clock size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
         </TouchableOpacity>
       </View>
 

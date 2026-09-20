@@ -102,7 +102,7 @@ export default function StoreOffersScreen() {
           return (
             <View style={[styles.card, expired && styles.cardExpired]}>
               <View style={styles.imageWrap}>
-                <Image source={{ uri: imageUri }} style={styles.image} />
+                <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
                 {offer.discountPercent > 0 && (
                   <View style={styles.discountBadge}>
                     <Text style={styles.discountBadgeText}>{offer.discountPercent}% OFF</Text>
@@ -214,7 +214,7 @@ const getStyles = (isDark: boolean) =>
       marginBottom: Spacing.sm,
     },
     cardExpired: { opacity: 0.7 },
-    imageWrap: { aspectRatio: 16 / 9, backgroundColor: isDark ? '#1F2937' : '#F5F5F5' },
+    imageWrap: { width: '100%', height: 120, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', overflow: 'hidden', position: 'relative' },
     image: { width: '100%', height: '100%' },
     discountBadge: {
       position: 'absolute',

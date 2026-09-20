@@ -581,7 +581,11 @@ export default function OrdersScreen() {
                             }}
                           >
                             <RotateCcw size={13} color="#C2410C" />
-                            <Text style={styles.refundBtnText}>Refund</Text>
+                            <Text style={styles.refundBtnText}>
+                              {item.displayStatus === 'Delivered' || item.deliveryStatus === 'Delivered'
+                                ? 'Return & Refund'
+                                : 'Cancel Order'}
+                            </Text>
                           </TouchableOpacity>
                         ) : null}
                       </>

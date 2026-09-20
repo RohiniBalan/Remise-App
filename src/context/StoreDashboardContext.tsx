@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { storeApi } from '../api/storeApi';
 import { offersApi } from '../api/offersApi';
 import { smartOrderApi } from '../api/smartOrderApi';
@@ -15,6 +16,25 @@ import { useAuth } from './AuthContext';
 // one page — they all need the same store/offers/orders/products/
 // categories state and the same refresh() function web's single page gets
 // "for free" from shared component state.
+
+const SEEN_STORE_ORDERS_KEY = 'store_seen_order_ids';
+
+async function getSeenStoreOrderIds(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(SEEN_STORE_ORDERS_KEY);
+    return new Set<string>(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+async function persistSeenStoreOrderIds(ids: Set<string>) {
+  try {
+    await AsyncStorage.setItem(SEEN_STORE_ORDERS_KEY, JSON.stringify([...ids]));
+  } catch {
+    // non-fatal
+  }
+}
 
 function normalizeSmartOrder(o: any) {
   const addr = o.shippingAddress || {};
@@ -55,6 +75,8 @@ interface StoreDashboardValue {
   noStore: boolean;
   loadError: string;
   refresh: () => void;
+  newOrderCount: number;
+  markOrdersAsSeen: () => Promise<void>;
 }
 
 export const StoreDashboardContext = createContext<StoreDashboardValue | undefined>(undefined);
@@ -71,6 +93,28 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
   const [loading, setLoading] = useState(true);
   const [noStore, setNoStore] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+
+  // Load seen IDs from storage on mount
+  useEffect(() => {
+    getSeenStoreOrderIds().then(setSeenIds);
+  }, []);
+
+  // Count unseen orders
+  const newOrderCount = orders.filter(
+    (o) => !seenIds.has((o as any)._id || (o as any).id)
+  ).length;
+
+  // Mark all current orders as seen
+  const markOrdersAsSeen = useCallback(async () => {
+    const existing = await getSeenStoreOrderIds();
+    orders.forEach((o) => {
+      const id = (o as any)._id || (o as any).id;
+      if (id) existing.add(id);
+    });
+    await persistSeenStoreOrderIds(existing);
+    setSeenIds(new Set(existing));
+  }, [orders]);
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -148,7 +192,7 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
   }, [loadData]);
 
   return (
-    <StoreDashboardContext.Provider value={{ store, offers, orders, products, categories, loading, noStore, loadError, refresh: loadData }}>
+    <StoreDashboardContext.Provider value={{ store, offers, orders, products, categories, loading, noStore, loadError, refresh: loadData, newOrderCount, markOrdersAsSeen }}>
       {children}
     </StoreDashboardContext.Provider>
   );

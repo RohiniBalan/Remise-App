@@ -71,10 +71,30 @@ interface StoreRegistrationItem {
     maskedAccountNumber?: string;
     ifscCode?: string;
   };
+  bankAccount?: {
+    beneficiaryName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+  };
+  businessDetails?: {
+    legalBusinessName?: string;
+    businessType?: string;
+    pan?: string;
+    gstin?: string;
+    aadhaar?: string;
+    fssaiNumber?: string;
+    bankAccount?: {
+      accountNumber?: string;
+      ifscCode?: string;
+      beneficiaryName?: string;
+    };
+  };
   upiId?: string;
   pan?: string;
   gstin?: string;
   fssai?: string;
+  fssaiNumber?: string;
+  aadhaar?: string;
   aadhaarNumber?: string;
   maskedAadhaar?: string;
   kycStatus?: string;
@@ -84,13 +104,16 @@ interface StoreRegistrationItem {
     activatedAt?: string;
     failureReason?: string;
   };
+  razorpayAccountId?: string | null;
+  razorpayRouteStatus?: string;
   registrationEmailNotification?: {
-    sent: boolean;
+    sent?: boolean;
     status: 'pending' | 'sent' | 'failed';
-    sentTo: string;
+    sentTo?: string;
+    recipient?: string;
     sentAt?: string;
     lastAttemptAt?: string;
-    attempts: number;
+    attempts?: number;
     error?: string;
   };
   isActive?: boolean;
@@ -584,18 +607,34 @@ export default function AdminStoreRegistrationsScreen() {
                         </Text>
                         <DetailField
                           label="Account Holder Name"
-                          value={selectedReg.bankDetails?.accountHolderName || '—'}
+                          value={
+                            selectedReg.bankDetails?.accountHolderName ||
+                            selectedReg.businessDetails?.bankAccount?.beneficiaryName ||
+                            selectedReg.bankAccount?.beneficiaryName ||
+                            selectedReg.ownerName ||
+                            '—'
+                          }
                           theme={themeColors}
                         />
                         <DetailField
                           label="Account Number (Unmasked)"
-                          value={selectedReg.bankDetails?.accountNumber || '—'}
+                          value={
+                            selectedReg.bankDetails?.accountNumber ||
+                            selectedReg.businessDetails?.bankAccount?.accountNumber ||
+                            selectedReg.bankAccount?.accountNumber ||
+                            '—'
+                          }
                           theme={themeColors}
                           monospace
                         />
                         <DetailField
                           label="IFSC Code"
-                          value={selectedReg.bankDetails?.ifscCode || '—'}
+                          value={
+                            selectedReg.bankDetails?.ifscCode ||
+                            selectedReg.businessDetails?.bankAccount?.ifscCode ||
+                            selectedReg.bankAccount?.ifscCode ||
+                            '—'
+                          }
                           theme={themeColors}
                           monospace
                         />
@@ -614,31 +653,41 @@ export default function AdminStoreRegistrationsScreen() {
                         <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>Identity & Compliance</Text>
                         <DetailField
                           label="PAN Number"
-                          value={selectedReg.pan || '—'}
+                          value={selectedReg.pan || selectedReg.businessDetails?.pan || '—'}
                           theme={themeColors}
                           monospace
                         />
                         <DetailField
                           label="Aadhaar Number (Unmasked)"
-                          value={selectedReg.aadhaarNumber || '—'}
+                          value={
+                            selectedReg.aadhaarNumber ||
+                            selectedReg.aadhaar ||
+                            selectedReg.businessDetails?.aadhaar ||
+                            '—'
+                          }
                           theme={themeColors}
                           monospace
                         />
                         <DetailField
                           label="GSTIN Number"
-                          value={selectedReg.gstin || '—'}
+                          value={selectedReg.gstin || selectedReg.businessDetails?.gstin || '—'}
                           theme={themeColors}
                           monospace
                         />
                         <DetailField
                           label="FSSAI Number"
-                          value={selectedReg.fssai || '—'}
+                          value={
+                            selectedReg.fssai ||
+                            selectedReg.businessDetails?.fssaiNumber ||
+                            selectedReg.fssaiNumber ||
+                            '—'
+                          }
                           theme={themeColors}
                           monospace
                         />
                         <DetailField
                           label="KYC Verification Status"
-                          value={selectedReg.kycStatus || 'pending'}
+                          value={selectedReg.kycStatus || (selectedReg.isVerified ? 'VERIFIED' : 'PENDING REVIEW')}
                           theme={themeColors}
                         />
                       </View>
@@ -659,7 +708,11 @@ export default function AdminStoreRegistrationsScreen() {
                         />
                         <DetailField
                           label="Recipient"
-                          value={selectedReg.registrationEmailNotification?.sentTo || 'porulontechnologies@gmail.com'}
+                          value={
+                            selectedReg.registrationEmailNotification?.sentTo ||
+                            selectedReg.registrationEmailNotification?.recipient ||
+                            'porulontechnologies@gmail.com'
+                          }
                           theme={themeColors}
                         />
                         <DetailField
@@ -669,11 +722,6 @@ export default function AdminStoreRegistrationsScreen() {
                               ? new Date(selectedReg.registrationEmailNotification.sentAt).toLocaleString('en-IN')
                               : 'Not Sent'
                           }
-                          theme={themeColors}
-                        />
-                        <DetailField
-                          label="Total Attempts"
-                          value={String(selectedReg.registrationEmailNotification?.attempts || 0)}
                           theme={themeColors}
                         />
                         {selectedReg.registrationEmailNotification?.error ? (
@@ -708,13 +756,23 @@ export default function AdminStoreRegistrationsScreen() {
                         </Text>
                         <DetailField
                           label="Route Account ID"
-                          value={selectedReg.razorpayRoute?.accountId || '—'}
+                          value={
+                            selectedReg.razorpayRoute?.accountId ||
+                            selectedReg.razorpayAccountId ||
+                            '—'
+                          }
                           theme={themeColors}
                           monospace
                         />
                         <DetailField
                           label="Route Status"
-                          value={selectedReg.razorpayRoute?.status || 'pending'}
+                          value={
+                            (
+                              selectedReg.razorpayRoute?.status ||
+                              selectedReg.razorpayRouteStatus ||
+                              'pending'
+                            ).toUpperCase()
+                          }
                           theme={themeColors}
                         />
                         {selectedReg.razorpayRoute?.failureReason ? (

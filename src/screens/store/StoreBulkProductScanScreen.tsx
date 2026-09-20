@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Trash2, ImageIcon, Plus, CheckCircle2 } from 'lucide-react-native';
+import { Trash2, ImageIcon, Plus, CheckCircle2, RefreshCw } from 'lucide-react-native';
 import { storeProductApi } from '../../api/storeProductApi';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -50,6 +50,12 @@ export default function StoreBulkProductScanScreen() {
   }>({ added: 0, failed: [] });
 
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+
+  const handleRefresh = () => {
+    if (route.params?.scanned) {
+      setRows(JSON.parse(JSON.stringify(route.params.scanned)));
+    }
+  };
 
   const setRow = (id: string, k: keyof ProductFormFields, v: string) =>
     setRows(rs => rs.map(r => (r.id === id ? { ...r, [k]: v } : r)));
@@ -146,6 +152,10 @@ export default function StoreBulkProductScanScreen() {
           {rows.length} product{rows.length === 1 ? '' : 's'} detected — review,
           edit price/stock, then add all
         </Text>
+        <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn}>
+          <RefreshCw size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+          <Text style={styles.refreshBtnText}>Refresh</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -192,7 +202,14 @@ export default function StoreBulkProductScanScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.addAllBtn}
+          style={styles.cancelBtn}
+          onPress={() => navigation.goBack()}
+          disabled={step === 'saving'}
+        >
+          <Text style={styles.cancelBtnText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.addAllBtn, { flex: 1 }]}
           onPress={handleAddAll}
           disabled={rows.length === 0 || step === 'saving'}
         >
@@ -221,11 +238,30 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderRadius: BorderRadius.md,
     margin: Spacing.md,
     padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
   },
   bannerText: {
     color: isDark ? '#2DD4BF' : CustomerColors.teal700,
     fontSize: FontSizes.xs,
     fontWeight: '700',
+    flex: 1,
+  },
+  refreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: isDark ? 'rgba(45, 212, 191, 0.2)' : '#CCFBF1',
+  },
+  refreshBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
   },
   list: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   emptyText: {
@@ -271,7 +307,20 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     backgroundColor: isDark ? '#111827' : CustomerColors.white,
+    flexDirection: 'row',
+    gap: Spacing.sm,
   },
+  cancelBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: { color: isDark ? '#9CA3AF' : '#4B5563', fontWeight: '700', fontSize: FontSizes.sm },
   addAllBtn: {
     flexDirection: 'row',
     gap: Spacing.sm,

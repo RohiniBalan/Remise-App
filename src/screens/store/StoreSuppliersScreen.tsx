@@ -9,6 +9,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
+  Linking,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
@@ -17,6 +19,11 @@ import {
   ShoppingBag,
   ChevronDown,
   X,
+  RotateCcw,
+  FileText,
+  Download,
+  MapPin,
+  Truck,
 } from 'lucide-react-native';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -31,6 +38,9 @@ import {
 import { productApi } from '../../api/productApi';
 import { storeApi } from '../../api/storeApi';
 import { orderApi } from '../../api/orderApi';
+import { smartOrderApi } from '../../api/smartOrderApi';
+import RefundModal from '../../components/common/RefundModal';
+import InvoiceModal from '../../components/common/InvoiceModal';
 import { groupByTitle, TitleGroup } from '../../utils/supplierTypes';
 import { mergeCategories } from '../../utils/storeCategories';
 
@@ -71,6 +81,15 @@ export default function StoreSuppliersScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [myOrders, setMyOrders] = useState<any[]>([]);
+  const [selectedRefund, setSelectedRefund] = useState<{
+    orderId: string;
+    totalAmount: number;
+  } | null>(null);
+  const [selectedInvoiceOrderId, setSelectedInvoiceOrderId] = useState<
+    string | null
+  >(null);
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [refundError, setRefundError] = useState('');
 
   const loadGroups = useCallback(async () => {
     if (!categoryFilter) {
@@ -125,10 +144,45 @@ export default function StoreSuppliersScreen() {
     try {
       const res = await orderApi.getMyWholesaleOrders(store.ownerId);
       setMyOrders(res.data.data || []);
-    } catch (err) {
-      console.error('loadMyOrders failed:', err);
+    } catch {
+      /* non-fatal */
     }
   }, [store]);
+
+  const handleRefund = async (amount: number, note: string) => {
+    if (!selectedRefund) return;
+    setIsRefunding(true);
+    setRefundError('');
+    try {
+      const response = await smartOrderApi.createRefund({
+        orderId: selectedRefund.orderId,
+        refundAmount: amount,
+        refundNote: note,
+      });
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message || 'Refund could not be initiated.',
+        );
+      }
+      setMyOrders(prev =>
+        prev.map(order =>
+          (order.orderId || order._id) === selectedRefund.orderId
+            ? { ...order, paymentStatus: 'REFUNDED', refundStatus: 'refunded' }
+            : order,
+        ),
+      );
+      setSelectedRefund(null);
+      loadMyOrders();
+    } catch (err: any) {
+      setRefundError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Refund could not be initiated.',
+      );
+    } finally {
+      setIsRefunding(false);
+    }
+  };
 
   useEffect(() => {
     loadGroups();
@@ -343,42 +397,122 @@ export default function StoreSuppliersScreen() {
               <Text style={styles.emptyText}>No supplier orders yet.</Text>
             </View>
           }
-          renderItem={({ item: o }) => (
-            <View style={styles.orderCard}>
-              <View style={styles.orderTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.orderStore}>
-                    {o.storeName || 'Supplier'}
-                  </Text>
-                  <Text style={styles.orderId}>{o.orderId}</Text>
+          renderItem={({ item: o }) => {
+            const isDelivered = o.orderStatus === 'Delivered' || o.deliveryStatus === 'Delivered';
+            const isCancelled = o.orderStatus === 'Cancelled' || o.deliveryStatus === 'Cancelled';
+            const isRefunded = o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded' || o.refundStatus === 'partially_refunded';
+            const isRefundRequested = o.refundStatus === 'requested' || o.refundStatus === 'processing';
+            const canAct = !isCancelled && !isRefunded && (o.refundStatus !== 'refunded');
+
+            return (
+              <View style={styles.orderCard}>
+                <View style={styles.orderTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orderStore}>
+                      {o.storeName || 'Supplier'}
+                    </Text>
+                    <Text style={styles.orderId}>{o.orderId}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        { backgroundColor: getStatusColors(o.orderStatus).bg },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          { color: getStatusColors(o.orderStatus).text },
+                        ]}
+                      >
+                        {o.orderStatus}
+                      </Text>
+                    </View>
+                    {isRefunded ? (
+                      <View style={[styles.statusPill, { backgroundColor: isDark ? '#3b0764' : '#F3E8FF' }]}>
+                        <Text style={[styles.statusPillText, { color: isDark ? '#C084FC' : '#9333EA' }]}>
+                          Refunded
+                        </Text>
+                      </View>
+                    ) : isRefundRequested ? (
+                      <View style={[styles.statusPill, { backgroundColor: isDark ? '#451a03' : '#FEF3C7' }]}>
+                        <Text style={[styles.statusPillText, { color: isDark ? '#FBBF24' : '#D97706' }]}>
+                          {o.refundStatus === 'processing' ? 'Refund Processing' : 'Refund Requested'}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-                <View
-                  style={[
-                    styles.statusPill,
-                    { backgroundColor: getStatusColors(o.orderStatus).bg },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusPillText,
-                      { color: getStatusColors(o.orderStatus).text },
-                    ]}
-                  >
-                    {o.orderStatus}
+                {o.items?.map((it: any, i: number) => (
+                  <Text key={i} style={styles.orderItem}>
+                    {it.quantity}× {it.title}{' '}
+                    {it.tierLabel ? `(${it.tierLabel})` : ''}
                   </Text>
+                ))}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs, paddingTop: Spacing.xs, borderTopWidth: 1, borderTopColor: isDark ? '#1F2937' : '#F3F4F6', flexWrap: 'wrap', gap: 6 }}>
+                  <Text style={styles.orderTotal}>
+                    ₹{o.totalAmount?.toLocaleString('en-IN')}
+                  </Text>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <TouchableOpacity
+                      style={styles.trackBtn}
+                      onPress={() => navigation.navigate('OrderTracking', { orderId: o.orderId || o._id })}
+                    >
+                      <MapPin size={11} color="#2563EB" />
+                      <Text style={styles.trackBtnText}>Track</Text>
+                    </TouchableOpacity>
+
+                    {(o.paymentStatus === 'SUCCESS' || o.paymentMethod === 'cod' || o.paymentMethod === 'cash') && (
+                      <View style={styles.invoiceRow}>
+                        <TouchableOpacity
+                          style={styles.invoiceBtn}
+                          onPress={() => setSelectedInvoiceOrderId(o.orderId || o._id)}
+                        >
+                          <FileText size={12} color={CustomerColors.teal700} />
+                          <Text style={styles.invoiceBtnText}>View Bill</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.pdfBtn}
+                          onPress={async () => {
+                            const url = smartOrderApi.getInvoicePdfUrl(o.orderId || o._id);
+                            try {
+                              await Linking.openURL(url);
+                            } catch {
+                              Alert.alert('Download', 'Could not open invoice download.');
+                            }
+                          }}
+                        >
+                          <Download size={11} color="#FFFFFF" />
+                          <Text style={styles.pdfBtnText}>PDF</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {canAct ? (
+                      <TouchableOpacity
+                        style={styles.refundBtn}
+                        onPress={() => {
+                          setRefundError('');
+                          setSelectedRefund({
+                            orderId: o.orderId || o._id,
+                            totalAmount: o.totalAmount,
+                          });
+                        }}
+                      >
+                        <RotateCcw size={12} color="#C2410C" />
+                        <Text style={styles.refundBtnText}>
+                          {isDelivered ? 'Return & Refund' : 'Cancel Order'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
                 </View>
               </View>
-              {o.items?.map((it: any, i: number) => (
-                <Text key={i} style={styles.orderItem}>
-                  {it.quantity}× {it.title}{' '}
-                  {it.tierLabel ? `(${it.tierLabel})` : ''}
-                </Text>
-              ))}
-              <Text style={styles.orderTotal}>
-                ₹{o.totalAmount?.toLocaleString('en-IN')}
-              </Text>
-            </View>
-          )}
+            );
+          }}
         />
       )}
 
@@ -393,6 +527,27 @@ export default function StoreSuppliersScreen() {
             {cartTotal.toLocaleString('en-IN')}
           </Text>
         </TouchableOpacity>
+      )}
+
+      {selectedRefund && (
+        <RefundModal
+          visible={!!selectedRefund}
+          totalAmount={selectedRefund.totalAmount}
+          isSubmitting={isRefunding}
+          error={refundError}
+          onClose={() => {
+            if (!isRefunding) setSelectedRefund(null);
+          }}
+          onSubmit={handleRefund}
+        />
+      )}
+
+      {selectedInvoiceOrderId && (
+        <InvoiceModal
+          orderId={selectedInvoiceOrderId}
+          visible={!!selectedInvoiceOrderId}
+          onClose={() => setSelectedInvoiceOrderId(null)}
+        />
       )}
     </View>
   );
@@ -662,7 +817,73 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '800',
     color: isDark ? '#2DD4BF' : CustomerColors.teal700,
-    marginTop: 4,
+  },
+  refundBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  refundBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C2410C',
+  },
+  trackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  trackBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  invoiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  invoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  invoiceBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: CustomerColors.teal700,
+  },
+  pdfBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  pdfBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   cartPill: {
     position: 'absolute',

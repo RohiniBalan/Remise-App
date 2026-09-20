@@ -608,8 +608,9 @@ export default function StoreRegisterScreen() {
           setFieldErrors(prev => ({ ...prev, legalBusinessName: `Name does not match bank records (${nameAtBank})` }));
           return;
         }
+        const verifiedName = data.nameAtBank || data.registeredName || form.legalBusinessName.trim();
         setBankVerified(true);
-        setBankData(data);
+        setBankData({ ...data, nameAtBank: verifiedName });
         setBankError('');
         setFieldErrors(prev => {
           const next = { ...prev };
@@ -853,12 +854,14 @@ export default function StoreRegisterScreen() {
       fd.append('legalBusinessName', form.legalBusinessName || form.name);
 
       if (form.accountNumber.trim() && form.ifscCode.trim()) {
+        const holderName = form.legalBusinessName.trim() || form.name;
         fd.append(
           'bankAccount',
           JSON.stringify({
             accountNumber: form.accountNumber.trim(),
             ifscCode: form.ifscCode.trim().toUpperCase(),
-            beneficiaryName: form.legalBusinessName || form.name,
+            accountHolderName: holderName,
+            beneficiaryName: holderName,
           }),
         );
       }
@@ -883,7 +886,7 @@ export default function StoreRegisterScreen() {
         },
         bankAccount: {
           verified: bankVerified,
-          nameAtBank: bankData?.nameAtBank || '',
+          nameAtBank: bankData?.nameAtBank || form.legalBusinessName.trim() || '',
           bankName: bankData?.bankName || '',
           accountStatus: bankData?.accountStatus || '',
         },
@@ -1879,7 +1882,7 @@ export default function StoreRegisterScreen() {
                   <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
                     <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
                       <Text style={{ fontWeight: '700' }}>Account Holder: </Text>
-                      {bankData.nameAtBank || bankData.registeredName}
+                      {bankData.nameAtBank || bankData.registeredName || form.legalBusinessName}
                     </Text>
                     {bankData.bankName ? (
                       <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>

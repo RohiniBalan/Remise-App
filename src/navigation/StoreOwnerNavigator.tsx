@@ -342,6 +342,7 @@ function StoreHeaderRight() {
 
 function StoreOwnerTabs() {
   const { isDark } = useTheme();
+  const { newOrderCount } = useStoreDashboard();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -402,6 +403,8 @@ function StoreOwnerTabs() {
         component={StoreOrdersScreen}
         options={{
           title: 'Orders',
+          tabBarBadge: newOrderCount > 0 ? newOrderCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#FF0000' },
           tabBarIcon: ({ color, size }) => (
             <ShoppingBag color={color} size={size} />
           ),

@@ -51,6 +51,7 @@ export default function SellerScanUploadScreen() {
 
   const [isCustomSubcategory, setIsCustomSubcategory] = useState(false);
   const [customSubcategory, setCustomSubcategory] = useState('');
+  const [initialExtractedForm, setInitialExtractedForm] = useState<any>(null);
 
   const categoryOptions = useMemo(() => {
     const predefined = getCategories();
@@ -99,12 +100,29 @@ export default function SellerScanUploadScreen() {
     setEngine('');
     setIsCustomSubcategory(false);
     setCustomSubcategory('');
+    setInitialExtractedForm(null);
     setForm({
       title: '', category: '', subcategory: '', price: '', discountedPrice: '', storePrice: '', storeDiscountedPrice: '',
       description: '', aboutDescription: '', aboutFeatures: [], specifications: [], attributes: {}, idealFor: [],
       brand: '', imageUrl: '', totalStock: '', stockUnit: 'Count', unit: 'Count', availability: 'In Stock', tags: '', moq: '1',
     });
     setTiers([]);
+  };
+
+  const handleRefresh = () => {
+    if (initialExtractedForm) {
+      setForm({ ...initialExtractedForm });
+      const targetCat = initialExtractedForm.category || '';
+      const targetSub = initialExtractedForm.subcategory || '';
+      if (targetSub && !getSubcategories(targetCat).includes(targetSub)) {
+        setIsCustomSubcategory(true);
+        setCustomSubcategory(targetSub);
+      } else {
+        setIsCustomSubcategory(false);
+        setCustomSubcategory('');
+      }
+      setErrMsg('');
+    }
   };
 
   const pickImage = async (fromCamera: boolean) => {
@@ -150,7 +168,7 @@ export default function SellerScanUploadScreen() {
         setIsCustomSubcategory(false);
         setCustomSubcategory('');
       }
-      setForm({
+      const extractedForm = {
         title: x.productName || '', category: targetCat, subcategory: targetSub,
         price: String(x.price || ''), discountedPrice: String(x.discountedPrice || x.price || ''),
         storePrice: String(x.storePrice || ''), storeDiscountedPrice: String(x.storeDiscountedPrice || ''),
@@ -159,7 +177,9 @@ export default function SellerScanUploadScreen() {
         attributes: x.attributes || {}, idealFor: x.idealFor || [],
         brand: x.brand || '', imageUrl: x.imageUrl || '',
         totalStock: '', stockUnit: x.stockUnit || x.unit || 'Count', unit: x.stockUnit || x.unit || 'Count', availability: 'In Stock', tags: '', moq: '1',
-      });
+      };
+      setForm(extractedForm);
+      setInitialExtractedForm(extractedForm);
       setStep('review');
     } catch (err: any) {
       setErrMsg(err.message || 'Something went wrong.');
@@ -229,7 +249,7 @@ export default function SellerScanUploadScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}>
       {step === 'idle' && (
         <>
-          <TouchableOpacity style={styles.dropZone} onPress={() => pickImage(false)}>
+          <TouchableOpacity style={styles.dropZone} activeOpacity={1} onPress={() => pickImage(false)}>
             {asset ? (
               <Image source={{ uri: asset.uri }} style={styles.dropImage} resizeMode="contain" />
             ) : (
@@ -278,8 +298,12 @@ export default function SellerScanUploadScreen() {
       {(step === 'review' || step === 'saving') && (
         <>
           <View style={styles.reviewBanner}>
-            <Sparkles size={14} color={CustomerColors.teal700} />
+            <Sparkles size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
             <Text style={styles.reviewBannerText}>Auto-filled via {engine || 'AI'}</Text>
+            <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn}>
+              <RefreshCw size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Text style={styles.refreshBtnText}>Refresh</Text>
+            </TouchableOpacity>
           </View>
 
           {form.imageUrl ? (
@@ -413,6 +437,7 @@ export default function SellerScanUploadScreen() {
             <View style={styles.infoBanner}><RefreshCw size={16} color={CustomerColors.teal700} /><Text style={styles.infoBannerText}>Creating product…</Text></View>
           )}
           <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.cancelBtn} disabled={step === 'saving'} onPress={() => navigation.goBack()}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} disabled={step === 'saving'} onPress={reset}><Text style={styles.secondaryBtnText}>← Rescan</Text></TouchableOpacity>
             <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }, (!form.title || !form.price) && styles.btnDisabled]} disabled={!form.title || !form.price || step === 'saving'} onPress={handleCreate}>
               {step === 'saving' ? <ActivityIndicator color="#fff" size="small" /> : <><Plus size={14} color="#fff" /><Text style={styles.primaryBtnText}>Create Product</Text></>}
@@ -649,6 +674,20 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   reviewBannerText: { flex: 1, fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+  refreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: isDark ? 'rgba(45, 212, 191, 0.2)' : '#CCFBF1',
+  },
+  refreshBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+  },
   engineBadge: { fontSize: 9, fontWeight: '800', color: '#7C3AED', backgroundColor: '#EDE9FE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
   imageRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
   thumbBox: { width: 72, height: 72, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
@@ -670,6 +709,15 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   tierAt: { fontSize: 11, color: isDark ? '#9CA3AF' : '#9CA3AF' },
   addTierText: { color: CustomerColors.teal600, fontSize: FontSizes.xs, fontWeight: '700', marginTop: 2 },
   actionsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  cancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+  },
+  cancelBtnText: { color: isDark ? '#9CA3AF' : '#4B5563', fontWeight: '700', fontSize: FontSizes.sm },
   secondaryBtn: {
     paddingHorizontal: 18,
     paddingVertical: 13,

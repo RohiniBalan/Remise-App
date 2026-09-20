@@ -6,7 +6,7 @@ import { Search, Plus, Edit2, Trash2, Package, ScanLine, ListChecks, Camera, Ima
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { storeProductApi } from '../../api/storeProductApi';
-import { scanProductImage, scanBulkProducts, buildGeneratedImageUrl } from '../../api/geminiScanApi';
+import { scanProductImage, scanBulkProducts, buildGeneratedImageUrl, fetchProductPhotoUrl } from '../../api/geminiScanApi';
 import { emptyProductForm } from '../../utils/productForm';
 import { requestCameraPermission } from '../../utils/permissions';
 import { BulkProductRow } from './StoreBulkProductScanScreen';
@@ -59,6 +59,7 @@ export default function StoreProductsScreen() {
     setScanning(true);
     try {
       const extracted = await scanProductImage(base64, mimeType);
+      const photoUrl = await fetchProductPhotoUrl(extracted.productName, extracted.category);
       navigation.navigate('ProductForm', {
         scanned: {
           title: extracted.productName,
@@ -67,7 +68,7 @@ export default function StoreProductsScreen() {
           discountedPrice: String(extracted.discountedPrice || ''),
           category: extracted.category,
           brand: extracted.brand,
-          imageUrl: buildGeneratedImageUrl(extracted.productName, extracted.category), 
+          imageUrl: photoUrl || buildGeneratedImageUrl(extracted.productName, extracted.category), 
         },
       });
     } catch (err: any) {
@@ -85,26 +86,23 @@ export default function StoreProductsScreen() {
         Alert.alert('No products found', 'Could not read any product names from that image.');
         return;
       }
-      const scanned: BulkProductRow[] = [];
-      for (let i = 0; i < extracted.length; i++) {
-        const p = extracted[i];
-        const url = buildGeneratedImageUrl(p.productName, p.category, i);
-        await new Promise<void>(resolve => {
-          Image.prefetch(url).then(() => resolve()).catch(() => resolve());
-        });
-        scanned.push({
-          id: `${Date.now()}-${i}`,
-          ...emptyProductForm({
-            title: p.productName,
-            description: p.description,
-            price: p.price || '',
-            discountedPrice: p.discountedPrice || '',
-            category: p.category,
-            brand: p.brand,
-          }),
-          imageUrl: url,
-        });
-      }
+      const scanned: BulkProductRow[] = await Promise.all(
+        extracted.map(async (p, i) => {
+          const photoUrl = await fetchProductPhotoUrl(p.productName, p.category);
+          return {
+            id: `${Date.now()}-${i}`,
+            ...emptyProductForm({
+              title: p.productName,
+              description: p.description,
+              price: p.price ? String(p.price) : '',
+              discountedPrice: p.discountedPrice ? String(p.discountedPrice) : '',
+              category: p.category,
+              brand: p.brand,
+            }),
+            imageUrl: photoUrl || buildGeneratedImageUrl(p.productName, p.category, i * 13 + 5),
+          };
+        })
+      );
       navigation.navigate('BulkProductScan', { scanned });
     } catch (err: any) {
       Alert.alert('Scan failed', err?.message || 'Could not read products from that photo. Try Add Product to enter them manually.');

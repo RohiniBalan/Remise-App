@@ -43,6 +43,7 @@ export default function SellerBulkScanUploadScreen() {
   const [step, setStep] = useState<Step>('idle');
   const [errMsg, setErrMsg] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
+  const [initialExtractedRows, setInitialExtractedRows] = useState<Row[]>([]);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   const [summary, setSummary] = useState<{ added: number; failed: FailedItem[] }>({ added: 0, failed: [] });
   const [activeCategoryRowId, setActiveCategoryRowId] = useState<string | null>(null);
@@ -58,8 +59,14 @@ export default function SellerBulkScanUploadScreen() {
   }, [categories]);
 
   const reset = () => {
-    setAsset(null); setStep('idle'); setErrMsg(''); setRows([]); setFailedItems([]);
+    setAsset(null); setStep('idle'); setErrMsg(''); setRows([]); setInitialExtractedRows([]); setFailedItems([]);
     setIsCustomSubRows({}); setCustomSubs({});
+  };
+  const handleRefresh = () => {
+    if (initialExtractedRows.length > 0) {
+      setRows(JSON.parse(JSON.stringify(initialExtractedRows)));
+      setErrMsg('');
+    }
   };
   const setRow = (id: string, k: keyof Row, v: string) => setRows(rs => rs.map(r => (r.id === id ? { ...r, [k]: v } : r)));
   const removeRow = (id: string) => setRows(rs => rs.filter(r => r.id !== id));
@@ -118,6 +125,7 @@ export default function SellerBulkScanUploadScreen() {
       setIsCustomSubRows(customSubMap);
       setCustomSubs(customSubValueMap);
       setRows(newRows);
+      setInitialExtractedRows(JSON.parse(JSON.stringify(newRows)));
       setFailedItems(res.data.failed || []);
       setStep('review');
     } catch (err: any) {
@@ -198,7 +206,7 @@ export default function SellerBulkScanUploadScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}>
       {step === 'idle' && (
         <>
-          <TouchableOpacity style={styles.dropZone} onPress={() => pickImage(false)}>
+          <TouchableOpacity style={styles.dropZone} activeOpacity={1} onPress={() => pickImage(false)}>
             {asset ? (
               <Image source={{ uri: asset.uri }} style={styles.dropImage} resizeMode="contain" />
             ) : (
@@ -250,8 +258,12 @@ export default function SellerBulkScanUploadScreen() {
       {(step === 'review' || step === 'saving') && (
         <>
           <View style={styles.reviewBanner}>
-            <Sparkles size={14} color={CustomerColors.teal700} />
+            <Sparkles size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
             <Text style={styles.reviewBannerText}>Extracted {rows.length} product{rows.length === 1 ? '' : 's'} — fill in missing prices</Text>
+            <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn}>
+              <RefreshCw size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Text style={styles.refreshBtnText}>Refresh</Text>
+            </TouchableOpacity>
           </View>
 
           {rows.map((row, idx) => (
@@ -368,6 +380,7 @@ export default function SellerBulkScanUploadScreen() {
             <View style={styles.infoBanner}><RefreshCw size={16} color={CustomerColors.teal700} /><Text style={styles.infoBannerText}>Adding products…</Text></View>
           )}
           <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.cancelBtn} disabled={step === 'saving'} onPress={() => navigation.goBack()}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} disabled={step === 'saving'} onPress={reset}><Text style={styles.secondaryBtnText}>← Rescan</Text></TouchableOpacity>
             <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }, rows.length === 0 && styles.btnDisabled]} disabled={rows.length === 0 || step === 'saving'} onPress={handleAddAll}>
               {step === 'saving' ? <ActivityIndicator color="#fff" size="small" /> : <><Plus size={14} color="#fff" /><Text style={styles.primaryBtnText}>Add All Products ({rows.length})</Text></>}
@@ -628,6 +641,20 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   reviewBannerText: { flex: 1, fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+  refreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: isDark ? 'rgba(45, 212, 191, 0.2)' : '#CCFBF1',
+  },
+  refreshBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+  },
   rowCard: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -669,6 +696,15 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   warnAddText: { fontSize: 11, fontWeight: '700', color: CustomerColors.teal700 },
   warnText: { fontSize: FontSizes.sm, color: isDark ? '#FBBF24' : '#D97706', fontWeight: '600' },
   actionsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  cancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+  },
+  cancelBtnText: { color: isDark ? '#9CA3AF' : '#4B5563', fontWeight: '700', fontSize: FontSizes.sm },
   secondaryBtn: {
     paddingHorizontal: 18,
     paddingVertical: 13,

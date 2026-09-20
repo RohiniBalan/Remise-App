@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard, RotateCcw } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -14,9 +14,15 @@ const ORDER_STATUSES = ['Pending', 'Confirmed', 'Ready', 'Out for Delivery', 'De
 
 export default function StoreOrdersScreen() {
   const navigation = useNavigation<any>();
-  const { orders, loading, refresh } = useStoreDashboard();
+  const { orders, loading, refresh, markOrdersAsSeen } = useStoreDashboard();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+
+  useFocusEffect(
+    useCallback(() => {
+      markOrdersAsSeen?.();
+    }, [markOrdersAsSeen])
+  );
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');

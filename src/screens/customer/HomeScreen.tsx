@@ -158,6 +158,23 @@ export default function HomeScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [categorySectionY, setCategorySectionY] = useState(0);
 
+  // Home Seller is a customer-facing feature — hidden for store owners, wholesalers, and home businesses.
+  const isMerchantOrAdmin = Boolean(
+    user?.role &&
+    [
+      'store_owner',
+      'whole_saler',
+      'wholesaler',
+      'home_business',
+      'admin',
+      'home_seller',
+    ].includes(String(user.role).toLowerCase().trim())
+  );
+
+  const visibleDealStrip = isMerchantOrAdmin
+    ? DEAL_STRIP.filter(deal => deal.route !== 'Suppliers' && deal.title !== 'Home Seller')
+    : DEAL_STRIP;
+
   const handleShopNow = () => {
     if (categorySectionY > 0) {
       scrollViewRef.current?.scrollTo({ y: categorySectionY, animated: true });
@@ -312,7 +329,7 @@ export default function HomeScreen() {
 
         {/* ── Deal Strip ── */}
         <View style={[styles.dealStrip, isDark && { backgroundColor: '#111827', borderBottomColor: '#1e293b' }]}>
-          {DEAL_STRIP.map(deal => {
+          {visibleDealStrip.map(deal => {
             const hasUnread = deal.isNotification && unreadCount > 0;
             return (
               <TouchableOpacity
@@ -541,7 +558,7 @@ export default function HomeScreen() {
                       )}
                     </View>
                     <View style={styles.sellerBody}>
-                      <Text style={styles.sellerBrand}>Remise</Text>
+                      <Text style={styles.sellerBrand} numberOfLines={1}>{item.category || 'Remise'}</Text>
                       <Text style={styles.sellerName} numberOfLines={2}>{item.name}</Text>
                       <View style={styles.ratingRow}>
                         <View style={styles.ratingPill}>
@@ -634,11 +651,9 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                       </View>
                       <View style={styles.newArrivalBody}>
-                        {item.category && (
-                          <Text style={styles.newArrivalCategory} numberOfLines={1}>
-                            {item.category}
-                          </Text>
-                        )}
+                        <Text style={styles.newArrivalCategory} numberOfLines={1}>
+                          {item.category || ' '}
+                        </Text>
                         <Text style={styles.newArrivalTitle} numberOfLines={2}>
                           {item.title}
                         </Text>
@@ -897,20 +912,20 @@ const styles = StyleSheet.create({
   exploreText: { fontSize: 9, color: CustomerColors.teal600, fontWeight: '700' },
 
   bestSellerList: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
-  sellerCard: { width: 140, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', ...Shadows.card },
+  sellerCard: { width: 140, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', justifyContent: 'space-between', ...Shadows.card },
   sellerImageWrap: { aspectRatio: 1, backgroundColor: CustomerColors.bg, position: 'relative' },
   sellerImage: { width: '100%', height: '100%' },
   sellerBadge: { position: 'absolute', top: 6, left: 6, backgroundColor: CustomerColors.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
   sellerBadgeText: { fontSize: 8, fontWeight: '800', color: '#fff' },
   sellerDiscount: { position: 'absolute', top: 6, right: 6, backgroundColor: CustomerColors.teal, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
   sellerDiscountText: { fontSize: 8, fontWeight: '800', color: '#fff' },
-  sellerBody: { padding: Spacing.xs },
-  sellerBrand: { fontSize: 9, color: CustomerColors.textSecondary, fontWeight: '600' },
-  sellerName: { fontSize: 11, fontWeight: '700', color: CustomerColors.black, marginTop: 1, minHeight: 28 },
+  sellerBody: { padding: Spacing.xs, flex: 1, justifyContent: 'space-between' },
+  sellerBrand: { fontSize: 9, color: CustomerColors.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sellerName: { fontSize: 11, fontWeight: '700', color: CustomerColors.teal, marginTop: 1, height: 28, minHeight: 28 },
   ratingRow: { flexDirection: 'row', marginTop: 4 },
   ratingPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#16A34A', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
   ratingText: { fontSize: 9, fontWeight: '800', color: '#fff' },
-  sellerPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 5 },
+  sellerPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 'auto', paddingTop: 4 },
   sellerPrice: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
   sellerOriginal: { fontSize: 9, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
   sellerCartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: BorderRadius.sm, paddingVertical: 6, marginTop: Spacing.xs },
@@ -918,7 +933,7 @@ const styles = StyleSheet.create({
 
   // New Arrivals styles
   newArrivalList: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
-  newArrivalCard: { width: 140, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', ...Shadows.card },
+  newArrivalCard: { width: 140, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', justifyContent: 'space-between', ...Shadows.card },
   newArrivalImageWrap: { aspectRatio: 1, backgroundColor: CustomerColors.bg, position: 'relative' },
   newArrivalImage: { width: '100%', height: '100%' },
   newArrivalNewBadge: { position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: CustomerColors.primary, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 2 },
@@ -927,10 +942,10 @@ const styles = StyleSheet.create({
   newArrivalDiscountText: { fontSize: 8, fontWeight: '800', color: '#fff' },
   newArrivalWishBtn: { position: 'absolute', top: 6, right: 6, zIndex: 3, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' },
   newArrivalWishBtnActive: { backgroundColor: '#FFE5E5' },
-  newArrivalBody: { padding: Spacing.xs },
-  newArrivalCategory: { fontSize: 9, color: CustomerColors.textSecondary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  newArrivalTitle: { fontSize: 11, fontWeight: '700', color: CustomerColors.primary, marginTop: 1, minHeight: 28 },
-  newArrivalPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 5 },
+  newArrivalBody: { padding: Spacing.xs, flex: 1, justifyContent: 'space-between' },
+  newArrivalCategory: { fontSize: 9, color: CustomerColors.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, minHeight: 12 },
+  newArrivalTitle: { fontSize: 11, fontWeight: '700', color: CustomerColors.teal, marginTop: 1, height: 28, minHeight: 28 },
+  newArrivalPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 'auto', paddingTop: 4 },
   newArrivalPrice: { fontSize: FontSizes.sm, fontWeight: '800', color: CustomerColors.black },
   newArrivalOriginal: { fontSize: 9, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
   newArrivalCartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: BorderRadius.sm, paddingVertical: 6, marginTop: Spacing.xs },

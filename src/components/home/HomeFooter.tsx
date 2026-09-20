@@ -214,7 +214,15 @@ export default function HomeFooter() {
 
         <Text style={styles.sectionLabel}>Quick Links</Text>
         <View style={styles.linksGrid}>
-          {QUICK_LINKS.map(link => (
+          {QUICK_LINKS.filter(link => {
+            if (link.route === 'Suppliers' || link.label === 'Home Seller') {
+              const role = user?.role ? String(user.role).toLowerCase().trim() : '';
+              if (['store_owner', 'whole_saler', 'wholesaler', 'home_business', 'admin', 'home_seller'].includes(role)) {
+                return false;
+              }
+            }
+            return true;
+          }).map(link => (
             <TouchableOpacity key={link.label} style={styles.linkChip} onPress={() => navigation.navigate(link.route)}>
               <Text style={styles.linkText}>{link.label}</Text>
             </TouchableOpacity>

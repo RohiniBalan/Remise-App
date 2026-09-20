@@ -671,14 +671,24 @@ export function buildProductImagePrompt(productName: string, category: string = 
     categoryDescriptor = 'Snacks';
     negativeDirectives = 'no people eating, no hands, no dining table, packaged retail snack food packet pouch or box only, solid plain white background, no text, no watermark';
   }
-  // 8. Groceries / Food & Supermarket / Staples
-  else if (catLower.includes('grocer') || catLower.includes('food') || catLower.includes('staple')) {
-    itemType = 'packaged supermarket grocery food retail product';
-    categoryDescriptor = 'Groceries';
-    negativeDirectives = 'no people cooking, no farm, no live animals, no swimming fish, no aquarium, packaged supermarket grocery food retail product only, solid plain white background, no text, no watermark';
-    if (/\b(fish|salmon|tuna|prawn|shrimp)\b/i.test(nameLower)) {
+  // 8. Groceries / Food & Beverages / Staples / Prepared Dishes / Indian Cuisine
+  else if (catLower.includes('grocer') || catLower.includes('food') || catLower.includes('staple') || catLower.includes('beverage') || catLower.includes('cuisine') || catLower.includes('restaurant')) {
+    const isPreparedDish = /\b(biryani|briyani|rice|fried\s*rice|pulao|curry|gravy|paneer|chicken|mutton|fish|prawn|egg|masala|dosa|idli|vada|sambar|chutney|naan|roti|paratha|chapati|poori|burger|pizza|sandwich|pasta|noodle|noodles|soup|salad|roll|shawarma|kebab|tikka|tandoori|momos|manchurian|chilli|pakora|samosa|chaat|bhel|pani\s*puri|pav\s*bhaji|chole|bhature|dal|sweet|halwa|gulab\s*jamun|ladoo|laddu|rasgulla|jalebi|cake|pastry|ice\s*cream|kulfi|shake|smoothie|lassi|meal|thali|platter|combo)\b/i.test(nameLower);
+
+    if (isPreparedDish) {
+      itemType = 'freshly prepared authentic culinary food dish, delicious gourmet plating on a clean serving bowl or plate with fresh garnish';
+      categoryDescriptor = 'Food & Beverages gourmet culinary dish';
+      disambiguatedName = `freshly cooked appetizing ${name} dish served in a restaurant platter`;
+      negativeDirectives = 'no raw meat, no raw chicken, no packaged boxes, no plastic bags, no live animals, no people, no human hands, professional commercial food photography, appetizing meal on plate, studio lighting, clean background, 4k high resolution, no text, no watermark, no logos, photo only';
+    } else if (/\b(fish|salmon|tuna|prawn|shrimp)\b/i.test(nameLower)) {
       disambiguatedName = `fresh culinary food seafood item (${name})`;
-      negativeDirectives = 'no aquarium, no swimming live fish, culinary food item only, no text';
+      itemType = 'fresh culinary seafood food product';
+      categoryDescriptor = 'Food & Groceries';
+      negativeDirectives = 'no aquarium, no swimming live fish, culinary food item only, no text, no watermark';
+    } else {
+      itemType = 'packaged supermarket grocery food retail product';
+      categoryDescriptor = 'Groceries';
+      negativeDirectives = 'no people cooking, no farm, no live animals, packaged supermarket grocery food retail product only, solid plain white background, no text, no watermark';
     }
   }
   // 9. Household / Cleaning / Laundry
@@ -737,10 +747,91 @@ export function buildProductImagePrompt(productName: string, category: string = 
   return `Commercial studio product photography of a sellable ${disambiguatedName}, ${itemType}, ${categoryDescriptor}. Centered standalone physical retail product, solid clean plain white studio background, professional e-commerce product catalog photo, soft studio lighting, sharp focus, 4k high resolution, ${negativeDirectives}, photo only.`;
 }
 
-// Pure URL builder — mobile equivalent of web's Pollinations.ai FLUX tier in
-// `getProductImage()` (client/app/api/_lib/productScan.ts).
-export function buildGeneratedImageUrl(productName: string, category: string, seedOffset: number = 0): string {
-  const prompt = buildProductImagePrompt(productName, category);
-  const seed = Math.floor(Date.now() / 1000) + seedOffset;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true&seed=${seed}`;
+// Curated high-resolution food & e-commerce photography fallback
+export function getCuratedPhotoFallback(productName: string, category: string = ''): string {
+  const nameLower = productName.toLowerCase();
+  const catLower = (category || guessCategory(productName)).toLowerCase();
+
+  if (catLower.includes('food') || catLower.includes('grocer') || /\b(biryani|rice|chicken|curry|masala|paneer|dosa|idli|roti|dal)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+  }
+  if (catLower.includes('fruit') || /\b(apple|banana|mango|orange|grape)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=800&q=80';
+  }
+  if (catLower.includes('veg') || /\b(tomato|potato|onion|carrot)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80';
+  }
+  if (catLower.includes('dairy') || /\b(milk|butter|cheese|paneer|curd|ghee)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=800&q=80';
+  }
+  if (catLower.includes('beverage') || catLower.includes('drink') || /\b(juice|tea|coffee|soda)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80';
+  }
+  if (catLower.includes('electr') || /\b(phone|laptop|charger|cable|mouse|headphone)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80';
+  }
+  if (catLower.includes('cloth') || /\b(shirt|t-shirt|pant|dress|saree)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80';
+  }
+  if (catLower.includes('beauty') || /\b(soap|shampoo|lotion|cream|wash)\b/i.test(nameLower)) {
+    return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=800&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80';
 }
+
+/**
+ * Searches real high-resolution product and food photography from Wikimedia Commons.
+ * Fast, authentic, real-world photographs for dishes, produce, and merchandise.
+ */
+export async function fetchProductPhotoUrl(productName: string, category: string = ''): Promise<string> {
+  const cleanName = productName
+    .replace(/^[•\-\*\d\.\)]+\s*/, '')
+    .replace(/\s*[-–]\s*\d[\d.,]*\s*(?:kg|g|ml|l|gm|gms|ltr|pcs|pc|count)\s*$/i, '')
+    .trim();
+  if (!cleanName || cleanName.length < 2) {
+    return getCuratedPhotoFallback(productName, category);
+  }
+
+  const queries = [
+    cleanName,
+    `${cleanName} dish food`,
+    `${cleanName} product`,
+  ];
+
+  for (const q of queries) {
+    try {
+      const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(
+        q
+      )}&gsrnamespace=6&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`;
+      const res = await fetch(wikiUrl);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const pages = data?.query?.pages;
+      if (!pages) continue;
+
+      for (const page of Object.values(pages) as any[]) {
+        const info = page?.imageinfo?.[0];
+        const thumbUrl = info?.thumburl || info?.url;
+        if (
+          thumbUrl &&
+          typeof thumbUrl === 'string' &&
+          thumbUrl.startsWith('http') &&
+          /\.(jpg|jpeg|png|webp)/i.test(thumbUrl) &&
+          !/icon|logo|flag|coat_of_arms|symbol|map|diagram/i.test(thumbUrl)
+        ) {
+          return thumbUrl;
+        }
+      }
+    } catch {
+      // ignore and try next query
+    }
+  }
+
+  return getCuratedPhotoFallback(productName, category);
+}
+
+// Pure URL builder with high-res curated fallback
+export function buildGeneratedImageUrl(productName: string, category: string, seedOffset: number = 0): string {
+  return getCuratedPhotoFallback(productName, category);
+}
+
