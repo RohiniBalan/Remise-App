@@ -21,6 +21,7 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../context/ThemeContext';
 import BrandHeader from '../../components/common/BrandHeader';
 
 // Landing/grid screen for the "Categories" tab. Previously this tab went
@@ -72,6 +73,7 @@ function normalizeCategory(raw: any): NormalizedCategory | null {
 
 export default function CategoryGridScreen() {
   const navigation = useNavigation<any>();
+  const { isDark } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [categoryCards, setCategoryCards] = useState<NormalizedCategory[]>([]);
@@ -214,17 +216,17 @@ export default function CategoryGridScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
       <View style={styles.searchWrap}>
-        <View style={styles.searchBar}>
-          <Search size={18} color={CustomerColors.textSecondary} />
+        <View style={[styles.searchBar, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : CustomerColors.border }]}>
+          <Search size={18} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search categories"
-            placeholderTextColor={CustomerColors.textSecondary}
-            style={styles.searchInput}
+            placeholderTextColor={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+            style={[styles.searchInput, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -247,14 +249,14 @@ export default function CategoryGridScreen() {
                   style={styles.backHomeBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <ArrowLeft size={22} color={CustomerColors.black} />
+                  <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
                 </TouchableOpacity>
                 <View>
                   <Text style={styles.eyebrow}>Browse</Text>
-                  <Text style={styles.headerTitle}>Shop by Category</Text>
+                  <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}>Shop by Category</Text>
                 </View>
               </View>
-              <Text style={styles.headerCount}>{products.length} products</Text>
+              <Text style={[styles.headerCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>{products.length} products</Text>
             </View>
           </View>
         }
@@ -265,31 +267,37 @@ export default function CategoryGridScreen() {
                 <Package size={18} color={CustomerColors.primary} />
               </View>
               <ActivityIndicator size="small" color={CustomerColors.primary} />
-              <Text style={styles.loadingText}>Loading Categories</Text>
+              <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>Loading Categories</Text>
             </View>
           ) : (
-            <Text style={styles.empty}>No categories found.</Text>
+            <Text style={[styles.empty, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>No categories found.</Text>
           )
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.card}
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? '#111827' : CustomerColors.white,
+                borderColor: isDark ? '#1F2937' : CustomerColors.border,
+              },
+            ]}
             onPress={() => goToCategory(item.name)}
             activeOpacity={0.86}
           >
-            <View style={styles.imageWrap}>
+            <View style={[styles.imageWrap, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.15)' }]}>
               {item.img ? (
                 <Image source={{ uri: resolveImageUrl(item.img) }} style={styles.image} />
               ) : (
-                <View style={styles.iconFallback}>
-                  <Tag size={22} color={CustomerColors.black} />
+                <View style={[styles.iconFallback, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.15)' }]}>
+                  <Tag size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
                 </View>
               )}
             </View>
-            <Text style={styles.cardName} numberOfLines={1}>
+            <Text style={[styles.cardName, { color: isDark ? '#FFFFFF' : CustomerColors.black }]} numberOfLines={1}>
               {item.name}
             </Text>
-            <Text style={styles.cardCount}>
+            <Text style={[styles.cardCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
               {item.count} product{item.count === 1 ? '' : 's'}
             </Text>
           </TouchableOpacity>

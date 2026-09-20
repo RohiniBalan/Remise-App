@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Bell, BellOff, CheckCheck } from 'lucide-react-native';
+import { Bell, BellOff, CheckCheck, X } from 'lucide-react-native';
 import { notificationApi } from '../../api/notificationApi';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
@@ -40,7 +40,10 @@ export default function NotificationsScreen() {
   const load = useCallback(async () => {
     try {
       const res = await notificationApi.getAll();
-      setItems(res.data.data ?? res.data.notifications ?? []);
+      const raw: NotificationItem[] = res.data.data ?? res.data.notifications ?? [];
+      // Only display unread / unseen notifications in the card list
+      const unreadOnly = raw.filter(n => !n.isRead);
+      setItems(unreadOnly);
     } catch (err: any) {
       console.log(
         '[Notifications] load failed:',
@@ -64,9 +67,8 @@ export default function NotificationsScreen() {
   }, [refetch, load]);
 
   const handleMarkRead = async (id: string) => {
-    setItems(prev =>
-      prev.map(n => (n._id === id ? { ...n, isRead: true } : n)),
-    );
+    // Immediately remove notification from the card list once seen/dismissed
+    setItems(prev => prev.filter(n => n._id !== id));
     try {
       await notificationApi.markRead(id);
       refetch();
@@ -76,7 +78,8 @@ export default function NotificationsScreen() {
   };
 
   const handleMarkAllRead = async () => {
-    setItems(prev => prev.map(n => ({ ...n, isRead: true })));
+    // Immediately clear all from the card list
+    setItems([]);
     try {
       await notificationApi.markAllRead();
       refetch();
@@ -86,9 +89,8 @@ export default function NotificationsScreen() {
   };
 
   const handleItemPress = (item: NotificationItem) => {
-    if (!item.isRead) {
-      handleMarkRead(item._id);
-    }
+    // Once seen, dismiss/disappear from notification card and mark read
+    handleMarkRead(item._id);
 
     const url = item.url?.toLowerCase() || '';
     if (url.includes('order')) {
@@ -114,7 +116,7 @@ export default function NotificationsScreen() {
     }
   };
 
-  const hasUnread = items.some(n => !n.isRead);
+  const hasUnread = items.length > 0;
 
   if (loading) {
     return (
@@ -208,16 +210,7 @@ export default function NotificationsScreen() {
               styles.row,
               {
                 backgroundColor: isDark ? '#111827' : CustomerColors.white,
-                borderColor: isDark
-                  ? item.isRead
-                    ? '#1f2937'
-                    : '#7f1d1d'
-                  : item.isRead
-                  ? CustomerColors.border
-                  : '#FECACA',
-              },
-              !item.isRead && {
-                backgroundColor: isDark ? '#1a141f' : '#FFF5F5',
+                borderColor: isDark ? '#1f2937' : '#FECACA',
               },
             ]}
             onPress={() => handleItemPress(item)}
@@ -239,7 +232,7 @@ export default function NotificationsScreen() {
                 <Bell size={18} color={CustomerColors.primary} />
               </View>
             )}
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, paddingRight: Spacing.xs }}>
               <Text
                 style={[
                   styles.rowTitle,
@@ -272,7 +265,15 @@ export default function NotificationsScreen() {
                 })}
               </Text>
             </View>
-            {!item.isRead && <View style={styles.unreadDot} />}
+
+            <TouchableOpacity
+              style={[styles.dismissBtn, isDark && { backgroundColor: '#1e293b' }]}
+              onPress={() => handleMarkRead(item._id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Dismiss notification"
+            >
+              <X size={14} color={isDark ? '#94A3B8' : '#64748B'} />
+            </TouchableOpacity>
           </TouchableOpacity>
         )}
       />
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.pill,
   },
@@ -355,10 +356,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
   },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: CustomerColors.primary,
+  dismissBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

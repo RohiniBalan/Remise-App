@@ -177,6 +177,9 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
 
 export function useSellerDashboard(): SellerDashboardValue {
   const ctx = useContext(SellerDashboardContext);
-  if (!ctx) throw new Error('useSellerDashboard must be used within a SellerDashboardProvider');
-  return ctx;
+  return (ctx || {}) as SellerDashboardValue;
+}
+
+export function useOptionalSellerDashboard(): SellerDashboardValue | undefined {
+  return useContext(SellerDashboardContext);
 }

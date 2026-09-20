@@ -903,12 +903,12 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
 
   selectInput: {
-    backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    backgroundColor: isDark ? '#111827' : '#FFFFFF',
     borderWidth: 1,
-    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    borderColor: isDark ? '#374151' : '#E2E8F0',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -920,13 +920,14 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
 
   selectValue: {
     fontSize: FontSizes.sm,
-    color: isDark ? '#FFFFFF' : CustomerColors.black,
+    color: isDark ? '#FFFFFF' : '#111827',
+    fontWeight: '600',
     flex: 1,
   },
 
   selectPlaceholder: {
     fontSize: FontSizes.sm,
-    color: isDark ? '#94A3B8' : '#6B7280',
+    color: isDark ? '#9CA3AF' : '#6B7280',
     flex: 1,
   },
 

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import ContactModal from '../../components/common/ContactModal';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 // Ported from client/app/services/page.tsx -> CustomerSupportPage.
 // The public Services/Support route uses the website's brand red palette (#FF0000).
@@ -66,9 +67,16 @@ const OFFICIAL_CONTACT_INFO = {
 };
 
 export default function ServicesScreen() {
+  const { isDark } = useTheme();
   const [showContact, setShowContact] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const contactInfo = OFFICIAL_CONTACT_INFO;
+
+  const cardBg = isDark ? '#111827' : '#ffffff';
+  const borderColor = isDark ? '#1F2937' : '#e2e8f0';
+  const textPri = isDark ? '#F9FAFB' : '#0f172a';
+  const textSec = isDark ? '#9CA3AF' : '#64748b';
+  const iconBg = isDark ? 'rgba(255, 0, 0, 0.15)' : '#fef2f2';
 
   const toggleFaq = (i: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -76,7 +84,7 @@ export default function ServicesScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : '#f8fafc' }]} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
       {/* HERO */}
       <View style={styles.hero}>
         <View style={styles.eyebrowRow}>
@@ -85,10 +93,10 @@ export default function ServicesScreen() {
           </View>
           <Text style={styles.eyebrowText}>We're Here to Help</Text>
         </View>
-        <Text style={styles.heroTitle}>
+        <Text style={[styles.heroTitle, { color: textPri }]}>
           Customer <Text style={styles.heroTitleAccent}>Support</Text>
         </Text>
-        <Text style={styles.heroSubtitle}>
+        <Text style={[styles.heroSubtitle, { color: textSec }]}>
           Questions about an order, a return, or a bulk purchase? Browse our help topics and FAQs
           below, or reach our team directly.
         </Text>
@@ -101,50 +109,50 @@ export default function ServicesScreen() {
       {/* QUICK CONTACT CARDS */}
       <View style={styles.section}>
         <TouchableOpacity
-          style={styles.quickCard}
+          style={[styles.quickCard, { backgroundColor: cardBg, borderColor }]}
           onPress={() => Linking.openURL(`mailto:${contactInfo.email}`)}
           activeOpacity={0.7}
         >
-          <View style={styles.quickIconCircle}>
+          <View style={[styles.quickIconCircle, { backgroundColor: iconBg, borderColor: isDark ? 'rgba(255,0,0,0.2)' : 'rgba(255,0,0,0.1)' }]}>
             <Mail size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.quickLabel}>Email Us</Text>
-            <Text style={styles.quickValue} numberOfLines={1}>{contactInfo.email}</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>Email Us</Text>
+            <Text style={[styles.quickValue, { color: textPri }]} numberOfLines={1}>{contactInfo.email}</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.quickCard}
+          style={[styles.quickCard, { backgroundColor: cardBg, borderColor }]}
           onPress={() => Linking.openURL(`tel:${contactInfo.phone}`)}
           activeOpacity={0.7}
         >
-          <View style={styles.quickIconCircle}>
+          <View style={[styles.quickIconCircle, { backgroundColor: iconBg, borderColor: isDark ? 'rgba(255,0,0,0.2)' : 'rgba(255,0,0,0.1)' }]}>
             <Phone size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.quickLabel}>Call Us</Text>
-            <Text style={styles.quickValue} numberOfLines={1}>{contactInfo.phone}</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>Call Us</Text>
+            <Text style={[styles.quickValue, { color: textPri }]} numberOfLines={1}>{contactInfo.phone}</Text>
           </View>
         </TouchableOpacity>
 
-        <View style={styles.quickCard}>
-          <View style={styles.quickIconCircle}>
+        <View style={[styles.quickCard, { backgroundColor: cardBg, borderColor }]}>
+          <View style={[styles.quickIconCircle, { backgroundColor: iconBg, borderColor: isDark ? 'rgba(255,0,0,0.2)' : 'rgba(255,0,0,0.1)' }]}>
             <MapPin size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.quickLabel}>Location</Text>
-            <Text style={styles.quickValue} numberOfLines={1}>{contactInfo.address}</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>Location</Text>
+            <Text style={[styles.quickValue, { color: textPri }]} numberOfLines={1}>{contactInfo.address}</Text>
           </View>
         </View>
 
-        <View style={styles.quickCard}>
-          <View style={styles.quickIconCircle}>
+        <View style={[styles.quickCard, { backgroundColor: cardBg, borderColor }]}>
+          <View style={[styles.quickIconCircle, { backgroundColor: iconBg, borderColor: isDark ? 'rgba(255,0,0,0.2)' : 'rgba(255,0,0,0.1)' }]}>
             <Clock size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.quickLabel}>Support Hours</Text>
-            <Text style={styles.quickValue}>Mon-Fri: {contactInfo.hoursWeekday}</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>Support Hours</Text>
+            <Text style={[styles.quickValue, { color: textPri }]}>Mon-Fri: {contactInfo.hoursWeekday}</Text>
           </View>
         </View>
       </View>
@@ -159,12 +167,12 @@ export default function ServicesScreen() {
           {SUPPORT_CATEGORIES.map((cat, i) => {
             const Icon = cat.icon;
             return (
-              <View key={i} style={styles.categoryCard}>
-                <View style={styles.quickIconCircle}>
+              <View key={i} style={[styles.categoryCard, { backgroundColor: cardBg, borderColor }]}>
+                <View style={[styles.quickIconCircle, { backgroundColor: iconBg, borderColor: isDark ? 'rgba(255,0,0,0.2)' : 'rgba(255,0,0,0.1)' }]}>
                   <Icon size={18} color={BRAND} />
                 </View>
-                <Text style={styles.categoryTitle}>{cat.title}</Text>
-                <Text style={styles.categoryDesc}>{cat.desc}</Text>
+                <Text style={[styles.categoryTitle, { color: textPri }]}>{cat.title}</Text>
+                <Text style={[styles.categoryDesc, { color: textSec }]}>{cat.desc}</Text>
               </View>
             );
           })}
@@ -177,20 +185,20 @@ export default function ServicesScreen() {
           <View style={styles.sectionHeadingBar} />
           <Text style={styles.sectionHeadingText}>Frequently Asked Questions</Text>
         </View>
-        <View style={styles.faqCard}>
+        <View style={[styles.faqCard, { backgroundColor: cardBg, borderColor }]}>
           {FAQS.map((item, i) => {
             const isOpen = openFaq === i;
             return (
-              <View key={i} style={i !== FAQS.length - 1 ? styles.faqDivider : undefined}>
+              <View key={i} style={i !== FAQS.length - 1 ? [styles.faqDivider, { borderBottomColor: borderColor }] : undefined}>
                 <TouchableOpacity style={styles.faqQuestionRow} onPress={() => toggleFaq(i)} activeOpacity={0.7}>
-                  <Text style={styles.faqQuestion}>{item.q}</Text>
+                  <Text style={[styles.faqQuestion, { color: textPri }]}>{item.q}</Text>
                   <ChevronDown
                     size={18}
                     color={BRAND}
                     style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
                   />
                 </TouchableOpacity>
-                {isOpen && <Text style={styles.faqAnswer}>{item.a}</Text>}
+                {isOpen && <Text style={[styles.faqAnswer, { color: textSec }]}>{item.a}</Text>}
               </View>
             );
           })}
@@ -198,10 +206,10 @@ export default function ServicesScreen() {
       </View>
 
       {/* STILL NEED HELP CTA */}
-      <View style={styles.closingCta}>
+      <View style={[styles.closingCta, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#fee2e2' }]}>
         <Headphones size={28} color={BRAND} style={{ marginBottom: Spacing.sm }} />
-        <Text style={styles.closingCtaTitle}>Still Need Help?</Text>
-        <Text style={styles.closingCtaSubtitle}>
+        <Text style={[styles.closingCtaTitle, { color: textPri }]}>Still Need Help?</Text>
+        <Text style={[styles.closingCtaSubtitle, { color: textSec }]}>
           Send us a message and our concierge team will get back to you within 24 hours.
         </Text>
         <TouchableOpacity style={styles.contactBtn} onPress={() => setShowContact(true)} activeOpacity={0.85}>

@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   TOKEN: 'token',
   USER: 'user',
   CART: 'cart',
+  WISHLIST: 'wishlist',
   THEME: 'theme',
   // Legacy fallback key some web flows read defensively
   // (`localStorage.getItem('token') || localStorage.getItem('accessToken')`);
@@ -65,6 +66,13 @@ export const storage = {
     setItem(userId ? `${STORAGE_KEYS.CART}_${userId}` : STORAGE_KEYS.CART, cart),
   removeCart: (userId?: string | null) =>
     removeItem(userId ? `${STORAGE_KEYS.CART}_${userId}` : STORAGE_KEYS.CART),
+
+  getWishlist: <T>(userId?: string | null) =>
+    getItem<T>(userId ? `${STORAGE_KEYS.WISHLIST}_${userId}` : `${STORAGE_KEYS.WISHLIST}_guest`),
+  setWishlist: (wishlist: unknown, userId?: string | null) =>
+    setItem(userId ? `${STORAGE_KEYS.WISHLIST}_${userId}` : `${STORAGE_KEYS.WISHLIST}_guest`, wishlist),
+  removeWishlist: (userId?: string | null) =>
+    removeItem(userId ? `${STORAGE_KEYS.WISHLIST}_${userId}` : `${STORAGE_KEYS.WISHLIST}_guest`),
 
   getTheme: () => AsyncStorage.getItem(STORAGE_KEYS.THEME),
   setTheme: (theme: 'dark' | 'light') => AsyncStorage.setItem(STORAGE_KEYS.THEME, theme),

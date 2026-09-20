@@ -36,6 +36,7 @@ import {
     Minus,
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 // Ported from client/app/terms/page.tsx — uses website brand red (#FF0000).
 
@@ -101,150 +102,137 @@ const ARTICLES: Article[] = [
     },
     {
         n: 5,
-        title: 'Product Information',
+        title: 'Ordering & Acceptance',
         icon: ClipboardList,
-        summary: "What a listing includes, and who's responsible for it.",
+        summary: 'Orders are offers subject to seller acceptance.',
         blocks: [
-            { type: 'p', text: 'Product information may include:' },
-            { type: 'ul', items: ['Product name', 'Description', 'Images', 'Price', 'Stock availability', 'Seller information'] },
-            { type: 'p', text: 'Product images generated or assisted by technology may be illustrative. Sellers are responsible for ensuring that product information accurately represents the products they sell.' },
+            { type: 'p', text: 'Orders placed on Remise are offers to purchase products from sellers. Orders are subject to seller acceptance, product availability, and confirmation of pricing and delivery terms.' },
         ],
     },
     {
         n: 6,
-        title: 'Pricing',
+        title: 'Pricing & Availability',
         icon: IndianRupee,
-        summary: 'Price can vary by account type and quantity.',
+        summary: 'Prices set by sellers, subject to change before confirmation.',
         blocks: [
-            { type: 'p', text: 'Prices may differ depending on the customer type and seller pricing configuration. For example, a seller may offer:' },
-            { type: 'ul', items: ['Customer price', 'Store Owner/Business price', 'Bulk pricing'] },
-            { type: 'p', text: "The applicable price will be displayed based on the user's account type and applicable quantity/pricing rules." },
+            { type: 'p', text: 'Product prices and availability are managed by sellers and are subject to change. Prices may vary depending on customer type, bulk quantities, or promotional offers.' },
         ],
     },
     {
         n: 7,
-        title: 'Orders',
+        title: 'Bulk & Wholesale Orders',
         icon: Package,
-        summary: 'When an order is submitted, and what affects fulfillment.',
+        summary: 'Special terms for high-volume transactions.',
         blocks: [
-            { type: 'p', text: 'An order is submitted when the customer confirms the purchase through the applicable checkout process.' },
-            { type: 'p', text: 'Order acceptance and fulfillment may depend on:' },
-            { type: 'ul', items: ['Product availability', 'Seller acceptance', 'Payment status', 'Delivery availability', 'Other operational conditions'] },
+            { type: 'p', text: 'Bulk and wholesale orders may be subject to minimum order quantities, custom pricing, and specific delivery schedules agreed upon between the buyer and seller.' },
         ],
     },
     {
         n: 8,
-        title: 'Delivery and Pickup',
+        title: 'Fulfillment & Delivery',
         icon: Truck,
-        summary: 'Self pickup or home delivery — availability may vary.',
+        summary: 'Delivery timelines, pickup options, and shipping terms.',
         blocks: [
-            { type: 'p', bold: 'Self Pickup:', text: 'the customer collects the order from the selected store.' },
-            { type: 'p', bold: 'Home Delivery:', text: "the seller or applicable delivery service delivers the order to the customer's selected address." },
-            { type: 'p', text: 'Delivery availability, fees, and estimated times may vary.' },
+            { type: 'p', text: 'Fulfillment options include store pickup and home delivery where supported. Delivery timelines and charges are determined based on store location and fulfillment method.' },
         ],
     },
     {
         n: 9,
-        title: 'Payments',
+        title: 'Payment Terms',
         icon: CreditCard,
-        summary: 'UPI, gateways, or cash — provide accurate payment info.',
+        summary: 'Authorized gateways, pre-paid and COD terms.',
         blocks: [
-            { type: 'p', text: 'Remise may support payment methods including:' },
-            { type: 'ul', items: ['UPI/QR payments', 'Online payment gateways', 'Cash'] },
-            { type: 'p', text: 'Online payments may be processed through third-party providers such as Razorpay or Cashfree.' },
-            { type: 'p', text: 'Users must provide accurate payment information and must not attempt fraudulent transactions.' },
+            { type: 'p', text: 'Payments are processed through secure payment gateways. Remise supports accepted payment methods including UPI, cards, and net banking. Cash on delivery is subject to seller policy.' },
         ],
     },
     {
         n: 10,
-        title: 'Cancellations, Returns and Refunds',
+        title: 'Returns & Refunds',
         icon: RotateCcw,
-        summary: "Governed by order status, seller policy, and our Returns Policy.",
+        summary: 'Return eligibility, inspection, and refund processing.',
         blocks: [
-            { type: 'p', text: "Orders may be cancelled, returned, replaced, or refunded according to the applicable order status, seller policy, and Remise's Returns & Refund Policy." },
+            { type: 'p', text: 'Returns and refunds are governed by the platform Return Policy and individual seller terms. Eligible returns must meet condition requirements within the return window.' },
         ],
     },
     {
         n: 11,
         title: 'Prohibited Activities',
         icon: Ban,
-        summary: 'What you must not do on Remise.',
+        summary: 'Misuse, fraudulent orders, and scraping restrictions.',
         blocks: [
-            { type: 'ul', items: ['Provide false information.', 'Create fraudulent accounts.', 'Use the platform for illegal activities.', 'Upload malicious or unlawful content.', 'Manipulate prices or orders fraudulently.', 'Attempt to gain unauthorized access.', 'Interfere with the operation of the platform.', 'Abuse payment or refund systems.'] },
+            { type: 'p', text: 'Users may not misuse the platform, engage in fraudulent transactions, attempt unauthorised access, or disrupt the service operations.' },
         ],
     },
     {
         n: 12,
         title: 'Intellectual Property',
         icon: Copyright,
-        summary: "Remise's name, logo, and materials are protected.",
+        summary: 'Trademarks, content rights, and brand assets.',
         blocks: [
-            { type: 'p', text: 'The Remise name, logo, software, design, content, and other platform materials are protected by applicable intellectual-property laws. Users may not copy, modify, distribute, or commercially exploit Remise materials without appropriate authorization.' },
+            { type: 'p', text: 'All branding, platform content, designs, and logos belong to Remise or its licensors and may not be reproduced without written permission.' },
         ],
     },
     {
         n: 13,
         title: 'Third-Party Services',
         icon: Plug,
-        summary: 'Payments, hosting, maps, AI, and more — each with its own terms.',
+        summary: 'Gateways, maps, and logistics integrations.',
         blocks: [
-            { type: 'p', text: 'Remise may use third-party services for:' },
-            { type: 'ul', items: ['Payment processing', 'Authentication', 'Hosting', 'Maps/location', 'Notifications', 'AI services', 'Image generation', 'Analytics'] },
-            { type: 'p', text: 'Third-party services may have their own terms and privacy policies.' },
+            { type: 'p', text: 'Remise integrates third-party tools such as mapping and payment providers. Use of these tools is subject to their respective terms.' },
         ],
     },
     {
         n: 14,
-        title: 'Account Suspension',
+        title: 'Termination',
         icon: UserX,
-        summary: 'When Remise may suspend or terminate an account.',
+        summary: 'Account suspension and termination grounds.',
         blocks: [
-            { type: 'ul', items: ['Fraudulent activity', 'Violation of these Terms', 'Illegal activity', 'Abuse of the platform', 'Security risk', 'Other circumstances permitted by law'] },
+            { type: 'p', text: 'Remise reserves the right to suspend or terminate accounts that violate these Terms or engage in unlawful or fraudulent behavior.' },
         ],
     },
     {
         n: 15,
         title: 'Limitation of Liability',
         icon: ShieldAlert,
-        summary: "What's outside Remise's reasonable control.",
+        summary: 'Platform intermediary liability scope.',
         blocks: [
-            { type: 'p', text: 'To the extent permitted by applicable law, Remise will not be responsible for losses arising from circumstances outside its reasonable control, including seller actions, delivery delays, payment-provider failures, network failures, or inaccurate information provided by users or sellers.' },
+            { type: 'p', text: 'Remise operates as an intermediary marketplace and is not directly liable for seller product defects, delivery delays caused by third parties, or consequential damages.' },
         ],
     },
     {
         n: 16,
-        title: 'Changes to the Service',
+        title: 'Platform Modifications',
         icon: Settings2,
-        summary: 'We may modify or discontinue parts of the service.',
+        summary: 'Features and service updates.',
         blocks: [
-            { type: 'p', text: 'We may modify, update, suspend, or discontinue parts of the service when necessary.' },
+            { type: 'p', text: 'We may modify, suspend, or improve platform features at any time to enhance the user experience.' },
         ],
     },
     {
         n: 17,
-        title: 'Changes to These Terms',
+        title: 'Changes to Terms',
         icon: FileEdit,
-        summary: 'Updates are published through the app or website.',
+        summary: 'Notice and acceptance of updated Terms.',
         blocks: [
-            { type: 'p', text: 'We may update these Terms from time to time. Updated Terms will be published through the Remise application or website.' },
+            { type: 'p', text: 'We may revise these Terms periodically. Continued use of Remise following updates constitutes acceptance.' },
         ],
     },
     {
         n: 18,
         title: 'Governing Law',
         icon: Scale,
-        summary: 'Governed by the laws of India.',
+        summary: 'Applicable jurisdiction and dispute resolution.',
         blocks: [
-            { type: 'p', text: 'These Terms shall be governed by the applicable laws of India. Any disputes shall be subject to the jurisdiction of the appropriate courts, subject to applicable law.' },
+            { type: 'p', text: 'These Terms are governed by the laws of India. Any legal proceedings shall be subject to the exclusive jurisdiction of the competent courts in India.' },
         ],
     },
     {
         n: 19,
-        title: 'Contact',
+        title: 'Contact Information',
         icon: Mail,
-        summary: 'Questions about these Terms.',
+        summary: 'How to reach our legal and support teams.',
         blocks: [
-            { type: 'p', text: 'For questions regarding these Terms, contact Remise through the official support/contact channel.' },
+            { type: 'p', text: 'For questions regarding these Terms, contact us at porulontechnologies@gmail.com or via the Help Center.' },
         ],
     },
 ];
@@ -257,7 +245,7 @@ const HIGHLIGHTS = [
     { title: 'India-governed', icon: Scale, desc: 'These Terms are governed by Indian law, with disputes subject to the appropriate courts.' },
 ];
 
-function ArticleBlocks({ blocks }: { blocks: Block[] }) {
+function ArticleBlocks({ blocks, textPri, textSec }: { blocks: Block[]; textPri?: string; textSec?: string }) {
     return (
         <>
             {blocks.map((b, i) => {
@@ -267,15 +255,15 @@ function ArticleBlocks({ blocks }: { blocks: Block[] }) {
                             {b.items.map((it) => (
                                 <View key={it} style={styles.bulletRow}>
                                     <View style={styles.bulletDot} />
-                                    <Text style={styles.bulletText}>{it}</Text>
+                                    <Text style={[styles.bulletText, textSec ? { color: textSec } : undefined]}>{it}</Text>
                                 </View>
                             ))}
                         </View>
                     );
                 }
                 return (
-                    <Text key={i} style={styles.articleParagraph}>
-                        {b.bold ? <Text style={styles.boldInline}>{b.bold} </Text> : null}
+                    <Text key={i} style={[styles.articleParagraph, textSec ? { color: textSec } : undefined]}>
+                        {b.bold ? <Text style={[styles.boldInline, textPri ? { color: textPri } : undefined]}>{b.bold} </Text> : null}
                         {b.text}
                     </Text>
                 );
@@ -288,14 +276,22 @@ function ArticleRow({
     article,
     isOpen,
     onToggle,
+    borderColor,
+    textPri,
+    textSec,
+    iconBg,
 }: {
     article: Article;
     isOpen: boolean;
     onToggle: () => void;
+    borderColor?: string;
+    textPri?: string;
+    textSec?: string;
+    iconBg?: string;
 }) {
     const Icon = article.icon;
     return (
-        <View style={styles.articleRow}>
+        <View style={[styles.articleRow, borderColor ? { borderBottomColor: borderColor } : undefined]}>
             <TouchableOpacity style={styles.articleHeader} onPress={onToggle} activeOpacity={0.75}>
                 <Text style={[styles.articleNumber, isOpen && styles.articleNumberActive]}>
                     {String(article.n).padStart(2, '0')}
@@ -303,17 +299,17 @@ function ArticleRow({
                 <View style={{ flex: 1 }}>
                     <View style={styles.articleTitleRow}>
                         <Icon size={14} color={BRAND_RED} />
-                        <Text style={styles.articleTitle}>{article.title}</Text>
+                        <Text style={[styles.articleTitle, textPri ? { color: textPri } : undefined]}>{article.title}</Text>
                     </View>
-                    <Text style={styles.articleSummary}>{article.summary}</Text>
+                    <Text style={[styles.articleSummary, textSec ? { color: textSec } : undefined]}>{article.summary}</Text>
                 </View>
-                <View style={styles.toggleCircle}>
-                    {isOpen ? <Minus size={13} color="#9CA3AF" /> : <Plus size={13} color="#9CA3AF" />}
+                <View style={[styles.toggleCircle, borderColor ? { borderColor } : undefined]}>
+                    {isOpen ? <Minus size={13} color={textSec || '#9CA3AF'} /> : <Plus size={13} color={textSec || '#9CA3AF'} />}
                 </View>
             </TouchableOpacity>
             {isOpen && (
                 <View style={styles.articleBody}>
-                    <ArticleBlocks blocks={article.blocks} />
+                    <ArticleBlocks blocks={article.blocks} textPri={textPri} textSec={textSec} />
                 </View>
             )}
         </View>
@@ -321,8 +317,16 @@ function ArticleRow({
 }
 
 export default function TermsOfServiceScreen() {
+    const { isDark } = useTheme();
     const navigation = useNavigation<any>();
     const [openSet, setOpenSet] = useState<Set<number>>(new Set([1]));
+
+    const cardBg = isDark ? '#111827' : '#ffffff';
+    const borderColor = isDark ? '#1F2937' : '#e2e8f0';
+    const textPri = isDark ? '#F9FAFB' : '#0f172a';
+    const textSec = isDark ? '#9CA3AF' : '#64748b';
+    const iconBg = isDark ? 'rgba(255, 0, 0, 0.15)' : '#fef2f2';
+    const bg = isDark ? '#0b0f19' : '#f8fafc';
 
     const toggle = (n: number) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -349,15 +353,15 @@ export default function TermsOfServiceScreen() {
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+        <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
             {/* HERO */}
             <View style={styles.hero}>
-                <View style={styles.badge}>
+                <View style={[styles.badge, { backgroundColor: iconBg }]}>
                     <FileText size={13} color={BRAND_RED} />
                     <Text style={styles.badgeText}>Last updated {LAST_UPDATED}</Text>
                 </View>
-                <Text style={styles.heroTitle}>Terms of Service</Text>
-                <Text style={styles.heroSubtitle}>
+                <Text style={[styles.heroTitle, { color: textPri }]}>Terms of Service</Text>
+                <Text style={[styles.heroSubtitle, { color: textSec }]}>
                     19 short clauses covering accounts, orders, pricing, payments, and what happens if
                     something goes wrong. By using Remise, you agree to these Terms.
                 </Text>
@@ -365,18 +369,18 @@ export default function TermsOfServiceScreen() {
 
             {/* THE GIST */}
             <View style={styles.section}>
-                <Text style={styles.h2}>The gist</Text>
-                <Text style={styles.h2Sub}>Not a substitute for the full Terms below — just the shape of them.</Text>
+                <Text style={[styles.h2, { color: textPri }]}>The gist</Text>
+                <Text style={[styles.h2Sub, { color: textSec }]}>Not a substitute for the full Terms below — just the shape of them.</Text>
                 {HIGHLIGHTS.map((h) => {
                     const Icon = h.icon;
                     return (
-                        <View key={h.title} style={styles.highlightCard}>
-                            <View style={styles.highlightIcon}>
+                        <View key={h.title} style={[styles.highlightCard, { backgroundColor: cardBg, borderColor }]}>
+                            <View style={[styles.highlightIcon, { backgroundColor: iconBg }]}>
                                 <Icon size={16} color={BRAND_RED} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.highlightTitle}>{h.title}</Text>
-                                <Text style={styles.highlightDesc}>{h.desc}</Text>
+                                <Text style={[styles.highlightTitle, { color: textPri }]}>{h.title}</Text>
+                                <Text style={[styles.highlightDesc, { color: textSec }]}>{h.desc}</Text>
                             </View>
                         </View>
                     );
@@ -386,26 +390,26 @@ export default function TermsOfServiceScreen() {
             {/* INDEX */}
             <View style={styles.section}>
                 <View style={styles.indexHeaderRow}>
-                    <Text style={styles.h2}>Index</Text>
+                    <Text style={[styles.h2, { color: textPri }]}>Index</Text>
                     <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                        <TouchableOpacity style={styles.pillBtn} onPress={expandAll}>
-                            <Text style={styles.pillBtnText}>Expand all</Text>
+                        <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={expandAll}>
+                            <Text style={[styles.pillBtnText, { color: textPri }]}>Expand all</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.pillBtn} onPress={collapseAll}>
-                            <Text style={styles.pillBtnText}>Collapse all</Text>
+                        <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={collapseAll}>
+                            <Text style={[styles.pillBtnText, { color: textPri }]}>Collapse all</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-                <View style={styles.indexGrid}>
+                <View style={[styles.indexGrid, { borderColor }]}>
                     {ARTICLES.map((a) => (
                         <TouchableOpacity
                             key={a.n}
-                            style={styles.indexItem}
+                            style={[styles.indexItem, { backgroundColor: cardBg, borderBottomColor: borderColor }]}
                             onPress={() => openArticle(a.n)}
                             activeOpacity={0.7}
                         >
                             <Text style={styles.indexNumber}>{a.n}</Text>
-                            <Text style={styles.indexTitle} numberOfLines={1}>{a.title}</Text>
+                            <Text style={[styles.indexTitle, { color: textPri }]} numberOfLines={1}>{a.title}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -413,22 +417,22 @@ export default function TermsOfServiceScreen() {
 
             {/* FULL TERMS */}
             <View style={styles.section}>
-                <Text style={styles.h2}>Full terms</Text>
-                <View style={styles.articlesCard}>
+                <Text style={[styles.h2, { color: textPri }]}>Full terms</Text>
+                <View style={[styles.articlesCard, { backgroundColor: cardBg, borderColor }]}>
                     {ARTICLES.map((a) => (
-                        <ArticleRow key={a.n} article={a} isOpen={openSet.has(a.n)} onToggle={() => toggle(a.n)} />
+                        <ArticleRow key={a.n} article={a} isOpen={openSet.has(a.n)} onToggle={() => toggle(a.n)} borderColor={borderColor} textPri={textPri} textSec={textSec} iconBg={iconBg} />
                     ))}
                 </View>
             </View>
 
             {/* CONTACT CTA */}
             <View style={styles.section}>
-                <View style={styles.ctaCard}>
+                <View style={[styles.ctaCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#fee2e2' }]}>
                     <View style={styles.ctaBadge}>
                         <Mail size={12} color="#FFFFFF" />
                         <Text style={styles.ctaBadgeText}>Questions about these Terms?</Text>
                     </View>
-                    <Text style={styles.ctaTitle}>Contact Remise through the official support channel.</Text>
+                    <Text style={[styles.ctaTitle, { color: textPri }]}>Contact Remise through the official support channel.</Text>
                     <TouchableOpacity
                         style={styles.ctaButton}
                         onPress={() => navigation.navigate('HelpCenter')}

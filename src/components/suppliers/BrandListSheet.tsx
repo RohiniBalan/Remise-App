@@ -27,40 +27,44 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
   const goNext = () => setIndex(i => (i + 1) % total);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
-        <View style={[styles.sheet, isDark && { backgroundColor: '#111827' }]}>
-          <View style={[styles.header, isDark && { backgroundColor: '#1F2937' }]}>
+        <View style={[styles.sheet, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <View style={[styles.header, isDark && { backgroundColor: '#1F2937', borderBottomColor: '#374151' }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: isDark ? '#ffffff' : '#000000' }]}>{titleGroup.title}</Text>
               <Text style={styles.subtitle}>
                 {titleGroup.brandCount} brand{titleGroup.brandCount !== 1 ? 's' : ''} available
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose}><X size={22} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} /></TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+              <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+            </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: Spacing.lg }}>
+          <ScrollView contentContainerStyle={{ padding: Spacing.md }} bounces={false}>
             {total === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: Spacing.xxl }}>
                 <Package size={36} color={CustomerColors.border} />
                 <Text style={{ color: CustomerColors.textSecondary, marginTop: Spacing.sm }}>No brands available.</Text>
               </View>
             ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                <TouchableOpacity style={[styles.navBtn, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]} disabled={total <= 1} onPress={goPrev}>
-                  <ChevronLeft size={18} color={total <= 1 ? (isDark ? '#4B5563' : CustomerColors.border) : (isDark ? '#2DD4BF' : CustomerColors.teal700)} />
-                </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                {total > 1 && (
+                  <TouchableOpacity style={[styles.navBtn, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]} onPress={goPrev}>
+                    <ChevronLeft size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                  </TouchableOpacity>
+                )}
 
                 <View style={{ flex: 1 }}>
-                  <View style={[styles.card, index === 0 && styles.cardBest, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+                  <View style={[styles.card, index === 0 && styles.cardBest, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
                     <View style={styles.cardTopRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.brandName, { color: isDark ? '#ffffff' : '#000000' }]}>{b.brand || 'Unbranded'}</Text>
+                      <View style={{ flex: 1, marginRight: Spacing.sm }}>
+                        <Text style={[styles.brandName, { color: isDark ? '#ffffff' : '#000000' }]} numberOfLines={1}>{b.brand || 'Unbranded'}</Text>
                         {index === 0 && (
                           <View style={styles.bestPill}><Text style={styles.bestPillText}>Best price</Text></View>
                         )}
-                        <Text style={styles.metaText}>
+                        <Text style={[styles.metaText, isDark && { color: '#9CA3AF' }]}>
                           Stock: {cheapest?.totalStock ?? '—'} · Available from{' '}
                           <Text style={{ fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>{b.supplierCount}</Text> supplier{b.supplierCount !== 1 ? 's' : ''}
                         </Text>
@@ -79,12 +83,16 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
                       ))}
                     </View>
                   )}
-                  <Text style={styles.countText}>{index + 1} of {total}</Text>
+                  {total > 1 && (
+                    <Text style={[styles.countText, isDark && { color: '#9CA3AF' }]}>{index + 1} of {total}</Text>
+                  )}
                 </View>
 
-                <TouchableOpacity style={styles.navBtn} disabled={total <= 1} onPress={goNext}>
-                  <ChevronRight size={18} color={total <= 1 ? CustomerColors.border : CustomerColors.teal700} />
-                </TouchableOpacity>
+                {total > 1 && (
+                  <TouchableOpacity style={[styles.navBtn, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]} onPress={goNext}>
+                    <ChevronRight size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </ScrollView>
@@ -95,28 +103,58 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: CustomerColors.white, borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, maxHeight: '90%' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.md,
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: CustomerColors.white,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+  },
   header: {
-    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
-    padding: Spacing.lg, backgroundColor: CustomerColors.mint,
-    borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: CustomerColors.mint,
+    borderBottomWidth: 1,
+    borderBottomColor: CustomerColors.steelBorder,
   },
   title: { fontSize: FontSizes.md, fontWeight: '800', color: CustomerColors.black },
   subtitle: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 2 },
   navBtn: {
-    width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: CustomerColors.steelBorder,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.white,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CustomerColors.white,
   },
-  card: { borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.lg, padding: Spacing.md },
-  cardBest: { borderColor: CustomerColors.teal, backgroundColor: '#f0fbfb' },
+  card: { borderWidth: 1, borderColor: CustomerColors.steelBorder, borderRadius: BorderRadius.lg, padding: Spacing.md, backgroundColor: '#FFFFFF' },
+  cardBest: { borderColor: CustomerColors.teal600, backgroundColor: '#f0fbfb' },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
   brandName: { fontSize: FontSizes.base, fontWeight: '700', color: CustomerColors.black },
   bestPill: { alignSelf: 'flex-start', backgroundColor: CustomerColors.mint, borderRadius: BorderRadius.pill, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 },
   bestPillText: { fontSize: 10, fontWeight: '800', color: CustomerColors.teal700 },
   metaText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 4 },
   priceText: { fontSize: FontSizes.lg, fontWeight: '800', color: CustomerColors.teal700 },
-  compareBtn: { marginTop: Spacing.sm, backgroundColor: CustomerColors.teal600, borderRadius: BorderRadius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
+  compareBtn: { marginTop: Spacing.sm, backgroundColor: CustomerColors.teal600, borderRadius: BorderRadius.md, paddingVertical: 10, alignItems: 'center' },
   compareBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 4, marginTop: Spacing.sm },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: CustomerColors.border },

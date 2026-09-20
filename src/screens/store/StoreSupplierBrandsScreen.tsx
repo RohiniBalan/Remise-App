@@ -50,6 +50,7 @@ export default function StoreSupplierBrandsScreen() {
               <View style={[styles.card, index === 0 && styles.cardBest]}>
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
+                    <Text style={styles.productTitle}>{titleGroup.title}</Text>
                     <Text style={styles.brandName}>{b.brand || 'Unbranded'}</Text>
                     {index === 0 && (
                       <View style={styles.bestBadge}><Text style={styles.bestBadgeText}>Best price</Text></View>
@@ -109,16 +110,17 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   backText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
   headerTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black },
   headerSub: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
-  body: { padding: Spacing.lg },
+  body: { padding: Spacing.lg, flex: 1, justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
   emptyText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
-  carouselRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  arrowBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, backgroundColor: isDark ? '#1F2937' : CustomerColors.white, alignItems: 'center', justifyContent: 'center' },
+  carouselRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  arrowBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, backgroundColor: isDark ? '#1F2937' : CustomerColors.white, alignItems: 'center', justifyContent: 'center' },
   cardWrap: { flex: 1 },
   card: { borderWidth: 1, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder, backgroundColor: isDark ? '#111827' : CustomerColors.white, borderRadius: BorderRadius.md, padding: Spacing.md },
   cardBest: { borderColor: isDark ? '#0f766e' : CustomerColors.teal600, backgroundColor: isDark ? '#134e4a' : '#F0FDFA' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
-  brandName: { fontSize: FontSizes.base, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black },
+  productTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#F9FAFB' : CustomerColors.black, marginBottom: 2 },
+  brandName: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   bestBadge: { alignSelf: 'flex-start', backgroundColor: isDark ? '#115e59' : '#CCFBF1', borderRadius: BorderRadius.pill, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 },
   bestBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   stockText: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#9CA3AF', marginTop: 6 },

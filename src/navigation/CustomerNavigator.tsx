@@ -130,6 +130,7 @@ function HomeNavigator() {
 // Nested stack inside the Categories tab — keeps the bottom tab bar visible
 // when navigating from the category grid to the product listing.
 function CategoriesNavigator() {
+  const { isDark } = useTheme();
   return (
     <CategoriesStack.Navigator screenOptions={{ headerShown: false }}>
       <CategoriesStack.Screen name="CategoryGrid" component={CategoryGridScreen} />
@@ -139,13 +140,17 @@ function CategoriesNavigator() {
         options={({ route, navigation }: any) => ({
           headerShown: true,
           title: route.params?.category || 'Products',
+          headerStyle: {
+            backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
+          },
+          headerTintColor: isDark ? '#FFFFFF' : CustomerColors.black,
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
               style={{ marginRight: 12 }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <ArrowLeft size={22} color={CustomerColors.black} />
+              <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
             </TouchableOpacity>
           ),
         })}

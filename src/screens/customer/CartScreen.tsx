@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Trash2, ShoppingBag } from 'lucide-react-native';
 import { useCart, CartItem } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   CustomerColors,
   Spacing,
@@ -32,6 +33,7 @@ export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
+  const { isDark } = useTheme();
   const { cart, removeFromCart, decreaseQuantity, addToCart, setBuyNowItem } =
     useCart();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -56,11 +58,11 @@ export default function CartScreen() {
 
   if (cart.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
         <BrandHeader />
-        <View style={styles.emptyContainer}>
-          <ShoppingBag size={40} color={CustomerColors.textSecondary} />
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+        <View style={[styles.emptyContainer, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
+          <ShoppingBag size={40} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>Your cart is empty</Text>
           <TouchableOpacity
             style={styles.shopBtn}
             onPress={() => {
@@ -78,16 +80,16 @@ export default function CartScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
       {remainingForFreeDelivery > 0 ? (
-        <View style={styles.nudge}>
-          <Text style={styles.nudgeText}>
+        <View style={[styles.nudge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
+          <Text style={[styles.nudgeText, isDark && { color: '#5EEAD4' }]}>
             Add ₹{remainingForFreeDelivery} more for free delivery!
           </Text>
         </View>
       ) : (
-        <View style={[styles.nudge, styles.nudgeSuccess]}>
+        <View style={[styles.nudge, styles.nudgeSuccess, isDark && { backgroundColor: 'rgba(22, 163, 74, 0.2)' }]}>
           <Text style={[styles.nudgeText, styles.nudgeSuccessText]}>
             You've unlocked free delivery!
           </Text>
@@ -101,6 +103,7 @@ export default function CartScreen() {
         renderItem={({ item }) => (
           <CartRow
             item={item}
+            isDark={isDark}
             onIncrease={() => addToCart({ ...item, quantity: 1 })}
             onDecrease={() => decreaseQuantity(item.id)}
             onRemove={() => removeFromCart(item.id)}
@@ -108,10 +111,10 @@ export default function CartScreen() {
         )}
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderTopColor: isDark ? '#1F2937' : CustomerColors.border }]}>
         <View style={styles.subtotalRow}>
-          <Text style={styles.subtotalLabel}>Subtotal</Text>
-          <Text style={styles.subtotalValue}>₹{subtotal.toLocaleString()}</Text>
+          <Text style={[styles.subtotalLabel, isDark && { color: '#D1D5DB' }]}>Subtotal</Text>
+          <Text style={[styles.subtotalValue, isDark && { color: '#FFFFFF' }]}>₹{subtotal.toLocaleString()}</Text>
         </View>
         <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout}>
           <Text style={styles.checkoutBtnText}>Proceed to Checkout</Text>
@@ -131,33 +134,35 @@ export default function CartScreen() {
 
 function CartRow({
   item,
+  isDark,
   onIncrease,
   onDecrease,
   onRemove,
 }: {
   item: CartItem;
+  isDark?: boolean;
   onIncrease: () => void;
   onDecrease: () => void;
   onRemove: () => void;
 }) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : CustomerColors.border }]}>
       <Image
         source={{ uri: resolveImageUrl(item.image) }}
-        style={styles.rowImage}
+        style={[styles.rowImage, isDark && { backgroundColor: '#1F2937' }]}
       />
       <View style={styles.rowInfo}>
-        <Text style={styles.rowTitle} numberOfLines={2}>
+        <Text style={[styles.rowTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
           {item.title}
         </Text>
         <Text style={styles.rowPrice}>₹{item.price.toLocaleString()}</Text>
-        <View style={styles.qtyStepper}>
+        <View style={[styles.qtyStepper, isDark && { borderColor: '#374151' }]}>
           <TouchableOpacity style={styles.qtyBtn} onPress={onDecrease}>
-            <Text style={styles.qtyBtnText}>−</Text>
+            <Text style={[styles.qtyBtnText, isDark && { color: '#9CA3AF' }]}>−</Text>
           </TouchableOpacity>
-          <Text style={styles.qtyValue}>{item.quantity}</Text>
+          <Text style={[styles.qtyValue, isDark && { color: '#FFFFFF' }]}>{item.quantity}</Text>
           <TouchableOpacity style={styles.qtyBtn} onPress={onIncrease}>
-            <Text style={styles.qtyBtnText}>+</Text>
+            <Text style={[styles.qtyBtnText, isDark && { color: '#9CA3AF' }]}>+</Text>
           </TouchableOpacity>
         </View>
       </View>

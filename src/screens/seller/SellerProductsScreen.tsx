@@ -22,6 +22,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { requestCameraPermission } from '../../utils/permissions';
 import { sellerAiApi } from '../../api/sellerApi';
+import BulkScanUploadModal from '../../components/common/BulkScanUploadModal';
 
 function getProductImage(p: any): string {
   const raw =
@@ -90,6 +91,7 @@ export default function SellerProductsScreen() {
   const [search, setSearch] = useState('');
   const [scanModalType, setScanModalType] = useState<'single' | 'bulk' | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [showBulkScanModal, setShowBulkScanModal] = useState(false);
 
   const isWholesaler = user?.role === 'whole_saler' || user?.role === 'wholesaler';
 
@@ -145,13 +147,12 @@ export default function SellerProductsScreen() {
   const handleCamera = async () => {
     const isSingle = scanModalType === 'single';
     setScanModalType(null);
-    const granted = await requestCameraPermission();
-    if (!granted) return;
-
     if (!isSingle) {
-      navigation.navigate('SellerBulkScanUpload');
+      setShowBulkScanModal(true);
       return;
     }
+    const granted = await requestCameraPermission();
+    if (!granted) return;
 
     const res = await launchCamera({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
     if (res.didCancel || res.errorCode) return;
@@ -166,7 +167,7 @@ export default function SellerProductsScreen() {
     setScanModalType(null);
 
     if (!isSingle) {
-      navigation.navigate('SellerBulkScanUpload');
+      setShowBulkScanModal(true);
       return;
     }
 
@@ -204,7 +205,7 @@ export default function SellerProductsScreen() {
             </>
           )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('SellerBulkScanUpload')} disabled={scanning}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setShowBulkScanModal(true)} disabled={scanning}>
           <ListChecks size={15} color="#fff" />
           <Text style={styles.actionBtnText}>Scan List</Text>
         </TouchableOpacity>
@@ -290,6 +291,12 @@ export default function SellerProductsScreen() {
           </View>
         </View>
       </Modal>
+
+      <BulkScanUploadModal
+        visible={showBulkScanModal}
+        onClose={() => setShowBulkScanModal(false)}
+        onRefresh={refresh}
+      />
     </View>
   );
 }

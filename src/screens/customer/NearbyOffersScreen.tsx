@@ -49,13 +49,13 @@ import {
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
+import { useTheme } from '../../context/ThemeContext';
 import {
   LocationSelectField,
   lookupPincode,
 } from '../../components/common/LocationSelectField';
 import { indianStates, getCities } from '../../utils/indiaLocation';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
-import HomeFooter from '../../components/home/HomeFooter';
 
 export interface Offer {
   _id: string;
@@ -108,6 +108,7 @@ const resolveImage = (img?: string) => {
 export default function NearbyOffersScreen() {
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
+  const { isDark } = useTheme();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -205,14 +206,14 @@ export default function NearbyOffersScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
       {/* Location warning banner if location is not granted */}
       {!location && !locLoading && (
-        <View style={styles.locationBanner}>
+        <View style={[styles.locationBanner, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.locationBannerTitle}>Location not enabled</Text>
-            <Text style={styles.locationBannerSubtitle}>
+            <Text style={[styles.locationBannerTitle, isDark && { color: '#FFFFFF' }]}>Location not enabled</Text>
+            <Text style={[styles.locationBannerSubtitle, isDark && { color: '#9CA3AF' }]}>
               Enable location to sort and discover offers closest to you.
             </Text>
           </View>
@@ -225,15 +226,15 @@ export default function NearbyOffersScreen() {
 
       {token && (
         <TouchableOpacity
-          style={styles.alertBanner}
+          style={[styles.alertBanner, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}
           onPress={handleEnableAlerts}
         >
           <Bell size={16} color={CustomerColors.teal600} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>
+            <Text style={[styles.alertTitle, isDark && { color: '#FFFFFF' }]}>
               Get notified about new nearby offers
             </Text>
-            <Text style={styles.alertSubtitle}>
+            <Text style={[styles.alertSubtitle, isDark && { color: '#9CA3AF' }]}>
               We'll alert you when stores near you post deals.
             </Text>
           </View>
@@ -242,12 +243,16 @@ export default function NearbyOffersScreen() {
 
       {/* Radius selector */}
       <View style={styles.radiusRow}>
-        <Text style={styles.radiusLabel}>Radius:</Text>
+        <Text style={[styles.radiusLabel, isDark && { color: '#9CA3AF' }]}>Radius:</Text>
         {RADIUS_OPTIONS.map(r => (
           <TouchableOpacity
             key={r}
             style={[
               styles.radiusChip,
+              {
+                backgroundColor: isDark ? '#111827' : CustomerColors.white,
+                borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+              },
               radius === r && styles.radiusChipActive,
             ]}
             onPress={() => handleRadiusChange(r)}
@@ -255,6 +260,7 @@ export default function NearbyOffersScreen() {
             <Text
               style={[
                 styles.radiusChipText,
+                { color: isDark ? '#D1D5DB' : CustomerColors.textSecondary },
                 radius === r && styles.radiusChipTextActive,
               ]}
             >
@@ -265,9 +271,9 @@ export default function NearbyOffersScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
+        <View style={[styles.center, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
           <ActivityIndicator size="large" color={CustomerColors.teal600} />
-          <Text style={styles.emptySubtitle}>Loading offers…</Text>
+          <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>Loading offers…</Text>
         </View>
       ) : (
         <FlatList
@@ -279,10 +285,10 @@ export default function NearbyOffersScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={styles.emptyEmoji}>🔍</Text>
-              <Text style={styles.emptyTitle}>
+              <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>
                 No offers found right now
               </Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>
                 Try increasing the radius or check back later.
               </Text>
             </View>
@@ -296,8 +302,8 @@ export default function NearbyOffersScreen() {
               ),
             );
             return (
-              <View style={styles.card}>
-                <View style={styles.imageWrap}>
+              <View style={[styles.card, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : CustomerColors.border }]}>
+                <View style={[styles.imageWrap, isDark && { backgroundColor: '#1F2937' }]}>
                   <Image
                     source={{ uri: resolveImage(item.image) }}
                     style={styles.image}
@@ -320,16 +326,16 @@ export default function NearbyOffersScreen() {
                   ) : null}
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.storeName}>{item.storeName}</Text>
-                  <Text style={styles.offerTitle} numberOfLines={1}>
+                  <Text style={[styles.storeName, isDark && { color: '#5EEAD4' }]}>{item.storeName}</Text>
+                  <Text style={[styles.offerTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={1}>
                     {item.title}
                   </Text>
                   <View style={styles.priceRow}>
-                    <Text style={styles.offerPrice}>
+                    <Text style={[styles.offerPrice, isDark && { color: '#FFFFFF' }]}>
                       ₹{item.offerPrice}
                     </Text>
                     {item.originalPrice !== item.offerPrice && (
-                      <Text style={styles.originalPrice}>
+                      <Text style={[styles.originalPrice, isDark && { color: '#9CA3AF' }]}>
                         ₹{item.originalPrice}
                       </Text>
                     )}
@@ -337,7 +343,8 @@ export default function NearbyOffersScreen() {
                   <View
                     style={[
                       styles.timeBadge,
-                      hoursLeft < 24 && styles.timeBadgeUrgent,
+                      isDark && { backgroundColor: '#1F2937' },
+                      hoursLeft < 24 && (isDark ? { backgroundColor: 'rgba(220, 38, 38, 0.2)' } : styles.timeBadgeUrgent),
                     ]}
                   >
                     <Clock
@@ -345,12 +352,13 @@ export default function NearbyOffersScreen() {
                       color={
                         hoursLeft < 24
                           ? CustomerColors.primary
-                          : CustomerColors.textSecondary
+                          : isDark ? '#9CA3AF' : CustomerColors.textSecondary
                       }
                     />
                     <Text
                       style={[
                         styles.timeBadgeText,
+                        isDark && { color: '#9CA3AF' },
                         hoursLeft < 24 && styles.timeBadgeTextUrgent,
                       ]}
                     >
@@ -378,11 +386,7 @@ export default function NearbyOffersScreen() {
               </View>
             );
           }}
-          ListFooterComponent={
-            <View style={{ marginTop: Spacing.xl }}>
-              <HomeFooter />
-            </View>
-          }
+          ListFooterComponent={<View style={{ height: Spacing.xl }} />}
         />
       )}
 
@@ -513,29 +517,31 @@ function OrderModal({
       const qty = parseInt(form.quantity, 10) || 1;
       const totalAmount = Number(total);
 
-      // Pre-resolve product from store by matching title if possible
-      let targetProductId = offer._id;
+      // Pre-resolve store product ID by matching title if possible (matching web parity)
+      let resolvedProductId = offer._id;
       try {
         if (offer.storeId) {
-          const prodRes = await productApi.getByStore(offer.storeId);
-          const storeProducts = prodRes.data?.data || prodRes.data || [];
+          const storeProdsRes = await productApi.getByStore(offer.storeId);
+          const storeProducts = storeProdsRes.data?.data || storeProdsRes.data || [];
           const matched = storeProducts.find(
             (p: any) => p.title?.trim().toLowerCase() === offer.title?.trim().toLowerCase()
           );
           if (matched?._id || matched?.id) {
-            targetProductId = matched._id || matched.id;
+            resolvedProductId = matched._id || matched.id;
           }
         }
-      } catch (e) {
-        // Fallback to offer._id, backend will fallback match by title
+      } catch (lookupErr) {
+        // Fallback to offer._id
       }
 
       const cartItems = [
         {
-          id: targetProductId,
-          productId: targetProductId,
+          id: resolvedProductId,
+          productId: resolvedProductId,
           title: offer.title,
           price: offer.offerPrice,
+          offerPrice: offer.offerPrice,
+          isOffer: true,
           quantity: qty,
           storeId: offer.storeId,
           storeName: offer.storeName,
@@ -547,10 +553,15 @@ function OrderModal({
         },
       ];
 
+      const emailToUse =
+        form.contactEmail?.trim() ||
+        user?.email?.trim() ||
+        `${(form.phone || 'customer').replace(/\D/g, '') || 'customer'}@remise.digital`;
+
       const res = await smartOrderApi.placeOrder({
         amount: totalAmount,
         cartItems,
-        contactEmail: form.contactEmail || user?.email || '',
+        contactEmail: emailToUse,
         shippingAddress: {
           firstName: form.firstName,
           lastName: form.lastName,
@@ -669,13 +680,13 @@ function OrderModal({
         {/* Price Strip */}
         <View style={styles.priceStrip}>
           <Text style={styles.priceStripLabel}>Offer Price</Text>
-          <View style={{ flexDirection: 'row', gap: Spacing.xs, alignItems: 'baseline' }}>
+          <View style={styles.priceStripRight}>
             <Text style={styles.priceStripValue}>₹{offer.offerPrice}</Text>
             {offer.originalPrice !== offer.offerPrice && (
               <Text style={styles.priceStripOriginal}>₹{offer.originalPrice}</Text>
             )}
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountBadgeText}>{offer.discountPercent}% OFF</Text>
+            <View style={styles.modalDiscountBadge}>
+              <Text style={styles.modalDiscountBadgeText}>{offer.discountPercent}% OFF</Text>
             </View>
           </View>
         </View>
@@ -1354,6 +1365,11 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
   },
+  priceStripRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   priceStripLabel: {
     fontSize: FontSizes.sm,
     color: CustomerColors.textSecondary,
@@ -1367,6 +1383,17 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: CustomerColors.textSecondary,
     textDecorationLine: 'line-through',
+  },
+  modalDiscountBadge: {
+    backgroundColor: CustomerColors.primary,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  modalDiscountBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
   },
   errorBanner: {
     backgroundColor: '#FEE2E2',

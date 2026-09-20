@@ -25,6 +25,8 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
+import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { CustomerColors } from '../styles/theme';
 
@@ -43,6 +45,8 @@ export type SellerStackParamList = {
   SellerManageBrands: { typeKey: string; title: string; category: string; items: any[]; brandCount: number; totalStock: number };
   SellerScanUpload: undefined;
   SellerBulkScanUpload: undefined;
+  StoreDeliveries: undefined;
+  StoreOrderTracking: { orderId: string };
   Notifications: undefined;
   Profile: undefined;
   AccountSettings: { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' } | undefined;
@@ -237,6 +241,8 @@ export default function SellerNavigator() {
           <Stack.Screen name="SellerManageBrands" component={SellerManageBrandsScreen} options={{ headerShown: true, title: 'Manage Brands' }} />
           <Stack.Screen name="SellerScanUpload" component={SellerScanUploadScreen} options={{ headerShown: true, title: 'Scan Paper & Add Product' }} />
           <Stack.Screen name="SellerBulkScanUpload" component={SellerBulkScanUploadScreen} options={{ headerShown: true, title: 'Scan Product List' }} />
+          <Stack.Screen name="StoreDeliveries" component={StoreDeliveriesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="StoreOrderTracking" component={StoreOrderTrackingScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
           <Stack.Screen name="Notifications" component={NotificationScreen} options={{ headerShown: true, title: 'Notifications' }} />
           <Stack.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ headerShown: true, title: 'Settings' }} />

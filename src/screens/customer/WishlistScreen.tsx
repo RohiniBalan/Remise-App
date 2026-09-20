@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
+import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
@@ -19,6 +20,7 @@ export default function WishlistScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { wishlist, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const { isDark } = useTheme();
 
   const handleAddToCart = (item: any) => {
     addToCart({
@@ -33,11 +35,17 @@ export default function WishlistScreen({ navigation }: any) {
 
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={[
+        styles.card,
+        {
+          backgroundColor: isDark ? '#111827' : '#FFFFFF',
+          borderColor: isDark ? '#1F2937' : '#E2E8F0',
+        },
+      ]}
       activeOpacity={0.85}
       onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
     >
-      <View style={styles.imageWrap}>
+      <View style={[styles.imageWrap, isDark && { backgroundColor: '#1F2937' }]}>
         {item.image ? (
           <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.image} resizeMode="contain" />
         ) : (
@@ -49,10 +57,10 @@ export default function WishlistScreen({ navigation }: any) {
 
       <View style={styles.info}>
         {item.brand ? <Text style={styles.brand}>{item.brand}</Text> : null}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={styles.price}>₹{item.price}</Text>
+        <Text style={[styles.price, isDark && { color: '#FFFFFF' }]}>₹{item.price}</Text>
 
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -65,7 +73,7 @@ export default function WishlistScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.removeBtn}
+            style={[styles.removeBtn, isDark && { backgroundColor: 'rgba(220, 38, 38, 0.2)' }]}
             onPress={() => removeFromWishlist(item.id)}
             activeOpacity={0.7}
           >
@@ -78,14 +86,14 @@ export default function WishlistScreen({ navigation }: any) {
 
   if (wishlist.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : '#F8FAFC' }]}>
         <BrandHeader />
-        <View style={styles.emptyContainer}>
+        <View style={[styles.emptyContainer, { backgroundColor: isDark ? '#0b0f19' : '#F8FAFC' }]}>
           <View style={styles.emptyIconCircle}>
             <Heart size={36} color={CustomerColors.primary} />
           </View>
-          <Text style={styles.emptyTitle}>Your Wishlist is Empty</Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>Your Wishlist is Empty</Text>
+          <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>
             Save items you love by tapping the heart icon on any product card.
           </Text>
           <TouchableOpacity
@@ -102,11 +110,11 @@ export default function WishlistScreen({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : '#F8FAFC' }]}>
       <BrandHeader />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Wishlist</Text>
-        <Text style={styles.headerSubtitle}>
+      <View style={[styles.header, { backgroundColor: isDark ? '#111827' : '#FFFFFF', borderBottomColor: isDark ? '#1F2937' : '#F1F5F9' }]}>
+        <Text style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}>My Wishlist</Text>
+        <Text style={[styles.headerSubtitle, isDark && { color: '#9CA3AF' }]}>
           {wishlist.length} {wishlist.length === 1 ? 'item' : 'items'} saved
         </Text>
       </View>

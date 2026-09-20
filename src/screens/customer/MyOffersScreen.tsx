@@ -23,6 +23,7 @@ import {
   BorderRadius,
   Shadows,
 } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 import { GATEWAY_URL } from '../../api/endpoints';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
@@ -62,6 +63,7 @@ function ClaimOfferModal({
   onClose,
   onSuccess,
 }: ClaimOfferModalProps) {
+  const { isDark } = useTheme();
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
   const [form, setForm] = useState({
@@ -75,6 +77,12 @@ function ClaimOfferModal({
   const [error, setError] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const cardBg = isDark ? '#111827' : '#ffffff';
+  const borderColor = isDark ? '#1F2937' : '#e2e8f0';
+  const textPri = isDark ? '#F9FAFB' : '#0f172a';
+  const textSec = isDark ? '#9CA3AF' : '#64748b';
+  const rowBg = isDark ? '#1f2937' : CustomerColors.bg;
 
   if (!offer) return null;
   const qty = parseInt(form.quantity || '1', 10);
@@ -109,25 +117,25 @@ function ClaimOfferModal({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, { backgroundColor: cardBg }]}>
           <View style={styles.modalHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.modalTitle}>{offer.title}</Text>
-              <Text style={styles.modalStore}>{offer.storeName}</Text>
+              <Text style={[styles.modalTitle, { color: textPri }]}>{offer.title}</Text>
+              <Text style={[styles.modalStore, { color: textSec }]}>{offer.storeName}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
-              <X size={22} color={CustomerColors.textSecondary} />
+              <X size={22} color={textSec} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Price per unit</Text>
+          <View style={[styles.priceRow, { backgroundColor: rowBg }]}>
+            <Text style={[styles.priceLabel, { color: textSec }]}>Price per unit</Text>
             <View
               style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}
             >
               <Text style={styles.priceValue}>₹{offer.offerPrice}</Text>
               {offer.originalPrice !== offer.offerPrice && (
-                <Text style={styles.priceStrike}>₹{offer.originalPrice}</Text>
+                <Text style={[styles.priceStrike, { color: textSec }]}>₹{offer.originalPrice}</Text>
               )}
             </View>
           </View>
@@ -139,18 +147,30 @@ function ClaimOfferModal({
               label="Your Name *"
               value={form.customerName}
               onChangeText={v => set('customerName', v)}
+              cardBg={cardBg}
+              borderColor={borderColor}
+              textPri={textPri}
+              textSec={textSec}
             />
             <FormField
               label="Phone *"
               value={form.customerPhone}
               onChangeText={v => set('customerPhone', v)}
               keyboardType="phone-pad"
+              cardBg={cardBg}
+              borderColor={borderColor}
+              textPri={textPri}
+              textSec={textSec}
             />
             <FormField
               label="Email"
               value={form.customerEmail}
               onChangeText={v => set('customerEmail', v)}
               keyboardType="email-address"
+              cardBg={cardBg}
+              borderColor={borderColor}
+              textPri={textPri}
+              textSec={textSec}
             />
             <FormField
               label="Delivery Address *"
@@ -158,15 +178,23 @@ function ClaimOfferModal({
               onChangeText={v => set('deliveryAddress', v)}
               multiline
               numberOfLines={2}
+              cardBg={cardBg}
+              borderColor={borderColor}
+              textPri={textPri}
+              textSec={textSec}
             />
             <FormField
               label="Quantity"
               value={form.quantity}
               onChangeText={v => set('quantity', v.replace(/[^0-9]/g, ''))}
               keyboardType="number-pad"
+              cardBg={cardBg}
+              borderColor={borderColor}
+              textPri={textPri}
+              textSec={textSec}
             />
-            <Text style={styles.totalText}>
-              Total: <Text style={{ fontWeight: '800' }}>₹{total}</Text>
+            <Text style={[styles.totalText, { color: textSec }]}>
+              Total: <Text style={{ fontWeight: '800', color: textPri }}>₹{total}</Text>
             </Text>
           </ScrollView>
 
@@ -208,31 +236,43 @@ interface FormFieldProps {
   multiline?: boolean;
   numberOfLines?: number;
   keyboardType?: 'default' | 'phone-pad' | 'email-address' | 'number-pad';
+  cardBg?: string;
+  borderColor?: string;
+  textPri?: string;
+  textSec?: string;
 }
 
-function FormField({ label, ...rest }: FormFieldProps) {
+function FormField({ label, cardBg, borderColor, textPri, textSec, ...rest }: FormFieldProps) {
   return (
     <View style={{ marginBottom: Spacing.sm }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={[styles.fieldLabel, textSec ? { color: textSec } : undefined]}>{label}</Text>
       <TextInput
         {...rest}
         style={[
           styles.fieldInput,
+          borderColor ? { borderColor, color: textPri } : undefined,
           rest.multiline && { height: 64, textAlignVertical: 'top' },
         ]}
-        placeholderTextColor={CustomerColors.textSecondary}
+        placeholderTextColor={textSec || CustomerColors.textSecondary}
       />
     </View>
   );
 }
 
 export default function MyOffersScreen() {
+  const { isDark } = useTheme();
   const { token } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
+
+  const cardBg = isDark ? '#111827' : '#ffffff';
+  const borderColor = isDark ? '#1F2937' : '#e2e8f0';
+  const textPri = isDark ? '#F9FAFB' : '#0f172a';
+  const textSec = isDark ? '#9CA3AF' : '#64748b';
+  const bg = isDark ? '#0b0f19' : CustomerColors.bg;
 
   const load = useCallback(async () => {
     if (!token) {
@@ -260,10 +300,10 @@ export default function MyOffersScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🏷️ My Offers</Text>
-        <Text style={styles.headerSubtitle}>
+        <Text style={[styles.headerTitle, { color: textPri }]}>🏷️ My Offers</Text>
+        <Text style={[styles.headerSubtitle, { color: textSec }]}>
           Deals a store has sent you personally
         </Text>
       </View>
@@ -280,8 +320,8 @@ export default function MyOffersScreen() {
           }
         >
           <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🏷️</Text>
-          <Text style={styles.emptyTitle}>No private offers yet</Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={[styles.emptyTitle, { color: textPri }]}>No private offers yet</Text>
+          <Text style={[styles.emptySubtitle, { color: textSec }]}>
             When a store sends you a personal deal, it'll show up here.
           </Text>
         </ScrollView>
@@ -294,7 +334,7 @@ export default function MyOffersScreen() {
         >
           <View style={styles.grid}>
             {offers.map(offer => (
-              <View key={offer._id} style={styles.card}>
+              <View key={offer._id} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
                 <View style={styles.imageWrap}>
                   <Image
                     source={{
@@ -319,12 +359,12 @@ export default function MyOffersScreen() {
                 </View>
 
                 <View style={styles.cardBody}>
-                  <Text style={styles.storeName} numberOfLines={1}>{offer.storeName}</Text>
-                  <Text style={styles.offerTitle} numberOfLines={1}>
+                  <Text style={[styles.storeName, { color: textSec }]} numberOfLines={1}>{offer.storeName}</Text>
+                  <Text style={[styles.offerTitle, { color: textPri }]} numberOfLines={1}>
                     {offer.title}
                   </Text>
                   {!!offer.description && (
-                    <Text style={styles.offerDesc} numberOfLines={2}>
+                    <Text style={[styles.offerDesc, { color: textSec }]} numberOfLines={2}>
                       {offer.description}
                     </Text>
                   )}
@@ -340,15 +380,15 @@ export default function MyOffersScreen() {
                     >
                       <Text style={styles.offerPrice}>₹{offer.offerPrice}</Text>
                       {offer.originalPrice !== offer.offerPrice && (
-                        <Text style={styles.offerPriceStrike}>
+                        <Text style={[styles.offerPriceStrike, { color: textSec }]}>
                           ₹{offer.originalPrice}
                         </Text>
                       )}
                     </View>
                   </View>
-                  <View style={styles.timeChip}>
-                    <Clock size={10} color={CustomerColors.textSecondary} />
-                    <Text style={styles.timeChipText}>
+                  <View style={[styles.timeChip, { backgroundColor: isDark ? '#1f2937' : CustomerColors.bg, borderColor }]}>
+                    <Clock size={10} color={textSec} />
+                    <Text style={[styles.timeChipText, { color: textSec }]}>
                       {hoursLeftLabel(offer.validUntil)}
                     </Text>
                   </View>
@@ -379,20 +419,20 @@ export default function MyOffersScreen() {
 
       <Modal visible={orderSuccess} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.successCard}>
+          <View style={[styles.successCard, { backgroundColor: cardBg, borderColor }]}>
             <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🎉</Text>
             <Text style={styles.successTitle}>Order Placed!</Text>
-            <Text style={styles.successSubtitle}>
+            <Text style={[styles.successSubtitle, { color: textSec }]}>
               The store will confirm your order shortly.
             </Text>
             <TouchableOpacity
-              style={styles.successBtn}
+              style={[styles.successBtn, { backgroundColor: isDark ? '#1f2937' : CustomerColors.bg, borderColor }]}
               onPress={() => {
                 setSelectedOffer(null);
                 setOrderSuccess(false);
               }}
             >
-              <Text style={styles.successBtnText}>Back to Offers</Text>
+              <Text style={[styles.successBtnText, { color: textPri }]}>Back to Offers</Text>
             </TouchableOpacity>
           </View>
         </View>

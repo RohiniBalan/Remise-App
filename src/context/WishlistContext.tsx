@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { View, Text, StyleSheet, Animated, Platform, ToastAndroid } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveImageUrl } from '../utils/imageUrl';
+import { storage } from '../utils/storage';
+import { useAuth } from './AuthContext';
 
-// Ported from web's WishlistContext.tsx — persists wishlist to AsyncStorage
-// (web uses localStorage) and shows a toast notification on add/remove.
+// Persists wishlist per-user to AsyncStorage so each person only sees their own wishlist,
+// and shows a toast notification on add/remove.
 
 export interface WishlistItem {
   id: string;
@@ -27,11 +28,11 @@ export interface WishlistContextType {
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'wishlist';
-
 export function WishlistProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?._id || user?.email || null;
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Toast state
   const [toastMessage, setToastMessage] = useState('');
@@ -53,26 +54,40 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     ]).start(() => setToastVisible(false));
   }, [toastOpacity]);
 
-  // Hydrate from storage
+  // Hydrate user-specific wishlist when userId changes
   useEffect(() => {
-    setIsMounted(true);
+    let isCurrent = true;
+    setIsLoaded(false);
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const saved = JSON.parse(raw);
-          if (Array.isArray(saved)) setWishlist(saved);
+        const local = await storage.getWishlist<WishlistItem[]>(userId);
+        if (isCurrent) {
+          if (local && Array.isArray(local)) {
+            setWishlist(local);
+          } else {
+            setWishlist([]);
+          }
+          setIsLoaded(true);
         }
-      } catch {}
+      } catch {
+        if (isCurrent) {
+          setWishlist([]);
+          setIsLoaded(true);
+        }
+      }
     })();
-  }, []);
 
-  // Persist on change
+    return () => {
+      isCurrent = false;
+    };
+  }, [userId]);
+
+  // Persist user-specific wishlist on change
   useEffect(() => {
-    if (isMounted) {
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(wishlist));
+    if (isLoaded) {
+      storage.setWishlist(wishlist, userId);
     }
-  }, [wishlist, isMounted]);
+  }, [wishlist, userId, isLoaded]);
 
   const isWishlisted = useCallback(
     (productId: string) => wishlist.some(item => item.id === productId),

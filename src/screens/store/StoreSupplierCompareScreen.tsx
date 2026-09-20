@@ -72,6 +72,7 @@ export default function StoreSupplierCompareScreen() {
               <View style={[styles.card, carouselIndex === 0 && styles.cardBest]}>
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
+                    <Text style={styles.productTitle}>{group.title}</Text>
                     <Text style={styles.storeName}>{s.storeName}</Text>
                     {carouselIndex === 0 && (
                       <View style={styles.bestBadge}><Text style={styles.bestBadgeText}>Best price</Text></View>
@@ -138,7 +139,10 @@ export default function StoreSupplierCompareScreen() {
                 )}
 
                 <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md }}>
-                  <TouchableOpacity style={[styles.selectBtn, { flex: 1, marginTop: 0 }]} onPress={() => handleSelect(s)}>
+                  <TouchableOpacity
+                    style={[styles.selectBtn, { flex: 1, marginTop: 0 }]}
+                    onPress={() => handleSelect(s)}
+                  >
                     <Text style={styles.selectBtnText}>Select Supplier</Text>
                   </TouchableOpacity>
                   {s.productId && (
@@ -147,7 +151,7 @@ export default function StoreSupplierCompareScreen() {
                       onPress={() => navigation.navigate('ProductDetail', { productId: s.productId })}
                     >
                       <Eye size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                      <Text style={{ fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>Details</Text>
+                      <Text style={{ fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black }}>Details</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -172,29 +176,23 @@ export default function StoreSupplierCompareScreen() {
         )}
 
         {selected && !added && (
-          <View>
-            <View style={styles.selectedBox}>
-              <Text style={styles.storeName}>{selected.storeName}</Text>
-              <Text style={styles.metaText}>MOQ: {selected.moq} units · Stock: {selected.totalStock}</Text>
-              {(selected.brand || group.brand) && (
-                <Text style={{ fontSize: 12, color: isDark ? '#ffffff' : '#000000', marginTop: 4 }}>
-                  Brand: <Text style={{ fontWeight: '700' }}>{selected.brand || group.brand}</Text>
-                </Text>
-              )}
-              {(selected.description || group.description) && (
-                <Text style={{ fontSize: 12, color: isDark ? '#ffffff' : '#000000', marginTop: 4 }} numberOfLines={2}>
-                  {selected.description || group.description}
-                </Text>
-              )}
-            </View>
+          <View style={styles.selectedBox}>
+            <Text style={styles.storeName}>{selected.storeName}</Text>
+            <Text style={styles.metaText}>MOQ: {selected.moq} · Stock: {selected.totalStock}</Text>
 
-            <Text style={styles.qtyLabel}>Quantity</Text>
+            <Text style={styles.qtyLabel}>Quantity (Min: {selected.moq})</Text>
             <View style={styles.qtyRow}>
-              <TouchableOpacity style={styles.qtyBtn} onPress={() => setQty(q => Math.max(selected.moq, q - 1))}>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => setQty(q => Math.max(selected.moq || 1, q - 1))}
+              >
                 <Text style={styles.qtyBtnText}>−</Text>
               </TouchableOpacity>
               <Text style={styles.qtyValue}>{qty}</Text>
-              <TouchableOpacity style={styles.qtyBtn} onPress={() => setQty(q => q + 1)}>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => setQty(q => Math.min(selected.totalStock || 9999, q + 1))}
+              >
                 <Text style={styles.qtyBtnText}>+</Text>
               </TouchableOpacity>
             </View>
@@ -218,8 +216,14 @@ export default function StoreSupplierCompareScreen() {
 
         {added && (
           <View style={styles.addedBox}>
-            <CheckCircle2 size={36} color="#16A34A" />
-            <Text style={styles.addedText}>Added to cart</Text>
+            <View style={styles.tickCircle}>
+              <CheckCircle2 size={48} color="#10B981" />
+            </View>
+            <Text style={styles.addedText}>Added to Supplier Cart</Text>
+            <Text style={styles.addedSubText}>
+              {group.title} from {selected?.storeName || 'Supplier'} has been added to your order requisition.
+            </Text>
+            <Text style={styles.addedRedirectText}>Redirecting to Cart...</Text>
           </View>
         )}
       </View>
@@ -234,14 +238,15 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   backText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
   headerTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#ffffff' : '#000000' },
   headerSub: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, marginTop: 2 },
-  body: { padding: Spacing.lg },
-  carouselRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  arrowBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, backgroundColor: isDark ? '#1F2937' : CustomerColors.white, alignItems: 'center', justifyContent: 'center' },
+  body: { padding: Spacing.lg, flex: 1, justifyContent: 'center' },
+  carouselRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  arrowBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, backgroundColor: isDark ? '#1F2937' : CustomerColors.white, alignItems: 'center', justifyContent: 'center' },
   cardWrap: { flex: 1 },
   card: { borderWidth: 1, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder, backgroundColor: isDark ? '#111827' : CustomerColors.white, borderRadius: BorderRadius.md, padding: Spacing.md },
   cardBest: { borderColor: isDark ? '#0f766e' : CustomerColors.teal600, backgroundColor: isDark ? '#134e4a' : '#F0FDFA' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
-  storeName: { fontSize: FontSizes.base, fontWeight: '700', color: isDark ? '#ffffff' : '#000000' },
+  productTitle: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#ffffff' : '#000000', marginBottom: 2 },
+  storeName: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   bestBadge: { alignSelf: 'flex-start', backgroundColor: isDark ? '#115e59' : '#CCFBF1', borderRadius: BorderRadius.pill, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 },
   bestBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   metaText: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#9CA3AF', marginTop: 6 },
@@ -268,6 +273,9 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   backSmallBtnText: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
   addBtn: { flex: 1, backgroundColor: CustomerColors.primary, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.base },
-  addedBox: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xxl },
-  addedText: { fontWeight: '700', fontSize: FontSizes.base, color: isDark ? '#E5E7EB' : '#374151' },
+  addedBox: { alignItems: 'center', gap: Spacing.xs, paddingVertical: Spacing.xxl },
+  tickCircle: { marginBottom: Spacing.xs },
+  addedText: { fontWeight: '800', fontSize: FontSizes.lg, color: isDark ? '#F9FAFB' : '#111827', textAlign: 'center' },
+  addedSubText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', maxWidth: 280, marginTop: 4, lineHeight: 20 },
+  addedRedirectText: { fontSize: FontSizes.xs, color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700', marginTop: Spacing.md },
 });

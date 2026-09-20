@@ -46,6 +46,7 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { indianStates, getCities } from '../../utils/indiaLocation';
@@ -92,11 +93,18 @@ async function requestLocationPermission(): Promise<boolean> {
 }
 
 export default function CompareStoresScreen() {
+  const { isDark } = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const items: SmartOrderCartItem[] = route.params.items;
   const purchaseType: 'bulk' | 'home_seller' | undefined = route.params?.purchaseType;
   const { user, token } = useAuth();
+
+  const cardBg = isDark ? '#111827' : '#ffffff';
+  const borderColor = isDark ? '#1F2937' : CustomerColors.steelBorder;
+  const textPri = isDark ? '#F9FAFB' : CustomerColors.black;
+  const textSec = isDark ? '#9CA3AF' : CustomerColors.textSecondary;
+  const bg = isDark ? '#0b0f19' : CustomerColors.bg;
 
   // Map purchaseType to the backend storeType filter.
   // 'bulk'        → 'store'         (Store Owner stores only)
@@ -394,20 +402,20 @@ export default function CompareStoresScreen() {
 
   return (
     <View style={styles.overlay}>
-      <View style={styles.sheet}>
-        <View style={styles.header}>
+      <View style={[styles.sheet, { backgroundColor: cardBg }]}>
+        <View style={[styles.header, { backgroundColor: isDark ? '#1f2937' : CustomerColors.mint }]}>
           <View>
-            <Text style={styles.headerTitle}>Find Cheapest Store</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerTitle, { color: textPri }]}>Find Cheapest Store</Text>
+            <Text style={[styles.headerSubtitle, { color: textSec }]}>
               {items.length} item{items.length !== 1 ? 's' : ''} on your list
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <X size={22} color={CustomerColors.textSecondary} />
+            <X size={22} color={textSec} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView contentContainerStyle={[styles.body, { backgroundColor: cardBg }]}>
           {errorMsg ? (
             <View style={styles.errorBanner}>
               <AlertCircle size={14} color={CustomerColors.danger} />
@@ -417,7 +425,7 @@ export default function CompareStoresScreen() {
 
           {(step === 'radius' || step === 'searching') && (
             <View style={{ gap: Spacing.md }}>
-              <Text style={styles.stepText}>
+              <Text style={[styles.stepText, { color: textSec }]}>
                 Choose how far we should search for stores near you.
               </Text>
               <View style={styles.radiusRow}>
@@ -426,6 +434,7 @@ export default function CompareStoresScreen() {
                     key={r}
                     style={[
                       styles.radiusChip,
+                      { backgroundColor: isDark ? '#1f2937' : CustomerColors.bg },
                       radius === r && !customRadius && styles.radiusChipActive,
                     ]}
                     onPress={() => {
@@ -436,6 +445,7 @@ export default function CompareStoresScreen() {
                     <Text
                       style={[
                         styles.radiusChipText,
+                        { color: textSec },
                         radius === r &&
                           !customRadius &&
                           styles.radiusChipTextActive,
@@ -447,10 +457,10 @@ export default function CompareStoresScreen() {
                 ))}
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: cardBg, borderColor, color: textPri }]}
                 placeholder="Custom km"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="number-pad"
+                placeholderTextColor={textSec}
+                keyboardType="numeric"
                 value={customRadius}
                 onChangeText={setCustomRadius}
               />

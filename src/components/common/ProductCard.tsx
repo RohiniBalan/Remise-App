@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, ShoppingCart, Zap, Sparkles } from 'lucide-react-native';
 import { Product, productImage, productId, discountPercent } from '../../api/productApi';
 import { CustomerColors, GoldColors, Spacing, BorderRadius, FontSizes, Shadows } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 // Shared between CategoryScreen, NewArrivalsScreen and (later) HomeScreen — reproduces the
 // same card fields/actions as web's product-card markup: discount badge, NEW badge, wishlist
@@ -20,6 +21,8 @@ interface Props {
 }
 
 export default function ProductCard({ product, isWished, onPress, onToggleWishlist, onAddToCart, onBuyNow, hideBuyNow = false }: Props) {
+  const { isDark } = useTheme();
+
   const effectivePrice =
     product.discountedPrice != null &&
     product.discountedPrice > 0 &&
@@ -46,8 +49,18 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
   const image = productImage(product);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.imageWrap}>
+    <TouchableOpacity
+      style={[
+        styles.card,
+        {
+          backgroundColor: isDark ? '#111827' : CustomerColors.white,
+          borderColor: isDark ? '#1F2937' : CustomerColors.border,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <View style={[styles.imageWrap, isDark && { backgroundColor: '#1F2937' }]}>
         <View style={styles.badgeContainer}>
           {product.badge && (
             <View style={styles.productBadge}>
@@ -62,35 +75,46 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
           )}
         </View>
         <Image source={{ uri: image }} style={[styles.image, isOutOfStock && styles.imageDimmed]} resizeMode="cover" />
-        <TouchableOpacity style={[styles.wishBtn, isWished && styles.wishBtnActive]} onPress={onToggleWishlist}>
-          <Heart size={13} color={isWished ? '#FF0000' : CustomerColors.textSecondary} fill={isWished ? '#FF0000' : 'none'} />
+        <TouchableOpacity
+          style={[
+            styles.wishBtn,
+            isDark && { backgroundColor: 'rgba(31, 41, 55, 0.85)' },
+            isWished && styles.wishBtnActive,
+          ]}
+          onPress={onToggleWishlist}
+        >
+          <Heart size={13} color={isWished ? '#FF0000' : isDark ? '#9CA3AF' : CustomerColors.textSecondary} fill={isWished ? '#FF0000' : 'none'} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.brand} numberOfLines={1}>{product.brand || ' '}</Text>
-        <Text style={styles.title} numberOfLines={2}>{product.title}</Text>
+        <Text style={[styles.brand, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>{product.brand || ' '}</Text>
+        <Text style={[styles.title, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>{product.title}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>₹{effectivePrice?.toLocaleString()}</Text>
+          <Text style={[styles.price, isDark && { color: '#FFFFFF' }]}>₹{effectivePrice?.toLocaleString()}</Text>
           {originalPrice != null && (
-            <Text style={styles.originalPrice}>₹{originalPrice.toLocaleString()}</Text>
+            <Text style={[styles.originalPrice, isDark && { color: '#9CA3AF' }]}>₹{originalPrice.toLocaleString()}</Text>
           )}
         </View>
       </View>
 
       {isOutOfStock ? (
-        <View style={styles.outOfStockRow}>
-          <Text style={styles.outOfStockText}>Out of Stock</Text>
+        <View style={[styles.outOfStockRow, isDark && { borderTopColor: '#1F2937' }]}>
+          <Text style={[styles.outOfStockText, isDark && { color: '#9CA3AF' }]}>Out of Stock</Text>
         </View>
       ) : (
-        <View style={styles.ctaRow}>
+        <View style={[styles.ctaRow, isDark && { borderTopColor: '#1F2937' }]}>
           <TouchableOpacity
-            style={[styles.cartBtn, hideBuyNow && styles.cartBtnFull]}
+            style={[
+              styles.cartBtn,
+              hideBuyNow && styles.cartBtnFull,
+              isDark && { borderRightColor: '#1F2937' },
+            ]}
             onPress={onAddToCart}
           >
-            <ShoppingCart size={12} color={CustomerColors.textSecondary} />
+            <ShoppingCart size={12} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             {hideBuyNow && (
-              <Text style={styles.cartBtnText}>Add to Cart</Text>
+              <Text style={[styles.cartBtnText, isDark && { color: '#9CA3AF' }]}>Add to Cart</Text>
             )}
           </TouchableOpacity>
           {!hideBuyNow && (

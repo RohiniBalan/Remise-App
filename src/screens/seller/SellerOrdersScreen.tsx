@@ -6,6 +6,7 @@ import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { sellerOrderApi } from '../../api/sellerApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
+import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
 import { useTheme } from '../../context/ThemeContext';
 
 const ORDER_STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'] as const;
@@ -28,6 +29,7 @@ export default function SellerOrdersScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const [updating, setUpdating] = useState<string | null>(null);
   const [deliveryModalOrder, setDeliveryModalOrder] = useState<any | null>(null);
+  const [selectedDeliveryOrder, setSelectedDeliveryOrder] = useState<any | null>(null);
 
   const ITEMS_PER_PAGE = 30;
 
@@ -229,6 +231,28 @@ export default function SellerOrdersScreen() {
               <View style={styles.cardBottom}>
                 <Text style={styles.orderShortId}>#{o._id.slice(-6).toUpperCase()}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {o.orderStatus !== 'Cancelled' && (
+                    <TouchableOpacity
+                      style={styles.trackOrderBtn}
+                      onPress={() => navigation.navigate('StoreOrderTracking', { orderId: o.orderId || o._id })}
+                    >
+                      <Truck size={12} color="#2563EB" />
+                      <Text style={styles.trackOrderBtnText}>Live Track</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Delivered' && currentDeliveryStatus !== 'Delivered' && (
+                    <TouchableOpacity
+                      style={styles.deliveryFlowBtn}
+                      onPress={() => setSelectedDeliveryOrder(o)}
+                    >
+                      <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                      <Text style={styles.deliveryFlowBtnText}>
+                        {(o as any).deliveryToken ? 'View Delivery Link' : 'Assign Delivery Person'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
                   <View style={[styles.statusBadge, { backgroundColor: badgeBg }]}>
                     <Text style={[styles.statusBadgeText, { color: badgeFg }]}>Order: {o.orderStatus}</Text>
                   </View>
@@ -242,6 +266,15 @@ export default function SellerOrdersScreen() {
           );
         }}
       />
+
+      {selectedDeliveryOrder && (
+        <DeliveryFlowModal
+          order={selectedDeliveryOrder}
+          visible={!!selectedDeliveryOrder}
+          onClose={() => setSelectedDeliveryOrder(null)}
+          onRefresh={refresh}
+        />
+      )}
     </View>
   );
 }
@@ -333,6 +366,30 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   orderShortId: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF' },
   actionsContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', flex: 1 },
+  trackOrderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: isDark ? '#1e3a8a' : '#EFF6FF',
+    borderWidth: 1,
+    borderColor: isDark ? '#3b82f6' : '#BFDBFE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  trackOrderBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#93C5FD' : '#1D4ED8' },
+  deliveryFlowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: isDark ? '#134e4a' : CustomerColors.mint,
+    borderWidth: 1,
+    borderColor: isDark ? '#115e59' : CustomerColors.steelBorder,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  deliveryFlowBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
   deliveryPickerBtn: {
     flexDirection: 'row',
     alignItems: 'center',

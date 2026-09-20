@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Trash2, ImageIcon, Plus, CheckCircle2, RefreshCw } from 'lucide-react-native';
+import { Trash2, ImageIcon, Plus, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react-native';
 import { storeProductApi } from '../../api/storeProductApi';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -34,6 +35,25 @@ export interface BulkProductRow extends ProductFormFields {
 
 type Step = 'review' | 'saving' | 'done';
 
+function parseTitleAndPrice(rawTitle: string, explicitPrice?: number | string) {
+  let priceStr = explicitPrice !== undefined && explicitPrice !== '' && Number(explicitPrice) > 0 ? String(explicitPrice) : '';
+  let cleanTitle = (rawTitle || '').trim();
+
+  if (!priceStr && cleanTitle) {
+    const match =
+      cleanTitle.match(/[-–—:]\s*(?:₹|Rs\.?|INR)?\s*(\d+(?:\.\d+)?)/i) ||
+      cleanTitle.match(/(?:₹|Rs\.?|INR)\s*(\d+(?:\.\d+)?)/i);
+    if (match) {
+      priceStr = match[1];
+      cleanTitle = cleanTitle
+        .replace(/[-–—:]\s*(?:₹|Rs\.?|INR)?\s*(\d+(?:\.\d+)?)/i, '')
+        .replace(/(?:₹|Rs\.?|INR)\s*(\d+(?:\.\d+)?)/i, '')
+        .trim();
+    }
+  }
+  return { cleanTitle, priceStr };
+}
+
 export default function StoreBulkProductScanScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -41,9 +61,18 @@ export default function StoreBulkProductScanScreen() {
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store, categories, refresh } = useStoreDashboard();
 
-  const [rows, setRows] = useState<BulkProductRow[]>(
-    route.params?.scanned || [],
-  );
+  const [rows, setRows] = useState<BulkProductRow[]>(() => {
+    const initial = route.params?.scanned || [];
+    return initial.map((r: any) => {
+      const { cleanTitle, priceStr } = parseTitleAndPrice(r.title || '', r.price);
+      return {
+        ...r,
+        title: cleanTitle,
+        price: priceStr || r.price || '',
+        totalStock: r.totalStock !== undefined && r.totalStock !== '' ? String(r.totalStock) : '10',
+      };
+    });
+  });
   const [step, setStep] = useState<Step>('review');
   const [summary, setSummary] = useState<{
     added: number;
@@ -51,10 +80,22 @@ export default function StoreBulkProductScanScreen() {
   }>({ added: 0, failed: [] });
 
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+  const [validationErrors, setValidationErrors] = useState<string[] | null>(null);
 
   const handleRefresh = () => {
     if (route.params?.scanned) {
-      setRows(JSON.parse(JSON.stringify(route.params.scanned)));
+      const initial = JSON.parse(JSON.stringify(route.params.scanned));
+      setRows(
+        initial.map((r: any) => {
+          const { cleanTitle, priceStr } = parseTitleAndPrice(r.title || '', r.price);
+          return {
+            ...r,
+            title: cleanTitle,
+            price: priceStr || r.price || '',
+            totalStock: r.totalStock !== undefined && r.totalStock !== '' ? String(r.totalStock) : '10',
+          };
+        })
+      );
     }
   };
 
@@ -79,10 +120,7 @@ export default function StoreBulkProductScanScreen() {
     });
 
     if (errors.length > 0) {
-      Alert.alert(
-        'Incomplete Product Details',
-        'Please provide Title, Price, and Stock Quantity for all items before adding:\n\n' + errors.join('\n')
-      );
+      setValidationErrors(errors);
       return;
     }
 
@@ -226,6 +264,38 @@ export default function StoreBulkProductScanScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Enhanced Incomplete Details Modal */}
+      {validationErrors && (
+        <Modal visible={Boolean(validationErrors)} transparent animationType="fade">
+          <View style={styles.validationOverlay}>
+            <View style={styles.validationCard}>
+              <View style={styles.validationIconCircle}>
+                <AlertTriangle size={24} color="#D97706" />
+              </View>
+              <Text style={styles.validationTitle}>Incomplete Product Details</Text>
+              <Text style={styles.validationSubtitle}>
+                Please fill in the required fields before adding products:
+              </Text>
+              <ScrollView style={{ maxHeight: 180, width: '100%', marginVertical: Spacing.sm }}>
+                {validationErrors.map((err, i) => (
+                  <View key={i} style={styles.validationErrorItem}>
+                    <View style={styles.validationErrorDot} />
+                    <Text style={styles.validationErrorText}>{err}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.validationBtn}
+                onPress={() => setValidationErrors(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.validationBtnText}>Got it, let me fill them</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -380,4 +450,76 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
   },
   doneBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
+  validationOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  validationCard: {
+    width: '100%',
+    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#E5E7EB',
+  },
+  validationIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  validationTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '800',
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  validationSubtitle: {
+    fontSize: FontSizes.xs,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.xs,
+  },
+  validationErrorItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginVertical: 4,
+    paddingHorizontal: 4,
+  },
+  validationErrorDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+    marginTop: 6,
+  },
+  validationErrorText: {
+    flex: 1,
+    fontSize: FontSizes.xs,
+    color: isDark ? '#FCA5A5' : '#DC2626',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  validationBtn: {
+    width: '100%',
+    backgroundColor: CustomerColors.teal600,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    marginTop: Spacing.md,
+  },
+  validationBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: FontSizes.sm,
+  },
 });

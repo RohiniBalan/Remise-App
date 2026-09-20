@@ -33,6 +33,8 @@ import {
   Trash2,
   Calendar,
   Bell,
+  ChevronDown,
+  X,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
@@ -283,6 +285,7 @@ export default function ProfileScreen() {
   });
   const [addressEditorOpen, setAddressEditorOpen] = useState(false);
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [showGenderModal, setShowGenderModal] = useState(false);
 
   const [draftCities, setDraftCities] = useState<any[]>([]);
 
@@ -716,14 +719,59 @@ export default function ProfileScreen() {
               />
             )}
 
-            {/* Gender — dropdown */}
-            <LocationSelectField
-              label="Gender"
-              value={GENDER_OPTIONS.find(g => g.key === form.gender)?.label || form.gender}
-              placeholder="Select Gender"
-              options={GENDER_OPTIONS}
-              onSelect={key => setForm(prev => ({ ...prev, gender: key }))}
-            />
+            {/* Gender — select field */}
+            <TouchableOpacity
+              style={[styles.input, styles.dobInput]}
+              onPress={() => setShowGenderModal(true)}
+            >
+              <Text style={form.gender ? styles.dobValue : styles.dobPlaceholder}>
+                {GENDER_OPTIONS.find(g => g.key === form.gender)?.label || form.gender || 'Gender'}
+              </Text>
+              <ChevronDown size={16} color={isDark ? '#F9FAFB' : CustomerColors.textSecondary} />
+            </TouchableOpacity>
+
+            <Modal
+              visible={showGenderModal}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowGenderModal(false)}
+            >
+              <TouchableOpacity
+                style={styles.genderModalOverlay}
+                activeOpacity={1}
+                onPress={() => setShowGenderModal(false)}
+              >
+                <View style={styles.genderModalSheet} onStartShouldSetResponder={() => true}>
+                  <View style={styles.genderModalHeader}>
+                    <Text style={styles.genderModalTitle}>Select Gender</Text>
+                    <TouchableOpacity onPress={() => setShowGenderModal(false)}>
+                      <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                  <View>
+                    {GENDER_OPTIONS.map(item => (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={styles.genderModalItem}
+                        onPress={() => {
+                          setForm(prev => ({ ...prev, gender: item.key }));
+                          setShowGenderModal(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.genderModalItemText,
+                            item.key === form.gender && styles.genderModalItemTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Modal>
           </View>
         )}
 
@@ -1875,6 +1923,55 @@ const getStyles = (isDark: boolean) =>
     feedbackActionBtnText: {
       color: '#FFFFFF',
       fontSize: FontSizes.base,
+      fontWeight: '700',
+    },
+    genderModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.md,
+    },
+    genderModalSheet: {
+      width: '90%',
+      maxWidth: 360,
+      backgroundColor: isDark ? '#111827' : '#FFFFFF',
+      borderRadius: BorderRadius.xl,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      elevation: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+    },
+    genderModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F3F4F6',
+    },
+    genderModalTitle: {
+      fontSize: FontSizes.base,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    genderModalItem: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#1F2937' : '#F3F4F6',
+    },
+    genderModalItemText: {
+      fontSize: FontSizes.sm,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    genderModalItemTextActive: {
+      color: CustomerColors.teal700,
       fontWeight: '700',
     },
   });

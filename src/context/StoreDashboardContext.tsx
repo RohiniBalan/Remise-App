@@ -218,6 +218,9 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
 
 export function useStoreDashboard(): StoreDashboardValue {
   const ctx = useContext(StoreDashboardContext);
-  if (!ctx) throw new Error('useStoreDashboard must be used within a StoreDashboardProvider');
-  return ctx;
+  return (ctx || {}) as StoreDashboardValue;
+}
+
+export function useOptionalStoreDashboard(): StoreDashboardValue | undefined {
+  return useContext(StoreDashboardContext);
 }

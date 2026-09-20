@@ -4,6 +4,7 @@ import { Star } from 'lucide-react-native';
 import { testimonialsApi } from '../../api/contentApi';
 import { GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTheme } from '../../context/ThemeContext';
 
 // Ported from client/app/testimonials/page.tsx — same GET
 // /enhanced-testimonials shape (hero/spotlight/cta page-settings + a
@@ -11,8 +12,15 @@ import { resolveImageUrl } from '../../utils/imageUrl';
 // simple vertical feed (hero banner + spotlight quote + review cards)
 // rather than the desktop's marquee-scroll animation.
 export default function TestimonialsScreen() {
+  const { isDark } = useTheme();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const cardBg = isDark ? '#111827' : '#ffffff';
+  const borderColor = isDark ? '#1F2937' : '#EAEAEA';
+  const textPri = isDark ? '#F9FAFB' : '#1F2937';
+  const textSec = isDark ? '#9CA3AF' : '#6B7280';
+  const bg = isDark ? '#0b0f19' : '#FAF8F5';
 
   useEffect(() => {
     testimonialsApi
@@ -26,7 +34,7 @@ export default function TestimonialsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: bg }]}>
         <ActivityIndicator size="large" color={GoldColors.gold} />
       </View>
     );
@@ -37,33 +45,33 @@ export default function TestimonialsScreen() {
   const reviews: any[] = data?.reviews ?? [];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}>
+    <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}>
       {hero && (
         <View style={styles.heroCard}>
           {hero.badge ? <Text style={styles.heroBadge}>{hero.badge}</Text> : null}
-          <Text style={styles.heroTitle}>
+          <Text style={[styles.heroTitle, { color: textPri }]}>
             {hero.title}{hero.titleHighlight ? <Text style={styles.heroTitleHighlight}> {hero.titleHighlight}</Text> : null}
           </Text>
-          {hero.subtitle ? <Text style={styles.heroSubtitle}>{hero.subtitle}</Text> : null}
+          {hero.subtitle ? <Text style={[styles.heroSubtitle, { color: textSec }]}>{hero.subtitle}</Text> : null}
         </View>
       )}
 
       {spotlight && (
-        <View style={styles.spotlightCard}>
+        <View style={[styles.spotlightCard, { backgroundColor: cardBg, borderColor }]}>
           {spotlight.image ? <Image source={{ uri: resolveImageUrl(spotlight.image) }} style={styles.spotlightImage} /> : null}
-          <Text style={styles.spotlightQuote}>&ldquo;{spotlight.quote}&rdquo;</Text>
-          <Text style={styles.spotlightName}>{spotlight.name}</Text>
-          <Text style={styles.spotlightRole}>{spotlight.role}</Text>
+          <Text style={[styles.spotlightQuote, { color: textPri }]}>&ldquo;{spotlight.quote}&rdquo;</Text>
+          <Text style={[styles.spotlightName, { color: textPri }]}>{spotlight.name}</Text>
+          <Text style={[styles.spotlightRole, { color: textSec }]}>{spotlight.role}</Text>
         </View>
       )}
 
       {reviews.map((r, i) => (
-        <View key={i} style={styles.reviewCard}>
+        <View key={i} style={[styles.reviewCard, { backgroundColor: cardBg, borderColor }]}>
           <View style={styles.reviewHeader}>
-            {r.image ? <Image source={{ uri: resolveImageUrl(r.image) }} style={styles.reviewAvatar} /> : <View style={styles.reviewAvatarFallback} />}
+            {r.image ? <Image source={{ uri: resolveImageUrl(r.image) }} style={styles.reviewAvatar} /> : <View style={[styles.reviewAvatarFallback, { backgroundColor: isDark ? '#374151' : '#F0EAD6' }]} />}
             <View style={{ flex: 1 }}>
-              <Text style={styles.reviewName}>{r.name}</Text>
-              {r.role ? <Text style={styles.reviewRole}>{r.role}</Text> : null}
+              <Text style={[styles.reviewName, { color: textPri }]}>{r.name}</Text>
+              {r.role ? <Text style={[styles.reviewRole, { color: textSec }]}>{r.role}</Text> : null}
             </View>
             <View style={styles.starsRow}>
               {Array.from({ length: 5 }).map((_, s) => (
@@ -71,7 +79,7 @@ export default function TestimonialsScreen() {
               ))}
             </View>
           </View>
-          <Text style={styles.reviewText}>{r.text}</Text>
+          <Text style={[styles.reviewText, { color: textSec }]}>{r.text}</Text>
         </View>
       ))}
     </ScrollView>

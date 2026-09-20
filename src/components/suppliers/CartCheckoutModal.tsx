@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Modal,
   ScrollView,
   TextInput,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -16,6 +18,10 @@ import {
   CheckCircle,
   AlertCircle,
   RefreshCw,
+  ChevronDown,
+  Search,
+  Check,
+  CreditCard,
 } from 'lucide-react-native';
 import { State, City } from 'country-state-city';
 import {
@@ -24,6 +30,12 @@ import {
   WholesaleContactInfo,
 } from '../../api/orderApi';
 import {
+  paymentApi,
+  PAYMENT_RETURN_SENTINEL,
+  CheckoutCartItem,
+  AddressData,
+} from '../../api/paymentApi';
+import {
   CustomerColors,
   Spacing,
   FontSizes,
@@ -31,6 +43,7 @@ import {
 } from '../../styles/theme';
 import { CartLine } from '../../utils/supplierGrouping';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../common/AuthRequiredModal';
 
@@ -55,8 +68,10 @@ export default function CartCheckoutModal({
   onComplete,
 }: Props) {
   const navigation = useNavigation<any>();
+  const { isDark } = useTheme();
   const { user, token } = useAuth();
-  const groups = React.useMemo(() => {
+
+  const groups = useMemo(() => {
     const byStore: Record<string, CartLine[]> = {};
     cartLines.forEach(i => {
       (byStore[i.storeId] = byStore[i.storeId] || []).push(i);
@@ -69,11 +84,24 @@ export default function CartCheckoutModal({
     }));
   }, [cartLines]);
 
+  const totalAmount = useMemo(
+    () => cartLines.reduce((sum, i) => sum + i.price * i.qty, 0),
+    [cartLines],
+  );
+
   const [step, setStep] = useState<Step>('contact');
   const [groupIndex, setGroupIndex] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [cities, setCities] = useState<any[]>([]);
+  const [isFetchingPin, setIsFetchingPin] = useState(false);
+
+  // Dropdown modal states
+  const [stateModalOpen, setStateModalOpen] = useState(false);
+  const [cityModalOpen, setCityModalOpen] = useState(false);
+  const [stateSearch, setStateSearch] = useState('');
+  const [citySearch, setCitySearch] = useState('');
+
   const [form, setForm] = useState({
     firstName: prefill?.firstName || '',
     lastName: prefill?.lastName || '',
@@ -90,45 +118,70 @@ export default function CartCheckoutModal({
       setStep('contact');
       setGroupIndex(0);
       setErrorMsg('');
+      if (prefill) {
+        setForm(f => ({
+          ...f,
+          firstName: prefill.firstName || f.firstName,
+          lastName: prefill.lastName || f.lastName,
+          contactEmail: prefill.contactEmail || f.contactEmail,
+        }));
+      }
     }
-  }, [visible]);
+  }, [visible, prefill]);
 
   const setField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  const onSelectState = (isoCode: string) => {
-    const state = indianStates.find(s => s.isoCode === isoCode);
-    setForm(f => ({ ...f, state: state?.name || '', city: '', pinCode: '' }));
-    setCities(getCities(isoCode));
+  const onSelectState = (st: any) => {
+    setForm(f => ({ ...f, state: st.name || '', city: '', pinCode: '' }));
+    setCities(getCities(st.isoCode));
+    setStateModalOpen(false);
+    setStateSearch('');
   };
 
   const onSelectCity = async (cityName: string) => {
     setField('city', cityName);
+    setCityModalOpen(false);
+    setCitySearch('');
     if (!cityName) return;
+
+    setIsFetchingPin(true);
     try {
       const res = await fetch(
-        `https://api.postalpincode.in/postoffice/${encodeURIComponent(
-          cityName,
-        )}`,
+        `https://api.postalpincode.in/postoffice/${encodeURIComponent(cityName)}`,
       );
       const data = await res.json();
       if (data[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
         setField('pinCode', data[0].PostOffice[0].Pincode);
       }
     } catch {
-      /* best-effort — leave pincode as-is */
+      /* best-effort */
+    } finally {
+      setIsFetchingPin(false);
     }
   };
 
-  const stateIso = indianStates.find(s => s.name === form.state)?.isoCode || '';
+  const filteredStates = useMemo(() => {
+    if (!stateSearch.trim()) return indianStates;
+    return indianStates.filter(s =>
+      s.name.toLowerCase().includes(stateSearch.toLowerCase().trim()),
+    );
+  }, [stateSearch]);
+
+  const filteredCities = useMemo(() => {
+    if (!citySearch.trim()) return cities;
+    return cities.filter(c =>
+      c.name.toLowerCase().includes(citySearch.toLowerCase().trim()),
+    );
+  }, [cities, citySearch]);
 
   const handleConfirmContact = () => {
     if (
-      !form.firstName ||
-      !form.phone ||
-      !form.address ||
+      !form.firstName.trim() ||
+      !form.phone.trim() ||
+      !form.address.trim() ||
       !form.state ||
       !form.city ||
-      !form.pinCode
+      !form.pinCode.trim()
     ) {
       setErrorMsg('Please fill in all required fields.');
       return;
@@ -150,10 +203,67 @@ export default function CartCheckoutModal({
       setGroupIndex(i => i + 1);
       return;
     }
-    // last group confirmed — batch submit everything
+
     setStep('placing');
     setErrorMsg('');
+
     try {
+      const allCartItems: CheckoutCartItem[] = cartLines.map(i => ({
+        id: i.productId,
+        title: i.title,
+        price: i.price,
+        quantity: i.qty,
+        image: i.image ?? null,
+        storeId: i.storeId,
+      }));
+
+      const addressData: AddressData = {
+        country: 'India',
+        firstName: form.firstName,
+        lastName: form.lastName,
+        address: form.address,
+        apartment: '',
+        city: form.city,
+        state: form.state,
+        pinCode: form.pinCode,
+        phone: form.phone,
+      };
+
+      const res = await paymentApi.initiate({
+        amount: totalAmount,
+        userId: user?._id ?? null,
+        redirectUrl: PAYMENT_RETURN_SENTINEL,
+        cartItems: allCartItems,
+        contactEmail: form.contactEmail || user?.email || '',
+        shippingAddress: addressData,
+        billingAddress: addressData,
+        paymentMethod: 'razorpay',
+      });
+
+      const data = res.data;
+      if (data.success && (data.razorpayOrderId || data.orderId)) {
+        const options = {
+          provider: 'razorpay',
+          order_id: data.razorpayOrderId || data.orderId,
+          razorpayOrderId: data.razorpayOrderId,
+          keyId: data.keyId,
+          amount: data.amount,
+          amountPaise: data.amountPaise || Math.round(totalAmount * 100),
+          currency: data.currency || 'INR',
+          name: data.name || 'Remise Wholesale',
+          description: data.description || `Wholesale Order #${data.orderId}`,
+          customer: {
+            name: `${form.firstName} ${form.lastName}`.trim() || data.customer?.name,
+            email: form.contactEmail || data.customer?.email || user?.email,
+            contact: form.phone || data.customer?.contact || user?.mobilenumber,
+          },
+        };
+        onClose();
+        navigation.navigate('RazorpayWebView', { options, orderId: data.orderId });
+        return;
+      }
+
+      // Fallback direct placement
       const orderGroups: WholesaleOrderGroup[] = groups.map(g => ({
         storeId: g.storeId,
         storeName: g.storeName,
@@ -184,7 +294,7 @@ export default function CartCheckoutModal({
       setErrorMsg(
         err.response?.data?.message ||
           err.message ||
-          'Order failed. Please try again.',
+          'Payment initiation failed. Please try again.',
       );
       setStep('delivery');
     }
@@ -197,15 +307,15 @@ export default function CartCheckoutModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent
     >
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          <View style={styles.header}>
+        <View style={[styles.sheet, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <View style={[styles.header, isDark && { backgroundColor: '#1F2937', borderBottomColor: '#374151' }]}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>
+              <Text style={[styles.title, { color: isDark ? '#ffffff' : '#000000' }]}>
                 {step === 'contact'
                   ? 'Delivery Details'
                   : groups.length > 1
@@ -216,14 +326,15 @@ export default function CartCheckoutModal({
                 <Text style={styles.subtitle}>{chosen.storeName}</Text>
               )}
             </View>
-            <TouchableOpacity onPress={onClose}>
-              <X size={22} color={CustomerColors.textSecondary} />
+            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+              <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView
             style={{ maxHeight: 480 }}
-            contentContainerStyle={{ padding: Spacing.lg }}
+            contentContainerStyle={{ padding: Spacing.md }}
+            bounces={false}
           >
             {!!errorMsg && (
               <View style={styles.errorBox}>
@@ -233,18 +344,18 @@ export default function CartCheckoutModal({
             )}
 
             {step === 'contact' && (
-              <View style={{ gap: Spacing.sm }}>
-                <View style={styles.cartSummary}>
+              <View style={{ gap: Spacing.xs }}>
+                <View style={[styles.cartSummary, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
                   {groups.map(g => (
                     <View key={g.storeId} style={{ marginBottom: Spacing.xs }}>
                       <View style={styles.summaryRow}>
-                        <Text style={styles.summaryStore}>{g.storeName}</Text>
+                        <Text style={[styles.summaryStore, isDark && { color: '#FFFFFF' }]}>{g.storeName}</Text>
                         <Text style={styles.summaryAmount}>
                           ₹{g.totalAmount.toFixed(0)}
                         </Text>
                       </View>
                       {g.items.map(i => (
-                        <Text key={i.productId} style={styles.summaryItem}>
+                        <Text key={i.productId} style={[styles.summaryItem, isDark && { color: '#9CA3AF' }]}>
                           {i.qty} × {i.title} — ₹{i.price}
                         </Text>
                       ))}
@@ -256,11 +367,13 @@ export default function CartCheckoutModal({
                   label="First Name *"
                   value={form.firstName}
                   onChangeText={(v: string) => setField('firstName', v)}
+                  isDark={isDark}
                 />
                 <Field
                   label="Last Name"
                   value={form.lastName}
                   onChangeText={(v: string) => setField('lastName', v)}
+                  isDark={isDark}
                 />
                 <Field
                   label="Phone *"
@@ -268,12 +381,14 @@ export default function CartCheckoutModal({
                   onChangeText={(v: string) => setField('phone', v.replace(/\D/g, '').slice(0, 10))}
                   keyboardType="number-pad"
                   maxLength={10}
+                  isDark={isDark}
                 />
                 <Field
                   label="Email"
                   value={form.contactEmail}
                   onChangeText={(v: string) => setField('contactEmail', v)}
                   keyboardType="email-address"
+                  isDark={isDark}
                 />
                 <Field
                   label="Address *"
@@ -281,109 +396,111 @@ export default function CartCheckoutModal({
                   onChangeText={(v: string) => setField('address', v)}
                   multiline
                   numberOfLines={2}
+                  isDark={isDark}
                 />
 
-                <Text style={styles.fieldLabel}>State *</Text>
-                <View style={styles.pickerBox}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {indianStates.map(st => (
-                      <TouchableOpacity
-                        key={st.isoCode}
-                        style={[
-                          styles.chip,
-                          stateIso === st.isoCode && styles.chipActive,
-                        ]}
-                        onPress={() => onSelectState(st.isoCode)}
-                      >
-                        <Text
-                          style={[
-                            styles.chipText,
-                            stateIso === st.isoCode && styles.chipTextActive,
-                          ]}
-                        >
-                          {st.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-
-                <Text style={styles.fieldLabel}>City *</Text>
-                <View style={styles.pickerBox}>
-                  {!form.state ? (
-                    <Text style={styles.helperText}>Select a state first</Text>
-                  ) : cities.length === 0 ? (
-                    <Text style={styles.helperText}>
-                      No cities found for this state
-                    </Text>
-                  ) : (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
+                {/* State Dropdown */}
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}>State *</Text>
+                  <TouchableOpacity
+                    style={[styles.dropdownTrigger, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}
+                    onPress={() => setStateModalOpen(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownValue,
+                        { color: form.state ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#94A3B8' : '#9CA3AF') },
+                      ]}
+                      numberOfLines={1}
                     >
-                      {cities.map(c => (
-                        <TouchableOpacity
-                          key={c.name}
-                          style={[
-                            styles.chip,
-                            form.city === c.name && styles.chipActive,
-                          ]}
-                          onPress={() => onSelectCity(c.name)}
-                        >
-                          <Text
-                            style={[
-                              styles.chipText,
-                              form.city === c.name && styles.chipTextActive,
-                            ]}
-                          >
-                            {c.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  )}
+                      {form.state || 'Select State'}
+                    </Text>
+                    <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                  </TouchableOpacity>
                 </View>
 
-                <Field
-                  label="Pin Code *"
-                  value={form.pinCode}
-                  onChangeText={(v: string) =>
-                    setField('pinCode', v.replace(/[^0-9]/g, ''))
-                  }
-                  keyboardType="number-pad"
-                />
+                {/* City Dropdown */}
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}>City *</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.dropdownTrigger,
+                      !form.state && { opacity: 0.6 },
+                      isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                    ]}
+                    onPress={() => {
+                      if (!form.state) {
+                        setErrorMsg('Please select a state first.');
+                        return;
+                      }
+                      setCityModalOpen(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownValue,
+                        { color: form.city ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#94A3B8' : '#9CA3AF') },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {form.city || (form.state ? 'Select City' : 'Select state first')}
+                    </Text>
+                    <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Pin Code Field */}
+                <View style={{ marginTop: 4 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}>Pin Code *</Text>
+                    {isFetchingPin && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <ActivityIndicator size="small" color={CustomerColors.teal600} />
+                        <Text style={{ fontSize: 10, color: CustomerColors.teal600 }}>Auto-filling…</Text>
+                      </View>
+                    )}
+                  </View>
+                  <TextInput
+                    style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
+                    value={form.pinCode}
+                    onChangeText={(v: string) => setField('pinCode', v.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
+                    placeholder="e.g. 600001"
+                    placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+                  />
+                </View>
 
                 <TouchableOpacity
                   style={styles.primaryBtn}
                   onPress={handleConfirmContact}
                 >
                   <ShoppingBag size={16} color="#fff" />
-                  <Text style={styles.primaryBtnText}>Continue</Text>
+                  <Text style={styles.primaryBtnText}>Continue to Payment</Text>
                 </TouchableOpacity>
               </View>
             )}
 
             {step === 'delivery' && (
               <View style={{ gap: Spacing.md }}>
-                <Text style={styles.helperText}>
-                  Your order from{' '}
-                  <Text style={{ fontWeight: '700' }}>{chosen.storeName}</Text>{' '}
-                  will be delivered to your address.
+                <Text style={[styles.helperText, isDark && { color: '#9CA3AF' }]}>
+                  Your wholesale order of ₹{totalAmount.toLocaleString('en-IN')} will be processed via Razorpay.
                 </Text>
                 <TouchableOpacity
-                  style={styles.deliveryCard}
+                  style={[styles.deliveryCard, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}
                   onPress={handleContinueOrSubmit}
                 >
-                  <Truck size={20} color={CustomerColors.teal600} />
+                  <CreditCard size={22} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.deliveryTitle}>Delivery</Text>
-                    <Text style={styles.helperText}>
-                      {chosen.storeName} will deliver the stock to you.
+                    <Text style={[styles.deliveryTitle, isDark && { color: '#FFFFFF' }]}>Pay with Razorpay</Text>
+                    <Text style={[styles.helperText, isDark && { color: '#9CA3AF' }]}>
+                      UPI, NetBanking, Debit/Credit Card & Wallets
                     </Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setStep('contact')}>
-                  <Text style={styles.backLink}>← Back</Text>
+                  <Text style={[styles.backLink, isDark && { color: '#2DD4BF' }]}>← Back to Delivery Details</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -397,7 +514,7 @@ export default function CartCheckoutModal({
                 }}
               >
                 <RefreshCw size={32} color={CustomerColors.teal600} />
-                <Text style={styles.helperText}>Placing your order…</Text>
+                <Text style={[styles.helperText, isDark && { color: '#9CA3AF' }]}>Connecting to Razorpay gateway…</Text>
               </View>
             )}
 
@@ -410,10 +527,9 @@ export default function CartCheckoutModal({
                 }}
               >
                 <CheckCircle size={48} color={CustomerColors.success} />
-                <Text style={styles.successTitle}>Order Placed!</Text>
-                <Text style={[styles.helperText, { textAlign: 'center' }]}>
-                  Your order{groups.length > 1 ? 's are' : ' is'} confirmed and
-                  paid via cash/invoice on delivery.
+                <Text style={[styles.successTitle, isDark && { color: '#FFFFFF' }]}>Order Placed!</Text>
+                <Text style={[styles.helperText, { textAlign: 'center' }, isDark && { color: '#9CA3AF' }]}>
+                  Your wholesale order{groups.length > 1 ? 's are' : ' is'} confirmed.
                 </Text>
                 <TouchableOpacity
                   style={[styles.primaryBtn, { marginTop: Spacing.sm }]}
@@ -429,6 +545,97 @@ export default function CartCheckoutModal({
           </ScrollView>
         </View>
       </View>
+
+      {/* State Selector Modal */}
+      <Modal visible={stateModalOpen} transparent animationType="slide" onRequestClose={() => setStateModalOpen(false)}>
+        <View style={styles.dropdownModalOverlay}>
+          <View style={[styles.dropdownModalCard, isDark && { backgroundColor: '#1F2937' }]}>
+            <View style={styles.dropdownModalHeader}>
+              <Text style={[styles.dropdownModalTitle, isDark && { color: '#FFFFFF' }]}>Select State</Text>
+              <TouchableOpacity onPress={() => setStateModalOpen(false)} style={{ padding: 4 }}>
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.searchBox, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]}>
+              <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, isDark && { color: '#FFFFFF' }]}
+                placeholder="Search state…"
+                placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+                value={stateSearch}
+                onChangeText={setStateSearch}
+              />
+            </View>
+            <FlatList
+              data={filteredStates}
+              keyExtractor={item => item.isoCode}
+              renderItem={({ item }) => {
+                const isSelected = form.state === item.name;
+                return (
+                  <TouchableOpacity
+                    style={[styles.dropdownItem, isSelected && styles.dropdownItemActive, isDark && { borderBottomColor: '#374151' }]}
+                    onPress={() => onSelectState(item)}
+                  >
+                    <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive, isDark && { color: '#FFFFFF' }]}>
+                      {item.name}
+                    </Text>
+                    {isSelected && <Check size={16} color={CustomerColors.teal600} />}
+                  </TouchableOpacity>
+                );
+              }}
+              style={{ maxHeight: 320 }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* City Selector Modal */}
+      <Modal visible={cityModalOpen} transparent animationType="slide" onRequestClose={() => setCityModalOpen(false)}>
+        <View style={styles.dropdownModalOverlay}>
+          <View style={[styles.dropdownModalCard, isDark && { backgroundColor: '#1F2937' }]}>
+            <View style={styles.dropdownModalHeader}>
+              <Text style={[styles.dropdownModalTitle, isDark && { color: '#FFFFFF' }]}>Select City</Text>
+              <TouchableOpacity onPress={() => setCityModalOpen(false)} style={{ padding: 4 }}>
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.searchBox, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]}>
+              <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, isDark && { color: '#FFFFFF' }]}
+                placeholder="Search city…"
+                placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+                value={citySearch}
+                onChangeText={setCitySearch}
+              />
+            </View>
+            <FlatList
+              data={filteredCities}
+              keyExtractor={item => item.name}
+              ListEmptyComponent={
+                <Text style={{ textAlign: 'center', padding: Spacing.md, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }}>
+                  No cities found
+                </Text>
+              }
+              renderItem={({ item }) => {
+                const isSelected = form.city === item.name;
+                return (
+                  <TouchableOpacity
+                    style={[styles.dropdownItem, isSelected && styles.dropdownItemActive, isDark && { borderBottomColor: '#374151' }]}
+                    onPress={() => onSelectCity(item.name)}
+                  >
+                    <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive, isDark && { color: '#FFFFFF' }]}>
+                      {item.name}
+                    </Text>
+                    {isSelected && <Check size={16} color={CustomerColors.teal600} />}
+                  </TouchableOpacity>
+                );
+              }}
+              style={{ maxHeight: 320 }}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <AuthRequiredModal
         visible={showAuthModal}
@@ -446,15 +653,16 @@ export default function CartCheckoutModal({
 
 function Field(props: any) {
   return (
-    <View>
-      <Text style={styles.fieldLabel}>{props.label}</Text>
+    <View style={{ marginTop: 4 }}>
+      <Text style={[styles.fieldLabel, props.isDark && { color: '#9CA3AF' }]}>{props.label}</Text>
       <TextInput
         {...props}
         style={[
           styles.input,
-          props.multiline && { height: 64, textAlignVertical: 'top' },
+          props.multiline && { height: 60, textAlignVertical: 'top' },
+          props.isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' },
         ]}
-        placeholderTextColor={CustomerColors.textSecondary}
+        placeholderTextColor={props.isDark ? '#94A3B8' : CustomerColors.textSecondary}
       />
     </View>
   );
@@ -463,23 +671,34 @@ function Field(props: any) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.md,
   },
   sheet: {
+    width: '100%',
+    maxWidth: 420,
     backgroundColor: CustomerColors.white,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    maxHeight: '92%',
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     backgroundColor: CustomerColors.mint,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: CustomerColors.steelBorder,
   },
   title: {
     fontSize: FontSizes.md,
@@ -522,7 +741,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: CustomerColors.textSecondary,
     textTransform: 'uppercase',
-    marginTop: Spacing.xs,
     marginBottom: 4,
   },
   input: {
@@ -530,37 +748,86 @@ const styles = StyleSheet.create({
     borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 10,
     fontSize: FontSizes.sm,
     color: CustomerColors.black,
+    backgroundColor: '#FFFFFF',
   },
-  pickerBox: {
+  dropdownTrigger: {
     borderWidth: 1,
     borderColor: CustomerColors.steelBorder,
     borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chip: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.pill,
-    backgroundColor: CustomerColors.bg,
-    marginRight: Spacing.xs,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  dropdownValue: {
+    fontSize: FontSizes.sm,
+    flex: 1,
+  },
+  dropdownModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  dropdownModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    maxHeight: '75%',
+  },
+  dropdownModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  dropdownModalTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     borderWidth: 1,
-    borderColor: CustomerColors.border,
+    borderColor: CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    marginBottom: Spacing.sm,
+    backgroundColor: '#F9FAFB',
   },
-  chipActive: {
-    backgroundColor: CustomerColors.teal600,
-    borderColor: CustomerColors.teal600,
+  searchInput: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    color: CustomerColors.black,
+    padding: 0,
   },
-  chipText: {
-    fontSize: FontSizes.xs,
-    color: CustomerColors.textSecondary,
-    fontWeight: '600',
+  dropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  chipTextActive: { color: '#fff' },
+  dropdownItemActive: {
+    backgroundColor: 'rgba(13, 148, 136, 0.08)',
+  },
+  dropdownItemText: {
+    fontSize: FontSizes.sm,
+    color: CustomerColors.black,
+  },
+  dropdownItemTextActive: {
+    fontWeight: '700',
+    color: CustomerColors.teal700,
+  },
   helperText: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary },
   primaryBtn: {
     flexDirection: 'row',
@@ -568,9 +835,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: CustomerColors.teal600,
-    paddingVertical: Spacing.md,
+    paddingVertical: 14,
     borderRadius: BorderRadius.md,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.md,
   },
   primaryBtnText: {
     color: '#fff',
@@ -579,15 +846,16 @@ const styles = StyleSheet.create({
   },
   deliveryCard: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
+    borderColor: CustomerColors.teal600,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
+    backgroundColor: 'rgba(13, 148, 136, 0.05)',
   },
-  deliveryTitle: { fontWeight: '700', color: CustomerColors.black },
-  backLink: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
+  deliveryTitle: { fontWeight: '700', color: CustomerColors.black, fontSize: FontSizes.sm },
+  backLink: { fontSize: FontSizes.xs, color: CustomerColors.teal700, fontWeight: '600' },
   successTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '800',

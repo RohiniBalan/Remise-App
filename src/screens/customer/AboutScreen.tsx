@@ -24,6 +24,7 @@ import {
   Compass,
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 const BRAND_RED = CustomerColors.primary;
 
@@ -121,6 +122,7 @@ function CTAButton({ label, onPress, filled = true }: { label: string; onPress: 
 /* ------------------------------------------------------------------ */
 
 export default function AboutScreen({ navigation }: any) {
+  const { isDark } = useTheme();
   const goTo = (route: string, params?: any) => {
     if (!navigation?.navigate) return;
     if (route === 'Home') {
@@ -134,20 +136,26 @@ export default function AboutScreen({ navigation }: any) {
     }
   };
 
+  const cardBg = isDark ? '#111827' : '#ffffff';
+  const borderColor = isDark ? '#1F2937' : '#e2e8f0';
+  const textPri = isDark ? '#F9FAFB' : '#0f172a';
+  const textSec = isDark ? '#9CA3AF' : '#64748b';
+  const iconBg = isDark ? 'rgba(255, 0, 0, 0.15)' : '#fef2f2';
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : '#f8fafc' }]} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
       {/* HERO */}
-      <View style={styles.hero}>
+      <View style={[styles.hero, { backgroundColor: cardBg, borderColor }]}>
         <View style={styles.eyebrowRow}>
-          <View style={styles.eyebrowIcon}>
+          <View style={[styles.eyebrowIcon, { backgroundColor: iconBg }]}>
             <Compass size={16} color={BRAND_RED} />
           </View>
           <Text style={styles.eyebrowText}>About Remise</Text>
         </View>
-        <Text style={styles.heroTitle}>
+        <Text style={[styles.heroTitle, { color: textPri }]}>
           Making local shopping <Text style={styles.heroTitleAccent}>smarter, simpler, and closer to home</Text>
         </Text>
-        <Text style={styles.heroSubtitle}>
+        <Text style={[styles.heroSubtitle, { color: textSec }]}>
           Remise connects customers with nearby stores and businesses, making it easier to discover
           products, compare prices, choose the right store, and shop with confidence.
         </Text>
@@ -155,14 +163,14 @@ export default function AboutScreen({ navigation }: any) {
       </View>
 
       {/* OUR STORY */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
         <SectionHeading title="Our Story" />
-        <Text style={styles.bodyText}>
+        <Text style={[styles.bodyText, { color: textSec }]}>
           Shopping for everyday products can sometimes be difficult. Customers may need to search
           across different stores, compare prices manually, and spend time finding the products they
           need.
         </Text>
-        <Text style={styles.bodyText}>
+        <Text style={[styles.bodyText, { color: textSec }]}>
           Remise was created to make this process simpler — bringing customers and local businesses
           together on one convenient platform, so customers can discover what's available around them
           while businesses get a digital way to showcase their products and reach more people.
@@ -174,8 +182,8 @@ export default function AboutScreen({ navigation }: any) {
 
       {/* WHAT IS REMISE */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitleCentered}>What is Remise?</Text>
-        <Text style={styles.sectionSubtitleCentered}>
+        <Text style={[styles.sectionTitleCentered, { color: textPri }]}>What is Remise?</Text>
+        <Text style={[styles.sectionSubtitleCentered, { color: textSec }]}>
           A local commerce and product discovery platform designed to connect customers with nearby
           businesses — and give store owners, wholesalers, and home businesses a place to reach them.
         </Text>
@@ -183,12 +191,12 @@ export default function AboutScreen({ navigation }: any) {
           {WHAT_IS_REMISE.map((item, i) => {
             const Icon = item.icon;
             return (
-              <View key={i} style={styles.iconCard}>
-                <View style={styles.iconCircle}>
+              <View key={i} style={[styles.iconCard, { backgroundColor: cardBg, borderColor }]}>
+                <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
                   <Icon size={22} color={BRAND_RED} />
                 </View>
-                <Text style={styles.iconCardTitle}>{item.title}</Text>
-                <Text style={styles.iconCardDesc}>{item.desc}</Text>
+                <Text style={[styles.iconCardTitle, { color: textPri }]}>{item.title}</Text>
+                <Text style={[styles.iconCardDesc, { color: textSec }]}>{item.desc}</Text>
               </View>
             );
           })}
@@ -201,16 +209,16 @@ export default function AboutScreen({ navigation }: any) {
         {HOW_IT_WORKS.map((step, i) => {
           const Icon = step.icon;
           return (
-            <View key={i} style={styles.stepRow}>
-              <View style={styles.stepNumber}>
+            <View key={i} style={[styles.stepRow, { backgroundColor: cardBg, borderColor }]}>
+              <View style={[styles.stepNumber, { backgroundColor: iconBg }]}>
                 <Text style={styles.stepNumberText}>{String(i + 1).padStart(2, '0')}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.stepTitleRow}>
                   <Icon size={14} color={BRAND_RED} />
-                  <Text style={styles.stepTitle}>{step.title}</Text>
+                  <Text style={[styles.stepTitle, { color: textPri }]}>{step.title}</Text>
                 </View>
-                <Text style={styles.stepDesc}>{step.desc}</Text>
+                <Text style={[styles.stepDesc, { color: textSec }]}>{step.desc}</Text>
               </View>
             </View>
           );
@@ -224,12 +232,12 @@ export default function AboutScreen({ navigation }: any) {
           {WHY_REMISE.map((item, i) => {
             const Icon = item.icon;
             return (
-              <View key={i} style={styles.whyCard}>
-                <View style={styles.iconCircleSm}>
+              <View key={i} style={[styles.whyCard, { backgroundColor: cardBg, borderColor }]}>
+                <View style={[styles.iconCircleSm, { backgroundColor: iconBg }]}>
                   <Icon size={18} color={BRAND_RED} />
                 </View>
-                <Text style={styles.iconCardTitle}>{item.title}</Text>
-                <Text style={styles.iconCardDesc}>{item.desc}</Text>
+                <Text style={[styles.iconCardTitle, { color: textPri }]}>{item.title}</Text>
+                <Text style={[styles.iconCardDesc, { color: textSec }]}>{item.desc}</Text>
               </View>
             );
           })}
@@ -237,18 +245,18 @@ export default function AboutScreen({ navigation }: any) {
       </View>
 
       {/* FOR CUSTOMERS */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
         <View style={styles.eyebrowRow}>
-          <View style={styles.eyebrowIcon}>
+          <View style={[styles.eyebrowIcon, { backgroundColor: iconBg }]}>
             <ShoppingCart size={16} color={BRAND_RED} />
           </View>
           <Text style={styles.eyebrowText}>For Customers</Text>
         </View>
-        <Text style={styles.subheading}>A Better Way to Shop Locally</Text>
+        <Text style={[styles.subheading, { color: textPri }]}>A Better Way to Shop Locally</Text>
         {CUSTOMER_BENEFITS.map((b, i) => (
           <View key={i} style={styles.checkRow}>
             <CheckCircle2 size={16} color={BRAND_RED} style={{ marginTop: 2 }} />
-            <Text style={styles.checkText}>{b}</Text>
+            <Text style={[styles.checkText, { color: textPri }]}>{b}</Text>
           </View>
         ))}
         <CTAButton label="Start Shopping" onPress={() => goTo('Home')} />
@@ -257,13 +265,13 @@ export default function AboutScreen({ navigation }: any) {
       {/* FOR BUSINESSES */}
       <View style={styles.section}>
         <View style={styles.eyebrowRow}>
-          <View style={styles.eyebrowIcon}>
+          <View style={[styles.eyebrowIcon, { backgroundColor: iconBg }]}>
             <Building2 size={16} color={BRAND_RED} />
           </View>
           <Text style={styles.eyebrowText}>For Businesses</Text>
         </View>
-        <Text style={styles.subheading}>Helping Local Businesses Grow</Text>
-        <Text style={styles.sectionSubtitleCentered}>
+        <Text style={[styles.subheading, { color: textPri }]}>Helping Local Businesses Grow</Text>
+        <Text style={[styles.sectionSubtitleCentered, { color: textSec }]}>
           Whether you're a store owner, wholesaler, or home business, Remise gives you a digital
           platform to showcase your products and connect with customers in your area.
         </Text>
@@ -271,11 +279,11 @@ export default function AboutScreen({ navigation }: any) {
           {BUSINESS_STEPS.map((step, i) => {
             const Icon = step.icon;
             return (
-              <View key={i} style={styles.miniCard}>
-                <View style={styles.iconCircleSm}>
+              <View key={i} style={[styles.miniCard, { backgroundColor: cardBg, borderColor }]}>
+                <View style={[styles.iconCircleSm, { backgroundColor: iconBg }]}>
                   <Icon size={18} color={BRAND_RED} />
                 </View>
-                <Text style={styles.miniCardLabel}>{step.label}</Text>
+                <Text style={[styles.miniCardLabel, { color: textPri }]}>{step.label}</Text>
               </View>
             );
           })}
@@ -286,12 +294,12 @@ export default function AboutScreen({ navigation }: any) {
       </View>
 
       {/* VISION */}
-      <View style={[styles.card, { marginTop: Spacing.sm }]}>
-        <Text style={styles.subheading}>Our Vision</Text>
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor, marginTop: Spacing.sm }]}>
+        <Text style={[styles.subheading, { color: textPri }]}>Our Vision</Text>
         <Text style={styles.italicHighlight}>
           To make local commerce more accessible, transparent, and convenient for everyone.
         </Text>
-        <Text style={styles.bodyText}>
+        <Text style={[styles.bodyText, { color: textSec }]}>
           We envision a shopping experience where customers can easily discover what's available
           around them, make informed purchasing decisions, and connect with businesses without
           unnecessary complexity.
@@ -299,16 +307,16 @@ export default function AboutScreen({ navigation }: any) {
       </View>
 
       {/* MISSION */}
-      <View style={styles.card}>
-        <Text style={styles.subheading}>Our Mission</Text>
-        <Text style={styles.bodyText}>
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+        <Text style={[styles.subheading, { color: textPri }]}>Our Mission</Text>
+        <Text style={[styles.bodyText, { color: textSec }]}>
           Our mission is to build a digital platform that brings customers and local businesses
           closer together. We aim to:
         </Text>
         {MISSION_POINTS.map((m, i) => (
           <View key={i} style={styles.bulletRow}>
             <View style={styles.bulletDot} />
-            <Text style={styles.checkText}>{m}</Text>
+            <Text style={[styles.checkText, { color: textPri }]}>{m}</Text>
           </View>
         ))}
       </View>
@@ -316,22 +324,22 @@ export default function AboutScreen({ navigation }: any) {
       {/* TRUST & TRANSPARENCY */}
       <View style={styles.section}>
         <SectionHeading title="Built Around Trust" />
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor, margin: 0 }]}>
           {TRUST_POINTS.map((t, i) => {
             const Icon = t.icon;
             return (
               <View key={i} style={styles.trustRow}>
-                <View style={styles.iconCircleSm}>
+                <View style={[styles.iconCircleSm, { backgroundColor: iconBg }]}>
                   <Icon size={16} color={BRAND_RED} />
                 </View>
-                <Text style={styles.trustLabel}>{t.label}</Text>
+                <Text style={[styles.trustLabel, { color: textPri }]}>{t.label}</Text>
               </View>
             );
           })}
-          <View style={styles.trustDivider} />
+          <View style={[styles.trustDivider, { backgroundColor: borderColor }]} />
           <View style={styles.trustQuoteRow}>
             <ShieldCheck size={18} color={BRAND_RED} style={{ marginTop: 2 }} />
-            <Text style={styles.trustQuoteText}>
+            <Text style={[styles.trustQuoteText, { color: textSec }]}>
               We believe a good shopping experience starts with clear information and transparent
               interactions. Remise is designed to give customers and businesses the information they
               need to make better decisions.
@@ -341,9 +349,9 @@ export default function AboutScreen({ navigation }: any) {
       </View>
 
       {/* CLOSING CTA */}
-      <View style={styles.closingCta}>
-        <Text style={styles.closingCtaTitle}>Ready to discover what's around you?</Text>
-        <Text style={styles.closingCtaSubtitle}>Find products. Compare options. Shop local.</Text>
+      <View style={[styles.closingCta, { backgroundColor: cardBg, borderColor }]}>
+        <Text style={[styles.closingCtaTitle, { color: textPri }]}>Ready to discover what's around you?</Text>
+        <Text style={[styles.closingCtaSubtitle, { color: textSec }]}>Find products. Compare options. Shop local.</Text>
         <View style={styles.closingCtaButtons}>
           <CTAButton label="Start Shopping" onPress={() => goTo('Home')} />
           <View style={{ height: Spacing.sm }} />

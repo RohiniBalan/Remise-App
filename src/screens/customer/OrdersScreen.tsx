@@ -31,6 +31,7 @@ import InvoiceModal from '../../components/common/InvoiceModal';
 import RefundModal from '../../components/common/RefundModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
+import { useTheme } from '../../context/ThemeContext';
 import {
   CustomerColors,
   Spacing,
@@ -151,6 +152,7 @@ function getStatusUI(
 }
 
 export default function OrdersScreen() {
+  const { isDark } = useTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -273,60 +275,74 @@ export default function OrdersScreen() {
   };
 
   const displayItems: DisplayItem[] = useMemo(() => {
-    return orders.flatMap((order, orderIdx) =>
-      (order.items || []).map((item, idx) => {
-        const orderDateObj = new Date(order.createdAt || Date.now());
-        const deliveryDateObj = new Date(orderDateObj);
-        deliveryDateObj.setDate(deliveryDateObj.getDate() + 5);
-        const fmt = (d: Date) =>
-          isNaN(d.getTime())
-            ? ''
-            : d.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              });
-        const orderIdentifier = order._id || order.orderId || `ord-${orderIdx}`;
-        const itemIdentifier = item.productId || (item as any)._id || idx;
-        const isRefundedOrCancelled =
-          order.paymentStatus === 'REFUNDED' ||
-          order.orderStatus === 'Cancelled' ||
-          order.deliveryStatus === 'Cancelled' ||
-          (order as any).refundStatus === 'refunded' ||
-          (order as any).refundStatus === 'processing';
+    const list: DisplayItem[] = [];
+    orders.forEach((order, orderIdx) => {
+      const orderDateObj = new Date(order.createdAt || Date.now());
+      const deliveryDateObj = new Date(orderDateObj);
+      deliveryDateObj.setDate(deliveryDateObj.getDate() + 5);
+      const fmt = (d: Date) =>
+        isNaN(d.getTime())
+          ? ''
+          : d.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            });
+      const orderDate = fmt(orderDateObj);
+      const deliveryDate = fmt(deliveryDateObj);
+      const items = order.items || [];
 
-        return {
-          key: `${orderIdentifier}-${orderIdx}-${idx}-${itemIdentifier}`,
-          orderId: order.orderId || order._id || '',
+      if (items.length === 0) {
+        list.push({
+          key: `${order._id || orderIdx}`,
+          orderId: order._id || '',
           paymentStatus: order.paymentStatus || 'PENDING',
           paymentMethod: order.paymentMethod,
-          deliveryStatus: order.deliveryStatus,
-          title: item.title,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image,
-          displayStatus: isRefundedOrCancelled
-            ? 'Refund Processing'
-            : order.orderStatus || 'Processing',
-          orderDate: fmt(orderDateObj),
-          deliveryDate: fmt(deliveryDateObj),
-          createdAt: order.createdAt || '',
+          deliveryStatus: (order as any).deliveryStatus,
+          title: `Order #${(order._id || '').slice(-6).toUpperCase()}`,
+          price: order.totalAmount,
+          quantity: 1,
+          image: '',
+          displayStatus: (order as any).status || 'Processing',
+          orderDate,
+          deliveryDate,
+          createdAt: order.createdAt,
           totalAmount: order.totalAmount,
-        };
-      }),
-    );
+          refundWindowEndAt: (order as any).refundWindowEndAt,
+        });
+      } else {
+        items.forEach((it, idx) => {
+          list.push({
+            key: `${order._id || orderIdx}-${idx}`,
+            orderId: order._id || '',
+            paymentStatus: order.paymentStatus || 'PENDING',
+            paymentMethod: order.paymentMethod,
+            deliveryStatus: (order as any).deliveryStatus,
+            title: (it as any).name || it.title || 'Product',
+            price: it.price,
+            quantity: it.quantity,
+            image: it.image || (it as any).imageUrl || '',
+            displayStatus: (order as any).status || 'Processing',
+            orderDate,
+            deliveryDate,
+            createdAt: order.createdAt,
+            totalAmount: order.totalAmount,
+            refundWindowEndAt: (order as any).refundWindowEndAt,
+          });
+        });
+      }
+    });
+    return list;
   }, [orders]);
 
-  const toggleStatus = (status: string) =>
+  const toggleStatus = (filter: string) =>
     setStatusFilters(prev =>
-      prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status],
+      prev.includes(filter) ? prev.filter(f => f !== filter) : [...prev, filter],
     );
 
-  const toggleTime = (time: string) =>
+  const toggleTime = (filter: string) =>
     setTimeFilters(prev =>
-      prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time],
+      prev.includes(filter) ? prev.filter(f => f !== filter) : [...prev, filter],
     );
 
   const clearAllFilters = () => {
@@ -402,14 +418,14 @@ export default function OrdersScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
         <ActivityIndicator size="large" color={CustomerColors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
       {loadError ? (
         <View style={styles.errorBanner}>
@@ -417,13 +433,14 @@ export default function OrdersScreen() {
         </View>
       ) : null}
 
-      <View style={styles.searchRow}>
-        <Search size={16} color={CustomerColors.textSecondary} />
+      <View style={[styles.searchRow, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : CustomerColors.border }]}>
+        <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search by product name or order ID"
+          placeholderTextColor={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
         />
       </View>
 
@@ -438,6 +455,10 @@ export default function OrdersScreen() {
               key={f}
               style={[
                 styles.filterChip,
+                {
+                  backgroundColor: isDark ? '#111827' : CustomerColors.white,
+                  borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                },
                 statusFilters.includes(f) && styles.filterChipActive,
               ]}
               onPress={() => toggleStatus(f)}
@@ -445,6 +466,7 @@ export default function OrdersScreen() {
               <Text
                 style={[
                   styles.filterChipText,
+                  { color: isDark ? '#D1D5DB' : CustomerColors.textSecondary },
                   statusFilters.includes(f) && styles.filterChipTextActive,
                 ]}
               >
@@ -457,6 +479,10 @@ export default function OrdersScreen() {
               key={t}
               style={[
                 styles.filterChip,
+                {
+                  backgroundColor: isDark ? '#111827' : CustomerColors.white,
+                  borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                },
                 timeFilters.includes(t) && styles.filterChipActive,
               ]}
               onPress={() => toggleTime(t)}
@@ -464,6 +490,7 @@ export default function OrdersScreen() {
               <Text
                 style={[
                   styles.filterChipText,
+                  { color: isDark ? '#D1D5DB' : CustomerColors.textSecondary },
                   timeFilters.includes(t) && styles.filterChipTextActive,
                 ]}
               >
@@ -490,9 +517,9 @@ export default function OrdersScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <PackageX size={56} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No Orders Found</Text>
-            <Text style={styles.emptySubtitle}>
+            <PackageX size={56} color={isDark ? '#4B5563' : '#D1D5DB'} />
+            <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>No Orders Found</Text>
+            <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>
               {searchQuery ||
               statusFilters.length > 0 ||
               timeFilters.length > 0
@@ -520,13 +547,13 @@ export default function OrdersScreen() {
           );
 
           return (
-            <View style={styles.orderCard}>
-              <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.orderImage} />
+            <View style={[styles.orderCard, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
+              <Image source={{ uri: resolveImageUrl(item.image) }} style={[styles.orderImage, isDark && { backgroundColor: '#1F2937' }]} />
               <View style={styles.orderInfo}>
-                <Text style={styles.orderTitle} numberOfLines={2}>
+                <Text style={[styles.orderTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
                   {item.title}
                 </Text>
-                <Text style={styles.orderQty}>
+                <Text style={[styles.orderQty, isDark && { color: '#9CA3AF' }]}>
                   Qty: {item.quantity} · ₹{item.price.toLocaleString()}
                 </Text>
                 <View style={styles.statusRow}>
@@ -536,17 +563,17 @@ export default function OrdersScreen() {
                       { backgroundColor: statusUI.color },
                     ]}
                   />
-                  <Text style={styles.statusText}>{statusUI.text}</Text>
+                  <Text style={[styles.statusText, isDark && { color: '#F9FAFB' }]}>{statusUI.text}</Text>
                 </View>
-                <Text style={styles.statusSub}>{statusUI.subText}</Text>
+                <Text style={[styles.statusSub, isDark && { color: '#9CA3AF' }]}>{statusUI.subText}</Text>
 
                 <View style={styles.actionRow}>
                   <TouchableOpacity
-                    style={styles.trackBtn}
+                    style={[styles.trackBtn, isDark && { backgroundColor: '#1E3A8A', borderColor: '#2563EB' }]}
                     onPress={() => navigation.navigate('OrderTracking', { orderId: item.orderId })}
                   >
-                    <MapPin size={11} color="#2563EB" />
-                    <Text style={styles.trackBtnText}>Track</Text>
+                    <MapPin size={11} color={isDark ? '#93C5FD' : '#2563EB'} />
+                    <Text style={[styles.trackBtnText, isDark && { color: '#93C5FD' }]}>Track</Text>
                   </TouchableOpacity>
 
                   {(item.paymentStatus === 'SUCCESS' ||
@@ -554,11 +581,11 @@ export default function OrdersScreen() {
                     item.paymentMethod === 'cash') && (
                     <View style={styles.invoiceRow}>
                       <TouchableOpacity
-                        style={styles.invoiceBtn}
+                        style={[styles.invoiceBtn, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)', borderColor: '#0f766e' }]}
                         onPress={() => setSelectedInvoiceOrderId(item.orderId)}
                       >
-                        <FileText size={12} color={CustomerColors.teal700} />
-                        <Text style={styles.invoiceBtnText}>View Bill</Text>
+                        <FileText size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
+                        <Text style={[styles.invoiceBtnText, isDark && { color: '#5EEAD4' }]}>View Bill</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -588,7 +615,7 @@ export default function OrdersScreen() {
                       <>
                         {(!item.refundWindowEndAt || new Date() < new Date(item.refundWindowEndAt)) ? (
                           <TouchableOpacity
-                            style={styles.refundBtn}
+                            style={[styles.refundBtn, isDark && { backgroundColor: 'rgba(194, 65, 12, 0.2)', borderColor: '#C2410C' }]}
                             onPress={() => {
                               setRefundError('');
                               setSelectedRefund({
@@ -597,8 +624,8 @@ export default function OrdersScreen() {
                               });
                             }}
                           >
-                            <RotateCcw size={13} color="#C2410C" />
-                            <Text style={styles.refundBtnText}>
+                            <RotateCcw size={13} color={isDark ? '#FDBA74' : '#C2410C'} />
+                            <Text style={[styles.refundBtnText, isDark && { color: '#FDBA74' }]}>
                               {item.displayStatus === 'Delivered' || item.deliveryStatus === 'Delivered'
                                 ? 'Return & Refund'
                                 : 'Cancel Order'}
@@ -615,7 +642,7 @@ export default function OrdersScreen() {
                         color={CustomerColors.teal700}
                         fill={CustomerColors.teal700}
                       />
-                      <Text style={styles.reviewBtnText}>
+                      <Text style={[styles.reviewBtnText, isDark && { color: '#5EEAD4' }]}>
                         Rate & Review Product
                       </Text>
                     </TouchableOpacity>

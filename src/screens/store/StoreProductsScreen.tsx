@@ -13,6 +13,7 @@ import { BulkProductRow } from './StoreBulkProductScanScreen';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { groupProductsByType } from '../../utils/groupProducts';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import BulkScanUploadModal from '../../components/common/BulkScanUploadModal';
 
 export default function StoreProductsScreen() {
   const navigation = useNavigation<any>();
@@ -25,6 +26,7 @@ export default function StoreProductsScreen() {
   const [scanning, setScanning] = useState(false);
   const [bulkScanning, setBulkScanning] = useState(false);
   const [scanModalType, setScanModalType] = useState<'single' | 'bulk' | null>(null);
+  const [showBulkScanModal, setShowBulkScanModal] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const filtered = products.filter(p => {
@@ -115,6 +117,10 @@ export default function StoreProductsScreen() {
   const handleCameraScan = async () => {
     const isSingle = scanModalType === 'single';
     setScanModalType(null);
+    if (!isSingle) {
+      setShowBulkScanModal(true);
+      return;
+    }
     const granted = await requestCameraPermission();
     if (!granted) return;
     const res = await launchCamera({
@@ -127,8 +133,7 @@ export default function StoreProductsScreen() {
     });
     const asset = res.assets?.[0];
     if (asset?.base64) {
-      if (isSingle) runScan(asset.base64, asset.type || 'image/jpeg');
-      else runBulkScan(asset.base64, asset.type || 'image/jpeg');
+      runScan(asset.base64, asset.type || 'image/jpeg');
     } else if (res.errorMessage) {
       Alert.alert('Camera unavailable', res.errorMessage);
     }
@@ -137,6 +142,10 @@ export default function StoreProductsScreen() {
   const handleGalleryScan = async () => {
     const isSingle = scanModalType === 'single';
     setScanModalType(null);
+    if (!isSingle) {
+      setShowBulkScanModal(true);
+      return;
+    }
     const res = await launchImageLibrary({
       mediaType: 'photo',
       includeBase64: true,
@@ -146,8 +155,7 @@ export default function StoreProductsScreen() {
     });
     const asset = res.assets?.[0];
     if (asset?.base64) {
-      if (isSingle) runScan(asset.base64, asset.type || 'image/jpeg');
-      else runBulkScan(asset.base64, asset.type || 'image/jpeg');
+      runScan(asset.base64, asset.type || 'image/jpeg');
     }
   };
 
@@ -175,8 +183,8 @@ export default function StoreProductsScreen() {
         <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalType('single')} disabled={scanning}>
           {scanning ? <ActivityIndicator size="small" color="#fff" /> : <ScanLine size={16} color="#fff" />}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalType('bulk')} disabled={bulkScanning}>
-          {bulkScanning ? <ActivityIndicator size="small" color="#fff" /> : <ListChecks size={16} color="#fff" />}
+        <TouchableOpacity style={styles.scanBtn} onPress={() => setShowBulkScanModal(true)} disabled={bulkScanning}>
+          <ListChecks size={16} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('ProductForm', {})}>
           <Plus size={16} color="#fff" />
@@ -288,6 +296,12 @@ export default function StoreProductsScreen() {
           </View>
         </View>
       </Modal>
+
+      <BulkScanUploadModal
+        visible={showBulkScanModal}
+        onClose={() => setShowBulkScanModal(false)}
+        onRefresh={refresh}
+      />
     </View>
   );
 }

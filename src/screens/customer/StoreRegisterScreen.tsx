@@ -980,16 +980,47 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
             : 'store_owner';
 
       setShowSuccess(true);
-      setTimeout(async () => {
-        const tokenToUse = newToken || token;
-        if (user && tokenToUse) {
-          await login({ ...user, role: targetRole }, tokenToUse);
-        }
+      setTimeout(() => {
+        handleGoToDashboard(targetRole, newToken || token || undefined);
       }, 1500);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoToDashboard = async (
+    roleToSet?: 'store_owner' | 'whole_saler' | 'home_business',
+    tokenToSet?: string,
+  ) => {
+    setShowSuccess(false);
+    const role: 'store_owner' | 'whole_saler' | 'home_business' =
+      roleToSet ||
+      (storeType === 'whole_saler'
+        ? 'whole_saler'
+        : storeType === 'home_business'
+          ? 'home_business'
+          : 'store_owner');
+    const tokenToUse = tokenToSet || token;
+    if (user && tokenToUse) {
+      await login({ ...user, role }, tokenToUse);
+    }
+    try {
+      const rootNav = navigation.getParent() || navigation;
+      rootNav.reset({
+        index: 0,
+        routes: [{ name: 'RoleGate' }],
+      });
+    } catch {
+      try {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'RoleGate' }],
+        });
+      } catch {
+        navigation.navigate('RoleGate');
+      }
     }
   };
 
@@ -2499,8 +2530,10 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
       <SuccessModal
         visible={showSuccess}
         title="Store Registered!"
-        message="Your store has been created and verified successfully."
-        onClose={() => setShowSuccess(false)}
+        message="Your store has been created and verified successfully. Redirecting to your store dashboard..."
+        buttonText="Go to Dashboard"
+        onPressButton={() => handleGoToDashboard()}
+        onClose={() => handleGoToDashboard()}
       />
     </View>
   );

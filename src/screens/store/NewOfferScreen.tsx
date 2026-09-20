@@ -126,11 +126,25 @@ export default function NewOfferScreen() {
   }, [categories]);
 
   const applyStoreCoords = (s: any) => {
-    const coords = s?.location?.coordinates;
-    if (Array.isArray(coords) && coords.length === 2 && coords[0] && coords[1]) {
+    if (!s) return;
+    const coords = s?.location?.coordinates || s?.coordinates;
+    if (Array.isArray(coords) && coords.length === 2 && coords[0] !== undefined && coords[1] !== undefined) {
       setLongitude(String(coords[0]));
       setLatitude(String(coords[1]));
       setLocSource('store');
+      return;
+    }
+    if (s?.latitude && s?.longitude) {
+      setLatitude(String(s.latitude));
+      setLongitude(String(s.longitude));
+      setLocSource('store');
+      return;
+    }
+    if (s?.location?.latitude && s?.location?.longitude) {
+      setLatitude(String(s.location.latitude));
+      setLongitude(String(s.location.longitude));
+      setLocSource('store');
+      return;
     }
   };
 
@@ -143,19 +157,22 @@ export default function NewOfferScreen() {
     const isoString = selectedDate.toISOString().slice(0, 16);
     set('validUntil', isoString);
 
-    if (!store) {
+    if (contextStore) {
+      setStore(contextStore);
+      applyStoreCoords(contextStore);
+    } else {
       storeApi.getMyStore().then(res => {
         const s = res.data.data;
-        setStore(s);
-        applyStoreCoords(s);
+        if (s) {
+          setStore(s);
+          applyStoreCoords(s);
+        }
       }).catch(() => navigation.replace('StoreRegister'));
-    } else {
-      applyStoreCoords(store);
     }
-  }, []);
+  }, [contextStore]);
 
   const resetToStoreLocation = () => {
-    if (store) applyStoreCoords(store);
+    if (store || contextStore) applyStoreCoords(store || contextStore);
   };
 
   const detectGPS = async () => {
@@ -241,10 +258,33 @@ export default function NewOfferScreen() {
       setError('Offer price must be less than original price.');
       return;
     }
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
+
+    let lat = parseFloat(latitude);
+    let lng = parseFloat(longitude);
+
     if (isNaN(lat) || isNaN(lng)) {
-      setError('Valid latitude and longitude are required.');
+      const current = store || contextStore;
+      const coords = current?.location?.coordinates || current?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2 && !isNaN(Number(coords[0])) && !isNaN(Number(coords[1]))) {
+        lng = parseFloat(String(coords[0]));
+        lat = parseFloat(String(coords[1]));
+        setLongitude(String(lng));
+        setLatitude(String(lat));
+      } else if (current?.latitude && current?.longitude) {
+        lat = parseFloat(String(current.latitude));
+        lng = parseFloat(String(current.longitude));
+      }
+    }
+
+    if (isNaN(lat) || isNaN(lng)) {
+      setError('Notification coordinates (latitude and longitude) are required.');
+      return;
+    }
+
+    const currentStore = store || contextStore;
+    const storeId = currentStore?._id || currentStore?.id;
+    if (!storeId) {
+      setError('Store ID is required. Please re-open the screen.');
       return;
     }
 
@@ -260,9 +300,10 @@ export default function NewOfferScreen() {
           type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
         } as any);
       }
-      fd.append('storeId', store._id);
-      fd.append('storeName', store.name);
+      fd.append('storeId', String(storeId));
+      fd.append('storeName', String(currentStore.name || currentStore.storeName || 'Store'));
       fd.append('latitude', String(lat));
+      fd.append('longitude', String(lng));
       const finalIso = (selectedDate instanceof Date && !isNaN(selectedDate.getTime()))
         ? selectedDate.toISOString()
         : new Date(form.validUntil || Date.now()).toISOString();

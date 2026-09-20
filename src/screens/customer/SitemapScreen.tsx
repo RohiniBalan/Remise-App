@@ -13,6 +13,7 @@ import {
     HelpCircle,
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 // Ported from client/app/sitemap/page.tsx — uses website brand red (#FF0000).
 
@@ -98,31 +99,32 @@ const SITEMAP_SECTIONS: SitemapSection[] = [
         links: [
             { label: 'Login', route: 'LoginRegister' },
             { label: 'Register', route: 'LoginRegister' },
-            { label: 'My Profile', route: 'Profile' },
+            { label: 'My Account', route: 'Profile' },
             { label: 'My Orders', route: 'Orders' },
+            { label: 'Saved Addresses', route: 'Profile' },
             { label: 'Wishlist', route: 'Wishlist' },
-            { label: 'Saved Cart', route: 'Cart' },
-            { label: 'Addresses', route: 'Profile' },
+            { label: 'Cart', route: 'Cart' },
         ],
     },
     {
         icon: Scale,
-        title: 'Legal',
-        desc: 'Important information about using Remise.',
+        title: 'Legal & Policies',
+        desc: 'Review our policies and legal terms.',
         links: [
-            { label: 'Privacy Policy', route: 'PrivacyPolicy' },
-            { label: 'Terms of Service', route: 'TermsOfService' },
-            { label: 'Returns & Refunds', route: 'Returns' },
+            { label: 'Privacy Policy', route: 'Privacy' },
+            { label: 'Terms of Service', route: 'Terms' },
+            { label: 'Returns & Refund Policy', route: 'Returns' },
         ],
     },
 ];
 
 const QUICK_NAV: QuickNavGroup[] = [
     {
-        title: 'Shop',
+        title: 'Main',
         links: [
-            { label: 'All Products', route: 'Categories' },
+            { label: 'Home', route: 'Home' },
             { label: 'Categories', route: 'Categories' },
+            { label: 'Bulk Purchase', route: 'BulkPurchase' },
             { label: 'Offers', route: 'Nearby' },
         ],
     },
@@ -154,6 +156,15 @@ const QUICK_NAV: QuickNavGroup[] = [
 ];
 
 export default function SitemapScreen({ navigation }: any) {
+    const { isDark } = useTheme();
+
+    const cardBg = isDark ? '#111827' : '#ffffff';
+    const borderColor = isDark ? '#1F2937' : '#e2e8f0';
+    const textPri = isDark ? '#F9FAFB' : '#0f172a';
+    const textSec = isDark ? '#9CA3AF' : '#64748b';
+    const iconBg = isDark ? 'rgba(255, 0, 0, 0.15)' : '#fef2f2';
+    const bg = isDark ? '#0b0f19' : '#f8fafc';
+
     const goTo = (route?: string) => {
         if (!navigation || !route) return;
         if (route === 'BestSellers' || route === 'NewArrivals') {
@@ -169,7 +180,7 @@ export default function SitemapScreen({ navigation }: any) {
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+        <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
             {/* HEADER */}
             <View style={styles.header}>
                 <View style={styles.eyebrowRow}>
@@ -178,10 +189,10 @@ export default function SitemapScreen({ navigation }: any) {
                     </View>
                     <Text style={styles.eyebrowText}>Sitemap</Text>
                 </View>
-                <Text style={styles.headerTitle}>
+                <Text style={[styles.headerTitle, { color: textPri }]}>
                     Everything on Remise, <Text style={styles.headerTitleAccent}>all in one place</Text>
                 </Text>
-                <Text style={styles.headerSubtitle}>
+                <Text style={[styles.headerSubtitle, { color: textSec }]}>
                     Explore the main sections, shopping features, business services, support resources, and
                     company information available on Remise.
                 </Text>
@@ -192,20 +203,20 @@ export default function SitemapScreen({ navigation }: any) {
                 {SITEMAP_SECTIONS.map((section) => {
                     const Icon = section.icon;
                     return (
-                        <View key={section.title} style={styles.card}>
+                        <View key={section.title} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
                             <View style={styles.cardHeaderRow}>
-                                <View style={styles.cardIconWrap}>
+                                <View style={[styles.cardIconWrap, { backgroundColor: iconBg }]}>
                                     <Icon size={18} color={BRAND_RED} />
                                 </View>
-                                <Text style={styles.cardTitle}>{section.title}</Text>
+                                <Text style={[styles.cardTitle, { color: textPri }]}>{section.title}</Text>
                             </View>
-                            <Text style={styles.cardDesc}>{section.desc}</Text>
+                            <Text style={[styles.cardDesc, { color: textSec }]}>{section.desc}</Text>
                             {section.links.map((link) => {
                                 if (section.isStatic || !link.route) {
                                     return (
                                         <View key={link.label} style={styles.linkRow}>
                                             <ChevronRight size={14} color={BRAND_RED} />
-                                            <Text style={styles.linkTextActive}>{link.label}</Text>
+                                            <Text style={[styles.linkTextActive, { color: textSec }]}>{link.label}</Text>
                                         </View>
                                     );
                                 }
@@ -217,7 +228,7 @@ export default function SitemapScreen({ navigation }: any) {
                                         activeOpacity={0.6}
                                     >
                                         <ChevronRight size={14} color={BRAND_RED} />
-                                        <Text style={styles.linkTextActive}>{link.label}</Text>
+                                        <Text style={[styles.linkTextActive, { color: textPri }]}>{link.label}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -229,24 +240,24 @@ export default function SitemapScreen({ navigation }: any) {
             {/* QUICK NAVIGATION */}
             <View style={styles.section}>
                 <View style={styles.quickNavHeader}>
-                    <Text style={styles.quickNavTitle}>Looking for something specific?</Text>
-                    <Text style={styles.quickNavSubtitle}>A quick shortcut to the most-used pages.</Text>
+                    <Text style={[styles.quickNavTitle, { color: textPri }]}>Looking for something specific?</Text>
+                    <Text style={[styles.quickNavSubtitle, { color: textSec }]}>A quick shortcut to the most-used pages.</Text>
                 </View>
-                <View style={styles.quickNavCard}>
+                <View style={[styles.quickNavCard, { backgroundColor: cardBg, borderColor }]}>
                     {QUICK_NAV.map((col) => (
                         <View key={col.title} style={styles.quickNavCol}>
                             <Text style={styles.quickNavColTitle}>{col.title}</Text>
                             {col.links.map((link) => {
                                 if (col.isStatic || !link.route) {
                                     return (
-                                        <Text key={link.label} style={styles.quickNavLinkText}>
+                                        <Text key={link.label} style={[styles.quickNavLinkText, { color: textSec }]}>
                                             {link.label}
                                         </Text>
                                     );
                                 }
                                 return (
                                     <TouchableOpacity key={link.label} onPress={() => goTo(link.route)} activeOpacity={0.6}>
-                                        <Text style={styles.quickNavLinkText}>{link.label}</Text>
+                                        <Text style={[styles.quickNavLinkText, { color: textPri }]}>{link.label}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -257,10 +268,10 @@ export default function SitemapScreen({ navigation }: any) {
 
             {/* NEED HELP CTA */}
             <View style={styles.section}>
-                <View style={styles.ctaCard}>
+                <View style={[styles.ctaCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#fee2e2' }]}>
                     <HelpCircle size={28} color={BRAND_RED} style={{ alignSelf: 'center', marginBottom: Spacing.sm }} />
-                    <Text style={styles.ctaTitle}>Can't find what you're looking for?</Text>
-                    <Text style={styles.ctaSubtitle}>
+                    <Text style={[styles.ctaTitle, { color: textPri }]}>Can't find what you're looking for?</Text>
+                    <Text style={[styles.ctaSubtitle, { color: textSec }]}>
                         Our Help Center has answers to common questions about shopping, orders, payments,
                         returns, and using Remise.
                     </Text>
@@ -268,7 +279,7 @@ export default function SitemapScreen({ navigation }: any) {
                         <Text style={styles.ctaButtonFilledText}>Visit Help Center</Text>
                         <ArrowRight size={16} color="#FFFFFF" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.ctaButtonOutline} onPress={() => goTo('Services')} activeOpacity={0.85}>
+                    <TouchableOpacity style={[styles.ctaButtonOutline, { backgroundColor: cardBg }]} onPress={() => goTo('Services')} activeOpacity={0.85}>
                         <Text style={styles.ctaButtonOutlineText}>Contact Us</Text>
                         <ArrowRight size={16} color={BRAND_RED} />
                     </TouchableOpacity>

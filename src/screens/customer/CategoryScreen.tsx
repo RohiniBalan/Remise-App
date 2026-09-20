@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { Filter, X, Search, ArrowLeft } from 'lucide-react-native';
+import { Filter, X, Search, ArrowLeft, Sun, Moon } from 'lucide-react-native';
 import { productApi, Product, productId, productImage } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useTheme } from '../../context/ThemeContext';
 import ProductCard from '../../components/common/ProductCard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import {
@@ -52,6 +53,7 @@ export default function CategoryScreen() {
   const { user, token } = useAuth();
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { theme, toggleTheme, isDark } = useTheme();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -244,45 +246,57 @@ export default function CategoryScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: isDark ? '#0b0f19' : '#FFFFFF' }]}>
         <ActivityIndicator size="large" color={CustomerColors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchBarContainer}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : '#FFFFFF' }]}>
+      {/* Search & Top Bar */}
+      <View style={[styles.searchBarContainer, { backgroundColor: isDark ? '#0f172a' : '#FFFFFF', borderBottomColor: isDark ? '#1e293b' : '#F1F5F9' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity
             onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
             style={styles.backHomeBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ArrowLeft size={20} color={CustomerColors.black} />
+            <ArrowLeft size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
           </TouchableOpacity>
-          <View style={[styles.searchBar, { flex: 1 }]}>
-            <Search size={16} color={CustomerColors.textSecondary} />
+          <View style={[styles.searchBar, { flex: 1, backgroundColor: isDark ? '#1e293b' : '#F3F4F6', borderColor: isDark ? '#374151' : '#E5E7EB' }]}>
+            <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder={activeCategory ? `Search in ${activeCategory}…` : "Search all products…"}
-              placeholderTextColor={CustomerColors.textSecondary}
-              style={styles.searchInput}
+              placeholderTextColor={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+              style={[styles.searchInput, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
               autoCapitalize="none"
               autoCorrect={false}
             />
             {searchQuery ? (
               <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <X size={16} color={CustomerColors.textSecondary} />
+                <X size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             ) : null}
           </View>
+          <TouchableOpacity
+            style={[styles.themeToggleBtn, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#F5F5F5' }]}
+            onPress={toggleTheme}
+            activeOpacity={0.7}
+            accessibilityLabel="Toggle Theme"
+          >
+            {isDark ? (
+              <Sun size={18} color="#FBBF24" />
+            ) : (
+              <Moon size={18} color="#4B5563" />
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { borderBottomColor: isDark ? '#1e293b' : '#EAEAEA', backgroundColor: isDark ? '#0f172a' : '#FFFFFF' }]}>
         <TouchableOpacity
           style={styles.filterToggle}
           onPress={() => setFiltersOpen(o => !o)}
@@ -292,11 +306,11 @@ export default function CategoryScreen() {
             Filters{hasActiveFilters ? ' •' : ''}
           </Text>
         </TouchableOpacity>
-        <Text style={styles.count}>{filtered.length} products</Text>
+        <Text style={[styles.count, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>{filtered.length} products</Text>
       </View>
 
       {filtersOpen && (
-        <View style={styles.filtersPanel}>
+        <View style={[styles.filtersPanel, { backgroundColor: isDark ? '#111827' : '#FAFAFA', borderBottomColor: isDark ? '#1e293b' : '#EAEAEA' }]}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -307,6 +321,7 @@ export default function CategoryScreen() {
                 key={cat}
                 label={cat}
                 active={activeCategory === cat}
+                isDark={isDark}
                 onPress={() =>
                   handleSelectCategory(activeCategory === cat ? null : cat)
                 }
@@ -323,6 +338,7 @@ export default function CategoryScreen() {
                 key={b}
                 label={b}
                 active={selectedBrands.includes(b)}
+                isDark={isDark}
                 onPress={() => toggle(selectedBrands, setSelectedBrands, b)}
               />
             ))}
@@ -337,6 +353,7 @@ export default function CategoryScreen() {
                 key={preset.label}
                 label={preset.label}
                 active={pricePreset.label === preset.label}
+                isDark={isDark}
                 onPress={() => setPricePreset(preset)}
               />
             ))}
@@ -352,6 +369,7 @@ export default function CategoryScreen() {
                   key={a}
                   label={a}
                   active={selectedAvailabilities.includes(a)}
+                  isDark={isDark}
                   onPress={() =>
                     toggle(selectedAvailabilities, setSelectedAvailabilities, a)
                   }
@@ -376,7 +394,7 @@ export default function CategoryScreen() {
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.grid}
         ListEmptyComponent={
-          <Text style={styles.empty}>
+          <Text style={[styles.empty, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
             No products found. Try adjusting your filters.
           </Text>
         }
@@ -410,18 +428,33 @@ export default function CategoryScreen() {
 function Chip({
   label,
   active,
+  isDark,
   onPress,
 }: {
   label: string;
   active: boolean;
+  isDark?: boolean;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive]}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+          borderColor: isDark ? '#374151' : '#D1D5DB',
+        },
+        active && styles.chipActive,
+      ]}
       onPress={onPress}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+      <Text
+        style={[
+          styles.chipText,
+          { color: isDark ? '#D1D5DB' : CustomerColors.textSecondary },
+          active && styles.chipTextActive,
+        ]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
@@ -441,11 +474,19 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   backHomeBtn: {
     padding: 6,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  themeToggleBtn: {
+    padding: 8,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchBar: {
     height: 42,

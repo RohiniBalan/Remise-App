@@ -11,6 +11,7 @@ import { requestCameraPermission } from '../../utils/permissions';
 import BrandHeader from '../../components/common/BrandHeader';
 import { lookupTanglishDictionary } from '../../utils/tanglishTranslator';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 let idCounter = 0;
 const uid = () => `item-${++idCounter}-${Date.now()}`;
@@ -28,6 +29,7 @@ export default function BulkPurchaseScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
+  const { isDark } = useTheme();
   const [items, setItems] = useState<BulkItem[]>([]);
   const [scanning, setScanning] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
@@ -208,12 +210,12 @@ export default function BulkPurchaseScreen() {
   const checkedCount = items.filter(i => i.checked).length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
       <BrandHeader />
-      <View style={styles.hero}>
-        <View style={styles.heroIcon}><ListChecks size={24} color={CustomerColors.teal600} /></View>
-        <Text style={styles.heroTitle}>Monthly / Bulk Purchase</Text>
-        <Text style={styles.heroSubtitle}>Build a shopping list, then compare nearby stores and place a smart order.</Text>
+      <View style={[styles.hero, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderBottomColor: isDark ? '#1F2937' : CustomerColors.steelBorder }]}>
+        <View style={[styles.heroIcon, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}><ListChecks size={24} color={isDark ? '#5EEAD4' : CustomerColors.teal600} /></View>
+        <Text style={[styles.heroTitle, isDark && { color: '#FFFFFF' }]}>Monthly / Bulk Purchase</Text>
+        <Text style={[styles.heroSubtitle, isDark && { color: '#9CA3AF' }]}>Build a shopping list, then compare nearby stores and place a smart order.</Text>
         <TouchableOpacity style={styles.scanBtn} onPress={handleOpenScan} disabled={scanning}>
           {scanning ? <ActivityIndicator size="small" color="#fff" /> : <ScanLine size={15} color="#fff" />}
           <Text style={styles.scanBtnText}>{scanning ? 'Scanning…' : 'Scan Paper List'}</Text>
@@ -221,12 +223,23 @@ export default function BulkPurchaseScreen() {
 
       </View>
 
-      <View style={styles.voiceBox}>
+      <View style={[styles.voiceBox, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderBottomColor: isDark ? '#1F2937' : CustomerColors.steelBorder }]}>
         <View style={styles.voiceLangRow}>
           {VOICE_LANGUAGES.map(l => (
             <TouchableOpacity key={l.code} onPress={() => setVoiceLang(l)} disabled={voice.listening || voiceParsing}
-              style={[styles.langChip, voiceLang.code === l.code && styles.langChipActive]}>
-              <Text style={[styles.langChipText, voiceLang.code === l.code && styles.langChipTextActive]}>{l.label}</Text>
+              style={[
+                styles.langChip,
+                {
+                  backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
+                  borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                },
+                voiceLang.code === l.code && styles.langChipActive,
+              ]}>
+              <Text style={[
+                styles.langChipText,
+                { color: isDark ? '#D1D5DB' : CustomerColors.textSecondary },
+                voiceLang.code === l.code && styles.langChipTextActive,
+              ]}>{l.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -245,7 +258,7 @@ export default function BulkPurchaseScreen() {
           </Text>
         </TouchableOpacity>
         {voice.listening && (
-          <Text style={styles.voiceListening} numberOfLines={2}>Listening… "{voice.partialTranscript || voice.transcript || '…'}"</Text>
+          <Text style={[styles.voiceListening, isDark && { color: '#5EEAD4' }]} numberOfLines={2}>Listening… "{voice.partialTranscript || voice.transcript || '…'}"</Text>
         )}
         {(voice.error || voiceError) ? (
           <View style={styles.voiceErrorRow}>
@@ -257,24 +270,24 @@ export default function BulkPurchaseScreen() {
 
       {items.length === 0 ? (
         <View style={styles.emptyState}>
-          <ListChecks size={44} color={CustomerColors.steelBorder} />
-          <Text style={styles.emptyTitle}>No items yet</Text>
-          <Text style={styles.emptySubtitle}>Add items manually to get started</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={addBlank}>
-            <Plus size={15} color={CustomerColors.black} />
-            <Text style={styles.addBtnText}>Add Item</Text>
+          <ListChecks size={44} color={isDark ? '#4B5563' : CustomerColors.steelBorder} />
+          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>No items yet</Text>
+          <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>Add items manually to get started</Text>
+          <TouchableOpacity style={[styles.addBtn, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)', borderColor: '#0f766e' }]} onPress={addBlank}>
+            <Plus size={15} color={isDark ? '#5EEAD4' : CustomerColors.black} />
+            <Text style={[styles.addBtnText, isDark && { color: '#5EEAD4' }]}>Add Item</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
           <View style={styles.toolbar}>
-            <Text style={styles.toolbarText}>
+            <Text style={[styles.toolbarText, isDark && { color: '#9CA3AF' }]}>
               {items.length} item{items.length !== 1 ? 's' : ''}
             </Text>
             <View style={styles.toolbarActions}>
-              <TouchableOpacity style={styles.iconAction} onPress={addBlank}><Plus size={14} color={CustomerColors.textSecondary} /></TouchableOpacity>
-              <TouchableOpacity style={styles.iconAction} onPress={handleShare}><Share2 size={14} color={CustomerColors.textSecondary} /></TouchableOpacity>
-              <TouchableOpacity style={styles.iconAction} onPress={clearAll}><Trash2 size={14} color={CustomerColors.primary} /></TouchableOpacity>
+              <TouchableOpacity style={[styles.iconAction, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]} onPress={addBlank}><Plus size={14} color={isDark ? '#D1D5DB' : CustomerColors.textSecondary} /></TouchableOpacity>
+              <TouchableOpacity style={[styles.iconAction, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]} onPress={handleShare}><Share2 size={14} color={isDark ? '#D1D5DB' : CustomerColors.textSecondary} /></TouchableOpacity>
+              <TouchableOpacity style={[styles.iconAction, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]} onPress={clearAll}><Trash2 size={14} color={CustomerColors.primary} /></TouchableOpacity>
             </View>
           </View>
 
@@ -283,7 +296,11 @@ export default function BulkPurchaseScreen() {
             keyExtractor={i => i.id}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <View style={[styles.row, item.needsClarification && styles.rowFlagged]}>
+              <View style={[
+                styles.row,
+                { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder },
+                item.needsClarification && (isDark ? { backgroundColor: 'rgba(217, 119, 6, 0.15)', borderColor: '#D97706' } : styles.rowFlagged),
+              ]}>
                 {item.needsClarification && <HelpCircle size={13} color="#D97706" />}
 
                 {/* Fields column */}
@@ -293,40 +310,40 @@ export default function BulkPurchaseScreen() {
                     {/* Left: name on top, brand below */}
                     <View style={styles.nameBrandCol}>
                       <TextInput
-                        style={styles.nameInput}
+                        style={[styles.nameInput, isDark && { color: '#F9FAFB' }]}
                         value={item.name}
                         onChangeText={v => update(item.id, 'name', v)}
                         onBlur={() => commitName(item.id, item.name)}
                         onSubmitEditing={() => commitName(item.id, item.name)}
                         placeholder="Item name (English or Tanglish)"
-                        placeholderTextColor="#D1D5DB"
+                        placeholderTextColor={isDark ? '#6B7280' : '#D1D5DB'}
                       />
                       <TextInput
-                        style={styles.brandInput}
+                        style={[styles.brandInput, isDark && { color: '#9CA3AF' }]}
                         value={item.brand}
                         onChangeText={v => update(item.id, 'brand', v)}
                         placeholder="Brand (optional)"
-                        placeholderTextColor="#D1D5DB"
+                        placeholderTextColor={isDark ? '#6B7280' : '#D1D5DB'}
                       />
                     </View>
                     {/* Right: Qty */}
                     <TextInput
-                      style={styles.qtyInput}
+                      style={[styles.qtyInput, isDark && { color: '#5EEAD4' }]}
                       value={item.quantity}
                       onChangeText={v => update(item.id, 'quantity', v)}
                       placeholder="Qty"
-                      placeholderTextColor="#D1D5DB"
+                      placeholderTextColor={isDark ? '#6B7280' : '#D1D5DB'}
                     />
                   </View>
                 </View>
 
                 {/* Delete */}
-                <TouchableOpacity onPress={() => remove(item.id)}><Trash2 size={15} color="#D1D5DB" /></TouchableOpacity>
+                <TouchableOpacity onPress={() => remove(item.id)}><Trash2 size={15} color={isDark ? '#6B7280' : '#D1D5DB'} /></TouchableOpacity>
               </View>
             )}
           />
 
-          <View style={styles.footer}>
+          <View style={[styles.footer, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg, borderTopColor: isDark ? '#1F2937' : CustomerColors.steelBorder }]}>
             <TouchableOpacity style={styles.compareBtn} onPress={handleCompare}>
               <Store size={16} color="#fff" />
               <Text style={styles.compareBtnText}>Find Cheapest Store & Order</Text>
@@ -338,18 +355,18 @@ export default function BulkPurchaseScreen() {
       {/* Camera & Scan Modal */}
       <Modal visible={showScanModal} transparent animationType="fade" onRequestClose={() => setShowScanModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, isDark && { backgroundColor: '#111827' }]}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <ScanLine size={20} color={CustomerColors.teal600} />
-                <Text style={styles.modalTitle}>Scan Purchase List</Text>
+                <Text style={[styles.modalTitle, isDark && { color: '#FFFFFF' }]}>Scan Purchase List</Text>
               </View>
               <TouchableOpacity onPress={() => setShowScanModal(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSub}>
+            <Text style={[styles.modalSub, isDark && { color: '#9CA3AF' }]}>
               Take a clear photo of your paper list or upload an existing photo.
             </Text>
 
@@ -359,14 +376,14 @@ export default function BulkPurchaseScreen() {
             </TouchableOpacity>
 
             <View style={styles.orDivider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.orText}>or</Text>
-              <View style={styles.dividerLine} />
+              <View style={[styles.dividerLine, isDark && { backgroundColor: '#374151' }]} />
+              <Text style={[styles.orText, isDark && { color: '#9CA3AF' }]}>or</Text>
+              <View style={[styles.dividerLine, isDark && { backgroundColor: '#374151' }]} />
             </View>
 
-            <TouchableOpacity style={styles.galleryActionBtn} onPress={handleGalleryScan}>
-              <ImageIcon size={18} color={CustomerColors.teal700} />
-              <Text style={styles.galleryActionBtnText}>Choose from Gallery</Text>
+            <TouchableOpacity style={[styles.galleryActionBtn, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)', borderColor: '#0f766e' }]} onPress={handleGalleryScan}>
+              <ImageIcon size={18} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
+              <Text style={[styles.galleryActionBtnText, isDark && { color: '#5EEAD4' }]}>Choose from Gallery</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -375,23 +392,23 @@ export default function BulkPurchaseScreen() {
       {/* Login Required Modal */}
       <Modal visible={showAuthModal} transparent animationType="fade" onRequestClose={() => setShowAuthModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, isDark && { backgroundColor: '#111827' }]}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <Lock size={20} color={CustomerColors.teal600} />
-                <Text style={styles.modalTitle}>Login Required</Text>
+                <Text style={[styles.modalTitle, isDark && { color: '#FFFFFF' }]}>Login Required</Text>
               </View>
               <TouchableOpacity onPress={() => setShowAuthModal(false)}>
-                <X size={20} color={CustomerColors.textSecondary} />
+                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.authModalBody}>
-              <View style={styles.authIconCircle}>
-                <ScanLine size={28} color={CustomerColors.teal600} />
+              <View style={[styles.authIconCircle, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
+                <ScanLine size={28} color={isDark ? '#5EEAD4' : CustomerColors.teal600} />
               </View>
-              <Text style={styles.authModalTitle}>Login to Manage Purchase List</Text>
-              <Text style={styles.authModalSub}>
+              <Text style={[styles.authModalTitle, isDark && { color: '#FFFFFF' }]}>Login to Manage Purchase List</Text>
+              <Text style={[styles.authModalSub, isDark && { color: '#9CA3AF' }]}>
                 Please sign in or register to add items manually, speak your list, or scan paper lists and compare nearby store prices.
               </Text>
             </View>
@@ -406,8 +423,8 @@ export default function BulkPurchaseScreen() {
               <Text style={styles.cameraActionBtnText}>Log In / Register</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAuthModal(false)}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]} onPress={() => setShowAuthModal(false)}>
+              <Text style={[styles.cancelBtnText, isDark && { color: '#9CA3AF' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
