@@ -12,7 +12,7 @@ import WholesalerNavigator from './WholesalerNavigator';
 import HomeBusinessNavigator from './HomeBusinessNavigator';
 import SellerNavigator from './SellerNavigator';
 import AdminNavigator from './AdminNavigator';
-
+import DeliveryPartnerNavigator from './DeliveryPartnerNavigator';
 
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import BusinessLoginScreen from '../screens/auth/BusinessLoginScreen';
@@ -25,6 +25,8 @@ import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import VerifyEmailTokenScreen from '../screens/auth/VerifyEmailTokenScreen';
 import StoreRegisterScreen from '../screens/customer/StoreRegisterScreen';
+import DeliveryPartnerLoginScreen from '../screens/auth/DeliveryPartnerLoginScreen';
+import DeliveryPartnerRegisterScreen from '../screens/auth/DeliveryPartnerRegisterScreen';
 
 import { CustomerColors } from '../styles/theme';
 
@@ -39,12 +41,12 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;
 
-
   VerifyEmail: undefined;
   VerifyEmailToken: { token?: string } | undefined;
   StoreRegister: undefined;
+  DeliveryPartnerLogin: undefined;
+  DeliveryPartnerRegister: undefined;
 };
-
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -56,8 +58,8 @@ function RoleGate() {
   //   : 'guest';
 
   const navigatorKey = token
-  ? `${user?.role ?? 'unknown'}-authenticated`
-  : 'guest';
+    ? `${user?.role ?? 'unknown'}-authenticated`
+    : 'guest';
 
   console.log('ROLE GATE USER:', user);
   console.log('ROLE GATE ROLE:', user?.role);
@@ -89,12 +91,15 @@ function RoleGate() {
       console.log('ROLE GATE -> HOME BUSINESS');
       return <HomeBusinessNavigator key={navigatorKey} />;
 
+    case 'delivery_person':
+      console.log('ROLE GATE -> DELIVERY PARTNER');
+      return <DeliveryPartnerNavigator key={navigatorKey} />;
+
     case 'user':
     default:
       console.log('ROLE GATE -> CUSTOMER');
       return <CustomerNavigator key={navigatorKey} />;
   }
-
 }
 
 export default function AppNavigator() {
@@ -118,10 +123,7 @@ export default function AppNavigator() {
         screenOptions={{ headerShown: false }}
       >
         {/* ALWAYS-AVAILABLE HOME / ROLE NAVIGATOR */}
-        <RootStack.Screen
-          name="RoleGate"
-          component={RoleGate}
-        />
+        <RootStack.Screen name="RoleGate" component={RoleGate} />
 
         {/* AUTH SCREENS */}
         <RootStack.Screen
@@ -139,16 +141,12 @@ export default function AppNavigator() {
           component={BusinessSignupScreen}
         />
 
-        <RootStack.Screen
-          name="AdminLogin"
-          component={AdminLoginScreen}
-        />
+        <RootStack.Screen name="AdminLogin" component={AdminLoginScreen} />
 
         <RootStack.Screen
           name="GoogleAuthWebView"
           component={GoogleAuthWebViewScreen}
         />
-
 
         <RootStack.Screen
           name="ForgotPassword"
@@ -196,6 +194,16 @@ export default function AppNavigator() {
             headerShown: true,
             title: 'Register Store',
           }}
+        />
+        <RootStack.Screen
+          name="DeliveryPartnerLogin"
+          component={DeliveryPartnerLoginScreen}
+          options={{ headerShown: true, title: 'Delivery Partner Login' }}
+        />
+        <RootStack.Screen
+          name="DeliveryPartnerRegister"
+          component={DeliveryPartnerRegisterScreen}
+          options={{ headerShown: true, title: 'Become a Delivery Partner' }}
         />
       </RootStack.Navigator>
     </NavigationContainer>

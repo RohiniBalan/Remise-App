@@ -2,7 +2,18 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, LayoutGrid, ClipboardList, MapPin, Heart, ShoppingCart, Package, User, ArrowLeft, Store } from 'lucide-react-native';
+import {
+  Home,
+  LayoutGrid,
+  ClipboardList,
+  MapPin,
+  Heart,
+  ShoppingCart,
+  Package,
+  User,
+  ArrowLeft,
+  Store,
+} from 'lucide-react-native';
 import PlaceholderScreen from '../screens/common/PlaceholderScreen';
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
@@ -39,6 +50,8 @@ import CareersScreen from '../screens/customer/CareersScreen';
 import BlogScreen from '../screens/customer/BlogScreen';
 import PressScreen from '../screens/customer/PressScreen';
 import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
+import DeliveryPartnerApplicationScreen from '../screens/delivery/DeliveryPartnerApplicationScreen';
+import DeliveryPartnerDashboardScreen from '../screens/delivery/DeliveryPartnerDashboardScreen';
 import { SmartOrderCartItem } from '../api/smartOrderApi';
 import { CustomerColors } from '../styles/theme';
 import { useAuth } from '../context/AuthContext';
@@ -84,7 +97,11 @@ export type CustomerStackParamList = {
   Services: undefined;
   Testimonials: undefined;
   StoreRegister: undefined;
-  CompareStores: { items: SmartOrderCartItem[]; purchaseType?: 'bulk' | 'home_seller'; onSuccess?: () => void };
+  CompareStores: {
+    items: SmartOrderCartItem[];
+    purchaseType?: 'bulk' | 'home_seller';
+    onSuccess?: () => void;
+  };
   BulkPurchase: undefined;
   Nearby: undefined;
 
@@ -107,6 +124,8 @@ export type CustomerStackParamList = {
   BlogNews: undefined;
   Press: undefined;
   OrderTracking: { orderId: string };
+  DeliveryPartnerApplication: undefined;
+  DeliveryDashboard: undefined;
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -133,7 +152,10 @@ function CategoriesNavigator() {
   const { isDark } = useTheme();
   return (
     <CategoriesStack.Navigator screenOptions={{ headerShown: false }}>
-      <CategoriesStack.Screen name="CategoryGrid" component={CategoryGridScreen} />
+      <CategoriesStack.Screen
+        name="CategoryGrid"
+        component={CategoryGridScreen}
+      />
       <CategoriesStack.Screen
         name="CategoryProducts"
         component={CategoryScreen}
@@ -146,11 +168,16 @@ function CategoriesNavigator() {
           headerTintColor: isDark ? '#FFFFFF' : CustomerColors.black,
           headerLeft: () => (
             <TouchableOpacity
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+              onPress={() =>
+                navigation.navigate('CustomerTabs', { screen: 'Home' })
+              }
               style={{ marginRight: 12 }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+              <ArrowLeft
+                size={22}
+                color={isDark ? '#FFFFFF' : CustomerColors.black}
+              />
             </TouchableOpacity>
           ),
         })}
@@ -185,7 +212,8 @@ function CustomerTabs() {
         tabBarItemStyle: {
           paddingHorizontal: 1,
         },
-      }}>
+      }}
+    >
       <Tab.Screen
         name="Home"
         component={HomeNavigator}
@@ -199,7 +227,9 @@ function CustomerTabs() {
         component={CategoriesNavigator}
         options={{
           tabBarLabel: 'Categories',
-          tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={20} />,
+          tabBarIcon: ({ color, size }) => (
+            <LayoutGrid color={color} size={20} />
+          ),
         }}
       />
       <Tab.Screen
@@ -207,7 +237,9 @@ function CustomerTabs() {
         component={BulkPurchaseScreen}
         options={{
           tabBarLabel: 'Bulk',
-          tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={20} />,
+          tabBarIcon: ({ color, size }) => (
+            <ClipboardList color={color} size={20} />
+          ),
         }}
       />
       <Tab.Screen
@@ -254,7 +286,9 @@ function CustomerTabs() {
         component={CartScreen}
         options={{
           tabBarLabel: 'Cart',
-          tabBarIcon: ({ color, size }) => <ShoppingCart color={color} size={20} />,
+          tabBarIcon: ({ color, size }) => (
+            <ShoppingCart color={color} size={20} />
+          ),
           tabBarBadge: cartCount > 0 ? cartCount : undefined,
           tabBarBadgeStyle: {
             backgroundColor: CustomerColors.primary,
@@ -281,7 +315,9 @@ function CustomerTabs() {
                     width: 22,
                     height: 22,
                     borderRadius: 11,
-                    backgroundColor: focused ? CustomerColors.primary : '#E2E8F0',
+                    backgroundColor: focused
+                      ? CustomerColors.primary
+                      : '#E2E8F0',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -322,37 +358,180 @@ export default function CustomerNavigator() {
       }}
     >
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
-      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, title: 'Your Cart' }} />
-      <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true }} />
-      <Stack.Screen name="PhonePeWebView" component={PhonePeWebViewScreen} options={{ headerShown: true, title: 'PhonePe' }} />
-      <Stack.Screen name="RazorpayWebView" component={RazorpayWebViewScreen} options={{ headerShown: true, title: 'Razorpay Checkout', headerStyle: { backgroundColor: '#0a0a0a' }, headerTintColor: '#D4AF37' }} />
-      <Stack.Screen name="PaymentStatus" component={PaymentStatusScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
-      <Stack.Screen name="About" component={AboutScreen} options={{ headerShown: true, title: 'About Us' }} />
-      <Stack.Screen name="Services" component={ServicesScreen} options={{ headerShown: true, title: 'Our Services' }} />
-      <Stack.Screen name="Testimonials" component={TestimonialsScreen} options={{ headerShown: true }} />
-      <Stack.Screen name="StoreRegister" component={StoreRegisterScreen} options={{ headerShown: true, title: 'Register Your Store' }} />
-      <Stack.Screen name="CompareStores" component={CompareStoresScreen} options={{ headerShown: false, presentation: 'transparentModal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="BulkPurchase" component={BulkPurchaseScreen} options={{ headerShown: true, title: 'Bulk Purchase' }} />
-      <Stack.Screen name="Nearby" component={NearbyOffersScreen} options={{ headerShown: true, title: 'Nearby Offers' }} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: 'Notifications' }} />
-      <Stack.Screen name="Suppliers" component={SuppliersScreen} options={{ headerShown: true, title: 'Suppliers' }} />
-      <Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: 'My Offers' }} />
-      <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ headerShown: true, title: 'Privacy Policy' }} />
-      <Stack.Screen name="TermsOfUse" component={TermsOfServiceScreen} options={{ headerShown: true, title: 'Terms of Use' }} />
-      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ headerShown: true, title: 'Terms of Service' }} />
-      <Stack.Screen name="Sitemap" component={SitemapScreen} options={{ headerShown: true, title: 'Sitemap' }} />
-      <Stack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: true, title: 'My Wishlist' }} />
-      <Stack.Screen name="Returns" component={ReturnsRefundsScreen} options={{ headerShown: true, title: 'Returns & Refunds' }} />
-      <Stack.Screen name="ReturnsRefunds" component={ReturnsRefundsScreen} options={{ headerShown: true, title: 'Returns & Refunds' }} />
-      <Stack.Screen name="Careers" component={CareersScreen} options={{ headerShown: true, title: 'Careers' }} />
-      <Stack.Screen name="Blog" component={BlogScreen} options={{ headerShown: true, title: 'Blogs & News' }} />
-      <Stack.Screen name="BlogNews" component={BlogScreen} options={{ headerShown: true, title: 'Blogs & News' }} />
-      <Stack.Screen name="Press" component={PressScreen} options={{ headerShown: true, title: 'Press' }} />
-      <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="ProductDetail"
+        component={ProductDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Cart"
+        component={CartScreen}
+        options={{ headerShown: true, title: 'Your Cart' }}
+      />
+      <Stack.Screen
+        name="Checkout"
+        component={CheckoutScreen}
+        options={{ headerShown: true }}
+      />
+      <Stack.Screen
+        name="PhonePeWebView"
+        component={PhonePeWebViewScreen}
+        options={{ headerShown: true, title: 'PhonePe' }}
+      />
+      <Stack.Screen
+        name="RazorpayWebView"
+        component={RazorpayWebViewScreen}
+        options={{
+          headerShown: true,
+          title: 'Razorpay Checkout',
+          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerTintColor: '#D4AF37',
+        }}
+      />
+      <Stack.Screen
+        name="PaymentStatus"
+        component={PaymentStatusScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ headerShown: true }}
+      />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ headerShown: true, title: 'Profile' }}
+      />
+      <Stack.Screen
+        name="About"
+        component={AboutScreen}
+        options={{ headerShown: true, title: 'About Us' }}
+      />
+      <Stack.Screen
+        name="Services"
+        component={ServicesScreen}
+        options={{ headerShown: true, title: 'Our Services' }}
+      />
+      <Stack.Screen
+        name="Testimonials"
+        component={TestimonialsScreen}
+        options={{ headerShown: true }}
+      />
+      <Stack.Screen
+        name="StoreRegister"
+        component={StoreRegisterScreen}
+        options={{ headerShown: true, title: 'Register Your Store' }}
+      />
+      <Stack.Screen
+        name="CompareStores"
+        component={CompareStoresScreen}
+        options={{
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
+        name="BulkPurchase"
+        component={BulkPurchaseScreen}
+        options={{ headerShown: true, title: 'Bulk Purchase' }}
+      />
+      <Stack.Screen
+        name="Nearby"
+        component={NearbyOffersScreen}
+        options={{ headerShown: true, title: 'Nearby Offers' }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ headerShown: true, title: 'Notifications' }}
+      />
+      <Stack.Screen
+        name="Suppliers"
+        component={SuppliersScreen}
+        options={{ headerShown: true, title: 'Suppliers' }}
+      />
+      <Stack.Screen
+        name="MyOffers"
+        component={MyOffersScreen}
+        options={{ headerShown: true, title: 'My Offers' }}
+      />
+      <Stack.Screen
+        name="HelpCenter"
+        component={HelpCenterScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ headerShown: true, title: 'Privacy Policy' }}
+      />
+      <Stack.Screen
+        name="TermsOfUse"
+        component={TermsOfServiceScreen}
+        options={{ headerShown: true, title: 'Terms of Use' }}
+      />
+      <Stack.Screen
+        name="TermsOfService"
+        component={TermsOfServiceScreen}
+        options={{ headerShown: true, title: 'Terms of Service' }}
+      />
+      <Stack.Screen
+        name="Sitemap"
+        component={SitemapScreen}
+        options={{ headerShown: true, title: 'Sitemap' }}
+      />
+      <Stack.Screen
+        name="Wishlist"
+        component={WishlistScreen}
+        options={{ headerShown: true, title: 'My Wishlist' }}
+      />
+      <Stack.Screen
+        name="Returns"
+        component={ReturnsRefundsScreen}
+        options={{ headerShown: true, title: 'Returns & Refunds' }}
+      />
+      <Stack.Screen
+        name="ReturnsRefunds"
+        component={ReturnsRefundsScreen}
+        options={{ headerShown: true, title: 'Returns & Refunds' }}
+      />
+      <Stack.Screen
+        name="Careers"
+        component={CareersScreen}
+        options={{ headerShown: true, title: 'Careers' }}
+      />
+      <Stack.Screen
+        name="Blog"
+        component={BlogScreen}
+        options={{ headerShown: true, title: 'Blogs & News' }}
+      />
+      <Stack.Screen
+        name="BlogNews"
+        component={BlogScreen}
+        options={{ headerShown: true, title: 'Blogs & News' }}
+      />
+      <Stack.Screen
+        name="Press"
+        component={PressScreen}
+        options={{ headerShown: true, title: 'Press' }}
+      />
+      <Stack.Screen
+        name="OrderTracking"
+        component={OrderTrackingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="DeliveryPartnerApplication"
+        component={DeliveryPartnerApplicationScreen}
+        options={{ headerShown: true, title: 'Become a Delivery Partner' }}
+      />
+      <Stack.Screen
+        name="DeliveryDashboard"
+        component={DeliveryPartnerDashboardScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="LoginRegister"
         component={LoginRegisterScreen}

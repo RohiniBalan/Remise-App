@@ -33,6 +33,7 @@ import { productApi } from '../../api/productApi';
 import { storeApi } from '../../api/storeApi';
 import { orderApi } from '../../api/orderApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
+import { isValidPlacedOrder } from '../../utils/orderValidation';
 import BrandListSheet from '../../components/suppliers/BrandListSheet';
 import CompareSheet from '../../components/suppliers/CompareSheet';
 import CartCheckoutModal from '../../components/suppliers/CartCheckoutModal';
@@ -197,6 +198,7 @@ export default function SuppliersScreen() {
       const combined: any[] = [];
 
       [...wholesaleOrders, ...smartOrders, ...legacyOrders].forEach(o => {
+        if (!isValidPlacedOrder(o)) return;
         const id = o.orderId || o._id;
         if (id && !seen.has(id)) {
           seen.add(id);

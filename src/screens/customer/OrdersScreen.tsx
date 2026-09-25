@@ -28,6 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 import { orderApi, OrderData } from '../../api/orderApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
+import { isValidPlacedOrder } from '../../utils/orderValidation';
 import RefundModal from '../../components/common/RefundModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
@@ -60,6 +61,7 @@ interface DisplayItem {
   paymentStatus: string;
   paymentMethod?: string;
   deliveryStatus?: string;
+  refundStatus?: string;
   title: string;
   price: number;
   quantity: number;
@@ -77,19 +79,39 @@ function getStatusUI(
   orderDate: string,
   deliveryDate: string,
   deliveryStatus?: string,
+  paymentStatus?: string,
+  refundStatus?: string,
 ) {
-  if (
+  const isRefundCompleted =
+    status === 'Refund Completed' ||
     status === 'REFUNDED' ||
+    paymentStatus === 'REFUNDED' ||
+    refundStatus === 'refunded' ||
+    refundStatus === 'processed';
+
+  if (isRefundCompleted) {
+    return {
+      color: '#10B981',
+      text: `Cancelled · Refund Completed`,
+      subText:
+        'Amount has been successfully refunded via Razorpay to your original payment method.',
+    };
+  }
+
+  if (
     status === 'Refund Processing' ||
+    refundStatus === 'processing' ||
+    refundStatus === 'requested' ||
     status === 'Cancelled' ||
     deliveryStatus === 'Cancelled'
-  )
+  ) {
     return {
       color: '#D97706',
       text: `Cancelled · Refund Processing`,
       subText:
         'Razorpay is processing the refund to your original payment method (5-7 business days).',
     };
+  }
   if (status === 'Delivered' || deliveryStatus === 'Delivered')
     return {
       color: CustomerColors.success,
@@ -194,10 +216,11 @@ export default function OrdersScreen() {
               ? smartRes.value.data.data
               : [];
 
-          // Deduplicate orders by orderId / _id
+          // Deduplicate orders by orderId / _id and exclude abandoned/failed payment attempts
           const seenOrderIds = new Set<string>();
           const uniqueOrders = [...legacyOrders, ...smartOrders].filter(
             order => {
+              if (!isValidPlacedOrder(order)) return false;
               const id = order.orderId || order._id || (order as any).id;
               if (!id) return true;
               if (seenOrderIds.has(id)) return false;
@@ -251,17 +274,32 @@ export default function OrdersScreen() {
         throw new Error(
           response.data?.message || 'Refund could not be initiated.',
         );
+
+      const resData = response.data;
+      const newRefundStatus = resData?.refundStatus || 'refunded';
+      const newPaymentStatus = resData?.paymentStatus || 'REFUNDED';
+      const isCompleted = newRefundStatus === 'refunded' || newPaymentStatus === 'REFUNDED';
+
       setOrders(prev =>
         prev.map(order =>
           (order.orderId || order._id) === selectedRefund.orderId
-            ? { ...order, paymentStatus: 'REFUNDED', orderStatus: 'Cancelled', deliveryStatus: 'Cancelled' }
+            ? {
+                ...order,
+                paymentStatus: newPaymentStatus,
+                refundStatus: newRefundStatus,
+                orderStatus: 'Cancelled',
+                deliveryStatus: 'Cancelled',
+                status: isCompleted ? 'Refund Completed' : 'Refund Processing',
+              }
             : order,
         ),
       );
       setSelectedRefund(null);
       Alert.alert(
-        'Refund Initiated',
-        `₹${amount.toLocaleString()} is currently processing via Razorpay. It usually reaches the original payment method within 5-7 business days.`,
+        isCompleted ? 'Refund Completed' : 'Refund Initiated',
+        isCompleted
+          ? `₹${amount.toLocaleString()} has been successfully refunded via Razorpay to your original payment method.`
+          : `₹${amount.toLocaleString()} is currently processing via Razorpay. It usually reaches the original payment method within 5-7 business days.`,
       );
     } catch (error: any) {
       setRefundError(
@@ -292,6 +330,23 @@ export default function OrdersScreen() {
       const deliveryDate = fmt(deliveryDateObj);
       const items = order.items || [];
 
+      const isRefundCompleted =
+        order.paymentStatus === 'REFUNDED' ||
+        (order as any).refundStatus === 'refunded' ||
+        (order as any).refundStatus === 'processed';
+      const isRefundProcessing =
+        !isRefundCompleted &&
+        ((order as any).refundStatus === 'processing' ||
+          (order as any).refundStatus === 'requested' ||
+          order.orderStatus === 'Cancelled' ||
+          (order as any).deliveryStatus === 'Cancelled');
+
+      const derivedDisplayStatus = isRefundCompleted
+        ? 'Refund Completed'
+        : isRefundProcessing
+        ? 'Refund Processing'
+        : (order as any).status || order.orderStatus || 'Processing';
+
       if (items.length === 0) {
         list.push({
           key: `${order._id || orderIdx}`,
@@ -299,11 +354,12 @@ export default function OrdersScreen() {
           paymentStatus: order.paymentStatus || 'PENDING',
           paymentMethod: order.paymentMethod,
           deliveryStatus: (order as any).deliveryStatus,
+          refundStatus: (order as any).refundStatus,
           title: `Order #${(order._id || '').slice(-6).toUpperCase()}`,
           price: order.totalAmount,
           quantity: 1,
           image: '',
-          displayStatus: (order as any).status || 'Processing',
+          displayStatus: derivedDisplayStatus,
           orderDate,
           deliveryDate,
           createdAt: order.createdAt,
@@ -318,11 +374,12 @@ export default function OrdersScreen() {
             paymentStatus: order.paymentStatus || 'PENDING',
             paymentMethod: order.paymentMethod,
             deliveryStatus: (order as any).deliveryStatus,
+            refundStatus: (order as any).refundStatus,
             title: (it as any).name || it.title || 'Product',
             price: it.price,
             quantity: it.quantity,
             image: it.image || (it as any).imageUrl || '',
-            displayStatus: (order as any).status || 'Processing',
+            displayStatus: derivedDisplayStatus,
             orderDate,
             deliveryDate,
             createdAt: order.createdAt,
@@ -544,6 +601,8 @@ export default function OrdersScreen() {
             item.orderDate,
             item.deliveryDate,
             item.deliveryStatus,
+            item.paymentStatus,
+            item.refundStatus,
           );
 
           return (

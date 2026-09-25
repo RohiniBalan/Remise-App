@@ -5,6 +5,7 @@ import { offersApi } from '../api/offersApi';
 import { smartOrderApi } from '../api/smartOrderApi';
 import { storeProductApi } from '../api/storeProductApi';
 import { useAuth } from './AuthContext';
+import { isValidPlacedOrder } from '../utils/orderValidation';
 
 // Ported from client/app/store/dashboard/page.tsx's loadData() — same
 // sequence (load own store scoped by ownerId -> self-heal role if still
@@ -175,7 +176,7 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
       if (prodRes.status === 'fulfilled') setProducts(prodRes.value.data.data || []);
       if (catRes.status === 'fulfilled') setCategories(catRes.value.data.data || []);
 
-      const offerOrders = ordRes.status === 'fulfilled' ? (ordRes.value.data.data || []).map((o: any) => ({
+      const offerOrders = ordRes.status === 'fulfilled' ? (ordRes.value.data.data || []).filter(isValidPlacedOrder).map((o: any) => ({
         ...o,
         orderId: o.orderId || o._id,
         shippingAddress: o.shippingAddress || {
@@ -192,7 +193,7 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
         totalRefundedAmount: o.refundAmount || (o.paymentStatus === 'Refunded' || o.paymentStatus === 'REFUNDED' ? o.totalAmount : 0),
         refunds: o.refunds || [],
       })) : [];
-      const smartOrders = smartOrdRes.status === 'fulfilled' ? (smartOrdRes.value.data.data || []).map(normalizeSmartOrder) : [];
+      const smartOrders = smartOrdRes.status === 'fulfilled' ? (smartOrdRes.value.data.data || []).filter(isValidPlacedOrder).map(normalizeSmartOrder) : [];
       setOrders([...offerOrders, ...smartOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 
       const failed = [offRes, ordRes, smartOrdRes, prodRes, catRes].filter(r => r.status === 'rejected');

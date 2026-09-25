@@ -24,12 +24,13 @@ import AdminStoresScreen from '../screens/admin/AdminStoresScreen';
 import AdminStoreRegistrationsScreen from '../screens/admin/AdminStoreRegistrationsScreen';
 import AdminBlogsScreen from '../screens/admin/AdminBlogsScreen';
 import AdminPressScreen from '../screens/admin/AdminPressScreen';
+import AdminDeliveryPartnersScreen from '../screens/admin/AdminDeliveryPartnersScreen';
 import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
 import HomeScreen from '../screens/customer/HomeScreen';
 
 // Mirrors client/app/admin/layout/sidebar.tsx's nav structure: Dashboard,
 // Stores, a "Portfolio" group of 14 marketing-content editor pages, then
-// Blogs / Press / Product / Order History / User Management / Dynamic Content / Settings.
+// Blogs / Press / Product / Order History / User Management / Delivery Partners / Dynamic Content / Settings.
 // The custom AdminHeader component renders the slide-in side menu (see its
 // file for why this isn't @react-navigation/drawer).
 
@@ -55,6 +56,7 @@ export type AdminDrawerParamList = {
   AdminProduct: undefined;
   AdminOrderHistory: undefined;
   AdminUsers: undefined;
+  AdminDeliveryPartners: undefined;
   AdminDynamicContent: undefined;
   AdminBlogs: undefined;
   AdminPress: undefined;
@@ -97,6 +99,7 @@ export default function AdminNavigator() {
       <Stack.Screen name="AdminProduct" component={AdminProductScreen} options={{ title: 'Product' }} />
       <Stack.Screen name="AdminOrderHistory" component={AdminOrderHistoryScreen} options={{ title: 'Order History' }} />
       <Stack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: 'User Management' }} />
+      <Stack.Screen name="AdminDeliveryPartners" component={AdminDeliveryPartnersScreen} options={{ title: 'Delivery Partners' }} />
       <Stack.Screen name="AdminDynamicContent" component={AdminDynamicContentScreen} options={{ title: 'Dynamic Content' }} />
       <Stack.Screen name="AdminSettings" component={AdminSettingsScreen} options={{ title: 'Settings' }} />
     </Stack.Navigator>

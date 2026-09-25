@@ -44,6 +44,7 @@ import InvoiceModal from '../../components/common/InvoiceModal';
 import { groupByTitle, TitleGroup } from '../../utils/supplierTypes';
 import { mergeCategories } from '../../utils/storeCategories';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { isValidPlacedOrder } from '../../utils/orderValidation';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Processing: { bg: '#FEF3C7', text: '#92400E' },
@@ -142,7 +143,8 @@ export default function StoreSuppliersScreen() {
     if (!store?.ownerId) return;
     try {
       const res = await orderApi.getMyWholesaleOrders(store.ownerId);
-      setMyOrders(res.data.data || []);
+      const valid = (res.data.data || []).filter(isValidPlacedOrder);
+      setMyOrders(valid);
     } catch {
       /* non-fatal */
     }

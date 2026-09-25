@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, ActivityIndicator } from 'react-native';
-import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { Store } from 'lucide-react-native';
+import { CustomerColors, Spacing, FontSizes } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
 
 interface RemiseLoadingProps {
@@ -11,7 +12,7 @@ interface RemiseLoadingProps {
 }
 
 export default function RemiseLoading({
-  message = 'Loading...',
+  message,
   subMessage,
   fullscreen = false,
   size = 'md',
@@ -20,122 +21,101 @@ export default function RemiseLoading({
 
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0.6)).current;
-
-  useEffect(() => {
-    // Pulse animation for logo ring
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    // Text shimmer/fade animation
-    const fade = Animated.loop(
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.5,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    pulse.start();
-    fade.start();
-
-    return () => {
-      pulse.stop();
-      fade.stop();
-    };
-  }, [pulseAnim, fadeAnim]);
+  const lineAnim = useRef(new Animated.Value(0)).current;
 
   const isSm = size === 'sm';
   const isLg = size === 'lg';
 
-  const circleSize = isSm ? 44 : isLg ? 72 : 56;
-  const fontSize = isSm ? FontSizes.md : isLg ? FontSizes.xxl : FontSizes.xl;
+  const trackWidth = isSm ? 100 : isLg ? 160 : 130;
+  const barWidth = trackWidth * 0.4;
+  const iconSize = isSm ? 28 : isLg ? 48 : 38;
+  const fontSize = isSm ? FontSizes.lg : isLg ? 30 : FontSizes.xxl;
+
+  useEffect(() => {
+    // Pulse animation for the store icon
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // Continuous left-to-right line loading animation
+    const lineSlide = Animated.loop(
+      Animated.timing(lineAnim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      })
+    );
+
+    pulse.start();
+    lineSlide.start();
+
+    return () => {
+      pulse.stop();
+      lineSlide.stop();
+    };
+  }, [pulseAnim, lineAnim]);
+
+  const translateX = lineAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-barWidth, trackWidth],
+  });
 
   const content = (
     <View style={[styles.innerContainer, fullscreen && styles.fullscreenInner]}>
-      {/* Outer Pulse Ring & Icon */}
-      <View style={{ width: circleSize + 20, height: circleSize + 20, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+      {/* ── 1. Store Icon in Website's Color (#FF0000) ─────────────── */}
+      <Animated.View
+        style={[
+          styles.iconWrap,
+          {
+            transform: [{ scale: pulseAnim }],
+          },
+        ]}
+      >
+        <Store size={iconSize} color={CustomerColors.primary} />
+      </Animated.View>
+
+      {/* ── 2. Remise Text in Same Color (#FF0000) ─────────────────── */}
+      <Text style={[styles.brandText, { fontSize, color: CustomerColors.primary }]}>
+        Remise
+      </Text>
+
+      {/* ── 3. Line Loading in Same Color (#FF0000) ────────────────── */}
+      <View
+        style={[
+          styles.track,
+          {
+            width: trackWidth,
+            backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : 'rgba(255, 0, 0, 0.12)',
+          },
+        ]}
+      >
         <Animated.View
           style={[
-            styles.pulseRing,
+            styles.activeBar,
             {
-              width: circleSize + 16,
-              height: circleSize + 16,
-              borderRadius: (circleSize + 16) / 2,
-              backgroundColor: isDark ? 'rgba(45, 212, 191, 0.15)' : 'rgba(13, 148, 136, 0.12)',
-              transform: [{ scale: pulseAnim }],
+              width: barWidth,
+              backgroundColor: CustomerColors.primary,
+              transform: [{ translateX }],
             },
           ]}
         />
-        <View
-          style={[
-            styles.circle,
-            {
-              width: circleSize,
-              height: circleSize,
-              borderRadius: circleSize / 2,
-              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-              borderColor: isDark ? '#2DD4BF' : CustomerColors.teal600,
-            },
-          ]}
-        >
-          <ActivityIndicator
-            size={isSm ? 'small' : 'small'}
-            color={isDark ? '#2DD4BF' : CustomerColors.teal600}
-            style={styles.spinner}
-          />
-          <Text
-            style={[
-              styles.lettermark,
-              {
-                fontSize: isSm ? 16 : isLg ? 26 : 20,
-                color: isDark ? '#2DD4BF' : CustomerColors.teal700,
-              },
-            ]}
-          >
-            R
-          </Text>
-        </View>
       </View>
 
-      {/* Brand Text: Remise */}
-      <Animated.View style={{ opacity: fadeAnim, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <Text
-          style={[
-            styles.brandText,
-            {
-              fontSize,
-              color: isDark ? '#2DD4BF' : CustomerColors.teal700,
-            },
-          ]}
-        >
-          Remise
-        </Text>
-      </Animated.View>
-
-      {/* Message */}
+      {/* ── Optional Message & SubMessage ──────────────────────────── */}
       {message ? (
         <Text
           style={[
@@ -171,7 +151,7 @@ export default function RemiseLoading({
         style={[
           styles.fullscreenContainer,
           {
-            backgroundColor: isDark ? '#111827' : '#F9FAFB',
+            backgroundColor: isDark ? '#0B0E14' : '#FFFFFF',
           },
         ]}
       >
@@ -202,35 +182,29 @@ const styles = StyleSheet.create({
   fullscreenInner: {
     paddingBottom: Spacing.xxl,
   },
-  pulseRing: {
-    position: 'absolute',
-  },
-  circle: {
+  iconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  spinner: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-  },
-  lettermark: {
-    fontWeight: '900',
-    letterSpacing: -0.5,
+    marginBottom: Spacing.xs,
   },
   brandText: {
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    marginBottom: Spacing.xs,
+  },
+  track: {
+    height: 3.5,
+    borderRadius: 2,
+    overflow: 'hidden',
     marginTop: 2,
+    marginBottom: Spacing.xs,
+  },
+  activeBar: {
+    height: '100%',
+    borderRadius: 2,
   },
   message: {
-    marginTop: 6,
+    marginTop: 8,
     fontWeight: '600',
     textAlign: 'center',
   },

@@ -14,6 +14,8 @@ export interface CartItem {
 
 interface CartContextValue {
   cart: CartItem[];
+  cartMap: Map<string, CartItem>;
+  getItemQuantity: (id: string) => number;
   cartCount: number;
   buyNowItem: CartItem | null;
   setBuyNowItem: (item: CartItem | null) => void;
@@ -136,11 +138,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     persist([]);
   }, [persist]);
 
+  const cartMap = useMemo(() => {
+    const map = new Map<string, CartItem>();
+    for (const item of cart) {
+      if (item.id) map.set(item.id, item);
+    }
+    return map;
+  }, [cart]);
+
+  const getItemQuantity = useCallback(
+    (id: string): number => {
+      return cartMap.get(id)?.quantity || 0;
+    },
+    [cartMap],
+  );
+
   const cartCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
 
   return (
     <CartContext.Provider
-      value={{ cart, cartCount, buyNowItem, setBuyNowItem, addToCart, removeFromCart, decreaseQuantity, clearCart }}>
+      value={{
+        cart,
+        cartMap,
+        getItemQuantity,
+        cartCount,
+        buyNowItem,
+        setBuyNowItem,
+        addToCart,
+        removeFromCart,
+        decreaseQuantity,
+        clearCart,
+      }}>
       {children}
     </CartContext.Provider>
   );

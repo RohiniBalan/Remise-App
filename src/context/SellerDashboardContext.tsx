@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { storeApi } from '../api/storeApi';
 import { storeProductApi } from '../api/storeProductApi';
 import { sellerOrderApi, sellerStoreApi, SellerOrder } from '../api/sellerApi';
+import { isValidPlacedOrder } from '../utils/orderValidation';
 
 // Ported from client/app/store/seller/page.tsx's loadData(). Same two known
 // gaps as web (see seller-analytics.ts comments there): no buyer store
@@ -134,7 +135,7 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
 
     let loadedOrders: SellerOrder[] = [];
     if (ordRes.status === 'fulfilled') {
-      loadedOrders = (ordRes.value.data as any).data || [];
+      loadedOrders = ((ordRes.value.data as any).data || []).filter(isValidPlacedOrder);
       setOrders(loadedOrders);
     }
 

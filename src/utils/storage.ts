@@ -22,7 +22,7 @@ export interface StoredUser {
   name?: string;
   email: string;
   mobilenumber?: string;
-  role: 'user' | 'store_owner' | 'admin' | 'whole_saler' | 'wholesaler' | 'home_business';
+  role: 'user' | 'store_owner' | 'admin' | 'whole_saler' | 'wholesaler' | 'home_business' | 'delivery_person';
   isEmailVerified?: boolean;
   avatar?: string;
   dob?: string;

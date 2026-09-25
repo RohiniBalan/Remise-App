@@ -12,7 +12,18 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Store, ChevronDown, Search, X, Check, MapPin, CreditCard, ShieldCheck, CheckCircle2, Truck } from 'lucide-react-native';
+import {
+  Store,
+  ChevronDown,
+  Search,
+  X,
+  Check,
+  MapPin,
+  CreditCard,
+  ShieldCheck,
+  CheckCircle2,
+  Truck,
+} from 'lucide-react-native';
 import { State, City } from 'country-state-city';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useSupplierCart } from '../../context/SupplierCartContext';
@@ -20,7 +31,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { orderApi } from '../../api/orderApi';
 import { paymentApi, PAYMENT_RETURN_SENTINEL } from '../../api/paymentApi';
-import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import {
+  CustomerColors,
+  Spacing,
+  FontSizes,
+  BorderRadius,
+} from '../../styles/theme';
 
 const indianStates = State.getStatesOfCountry('IN');
 const getCities = (stateCode: string) => City.getCitiesOfState('IN', stateCode);
@@ -35,8 +51,12 @@ export default function StoreSupplierCartScreen() {
   const [placing, setPlacing] = useState(false);
 
   const [form, setForm] = useState({
-    firstName: store?.ownerName?.split(' ')[0] || user?.name?.split(' ')[0] || '',
-    lastName: store?.ownerName?.split(' ').slice(1).join(' ') || user?.name?.split(' ').slice(1).join(' ') || '',
+    firstName:
+      store?.ownerName?.split(' ')[0] || user?.name?.split(' ')[0] || '',
+    lastName:
+      store?.ownerName?.split(' ').slice(1).join(' ') ||
+      user?.name?.split(' ').slice(1).join(' ') ||
+      '',
     phone: store?.phone || user?.mobilenumber || '',
     contactEmail: store?.email || user?.email || '',
     address: store?.address?.street || '',
@@ -85,7 +105,9 @@ export default function StoreSupplierCartScreen() {
     setIsFetchingPin(true);
     try {
       const res = await fetch(
-        `https://api.postalpincode.in/postoffice/${encodeURIComponent(cityName)}`,
+        `https://api.postalpincode.in/postoffice/${encodeURIComponent(
+          cityName,
+        )}`,
       );
       const data = await res.json();
       if (data[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
@@ -118,24 +140,36 @@ export default function StoreSupplierCartScreen() {
   cartLines.forEach((i: any) => {
     (groupsBySupplier[i.storeId] = groupsBySupplier[i.storeId] || []).push(i);
   });
-  const orderGroups = Object.entries(groupsBySupplier).map(([storeId, items]) => ({
-    storeId,
-    storeName: items[0].storeName,
-    items: items.map((i: any) => ({
-      productId: i.productId,
-      title: i.title,
-      price: i.price,
-      quantity: i.qty,
-      image: i.image,
-      moq: i.moq,
-      tierLabel: i.tierLabel,
-    })),
-    totalAmount: items.reduce((s: number, i: any) => s + i.price * i.qty, 0),
-  }));
+  const orderGroups = Object.entries(groupsBySupplier).map(
+    ([storeId, items]) => ({
+      storeId,
+      storeName: items[0].storeName,
+      items: items.map((i: any) => ({
+        productId: i.productId,
+        title: i.title,
+        price: i.price,
+        quantity: i.qty,
+        image: i.image,
+        moq: i.moq,
+        tierLabel: i.tierLabel,
+      })),
+      totalAmount: items.reduce((s: number, i: any) => s + i.price * i.qty, 0),
+    }),
+  );
 
   const handlePlaceOrder = async () => {
-    if (!form.firstName.trim() || !form.phone.trim() || !form.address.trim() || !form.city.trim() || !form.state.trim() || !form.pinCode.trim()) {
-      Alert.alert('Incomplete Details', 'Please fill in all mandatory delivery address fields.');
+    if (
+      !form.firstName.trim() ||
+      !form.phone.trim() ||
+      !form.address.trim() ||
+      !form.city.trim() ||
+      !form.state.trim() ||
+      !form.pinCode.trim()
+    ) {
+      Alert.alert(
+        'Incomplete Details',
+        'Please fill in all mandatory delivery address fields.',
+      );
       return;
     }
 
@@ -176,11 +210,13 @@ export default function StoreSupplierCartScreen() {
         contactEmail: form.contactEmail || user?.email || '',
         shippingAddress,
         billingAddress: shippingAddress,
+        deliveryMethod: 'delivery',
         paymentMethod: 'razorpay',
       });
 
       const data = res.data;
-      const targetOrderId = data?.razorpayOrderId || data?.orderId || data?.order?._id;
+      const targetOrderId =
+        data?.razorpayOrderId || data?.orderId || data?.order?._id;
 
       // 2. Concurrently record wholesale order in wholesale microservice
       orderApi.placeWholesaleOrders(orderGroups, form).catch(() => {});
@@ -197,7 +233,10 @@ export default function StoreSupplierCartScreen() {
           name: orderGroups[0]?.storeName || 'Remise Wholesale',
           description: `Wholesale Order #${data.orderId || targetOrderId}`,
           customer: {
-            name: `${form.firstName} ${form.lastName}`.trim() || user?.name || 'Store Owner',
+            name:
+              `${form.firstName} ${form.lastName}`.trim() ||
+              user?.name ||
+              'Store Owner',
             email: form.contactEmail || user?.email || '',
             contact: form.phone || user?.mobilenumber || '',
           },
@@ -308,7 +347,10 @@ export default function StoreSupplierCartScreen() {
               <View style={{ marginBottom: Spacing.sm }}>
                 <Text style={styles.label}>Delivery Address / Street *</Text>
                 <TextInput
-                  style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
+                  style={[
+                    styles.input,
+                    { minHeight: 60, textAlignVertical: 'top' },
+                  ]}
                   value={form.address}
                   onChangeText={v => set('address', v)}
                   placeholder="House / Building / Street address"
@@ -326,12 +368,17 @@ export default function StoreSupplierCartScreen() {
                   activeOpacity={0.8}
                 >
                   <Text
-                    style={form.state ? styles.selectValue : styles.selectPlaceholder}
+                    style={
+                      form.state ? styles.selectValue : styles.selectPlaceholder
+                    }
                     numberOfLines={1}
                   >
                     {form.state || 'Select State'}
                   </Text>
-                  <ChevronDown size={18} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                  <ChevronDown
+                    size={18}
+                    color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -339,10 +386,16 @@ export default function StoreSupplierCartScreen() {
               <View style={{ marginBottom: Spacing.sm }}>
                 <Text style={styles.label}>City *</Text>
                 <TouchableOpacity
-                  style={[styles.selectInput, !form.state && styles.selectDisabled]}
+                  style={[
+                    styles.selectInput,
+                    !form.state && styles.selectDisabled,
+                  ]}
                   onPress={() => {
                     if (!form.state) {
-                      Alert.alert('Select State', 'Please select a state first to view cities.');
+                      Alert.alert(
+                        'Select State',
+                        'Please select a state first to view cities.',
+                      );
                       return;
                     }
                     setCityModalOpen(true);
@@ -350,23 +403,52 @@ export default function StoreSupplierCartScreen() {
                   activeOpacity={0.8}
                 >
                   <Text
-                    style={form.city ? styles.selectValue : styles.selectPlaceholder}
+                    style={
+                      form.city ? styles.selectValue : styles.selectPlaceholder
+                    }
                     numberOfLines={1}
                   >
-                    {form.city || (form.state ? 'Select City' : 'Choose state first')}
+                    {form.city ||
+                      (form.state ? 'Select City' : 'Choose state first')}
                   </Text>
-                  <ChevronDown size={18} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                  <ChevronDown
+                    size={18}
+                    color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+                  />
                 </TouchableOpacity>
               </View>
 
               {/* Pincode (Auto-filled on City selection + editable) */}
               <View style={{ marginBottom: Spacing.sm }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 4,
+                  }}
+                >
                   <Text style={styles.label}>Pin Code *</Text>
                   {isFetchingPin && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <ActivityIndicator size="small" color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                      <Text style={{ fontSize: 10, color: isDark ? '#2DD4BF' : CustomerColors.teal700 }}>Auto-detecting...</Text>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <ActivityIndicator
+                        size="small"
+                        color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+                        }}
+                      >
+                        Auto-detecting...
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -396,15 +478,27 @@ export default function StoreSupplierCartScreen() {
                   <View style={styles.deliveryRadioInner} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Truck size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.deliveryTitle}>Home / Store Delivery</Text>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Truck
+                      size={18}
+                      color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+                    />
+                    <Text style={styles.deliveryTitle}>
+                      Home / Store Delivery
+                    </Text>
                     <View style={styles.selectedPill}>
                       <Text style={styles.selectedPillText}>Selected</Text>
                     </View>
                   </View>
                   <Text style={styles.deliverySubtitle}>
-                    Suppliers will dispatch and deliver stock packages directly to your entered address.
+                    Suppliers will dispatch and deliver stock packages directly
+                    to your entered address.
                   </Text>
                 </View>
               </View>
@@ -422,7 +516,10 @@ export default function StoreSupplierCartScreen() {
         renderItem={({ item: g }) => (
           <View style={styles.supplierGroup}>
             <View style={styles.supplierHeader}>
-              <Store size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Store
+                size={15}
+                color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+              />
               <Text style={styles.supplierName}>{g.storeName}</Text>
             </View>
             {g.items.map((i: any) => (
@@ -457,9 +554,20 @@ export default function StoreSupplierCartScreen() {
                   <View style={styles.paymentRadioInner} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <CreditCard size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.paymentTitle}>Online Payment (Razorpay)</Text>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <CreditCard
+                      size={18}
+                      color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+                    />
+                    <Text style={styles.paymentTitle}>
+                      Online Payment (Razorpay)
+                    </Text>
                   </View>
                   <Text style={styles.paymentSubtitle}>
                     UPI, Credit/Debit Cards, NetBanking & Wallets
@@ -467,7 +575,10 @@ export default function StoreSupplierCartScreen() {
                 </View>
               </View>
               <View style={styles.securityBadge}>
-                <ShieldCheck size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                <ShieldCheck
+                  size={14}
+                  color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+                />
                 <Text style={styles.securityBadgeText}>
                   Secure 256-bit SSL encrypted payment
                 </Text>
@@ -485,7 +596,9 @@ export default function StoreSupplierCartScreen() {
             <View style={styles.totalCard}>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total Payable</Text>
-                <Text style={styles.totalValue}>₹{cartTotal.toLocaleString('en-IN')}</Text>
+                <Text style={styles.totalValue}>
+                  ₹{cartTotal.toLocaleString('en-IN')}
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.placeBtn}
@@ -496,7 +609,9 @@ export default function StoreSupplierCartScreen() {
                 {placing ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.placeBtnText}>Place Stock Order & Pay</Text>
+                  <Text style={styles.placeBtnText}>
+                    Place Stock Order & Pay
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -516,16 +631,25 @@ export default function StoreSupplierCartScreen() {
           activeOpacity={1}
           onPress={() => setStateModalOpen(false)}
         >
-          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+          <View
+            style={styles.modalSheet}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select State</Text>
               <TouchableOpacity onPress={() => setStateModalOpen(false)}>
-                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                <X
+                  size={20}
+                  color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+                />
               </TouchableOpacity>
             </View>
 
             <View style={styles.modalSearchBox}>
-              <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              <Search
+                size={16}
+                color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+              />
               <TextInput
                 style={styles.modalSearchInput}
                 placeholder="Search state..."
@@ -553,7 +677,10 @@ export default function StoreSupplierCartScreen() {
                     {item.name}
                   </Text>
                   {form.state === item.name && (
-                    <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    <Check
+                      size={16}
+                      color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+                    />
                   )}
                 </TouchableOpacity>
               )}
@@ -577,16 +704,25 @@ export default function StoreSupplierCartScreen() {
           activeOpacity={1}
           onPress={() => setCityModalOpen(false)}
         >
-          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+          <View
+            style={styles.modalSheet}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select City</Text>
               <TouchableOpacity onPress={() => setCityModalOpen(false)}>
-                <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+                <X
+                  size={20}
+                  color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+                />
               </TouchableOpacity>
             </View>
 
             <View style={styles.modalSearchBox}>
-              <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              <Search
+                size={16}
+                color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
+              />
               <TextInput
                 style={styles.modalSearchInput}
                 placeholder="Search city..."
@@ -614,12 +750,17 @@ export default function StoreSupplierCartScreen() {
                     {item.name}
                   </Text>
                   {form.city === item.name && (
-                    <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    <Check
+                      size={16}
+                      color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+                    />
                   )}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <Text style={styles.modalEmpty}>No cities found for this state</Text>
+                <Text style={styles.modalEmpty}>
+                  No cities found for this state
+                </Text>
               }
             />
           </View>
@@ -631,7 +772,10 @@ export default function StoreSupplierCartScreen() {
 
 const getStyles = (isDark: boolean) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg,
+    },
     sectionHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -719,20 +863,32 @@ const getStyles = (isDark: boolean) =>
       padding: Spacing.md,
       marginBottom: Spacing.sm,
     },
-    supplierHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+    supplierHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+    },
     supplierName: {
       fontSize: FontSizes.sm,
       fontWeight: '700',
       color: isDark ? '#F9FAFB' : CustomerColors.black,
     },
-    itemRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
     itemTitle: {
       fontSize: FontSizes.xs,
       color: isDark ? '#E5E7EB' : '#374151',
       flex: 1,
       paddingRight: 6,
     },
-    itemMeta: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+    itemMeta: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    },
     supplierTotal: {
       fontSize: FontSizes.xs,
       fontWeight: '700',
@@ -877,7 +1033,11 @@ const getStyles = (isDark: boolean) =>
       borderRadius: BorderRadius.md,
       alignItems: 'center',
     },
-    placeBtnText: { color: '#fff', fontWeight: '800', fontSize: FontSizes.base },
+    placeBtnText: {
+      color: '#fff',
+      fontWeight: '800',
+      fontSize: FontSizes.base,
+    },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',

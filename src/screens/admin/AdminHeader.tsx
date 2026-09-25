@@ -276,6 +276,7 @@ export default function AdminHeader({ navigation, options, route }: any) {
               <MenuItem label="Product" textColor={themeColors.textPrimary} onPress={() => go('AdminProduct')} />
               <MenuItem label="Order History" textColor={themeColors.textPrimary} onPress={() => go('AdminOrderHistory')} />
               <MenuItem label="User Management" textColor={themeColors.textPrimary} onPress={() => go('AdminUsers')} />
+              <MenuItem label="Delivery Partners" textColor={themeColors.textPrimary} onPress={() => go('AdminDeliveryPartners')} />
               <MenuItem label="Dynamic Content" textColor={themeColors.textPrimary} onPress={() => go('AdminDynamicContent')} />
               <MenuItem 
                 label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`} 

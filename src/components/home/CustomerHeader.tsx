@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ShoppingCart, User, Package, Percent, Settings as SettingsIcon, LogOut, Sun, Moon } from 'lucide-react-native';
+import { Bell, ShoppingCart, User, Package, Percent, Settings as SettingsIcon, LogOut, Sun, Moon, Truck } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,6 +26,14 @@ export default function CustomerHeader() {
     () => (user?.fullname || user?.name || user?.email || '?').trim().charAt(0).toUpperCase(),
     [user],
   );
+
+  const isDeliveryPartner =
+    (user?.role as string) === 'delivery' ||
+    (user?.role as string) === 'delivery_partner' ||
+    (user?.role as string) === 'delivery_boy' ||
+    user?.role === 'delivery_person' ||
+    (typeof user?.role === 'string' && (user.role as string).toLowerCase().includes('delivery')) ||
+    !!(user as any)?.deliveryPartner;
 
   const goToMenuItem = (route: string) => {
     setMenuOpen(false);
@@ -110,6 +118,9 @@ export default function CustomerHeader() {
             <MenuItem icon={User} label="My Profile" onPress={() => goToMenuItem('Profile')} />
             <MenuItem icon={Package} label="My Orders" onPress={() => goToMenuItem('Orders')} />
             <MenuItem icon={Percent} label="My Offers" onPress={() => goToMenuItem('MyOffers')} />
+            {isDeliveryPartner && (
+              <MenuItem icon={Truck} label="My Dashboard" onPress={() => goToMenuItem('DeliveryDashboard')} />
+            )}
             <MenuItem icon={SettingsIcon} label="Settings" onPress={() => goToMenuItem('Settings')} />
             <View style={styles.menuDivider} />
             <MenuItem icon={LogOut} label="Sign Out" onPress={handleSignOut} destructive />

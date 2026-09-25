@@ -33,6 +33,7 @@ export interface InitiatePaymentPayload {
   contactEmail: string;
   shippingAddress: AddressData;
   billingAddress: AddressData;
+  deliveryMethod: 'delivery' | 'pickup';
   paymentMethod: 'razorpay' | 'cod' | 'phonepe' | 'qr';
 }
 

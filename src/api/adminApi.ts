@@ -47,3 +47,11 @@ export const adminStoreApi = {
   resendRegistrationEmail: (id: string) => gatewayClient.post(`/api/stores/admin/registrations/${id}/resend-email`),
 };
 
+export const adminDeliveryPartnerApi = {
+  getAll: (status?: string) =>
+    gatewayClient.get(status ? `/api/admin/delivery-partners?status=${status}` : '/api/admin/delivery-partners'),
+  performAction: (id: string, action: 'APPROVE' | 'REJECT' | 'SUSPEND') =>
+    gatewayClient.patch(`/api/admin/delivery-partners/${id}/action`, { action }),
+};
+
+

@@ -34,6 +34,7 @@ import { smartOrderApi } from '../../api/smartOrderApi';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { GATEWAY_URL } from '../../api/endpoints';
+import LiveDeliveryTrackingMap from '../../components/common/LiveDeliveryTrackingMap';
 
 export default function StoreOrderTrackingScreen() {
   const insets = useSafeAreaInsets();
@@ -196,6 +197,19 @@ export default function StoreOrderTrackingScreen() {
               </View>
             </View>
           </View>
+
+          {/* Real-time Live GPS Delivery Partner Tracking Map (Store View) */}
+          <LiveDeliveryTrackingMap
+            orderId={orderId}
+            deliveryStatus={currentStatus}
+            driver={driver}
+            storeName={order?.store?.name || order?.storeName}
+            storeAddress={order?.store?.address || 'Store Location'}
+            customerName={order?.customerName}
+            customerAddress={order?.deliveryAddress?.fullAddress || 'Customer Address'}
+            isStoreOwner={true}
+            isDark={isDark}
+          />
 
           {/* Assigned Driver Card */}
           {driver?.name ? (

@@ -145,6 +145,25 @@ export const smartOrderApi = {
 
   deleteStoreDeliveryPerson: (personId: string) =>
     gatewayClient.delete(`/api/stores/delivery-persons/${personId}`),
+
+  applyAsDeliveryPartner: (payload: { vehicleType: string; vehicleNumber: string; address?: string; verificationDetails?: Record<string, unknown> }) =>
+    gatewayClient.post('/api/user/delivery-partner/apply', payload),
+
+  getDeliveryPartnerProfile: () => gatewayClient.get('/api/user/delivery-partner/profile'),
+
+  updateDeliveryPartnerProfile: (payload: { fullname?: string; mobilenumber?: string; vehicleType?: string; vehicleNumber?: string; address?: string }) =>
+    gatewayClient.put('/api/user/delivery-partner/profile', payload),
+
+  updateDeliveryPartnerAvailability: (availability: 'AVAILABLE' | 'OFFLINE', coordinates?: [number, number]) =>
+    gatewayClient.patch('/api/user/delivery-partner/availability', { availability, coordinates }),
+
+  getDeliveryPartnerDashboard: () => gatewayClient.get('/api/orders/delivery/partner/dashboard'),
+
+  acceptDeliveryPartnerRequest: (orderId: string) => gatewayClient.post(`/api/orders/delivery/partner/requests/${orderId}/accept`),
+
+  declineDeliveryPartnerRequest: (orderId: string, reason?: string) => gatewayClient.post(`/api/orders/delivery/partner/requests/${orderId}/decline`, { reason }),
+
+  updateDeliveryPartnerStatus: (orderId: string, status: string, note?: string) => gatewayClient.post(`/api/orders/delivery/partner/${orderId}/status`, { status, note }),
 };
 
 

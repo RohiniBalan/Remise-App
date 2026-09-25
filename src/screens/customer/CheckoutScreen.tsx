@@ -34,7 +34,13 @@ import {
 } from '../../api/paymentApi';
 import AddressFormFields from '../../components/common/AddressFormFields';
 import BrandHeader from '../../components/common/BrandHeader';
-import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import {
+  CustomerColors,
+  Spacing,
+  FontSizes,
+  BorderRadius,
+  Shadows,
+} from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { useTheme } from '../../context/ThemeContext';
 import { navigateToAuthFlow } from '../../utils/authGuard';
@@ -81,8 +87,13 @@ export default function CheckoutScreen() {
     }
     return base;
   });
-  const [billingAddress, setBillingAddress] = useState<AddressData>(emptyAddress());
+  const [billingAddress, setBillingAddress] = useState<AddressData>(
+    emptyAddress(),
+  );
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>(
+    'delivery',
+  );
   const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -93,7 +104,8 @@ export default function CheckoutScreen() {
     [itemsToCheckout],
   );
 
-  const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+  const isEmailValid = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
   const isPhoneValid = (phone: string) => /^\d{10}$/.test((phone || '').trim());
 
   const isShippingValid =
@@ -164,6 +176,7 @@ export default function CheckoutScreen() {
         billingAddress: billingSameAsShipping
           ? shippingAddress
           : billingAddress,
+        deliveryMethod,
         paymentMethod: 'razorpay',
       });
 
@@ -180,12 +193,17 @@ export default function CheckoutScreen() {
           name: data.name || 'Remise Marketplace',
           description: data.description || `Order #${data.orderId}`,
           customer: {
-            name: `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() || data.customer?.name,
+            name:
+              `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() ||
+              data.customer?.name,
             email: contactEmail || data.customer?.email,
             contact: shippingAddress.phone || data.customer?.contact,
           },
         };
-        navigation.navigate('RazorpayWebView', { options, orderId: data.orderId });
+        navigation.navigate('RazorpayWebView', {
+          options,
+          orderId: data.orderId,
+        });
         return;
       }
 
@@ -203,10 +221,14 @@ export default function CheckoutScreen() {
 
   if (itemsToCheckout.length === 0) {
     return (
-      <View style={[styles.container, isDark && { backgroundColor: '#0a0f1d' }]}>
+      <View
+        style={[styles.container, isDark && { backgroundColor: '#0a0f1d' }]}
+      >
         <BrandHeader />
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>There is nothing to checkout.</Text>
+          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>
+            There is nothing to checkout.
+          </Text>
           <TouchableOpacity
             style={styles.emptyBtn}
             onPress={() =>
@@ -225,7 +247,15 @@ export default function CheckoutScreen() {
       <BrandHeader />
 
       {/* Header bar */}
-      <View style={[styles.headerBar, isDark && { backgroundColor: '#111827', borderBottomColor: '#1F2937' }]}>
+      <View
+        style={[
+          styles.headerBar,
+          isDark && {
+            backgroundColor: '#111827',
+            borderBottomColor: '#1F2937',
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => {
             setBuyNowItem(null);
@@ -233,21 +263,60 @@ export default function CheckoutScreen() {
           }}
           style={styles.backBtn}
         >
-          <ChevronLeft size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
+          <ChevronLeft
+            size={20}
+            color={isDark ? '#FFFFFF' : CustomerColors.black}
+          />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-            <Text style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}>Secure Checkout</Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: Spacing.xs,
+            }}
+          >
+            <Text style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}>
+              Secure Checkout
+            </Text>
             {buyNowItem ? (
-              <View style={[styles.buyNowPill, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)', borderColor: '#006D77' }]}>
-                <Text style={[styles.buyNowPillText, isDark && { color: '#5EEAD4' }]}>BUY NOW</Text>
+              <View
+                style={[
+                  styles.buyNowPill,
+                  isDark && {
+                    backgroundColor: 'rgba(15, 163, 177, 0.2)',
+                    borderColor: '#006D77',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.buyNowPillText,
+                    isDark && { color: '#5EEAD4' },
+                  ]}
+                >
+                  BUY NOW
+                </Text>
               </View>
             ) : null}
           </View>
         </View>
-        <View style={[styles.sslBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.15)', borderColor: 'rgba(15, 163, 177, 0.3)' }]}>
-          <ShieldCheck size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
-          <Text style={[styles.sslBadgeText, isDark && { color: '#5EEAD4' }]}>256-Bit SSL</Text>
+        <View
+          style={[
+            styles.sslBadge,
+            isDark && {
+              backgroundColor: 'rgba(15, 163, 177, 0.15)',
+              borderColor: 'rgba(15, 163, 177, 0.3)',
+            },
+          ]}
+        >
+          <ShieldCheck
+            size={12}
+            color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+          />
+          <Text style={[styles.sslBadgeText, isDark && { color: '#5EEAD4' }]}>
+            256-Bit SSL
+          </Text>
         </View>
       </View>
 
@@ -263,41 +332,83 @@ export default function CheckoutScreen() {
         ) : null}
 
         {/* 1. Order Items Summary (Kept Intact) */}
-        <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+        <View
+          style={[
+            styles.card,
+            isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+          ]}
+        >
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>Order Summary</Text>
-            <Text style={[styles.itemCountText, isDark && { color: '#5EEAD4' }]}>
-              {itemsToCheckout.length} item{itemsToCheckout.length !== 1 ? 's' : ''}
+            <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>
+              Order Summary
+            </Text>
+            <Text
+              style={[styles.itemCountText, isDark && { color: '#5EEAD4' }]}
+            >
+              {itemsToCheckout.length} item
+              {itemsToCheckout.length !== 1 ? 's' : ''}
             </Text>
           </View>
 
           {itemsToCheckout.map(item => (
-            <View key={item.id} style={[styles.lineItem, isDark && { borderBottomColor: '#1F2937' }]}>
+            <View
+              key={item.id}
+              style={[
+                styles.lineItem,
+                isDark && { borderBottomColor: '#1F2937' },
+              ]}
+            >
               <Image
                 source={{ uri: resolveImageUrl(item.image) }}
-                style={[styles.lineImage, isDark && { backgroundColor: '#1F2937' }]}
+                style={[
+                  styles.lineImage,
+                  isDark && { backgroundColor: '#1F2937' },
+                ]}
               />
               <View style={styles.lineInfo}>
-                <Text style={[styles.lineTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={2}>
+                <Text
+                  style={[styles.lineTitle, isDark && { color: '#FFFFFF' }]}
+                  numberOfLines={2}
+                >
                   {item.title}
                 </Text>
                 <View style={styles.lineBottomRow}>
-                  <View style={[styles.qtyStepper, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
+                  <View
+                    style={[
+                      styles.qtyStepper,
+                      isDark && {
+                        backgroundColor: '#1F2937',
+                        borderColor: '#374151',
+                      },
+                    ]}
+                  >
                     <TouchableOpacity
                       style={styles.qtyBtn}
                       onPress={() => decreaseQuantity(item.id)}
                     >
-                      <Minus size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
+                      <Minus
+                        size={12}
+                        color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+                      />
                     </TouchableOpacity>
-                    <Text style={[styles.qtyValue, isDark && { color: '#FFFFFF' }]}>{item.quantity}</Text>
+                    <Text
+                      style={[styles.qtyValue, isDark && { color: '#FFFFFF' }]}
+                    >
+                      {item.quantity}
+                    </Text>
                     <TouchableOpacity
                       style={styles.qtyBtn}
                       onPress={() => addToCart(item)}
                     >
-                      <Plus size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
+                      <Plus
+                        size={12}
+                        color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+                      />
                     </TouchableOpacity>
                   </View>
-                  <Text style={[styles.linePrice, isDark && { color: '#2DD4BF' }]}>
+                  <Text
+                    style={[styles.linePrice, isDark && { color: '#2DD4BF' }]}
+                  >
                     ₹{(item.price * item.quantity).toLocaleString()}
                   </Text>
                   <TouchableOpacity
@@ -313,22 +424,50 @@ export default function CheckoutScreen() {
 
           <View style={styles.priceStrip}>
             <View style={styles.priceRow}>
-              <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>Subtotal</Text>
-              <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>₹{subtotal.toLocaleString()}</Text>
+              <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
+                Subtotal
+              </Text>
+              <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>
+                ₹{subtotal.toLocaleString()}
+              </Text>
             </View>
             <View style={styles.priceRow}>
-              <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>Delivery</Text>
-              <Text style={[styles.priceValue, { color: isDark ? '#4ADE80' : '#15803D' }]}>FREE</Text>
+              <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
+                Delivery
+              </Text>
+              <Text
+                style={[
+                  styles.priceValue,
+                  { color: isDark ? '#4ADE80' : '#15803D' },
+                ]}
+              >
+                FREE
+              </Text>
             </View>
-            <View style={[styles.priceRow, styles.totalRow, isDark && { borderTopColor: '#1F2937' }]}>
-              <Text style={[styles.totalLabel, isDark && { color: '#FFFFFF' }]}>Total Payable</Text>
-              <Text style={[styles.totalValue, isDark && { color: '#2DD4BF' }]}>₹{subtotal.toLocaleString()}</Text>
+            <View
+              style={[
+                styles.priceRow,
+                styles.totalRow,
+                isDark && { borderTopColor: '#1F2937' },
+              ]}
+            >
+              <Text style={[styles.totalLabel, isDark && { color: '#FFFFFF' }]}>
+                Total Payable
+              </Text>
+              <Text style={[styles.totalValue, isDark && { color: '#2DD4BF' }]}>
+                ₹{subtotal.toLocaleString()}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* ── Stepper Navigation Header ── */}
-        <View style={[styles.stepperCard, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+        <View
+          style={[
+            styles.stepperCard,
+            isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+          ]}
+        >
           <View style={styles.stepperContainer}>
             {/* Step 1 Tab */}
             <TouchableOpacity
@@ -339,9 +478,14 @@ export default function CheckoutScreen() {
               <View
                 style={[
                   styles.stepBadge,
-                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                  isDark && {
+                    backgroundColor: '#1F2937',
+                    borderColor: '#374151',
+                  },
                   currentStep === 1 && styles.stepBadgeActive,
-                  currentStep > 1 && isEmailValid(contactEmail) && styles.stepBadgeDone,
+                  currentStep > 1 &&
+                    isEmailValid(contactEmail) &&
+                    styles.stepBadgeDone,
                 ]}
               >
                 {currentStep > 1 && isEmailValid(contactEmail) ? (
@@ -369,7 +513,12 @@ export default function CheckoutScreen() {
               </Text>
             </TouchableOpacity>
 
-            <View style={[styles.stepConnector, isDark && { backgroundColor: '#1F2937' }]} />
+            <View
+              style={[
+                styles.stepConnector,
+                isDark && { backgroundColor: '#1F2937' },
+              ]}
+            />
 
             {/* Step 2 Tab */}
             <TouchableOpacity
@@ -387,7 +536,10 @@ export default function CheckoutScreen() {
               <View
                 style={[
                   styles.stepBadge,
-                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                  isDark && {
+                    backgroundColor: '#1F2937',
+                    borderColor: '#374151',
+                  },
                   currentStep === 2 && styles.stepBadgeActive,
                   currentStep > 2 && isShippingValid && styles.stepBadgeDone,
                 ]}
@@ -417,7 +569,12 @@ export default function CheckoutScreen() {
               </Text>
             </TouchableOpacity>
 
-            <View style={[styles.stepConnector, isDark && { backgroundColor: '#1F2937' }]} />
+            <View
+              style={[
+                styles.stepConnector,
+                isDark && { backgroundColor: '#1F2937' },
+              ]}
+            />
 
             {/* Step 3 Tab */}
             <TouchableOpacity
@@ -427,7 +584,9 @@ export default function CheckoutScreen() {
                   setError('Please enter a valid email address first.');
                   setCurrentStep(1);
                 } else if (!isShippingValid) {
-                  setError('Please complete all delivery address fields first.');
+                  setError(
+                    'Please complete all delivery address fields first.',
+                  );
                   setCurrentStep(2);
                 } else {
                   setCurrentStep(3);
@@ -439,7 +598,10 @@ export default function CheckoutScreen() {
               <View
                 style={[
                   styles.stepBadge,
-                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                  isDark && {
+                    backgroundColor: '#1F2937',
+                    borderColor: '#374151',
+                  },
                   currentStep === 3 && styles.stepBadgeActive,
                 ]}
               >
@@ -468,23 +630,55 @@ export default function CheckoutScreen() {
 
         {/* ──── STEP 1: Contact Information Card ──── */}
         {currentStep === 1 && (
-          <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <View
+            style={[
+              styles.card,
+              isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+            ]}
+          >
             <View style={styles.stepCardHeader}>
               <View>
-                <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>1. Contact Information</Text>
-                <Text style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}>
+                <Text
+                  style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}
+                >
+                  1. Contact Information
+                </Text>
+                <Text
+                  style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}
+                >
                   Where we'll send order receipts & tracking updates
                 </Text>
               </View>
-              <View style={[styles.stepNumberBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
-                <Text style={[styles.stepNumberBadgeText, isDark && { color: '#5EEAD4' }]}>Step 1/3</Text>
+              <View
+                style={[
+                  styles.stepNumberBadge,
+                  isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stepNumberBadgeText,
+                    isDark && { color: '#5EEAD4' },
+                  ]}
+                >
+                  Step 1/3
+                </Text>
               </View>
             </View>
 
             <View style={{ marginTop: Spacing.sm }}>
-              <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>Email Address *</Text>
+              <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>
+                Email Address *
+              </Text>
               <TextInput
-                style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
+                style={[
+                  styles.input,
+                  isDark && {
+                    backgroundColor: '#1F2937',
+                    borderColor: '#374151',
+                    color: '#FFFFFF',
+                  },
+                ]}
                 value={contactEmail}
                 onChangeText={setContactEmail}
                 placeholder="e.g. yourname@example.com"
@@ -512,16 +706,39 @@ export default function CheckoutScreen() {
 
         {/* ──── STEP 2: Delivery Address Card ──── */}
         {currentStep === 2 && (
-          <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+          <View
+            style={[
+              styles.card,
+              isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+            ]}
+          >
             <View style={styles.stepCardHeader}>
               <View>
-                <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>2. Delivery Address</Text>
-                <Text style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}>
+                <Text
+                  style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}
+                >
+                  2. Delivery Address
+                </Text>
+                <Text
+                  style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}
+                >
                   Enter complete shipping address with 10-digit phone
                 </Text>
               </View>
-              <View style={[styles.stepNumberBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
-                <Text style={[styles.stepNumberBadgeText, isDark && { color: '#5EEAD4' }]}>Step 2/3</Text>
+              <View
+                style={[
+                  styles.stepNumberBadge,
+                  isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stepNumberBadgeText,
+                    isDark && { color: '#5EEAD4' },
+                  ]}
+                >
+                  Step 2/3
+                </Text>
               </View>
             </View>
 
@@ -532,8 +749,105 @@ export default function CheckoutScreen() {
               }
             />
 
+            <View
+              style={[
+                styles.deliveryMethodSection,
+                isDark && { borderTopColor: '#1F2937' },
+              ]}
+            >
+              <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>
+                Delivery Method
+              </Text>
+              <Text
+                style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}
+              >
+                Choose how you want to receive this order.
+              </Text>
+              <View style={styles.deliveryMethodOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodOption,
+                    deliveryMethod === 'delivery' &&
+                      styles.deliveryMethodOptionActive,
+                    isDark && { borderColor: '#374151' },
+                    deliveryMethod === 'delivery' &&
+                      isDark && {
+                        borderColor: '#0D9488',
+                        backgroundColor: 'rgba(15, 163, 177, 0.12)',
+                      },
+                  ]}
+                  onPress={() => setDeliveryMethod('delivery')}
+                >
+                  <Truck
+                    size={17}
+                    color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.deliveryMethodTitle,
+                        isDark && { color: '#FFFFFF' },
+                      ]}
+                    >
+                      Home Delivery
+                    </Text>
+                    <Text
+                      style={[
+                        styles.deliveryMethodSubtitle,
+                        isDark && { color: '#9CA3AF' },
+                      ]}
+                    >
+                      Deliver to the address above
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodOption,
+                    deliveryMethod === 'pickup' &&
+                      styles.deliveryMethodOptionActive,
+                    isDark && { borderColor: '#374151' },
+                    deliveryMethod === 'pickup' &&
+                      isDark && {
+                        borderColor: '#0D9488',
+                        backgroundColor: 'rgba(15, 163, 177, 0.12)',
+                      },
+                  ]}
+                  onPress={() => setDeliveryMethod('pickup')}
+                >
+                  <Store
+                    size={17}
+                    color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.deliveryMethodTitle,
+                        isDark && { color: '#FFFFFF' },
+                      ]}
+                    >
+                      Self Pickup
+                    </Text>
+                    <Text
+                      style={[
+                        styles.deliveryMethodSubtitle,
+                        isDark && { color: '#9CA3AF' },
+                      ]}
+                    >
+                      Collect from the selected store
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Billing Address Toggle */}
-            <View style={[styles.billingToggleSection, isDark && { borderTopColor: '#1F2937' }]}>
+            <View
+              style={[
+                styles.billingToggleSection,
+                isDark && { borderTopColor: '#1F2937' },
+              ]}
+            >
               <TouchableOpacity
                 style={[styles.checkboxRow]}
                 onPress={() => setBillingSameAsShipping(!billingSameAsShipping)}
@@ -541,18 +855,34 @@ export default function CheckoutScreen() {
                 <View
                   style={[
                     styles.checkbox,
-                    isDark && { backgroundColor: '#1F2937', borderColor: '#4B5563' },
+                    isDark && {
+                      backgroundColor: '#1F2937',
+                      borderColor: '#4B5563',
+                    },
                     billingSameAsShipping && styles.checkboxActive,
                   ]}
                 >
-                  {billingSameAsShipping && <Check size={12} color="#fff" strokeWidth={3} />}
+                  {billingSameAsShipping && (
+                    <Check size={12} color="#fff" strokeWidth={3} />
+                  )}
                 </View>
-                <Text style={[styles.checkboxText, isDark && { color: '#E5E7EB' }]}>Billing address same as shipping</Text>
+                <Text
+                  style={[styles.checkboxText, isDark && { color: '#E5E7EB' }]}
+                >
+                  Billing address same as shipping
+                </Text>
               </TouchableOpacity>
 
               {!billingSameAsShipping && (
                 <View style={{ marginTop: Spacing.md }}>
-                  <Text style={[styles.subSectionTitle, isDark && { color: '#FFFFFF' }]}>Different Billing Address</Text>
+                  <Text
+                    style={[
+                      styles.subSectionTitle,
+                      isDark && { color: '#FFFFFF' },
+                    ]}
+                  >
+                    Different Billing Address
+                  </Text>
                   <AddressFormFields
                     data={billingAddress}
                     onChange={(field, v) =>
@@ -566,14 +896,30 @@ export default function CheckoutScreen() {
             {/* Step 2 Buttons */}
             <View style={styles.stepBtnRow}>
               <TouchableOpacity
-                style={[styles.stepBackBtn, isDark && { borderColor: '#374151', backgroundColor: '#1F2937' }]}
+                style={[
+                  styles.stepBackBtn,
+                  isDark && {
+                    borderColor: '#374151',
+                    backgroundColor: '#1F2937',
+                  },
+                ]}
                 onPress={() => {
                   setError('');
                   setCurrentStep(1);
                 }}
               >
-                <ChevronLeft size={16} color={isDark ? '#E5E7EB' : CustomerColors.black} />
-                <Text style={[styles.stepBackBtnText, isDark && { color: '#E5E7EB' }]}>Back</Text>
+                <ChevronLeft
+                  size={16}
+                  color={isDark ? '#E5E7EB' : CustomerColors.black}
+                />
+                <Text
+                  style={[
+                    styles.stepBackBtnText,
+                    isDark && { color: '#E5E7EB' },
+                  ]}
+                >
+                  Back
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -583,19 +929,25 @@ export default function CheckoutScreen() {
                     if (!isPhoneValid(shippingAddress.phone)) {
                       setError('Please enter a valid 10-digit phone number.');
                     } else {
-                      setError('Please fill in all required delivery address fields.');
+                      setError(
+                        'Please fill in all required delivery address fields.',
+                      );
                     }
                     return;
                   }
                   if (!billingSameAsShipping && !isBillingValid) {
-                    setError('Please fill in all required billing address fields.');
+                    setError(
+                      'Please fill in all required billing address fields.',
+                    );
                     return;
                   }
                   setError('');
                   setCurrentStep(3);
                 }}
               >
-                <Text style={styles.stepActionBtnText}>Continue to Payment</Text>
+                <Text style={styles.stepActionBtnText}>
+                  Continue to Payment
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -605,35 +957,97 @@ export default function CheckoutScreen() {
         {currentStep === 3 && (
           <View style={{ gap: Spacing.md }}>
             {/* Delivery & Contact Review Chip */}
-            <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+            <View
+              style={[
+                styles.card,
+                isDark && {
+                  backgroundColor: '#111827',
+                  borderColor: '#1F2937',
+                },
+              ]}
+            >
               <View style={styles.summaryHeader}>
-                <Text style={[styles.summaryTitle, isDark && { color: '#9CA3AF' }]}>DELIVERY & CONTACT DETAILS</Text>
+                <Text
+                  style={[styles.summaryTitle, isDark && { color: '#9CA3AF' }]}
+                >
+                  DELIVERY & CONTACT DETAILS
+                </Text>
                 <TouchableOpacity onPress={() => setCurrentStep(2)}>
-                  <Text style={[styles.summaryEditBtn, isDark && { color: '#2DD4BF' }]}>Edit</Text>
+                  <Text
+                    style={[
+                      styles.summaryEditBtn,
+                      isDark && { color: '#2DD4BF' },
+                    ]}
+                  >
+                    Edit
+                  </Text>
                 </TouchableOpacity>
               </View>
-              <Text style={[styles.summaryText, isDark && { color: '#FFFFFF' }]}>
+              <Text
+                style={[styles.summaryText, isDark && { color: '#FFFFFF' }]}
+              >
                 {shippingAddress.firstName} {shippingAddress.lastName}
               </Text>
-              <Text style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}>
-                {shippingAddress.address}, {shippingAddress.city}, {shippingAddress.state} - {shippingAddress.pinCode}
+              <Text
+                style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}
+              >
+                {shippingAddress.address}, {shippingAddress.city},{' '}
+                {shippingAddress.state} - {shippingAddress.pinCode}
               </Text>
-              <Text style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}>
-                📞 {shippingAddress.phone}  ·  ✉️ {contactEmail}
+              <Text
+                style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}
+              >
+                📞 {shippingAddress.phone} · ✉️ {contactEmail}
+              </Text>
+              <Text
+                style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}
+              >
+                {deliveryMethod === 'delivery'
+                  ? 'Home Delivery'
+                  : 'Self Pickup'}
               </Text>
             </View>
 
             {/* Payment Method Selector */}
-            <View style={[styles.card, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
+            <View
+              style={[
+                styles.card,
+                isDark && {
+                  backgroundColor: '#111827',
+                  borderColor: '#1F2937',
+                },
+              ]}
+            >
               <View style={styles.stepCardHeader}>
                 <View>
-                  <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>3. Payment Method</Text>
-                  <Text style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}>
+                  <Text
+                    style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}
+                  >
+                    3. Payment Method
+                  </Text>
+                  <Text
+                    style={[
+                      styles.cardSubTitle,
+                      isDark && { color: '#9CA3AF' },
+                    ]}
+                  >
                     All payments are 100% secure & encrypted
                   </Text>
                 </View>
-                <View style={[styles.stepNumberBadge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
-                  <Text style={[styles.stepNumberBadgeText, isDark && { color: '#5EEAD4' }]}>Step 3/3</Text>
+                <View
+                  style={[
+                    styles.stepNumberBadge,
+                    isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.stepNumberBadgeText,
+                      isDark && { color: '#5EEAD4' },
+                    ]}
+                  >
+                    Step 3/3
+                  </Text>
                 </View>
               </View>
 
@@ -641,10 +1055,16 @@ export default function CheckoutScreen() {
               <TouchableOpacity
                 style={[
                   styles.paymentCard,
-                  isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+                  isDark && {
+                    backgroundColor: '#111827',
+                    borderColor: '#1F2937',
+                  },
                   paymentMethod === 'razorpay' &&
                     (isDark
-                      ? { borderColor: '#0D9488', backgroundColor: 'rgba(15, 163, 177, 0.12)' }
+                      ? {
+                          borderColor: '#0D9488',
+                          backgroundColor: 'rgba(15, 163, 177, 0.12)',
+                        }
                       : styles.paymentCardActive),
                 ]}
                 onPress={() => setPaymentMethod('razorpay')}
@@ -656,30 +1076,69 @@ export default function CheckoutScreen() {
                     paymentMethod === 'razorpay' && styles.radioActive,
                   ]}
                 >
-                  {paymentMethod === 'razorpay' && <View style={styles.radioDot} />}
+                  {paymentMethod === 'razorpay' && (
+                    <View style={styles.radioDot} />
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-                    <Text style={[styles.paymentTitle, isDark && { color: '#FFFFFF' }]}>Online Payment (Razorpay)</Text>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: Spacing.xs,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentTitle,
+                        isDark && { color: '#FFFFFF' },
+                      ]}
+                    >
+                      Online Payment (Razorpay)
+                    </Text>
                     <View style={styles.instantTag}>
                       <Text style={styles.instantTagText}>INSTANT</Text>
                     </View>
                   </View>
-                  <Text style={[styles.paymentSubtitle, isDark && { color: '#9CA3AF' }]}>
+                  <Text
+                    style={[
+                      styles.paymentSubtitle,
+                      isDark && { color: '#9CA3AF' },
+                    ]}
+                  >
                     UPI, Debit/Credit Cards, Net Banking & Wallets
                   </Text>
                 </View>
-                <CreditCard size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
+                <CreditCard
+                  size={18}
+                  color={isDark ? '#2DD4BF' : CustomerColors.teal600}
+                />
               </TouchableOpacity>
 
               {/* Step 3 Action Buttons */}
               <View style={styles.stepBtnRow}>
                 <TouchableOpacity
-                  style={[styles.stepBackBtn, isDark && { borderColor: '#374151', backgroundColor: '#1F2937' }]}
+                  style={[
+                    styles.stepBackBtn,
+                    isDark && {
+                      borderColor: '#374151',
+                      backgroundColor: '#1F2937',
+                    },
+                  ]}
                   onPress={() => setCurrentStep(2)}
                 >
-                  <ChevronLeft size={16} color={isDark ? '#E5E7EB' : CustomerColors.black} />
-                  <Text style={[styles.stepBackBtnText, isDark && { color: '#E5E7EB' }]}>Back</Text>
+                  <ChevronLeft
+                    size={16}
+                    color={isDark ? '#E5E7EB' : CustomerColors.black}
+                  />
+                  <Text
+                    style={[
+                      styles.stepBackBtnText,
+                      isDark && { color: '#E5E7EB' },
+                    ]}
+                  >
+                    Back
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -694,7 +1153,13 @@ export default function CheckoutScreen() {
                   {isProcessing ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: Spacing.xs,
+                      }}
+                    >
                       <Lock size={15} color="#fff" />
                       <Text style={styles.stepActionBtnText}>
                         Pay ₹{subtotal.toLocaleString()}
@@ -832,6 +1297,39 @@ const styles = StyleSheet.create({
     color: CustomerColors.textSecondary,
     textTransform: 'uppercase',
     marginBottom: 4,
+  },
+  deliveryMethodSection: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  deliveryMethodOptions: {
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  deliveryMethodOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+  },
+  deliveryMethodOptionActive: {
+    borderColor: CustomerColors.teal600,
+    backgroundColor: '#F0FDFA',
+  },
+  deliveryMethodTitle: {
+    color: CustomerColors.black,
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+  },
+  deliveryMethodSubtitle: {
+    color: CustomerColors.textSecondary,
+    fontSize: FontSizes.xs,
+    marginTop: 2,
   },
   input: {
     backgroundColor: CustomerColors.white,

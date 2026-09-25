@@ -32,27 +32,73 @@ export default function BestSellersScreen() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const isFetchingRef = React.useRef(false);
+
+  const fetchProducts = async (pageNum: number, isInitial: boolean = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const res = await productApi.getProductsViaGateway({
+        sort: 'bestselling',
+        limit: 20,
+        page: pageNum,
+        excludeOwnerRole: 'whole_saler,wholesaler',
+      });
+      const data = res.data;
+      const rawArr = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+        ? data
+        : data?.products || [];
+
+      const filteredArr = rawArr.filter(
+        (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+      );
+
+      if (isInitial) {
+        setProducts(filteredArr);
+      } else {
+        setProducts(prev => {
+          const existingIds = new Set(prev.map(p => productId(p)));
+          const newItems = filteredArr.filter((p: any) => !existingIds.has(productId(p)));
+          return [...prev, ...newItems];
+        });
+      }
+
+      setHasNextPage(Boolean(data?.hasNextPage));
+      if (typeof data?.total === 'number') {
+        setTotalCount(data.total);
+      }
+      setPage(pageNum);
+    } catch {
+      if (isInitial) setProducts([]);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      isFetchingRef.current = false;
+    }
+  };
 
   useEffect(() => {
-    productApi
-      .getProductsViaGateway({
-        sort: 'bestselling',
-        limit: 10000,
-      })
-      .then(res => {
-        const data = res.data;
-        const rawArr = Array.isArray(data)
-          ? data
-          : data?.products || data?.data || [];
-        const arr = rawArr.filter(
-          (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
-        );
-        setProducts(arr);
-      })
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false));
+    fetchProducts(1, true);
   }, []);
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !loading && !loadingMore && !isFetchingRef.current) {
+      fetchProducts(page + 1, false);
+    }
+  };
 
   const showToast = (msg: string) => {
     if (Platform.OS === 'android') {
@@ -99,7 +145,7 @@ export default function BestSellersScreen() {
           </View>
         </View>
         <Text style={[styles.count, isDark && { color: '#94A3B8' }]}>
-          {products.length} products
+          {totalCount || products.length} products
         </Text>
       </View>
 
@@ -109,6 +155,8 @@ export default function BestSellersScreen() {
         keyExtractor={item => productId(item)}
         contentContainerStyle={styles.grid}
         columnWrapperStyle={styles.row}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
         renderItem={({ item }) => (
           <ProductCard
             product={item}
@@ -155,6 +203,19 @@ export default function BestSellersScreen() {
           <Text style={[styles.empty, isDark && { color: '#94A3B8' }]}>
             No best sellers found.
           </Text>
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={CustomerColors.primary} />
+            </View>
+          ) : !hasNextPage && products.length > 0 ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, color: isDark ? '#64748B' : '#94A3B8', fontWeight: '600' }}>
+                ✦ End of best sellers ✦
+              </Text>
+            </View>
+          ) : null
         }
       />
 

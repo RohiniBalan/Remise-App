@@ -9,9 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Eye, EyeOff, Briefcase, ShoppingBag, ShieldCheck, ArrowRight } from 'lucide-react-native';
+import { Eye, EyeOff, Briefcase, ShoppingBag, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react-native';
 import { authApi } from '../../api/authApi';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -30,6 +31,8 @@ export default function BusinessLoginScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const validate = (): boolean => {
     const errors = validateLoginForm({ email, password });
@@ -48,11 +51,14 @@ export default function BusinessLoginScreen() {
       const userData = res.data.data;
 
       await login(userData, userData.token);
-
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'RoleGate' }],
-      });
+      setSuccessMessage('Logged in successfully! Opening merchant portal...');
+      setShowSuccess(true);
+      setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'RoleGate' }],
+        });
+      }, 1200);
     } catch (err: any) {
       setError(
         normalizeAuthErrorMessage(err.response?.data?.message || err.message) ||
@@ -68,6 +74,18 @@ export default function BusinessLoginScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Success Modal */}
+      <Modal visible={showSuccess} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrap}>
+              <CheckCircle2 size={40} color={CustomerColors.primary} />
+            </View>
+            <Text style={styles.modalTitle}>Success!</Text>
+            <Text style={styles.modalSubtitle}>{successMessage}</Text>
+          </View>
+        </View>
+      </Modal>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* Top Header Badge */}
         <View style={styles.badgeContainer}>
@@ -415,6 +433,49 @@ function getStyles(isDark: boolean) {
       color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
       fontSize: FontSizes.xs,
       fontWeight: '600',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.xl,
+    },
+    modalCard: {
+      backgroundColor: isDark ? '#18181B' : '#FFFFFF',
+      borderRadius: 24,
+      padding: 28,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#27272A' : '#E5E7EB',
+      width: '100%',
+      maxWidth: 320,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.5,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    modalIconWrap: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: 'rgba(255, 0, 0, 0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      color: isDark ? '#FFFFFF' : '#111827',
+      fontSize: 22,
+      fontWeight: '800',
+      marginBottom: 8,
+    },
+    modalSubtitle: {
+      color: isDark ? '#9CA3AF' : '#6B7280',
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
     },
   });
 }

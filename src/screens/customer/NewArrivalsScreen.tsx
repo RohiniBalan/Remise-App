@@ -57,6 +57,11 @@ export default function NewArrivalsScreen() {
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const isFetchingRef = React.useRef(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -66,25 +71,66 @@ export default function NewArrivalsScreen() {
   const [pricePreset, setPricePreset] = useState(PRICE_PRESETS[0]);
   const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>('Newest');
 
+  const fetchProducts = async (pageNum: number, isInitial: boolean = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const res = await productApi.getProductsViaGateway({
+        sort: 'newest',
+        limit: 20,
+        page: pageNum,
+        excludeOwnerRole: 'whole_saler,wholesaler',
+      });
+      const data = res.data;
+      const rawArr: Product[] = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+        ? data
+        : data?.products || [];
+
+      const filteredArr = rawArr.filter(
+        (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+      );
+
+      if (isInitial) {
+        setAllProducts(filteredArr);
+      } else {
+        setAllProducts(prev => {
+          const existingIds = new Set(prev.map(p => productId(p)));
+          const newItems = filteredArr.filter((p: any) => !existingIds.has(productId(p)));
+          return [...prev, ...newItems];
+        });
+      }
+
+      setHasNextPage(Boolean(data?.hasNextPage));
+      if (typeof data?.total === 'number') {
+        setTotalCount(data.total);
+      }
+      setPage(pageNum);
+    } catch {
+      if (isInitial) setAllProducts([]);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      isFetchingRef.current = false;
+    }
+  };
+
   useEffect(() => {
-    productApi
-      .getProductsViaGateway({
-        t: Date.now(),
-        limit: 10000,
-      })
-      .then(res => {
-        const data = res.data;
-        const rawArr: Product[] = Array.isArray(data)
-          ? data
-          : data?.products || data?.data || [];
-        const arr = rawArr.filter(
-          (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
-        );
-        setAllProducts(arr);
-      })
-      .catch(() => setAllProducts([]))
-      .finally(() => setLoading(false));
+    fetchProducts(1, true);
   }, []);
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !loading && !loadingMore && !isFetchingRef.current) {
+      fetchProducts(page + 1, false);
+    }
+  };
 
   const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
 
@@ -355,6 +401,8 @@ export default function NewArrivalsScreen() {
         keyExtractor={p => productId(p)}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.grid}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Sparkles size={32} color={CustomerColors.primary} style={{ alignSelf: 'center', marginBottom: 8 }} />
@@ -381,6 +429,19 @@ export default function NewArrivalsScreen() {
             onBuyNow={() => handleBuyNow(item)}
           />
         )}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={CustomerColors.primary} />
+            </View>
+          ) : !hasNextPage && filtered.length > 0 ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, color: isDark ? '#64748B' : '#94A3B8', fontWeight: '600' }}>
+                ✦ End of new arrivals ✦
+              </Text>
+            </View>
+          ) : null
+        }
       />
 
       <AuthRequiredModal

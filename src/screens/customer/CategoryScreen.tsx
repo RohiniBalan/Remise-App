@@ -56,7 +56,13 @@ export default function CategoryScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const isFetchingRef = React.useRef(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -68,25 +74,95 @@ export default function CategoryScreen() {
   >([]);
   const [pricePreset, setPricePreset] = useState(PRICE_PRESETS[0]);
 
+  // Fetch category list for chip selection
   useEffect(() => {
     productApi
-      .getProductsViaGateway({
-        t: Date.now(),
-        limit: 10000,
-      })
+      .getCategoriesViaGateway()
       .then(res => {
         const data = res.data;
-        const rawArr = Array.isArray(data)
-          ? data
-          : data.products || data.data || [];
-        const arr = rawArr.filter(
-          (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
-        );
-        setProducts(arr);
+        const cats = Array.isArray(data)
+          ? data.map((c: any) => (typeof c === 'string' ? c : c.name || c.title)).filter(Boolean)
+          : [];
+        if (cats.length > 0) setCategoriesList(cats);
       })
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
+
+  const fetchProducts = async (
+    pageNum: number,
+    isInitial: boolean = false,
+    catOverride?: string | null,
+    searchOverride?: string,
+  ) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const cat = catOverride !== undefined ? catOverride : activeCategory;
+      const q = searchOverride !== undefined ? searchOverride : searchQuery;
+
+      const params: Record<string, any> = {
+        limit: 20,
+        page: pageNum,
+        excludeOwnerRole: 'whole_saler,wholesaler',
+      };
+      if (cat && cat !== 'all' && cat !== 'All') {
+        params.category = cat;
+      }
+      if (q && q.trim()) {
+        params.search = q.trim();
+      }
+
+      const res = await productApi.getProductsViaGateway(params);
+      const data = res.data;
+      const rawArr = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+        ? data
+        : data?.products || [];
+
+      const filteredArr = rawArr.filter(
+        (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+      );
+
+      if (isInitial) {
+        setProducts(filteredArr);
+      } else {
+        setProducts(prev => {
+          const existingIds = new Set(prev.map(p => productId(p)));
+          const newItems = filteredArr.filter((p: any) => !existingIds.has(productId(p)));
+          return [...prev, ...newItems];
+        });
+      }
+
+      setHasNextPage(Boolean(data?.hasNextPage));
+      if (typeof data?.total === 'number') {
+        setTotalCount(data.total);
+      }
+      setPage(pageNum);
+    } catch {
+      if (isInitial) setProducts([]);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      isFetchingRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts(1, true);
+  }, [activeCategory]);
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !loading && !loadingMore && !isFetchingRef.current) {
+      fetchProducts(page + 1, false);
+    }
+  };
 
   const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
   // Store-owner buyers see storePrice/storeDiscountedPrice (falling back to
@@ -104,7 +180,9 @@ export default function CategoryScreen() {
 
   const getUnique = (key: keyof Product) =>
     Array.from(new Set(displayProducts.map(p => p[key]).filter(Boolean))) as string[];
-  const categories = useMemo(() => getUnique('category'), [displayProducts]);
+  const categories = useMemo(() => {
+    return Array.from(new Set([...categoriesList, ...getUnique('category')]));
+  }, [categoriesList, displayProducts]);
   const brands = useMemo(() => getUnique('brand'), [displayProducts]);
   const availabilities = useMemo(() => ['In Stock', 'Out of Stock'], []);
 
@@ -393,6 +471,8 @@ export default function CategoryScreen() {
         keyExtractor={p => productId(p)}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.grid}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
             No products found. Try adjusting your filters.
@@ -412,6 +492,19 @@ export default function CategoryScreen() {
             onBuyNow={() => handleBuyNow(item)}
           />
         )}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={CustomerColors.primary} />
+            </View>
+          ) : !hasNextPage && filtered.length > 0 ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, color: isDark ? '#64748B' : '#94A3B8', fontWeight: '600' }}>
+                ✦ End of product list ✦
+              </Text>
+            </View>
+          ) : null
+        }
       />
 
       <AuthRequiredModal
