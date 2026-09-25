@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   topHud: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'between',
+    justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: 'rgba(7, 13, 22, 0.9)',

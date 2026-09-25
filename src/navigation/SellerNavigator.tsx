@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   BarChart2, Package, ShoppingBag, Settings as SettingsIcon, Bell, User as UserIcon, Truck,
   Store, SlidersHorizontal, LogOut, CheckCircle, AlertCircle,
-  Layers,
+  Layers, Tag, Users,
 } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +15,9 @@ import { useTheme } from '../context/ThemeContext';
 import SellerOverviewScreen from '../screens/seller/SellerOverviewScreen';
 import SellerCategoriesScreen from '../screens/seller/SellerCategoriesScreen';
 import SellerProductsScreen from '../screens/seller/SellerProductsScreen';
+import StoreOffersScreen from '../screens/store/StoreOffersScreen';
+import StoreCustomersScreen from '../screens/store/StoreCustomersScreen';
+import NewOfferScreen from '../screens/store/NewOfferScreen';
 import SellerManageBrandsScreen from '../screens/seller/SellerManageBrandsScreen';
 import SellerProductFormScreen from '../screens/seller/SellerProductFormScreen';
 import SellerScanUploadScreen from '../screens/seller/SellerScanUploadScreen';
@@ -25,6 +28,7 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import MyOffersScreen from '../screens/customer/MyOffersScreen';
 import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
 import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
@@ -34,12 +38,17 @@ export type SellerTabParamList = {
   SellerOverview: undefined;
   SellerCategories: undefined;
   SellerProducts: undefined;
+  SellerOffers: undefined;
+  SellerCustomers: undefined;
   SellerOrders: undefined;
   SellerSettings: undefined;
 };
 
 export type SellerStackParamList = {
   SellerTabs: undefined;
+  SellerOffers: undefined;
+  SellerCustomers: undefined;
+  NewOffer: { offer?: any; targetCustomerId?: string; targetCustomerName?: string } | undefined;
   SellerCategories: undefined;
   SellerProductForm: { product?: any; initialTitle?: string; initialCategory?: string };
   SellerManageBrands: { typeKey: string; title: string; category: string; items: any[]; brandCount: number; totalStock: number };
@@ -49,6 +58,7 @@ export type SellerStackParamList = {
   StoreOrderTracking: { orderId: string };
   Notifications: undefined;
   Profile: undefined;
+  MyOffers: undefined;
   AccountSettings: { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' } | undefined;
   ProductDetail: { productId: string };
 };
@@ -125,6 +135,10 @@ function SellerUserMenu() {
                 <UserIcon size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
                 <Text style={styles.menuItemText}>My Profile</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => go('MyOffers')}>
+                <Tag size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
+                <Text style={styles.menuItemText}>My Offers</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('SellerTabs')}>
                 <Store size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
                 <Text style={styles.menuItemText}>My Store</Text>
@@ -189,6 +203,8 @@ function SellerTabs() {
       <Tab.Screen name="SellerOverview" component={SellerOverviewScreen} options={{ title: 'Overview', tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} /> }} />
       <Tab.Screen name='SellerCategories' component={SellerCategoriesScreen} options={{ title: 'Categories', tabBarIcon: ({ color, size }) => <Layers color={color} size={size} /> }} />
       <Tab.Screen name="SellerProducts" component={SellerProductsScreen} options={{ title: 'Products', tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }} />
+      <Tab.Screen name="SellerOffers" component={StoreOffersScreen} options={{ title: 'Offers', tabBarIcon: ({ color, size }) => <Tag color={color} size={size} /> }} />
+      <Tab.Screen name="SellerCustomers" component={StoreCustomersScreen} options={{ title: 'Customers', tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
       <Tab.Screen name="SellerOrders" component={SellerOrdersScreen} options={{ title: 'Incoming Orders', tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} /> }} />
       <Tab.Screen name="SellerSettings" component={SellerSettingsScreen} options={{ title: 'Settings', tabBarIcon: ({ color, size }) => <SettingsIcon color={color} size={size} /> }} />
     </Tab.Navigator>
@@ -236,6 +252,7 @@ export default function SellerNavigator() {
           }}
         >
           <Stack.Screen name="SellerTabs" component={SellerTabs} />
+          <Stack.Screen name="NewOffer" component={NewOfferScreen} options={{ headerShown: true, title: 'Create Offer' }} />
           <Stack.Screen name="SellerCategories" component={SellerCategoriesScreen} options={{ headerShown: true, title: 'Categories'}} />
           <Stack.Screen name="SellerProductForm" component={SellerProductFormScreen} options={{ headerShown: true, title: 'Product' }} />
           <Stack.Screen name="SellerManageBrands" component={SellerManageBrandsScreen} options={{ headerShown: true, title: 'Manage Brands' }} />
@@ -244,6 +261,7 @@ export default function SellerNavigator() {
           <Stack.Screen name="StoreDeliveries" component={StoreDeliveriesScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StoreOrderTracking" component={StoreOrderTrackingScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
+          <Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: 'My Offers' }} />
           <Stack.Screen name="Notifications" component={NotificationScreen} options={{ headerShown: true, title: 'Notifications' }} />
           <Stack.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ headerShown: true, title: 'Settings' }} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />

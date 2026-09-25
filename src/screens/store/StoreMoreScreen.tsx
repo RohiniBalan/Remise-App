@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Layers, Truck, Users, Settings as SettingsIcon, ChevronRight, LucideIcon } from 'lucide-react-native';
+import { Layers, Truck, Users, Settings as SettingsIcon, ChevronRight, LucideIcon, Tag } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
@@ -15,6 +15,7 @@ type MoreItem = {
 };
 
 const ITEMS: MoreItem[] = [
+  { key: 'offers', label: 'My Offers', subtitle: 'View private offers & special discounts for your store', icon: Tag, route: 'MyOffers' },
   { key: 'deliveries', label: 'Deliveries Log', subtitle: 'See who delivered products to whom', icon: Truck, route: 'StoreDeliveries' },
   { key: 'categories', label: 'Categories', subtitle: 'Manage product categories', icon: Layers, route: 'StoreOwnerCategories' },
   { key: 'suppliers', label: 'Order Stock', subtitle: 'Browse suppliers & place stock orders', icon: Truck, route: 'Suppliers' },

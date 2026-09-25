@@ -67,6 +67,7 @@ import SettingsScreen from '../screens/customer/SettingsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import OrdersScreen from '../screens/customer/OrdersScreen';
+import MyOffersScreen from '../screens/customer/MyOffersScreen';
 import StoreCustomersScreen from '../screens/store/StoreCustomersScreen';
 import StoreSuppliersScreen from '../screens/store/StoreSuppliersScreen';
 import StoreSupplierBrandsScreen from '../screens/store/StoreSupplierBrandsScreen';
@@ -118,6 +119,7 @@ export type StoreOwnerStackParamList = {
   Profile: undefined;
   Notifications: undefined;
   Orders: undefined;
+  MyOffers: undefined;
   SupplierBrands: { titleGroup: any };
   SupplierCompare: { group: any };
   SupplierCart: undefined;
@@ -237,6 +239,12 @@ function StoreProfileMenu() {
               icon={ShoppingBag}
               label="My Orders"
               onPress={() => go('Orders')}
+              isDark={isDark}
+            />
+            <MenuItem
+              icon={Tag}
+              label="My Offers"
+              onPress={() => go('MyOffers')}
               isDark={isDark}
             />
             <MenuItem
@@ -603,6 +611,11 @@ export default function StoreOwnerNavigator() {
               name="Orders"
               component={OrdersScreen}
               options={{ ...stackHeaderOptions, title: 'My Orders' }}
+            />
+            <Stack.Screen
+              name="MyOffers"
+              component={MyOffersScreen}
+              options={{ ...stackHeaderOptions, title: 'My Offers' }}
             />
             <Stack.Screen
               name="StoreRegister"

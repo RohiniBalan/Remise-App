@@ -17,6 +17,8 @@ import {
   Layers,
   Plus,
   Truck,
+  Tag,
+  Users,
 } from 'lucide-react-native';
 import {
   View,
@@ -38,6 +40,9 @@ import { useTheme } from '../context/ThemeContext';
 import SellerOverviewScreen from '../screens/seller/SellerOverviewScreen';
 import SellerCategoriesScreen from '../screens/seller/SellerCategoriesScreen';
 import SellerProductsScreen from '../screens/seller/SellerProductsScreen';
+import StoreOffersScreen from '../screens/store/StoreOffersScreen';
+import StoreCustomersScreen from '../screens/store/StoreCustomersScreen';
+import NewOfferScreen from '../screens/store/NewOfferScreen';
 import SellerManageBrandsScreen from '../screens/seller/SellerManageBrandsScreen';
 import SellerProductFormScreen from '../screens/seller/SellerProductFormScreen';
 import SellerScanUploadScreen from '../screens/seller/SellerScanUploadScreen';
@@ -48,6 +53,7 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import MyOffersScreen from '../screens/customer/MyOffersScreen';
 import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
 import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
@@ -57,12 +63,17 @@ export type HomeBusinessTabParamList = {
   HomeBusinessOverview: undefined;
   HomeBusinessCategories: undefined;
   HomeBusinessProducts: undefined;
+  HomeBusinessOffers: undefined;
+  HomeBusinessCustomers: undefined;
   HomeBusinessOrders: undefined;
   HomeBusinessSettings: undefined;
 };
 
 export type HomeBusinessStackParamList = {
   HomeBusinessTabs: undefined;
+  HomeBusinessOffers: undefined;
+  HomeBusinessCustomers: undefined;
+  NewOffer: { offer?: any; targetCustomerId?: string; targetCustomerName?: string } | undefined;
   SellerCategories: undefined;
   SellerProductForm: {
     product?: any;
@@ -83,6 +94,7 @@ export type HomeBusinessStackParamList = {
   StoreOrderTracking: { orderId: string };
   Notifications: undefined;
   Profile: undefined;
+  MyOffers: undefined;
   AccountSettings:
     | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
     | undefined;
@@ -173,6 +185,10 @@ function HomeBusinessUserMenu() {
               <TouchableOpacity style={styles.menuItem} onPress={() => go('Profile')}>
                 <UserIcon size={15} color="#9CA3AF" />
                 <Text style={styles.menuItemText}>My Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => go('MyOffers')}>
+                <Tag size={15} color="#9CA3AF" />
+                <Text style={styles.menuItemText}>My Offers</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
@@ -284,6 +300,22 @@ function HomeBusinessTabs() {
         }}
       />
       <Tab.Screen
+        name="HomeBusinessOffers"
+        component={StoreOffersScreen}
+        options={{
+          title: 'Offers',
+          tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="HomeBusinessCustomers"
+        component={StoreCustomersScreen}
+        options={{
+          title: 'Customers',
+          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
         name="HomeBusinessOrders"
         component={SellerOrdersScreen}
         options={{
@@ -359,6 +391,11 @@ export default function HomeBusinessNavigator() {
         >
           <Stack.Screen name="HomeBusinessTabs" component={HomeBusinessTabs} />
           <Stack.Screen
+            name="NewOffer"
+            component={NewOfferScreen}
+            options={{ headerShown: true, title: 'Create Offer' }}
+          />
+          <Stack.Screen
             name="SellerCategories"
             component={SellerCategoriesScreen}
             options={{ headerShown: true, title: 'Artisan Categories' }}
@@ -387,6 +424,11 @@ export default function HomeBusinessNavigator() {
             name="Profile"
             component={ProfileScreen}
             options={{ headerShown: true, title: 'Profile' }}
+          />
+          <Stack.Screen
+            name="MyOffers"
+            component={MyOffersScreen}
+            options={{ headerShown: true, title: 'My Offers' }}
           />
           <Stack.Screen
             name="Notifications"

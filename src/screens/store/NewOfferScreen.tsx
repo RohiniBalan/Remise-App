@@ -35,7 +35,8 @@ import { offersApi } from '../../api/offersApi';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
-import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useOptionalStoreDashboard } from '../../context/StoreDashboardContext';
+import { useOptionalSellerDashboard } from '../../context/SellerDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { mergeCategories } from '../../utils/storeCategories';
 
@@ -63,7 +64,10 @@ const DEFAULT_CATEGORIES = [
 export default function NewOfferScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const { store: contextStore, categories, refresh } = useStoreDashboard();
+  const storeDash = useOptionalStoreDashboard();
+  const sellerDash = useOptionalSellerDashboard();
+  const dash = (storeDash && storeDash.store) ? storeDash : ((sellerDash && sellerDash.store) ? sellerDash : (storeDash || sellerDash || {}));
+  const { store: contextStore, categories = [], refresh = () => {} } = dash as any;
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
@@ -117,8 +121,8 @@ export default function NewOfferScreen() {
   const [longitude, setLongitude] = useState('');
   const [locSource, setLocSource] = useState<'store' | 'gps' | 'manual'>('store');
 
-  const targetCustomerId = route.params?.targetCustomerId || editingOffer?.targetCustomerId;
-  const targetCustomerName = route.params?.targetCustomerName || editingOffer?.targetCustomerName;
+  const targetCustomerId = route.params?.targetCustomerId || route.params?.customerId || editingOffer?.targetCustomerId;
+  const targetCustomerName = route.params?.targetCustomerName || route.params?.customerName || editingOffer?.targetCustomerName;
 
   // Category options merged with store's categories
   const categoryOptions = useMemo(() => {

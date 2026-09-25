@@ -243,14 +243,6 @@ function CustomerTabs() {
         }}
       />
       <Tab.Screen
-        name="Suppliers"
-        component={SuppliersScreen}
-        options={{
-          tabBarLabel: 'Supplier',
-          tabBarIcon: ({ color, size }) => <Store color={color} size={20} />,
-        }}
-      />
-      <Tab.Screen
         name="Nearby"
         component={NearbyOffersScreen}
         options={{

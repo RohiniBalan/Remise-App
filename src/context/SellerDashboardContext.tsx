@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { storeApi } from '../api/storeApi';
+import { offersApi } from '../api/offersApi';
 import { storeProductApi } from '../api/storeProductApi';
 import { sellerOrderApi, sellerStoreApi, SellerOrder } from '../api/sellerApi';
 import { isValidPlacedOrder } from '../utils/orderValidation';
@@ -34,6 +35,7 @@ interface SellerDashboardValue {
   store: any;
   products: any[];
   categories: any[];
+  offers: any[];
   orders: SellerOrder[];
   storeNameByOwnerId: Record<string, string>;
   loading: boolean;
@@ -53,6 +55,7 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
   const [store, setStore] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
   const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [storeNameByOwnerId, setStoreNameByOwnerId] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -105,33 +108,19 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
       return;
     }
 
-    const [prodRes, catRes, ordRes] = await Promise.allSettled([
+    const [prodRes, catRes, ordRes, offRes] = await Promise.allSettled([
       storeProductApi.getByStore(s._id),
       storeProductApi.getCategories(),
       sellerOrderApi.getStoreOrders(s._id),
+      offersApi.getByStore(s._id),
     ]);
 
     if (prodRes.status === 'fulfilled') {
-  const loadedProducts = prodRes.value.data.data || [];
-
-  console.log(
-    'SELLER PRODUCTS:',
-    JSON.stringify(
-      loadedProducts.map((p: any) => ({
-        id: p._id,
-        title: p.title,
-        imageUrl: p.imageUrl,
-        image: p.image,
-        images: p.images,
-      })),
-      null,
-      2,
-    ),
-  );
-
-  setProducts(loadedProducts);
-}
+      const loadedProducts = prodRes.value.data.data || [];
+      setProducts(loadedProducts);
+    }
     if (catRes.status === 'fulfilled') setCategories(catRes.value.data.data || []);
+    if (offRes.status === 'fulfilled') setOffers(offRes.value.data.data || []);
 
     let loadedOrders: SellerOrder[] = [];
     if (ordRes.status === 'fulfilled') {
@@ -156,7 +145,7 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
       }
     }
 
-    const failed = [prodRes, catRes, ordRes].filter(r => r.status === 'rejected');
+    const failed = [prodRes, catRes, ordRes, offRes].filter(r => r.status === 'rejected');
     if (failed.length) setLoadError('Some data could not be loaded. Try refreshing.');
 
     setLoading(false);
@@ -169,7 +158,7 @@ export function SellerDashboardProvider({ children }: { children: React.ReactNod
 
   return (
     <SellerDashboardContext.Provider
-      value={{ store, products, categories, orders, storeNameByOwnerId, loading, loadError, noStore, refresh: loadData, newOrderCount, markOrdersAsSeen }}
+      value={{ store, products, categories, offers, orders, storeNameByOwnerId, loading, loadError, noStore, refresh: loadData, newOrderCount, markOrdersAsSeen }}
     >
       {children}
     </SellerDashboardContext.Provider>

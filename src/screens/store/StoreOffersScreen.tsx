@@ -18,7 +18,8 @@ import {
   Edit2,
   Trash2,
 } from 'lucide-react-native';
-import { useStoreDashboard } from '../../context/StoreDashboardContext';
+import { useOptionalStoreDashboard } from '../../context/StoreDashboardContext';
+import { useOptionalSellerDashboard } from '../../context/SellerDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { offersApi } from '../../api/offersApi';
 import { GATEWAY_URL } from '../../api/endpoints';
@@ -32,7 +33,10 @@ import {
 
 export default function StoreOffersScreen() {
   const navigation = useNavigation<any>();
-  const { offers, loading, refresh } = useStoreDashboard();
+  const storeDash = useOptionalStoreDashboard();
+  const sellerDash = useOptionalSellerDashboard();
+  const dash = (storeDash && storeDash.store) ? storeDash : ((sellerDash && sellerDash.store) ? sellerDash : (storeDash || sellerDash || {}));
+  const { offers = [], loading = false, refresh = () => {} } = dash as any;
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [deleteTargetOffer, setDeleteTargetOffer] = useState<any | null>(null);
