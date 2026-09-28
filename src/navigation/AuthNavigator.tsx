@@ -14,8 +14,8 @@ export type AuthStackParamList = {
   BusinessSignup: undefined;
   AdminLogin: undefined;
   GoogleAuthWebView: { role?: string } | undefined;
-  ForgotPassword: undefined;
-  ResetPassword: { token?: string } | undefined;
+  ForgotPassword: { role?: string; returnTo?: string } | undefined;
+  ResetPassword: { token?: string; role?: string; returnTo?: string } | undefined;
 };
 
 

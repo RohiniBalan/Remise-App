@@ -34,7 +34,8 @@ import {
   Moon,
 } from 'lucide-react-native';
 import { blogApi } from '../../api/blogApi';
-import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
+import { getAdminColors, AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CATEGORIES = [
@@ -48,7 +49,8 @@ const CATEGORIES = [
 ];
 
 export default function AdminBlogsScreen() {
-  const [adminDark, setAdminDark] = useState(false);
+  const { isDark: globalDark } = useTheme();
+  const [adminDark, setAdminDark] = useState<boolean | null>(null);
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,13 +85,13 @@ export default function AdminBlogsScreen() {
     }).catch(() => {});
   }, []);
 
+  const isDark = adminDark !== null ? adminDark : globalDark;
+
   const toggleAdminTheme = () => {
-    const next = !adminDark;
+    const next = !isDark;
     setAdminDark(next);
     AsyncStorage.setItem('admin_theme_mode', next ? 'dark' : 'light').catch(() => {});
   };
-
-  const isDark = adminDark;
 
   const dynamicColors = {
     bg: isDark ? '#0B0F19' : '#F8FAFC',
@@ -363,11 +365,12 @@ export default function AdminBlogsScreen() {
         <View style={[styles.searchBar, { backgroundColor: dynamicColors.inputBg, borderColor: dynamicColors.border }]}>
           <Search size={15} color={dynamicColors.textSecondary} />
           <TextInput
-            style={[styles.searchInput, { color: dynamicColors.textPrimary }]}
+            style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#0F172A' }]}
             placeholder="Search stories..."
             placeholderTextColor={dynamicColors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            selectionColor={AdminColors.primary}
           />
         </View>
 
@@ -385,7 +388,7 @@ export default function AdminBlogsScreen() {
               <Text
                 style={[
                   styles.statusTabText,
-                  { color: dynamicColors.textSecondary },
+                  { color: isDark ? '#CBD5E1' : dynamicColors.textSecondary },
                   statusFilter === tab && styles.statusTabTextActive,
                 ]}
               >
@@ -412,7 +415,7 @@ export default function AdminBlogsScreen() {
               <Text
                 style={[
                   styles.catChipText,
-                  { color: dynamicColors.textSecondary },
+                  { color: isDark ? '#CBD5E1' : dynamicColors.textSecondary },
                   activeCategory === cat && styles.catChipTextActive,
                 ]}
               >

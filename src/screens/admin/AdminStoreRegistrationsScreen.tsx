@@ -288,6 +288,7 @@ export default function AdminStoreRegistrationsScreen() {
             value={searchTerm}
             onChangeText={setSearchTerm}
             returnKeyType="search"
+            selectionColor={AdminColors.primary}
           />
           {searchTerm.length > 0 && (
             <TouchableOpacity onPress={() => setSearchTerm('')}>
@@ -316,7 +317,7 @@ export default function AdminStoreRegistrationsScreen() {
               <Text
                 style={[
                   styles.chipText,
-                  { color: themeColors.textSecondary },
+                  { color: isDark ? '#FFFFFF' : themeColors.textSecondary },
                   typeFilter === chip.key && { color: '#FFFFFF', fontWeight: '700' },
                 ]}
               >

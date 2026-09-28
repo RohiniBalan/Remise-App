@@ -35,7 +35,7 @@ export default function NotificationsScreen() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { refetch } = useUnreadNotifications();
+  const { refetch, markRead: ctxMarkRead, markAllRead: ctxMarkAllRead } = useUnreadNotifications();
 
   const load = useCallback(async () => {
     try {
@@ -70,8 +70,7 @@ export default function NotificationsScreen() {
     // Immediately remove notification from the card list once seen/dismissed
     setItems(prev => prev.filter(n => n._id !== id));
     try {
-      await notificationApi.markRead(id);
-      refetch();
+      await ctxMarkRead(id);
     } catch (e) {
       // silent
     }
@@ -81,8 +80,7 @@ export default function NotificationsScreen() {
     // Immediately clear all from the card list
     setItems([]);
     try {
-      await notificationApi.markAllRead();
-      refetch();
+      await ctxMarkAllRead();
     } catch (e) {
       // silent
     }

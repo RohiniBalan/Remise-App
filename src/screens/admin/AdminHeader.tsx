@@ -22,7 +22,15 @@ import {
   RefreshCw, 
   CheckCheck, 
   ExternalLink,
-  LogOut
+  LogOut,
+  LayoutDashboard,
+  TrendingUp,
+  Newspaper,
+  Megaphone,
+  Users,
+  Bike,
+  Zap,
+  Settings
 } from 'lucide-react-native';
 import { getAdminColors, AdminColors, Spacing, BorderRadius, FontSizes } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -33,21 +41,24 @@ import type { AdminDrawerParamList } from '../../navigation/AdminNavigator';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MENU_WIDTH = Math.min(300, SCREEN_WIDTH * 0.8);
 
-const PORTFOLIO_GROUP: Array<[keyof AdminDrawerParamList, string]> = [
-  ['AdminHero', 'Hero'],
-  ['AdminHotDrops', 'Hot Drops'],
-  ['AdminStudio', 'Studio'],
-  ['AdminRalleyz', 'Ralleyz Section'],
-  ['AdminCharacters', 'Characters'],
-  ['AdminBestSellers', 'Top Picks'],
-  ['AdminShopByAge', 'Shop By Age'],
-  ['AdminShopByCategory', 'Categories (Carousel)'],
-  ['AdminBentoGrid', 'Best of WOW'],
-  ['AdminReviews', 'Reviews'],
-  ['AdminServices', 'Services/Products'],
-  ['AdminContact', 'Contact Form'],
-  ['AdminBlogLifestyle', 'Blog & Lifestyle'],
-  ['AdminTestimonials', 'Testimonials'],
+// Exact 10 Menu Pages matching Web Admin (client/app/admin/layout/sidebar.tsx)
+interface AdminMenuItem {
+  name: keyof AdminDrawerParamList;
+  label: string;
+  icon: any;
+}
+
+const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
+  { name: 'AdminDashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { name: 'AdminAnalytics', label: 'Analytics', icon: TrendingUp },
+  { name: 'AdminStores', label: 'Stores', icon: Store },
+  { name: 'AdminBlogs', label: 'Blogs & News', icon: Newspaper },
+  { name: 'AdminPress', label: 'Press Releases', icon: Megaphone },
+  { name: 'AdminUsers', label: 'User Management', icon: Users },
+  { name: 'AdminDeliveryPartners', label: 'Delivery Partners', icon: Bike },
+  { name: 'AdminNewsletter', label: 'Newsletter', icon: Mail },
+  { name: 'AdminCategory', label: 'Category', icon: Zap },
+  { name: 'AdminSettings', label: 'Settings', icon: Settings },
 ];
 
 export default function AdminHeader({ navigation, options, route }: any) {
@@ -126,6 +137,8 @@ export default function AdminHeader({ navigation, options, route }: any) {
     navigation.navigate(name);
   };
 
+  const currentRouteName = route?.name;
+
   const handleOpenNotifs = () => {
     setNotifModalVisible(true);
     fetchNotifications(true);
@@ -161,9 +174,9 @@ export default function AdminHeader({ navigation, options, route }: any) {
     if (n.type === 'store_created' || (n.title && n.title.toLowerCase().includes('store'))) {
       navigation.navigate('AdminStores');
     } else if (n.type === 'subscriber_request' || (n.title && (n.title.toLowerCase().includes('subscriber') || n.title.toLowerCase().includes('newsletter')))) {
-      navigation.navigate('AdminDynamicContent');
+      navigation.navigate('AdminNewsletter');
     } else if (n.type === 'order' || (n.title && n.title.toLowerCase().includes('order'))) {
-      navigation.navigate('AdminOrderHistory');
+      navigation.navigate('AdminDashboard');
     } else {
       navigation.navigate('AdminDashboard');
     }
@@ -252,51 +265,70 @@ export default function AdminHeader({ navigation, options, route }: any) {
       <Modal visible={visible} transparent animationType="none" onRequestClose={close}>
         <View style={styles.modalRoot}>
           <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={close} />
-          <Animated.View style={[styles.menu, { backgroundColor: themeColors.sidebarBg, transform: [{ translateX: slideAnim }] }]}>
-            <View style={[styles.menuHeader, { borderBottomColor: themeColors.border }]}>
-              <Text style={[styles.menuBrand, { color: themeColors.primary }]}>Remise Admin</Text>
+          <Animated.View style={[styles.menu, { backgroundColor: isDark ? '#0f172a' : '#0F172A', transform: [{ translateX: slideAnim }] }]}>
+            {/* Exact Web Brand Logo */}
+            <View style={[styles.menuHeader, { borderBottomColor: isDark ? '#1e293b' : '#1e293b' }]}>
+              <View style={styles.brandContainer}>
+                <View style={styles.brandIconBox}>
+                  <Text style={styles.brandIconLetter}>R</Text>
+                </View>
+                <Text style={styles.brandText}>
+                  RE<Text style={{ color: '#EF4444' }}>MISE</Text>
+                </Text>
+              </View>
               <TouchableOpacity onPress={close} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X color={themeColors.textSecondary} size={20} />
+                <X color="#94A3B8" size={20} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ flex: 1 }}>
-              <MenuItem label="View Store (Home)" textColor={AdminColors.primary} onPress={() => go('CustomerHome')} />
-              <MenuItem label="Dashboard" textColor={themeColors.textPrimary} onPress={() => go('AdminDashboard')} />
-              <MenuItem label="Stores" textColor={themeColors.textPrimary} onPress={() => go('AdminStores')} />
-              <MenuItem label="Store Registrations" textColor={themeColors.textPrimary} onPress={() => go('AdminStoreRegistrations')} />
+            {/* Exact 10 Web Admin Menu Items */}
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.menuScrollContent} showsVerticalScrollIndicator={false}>
+              {ADMIN_MENU_ITEMS.map((item) => {
+                const isActive = currentRouteName === item.name || 
+                  (item.name === 'AdminStores' && currentRouteName === 'AdminStoreRegistrations') ||
+                  (item.name === 'AdminCategory' && currentRouteName === 'AdminDynamicContent');
+                const IconComponent = item.icon;
 
-              <Text style={[styles.groupLabel, { color: themeColors.textMuted }]}>Portfolio</Text>
-              {PORTFOLIO_GROUP.map(([name, label]) => (
-                <MenuItem key={name} label={label} textColor={themeColors.textPrimary} onPress={() => go(name)} indent />
-              ))}
-
-              <MenuItem label="Blogs & News" textColor={themeColors.textPrimary} onPress={() => go('AdminBlogs')} />
-              <MenuItem label="Press Releases" textColor={themeColors.textPrimary} onPress={() => go('AdminPress')} />
-              <MenuItem label="Product" textColor={themeColors.textPrimary} onPress={() => go('AdminProduct')} />
-              <MenuItem label="Order History" textColor={themeColors.textPrimary} onPress={() => go('AdminOrderHistory')} />
-              <MenuItem label="User Management" textColor={themeColors.textPrimary} onPress={() => go('AdminUsers')} />
-              <MenuItem label="Delivery Partners" textColor={themeColors.textPrimary} onPress={() => go('AdminDeliveryPartners')} />
-              <MenuItem label="Dynamic Content" textColor={themeColors.textPrimary} onPress={() => go('AdminDynamicContent')} />
-              <MenuItem 
-                label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`} 
-                textColor={unreadCount > 0 ? AdminColors.primary : themeColors.textPrimary} 
-                onPress={() => { close(); handleOpenNotifs(); }} 
-              />
-              <MenuItem label="Settings" textColor={themeColors.textPrimary} onPress={() => go('AdminSettings')} />
+                return (
+                  <TouchableOpacity
+                    key={item.name}
+                    style={[
+                      styles.drawerItemRow,
+                      isActive && styles.drawerItemRowActive
+                    ]}
+                    onPress={() => go(item.name)}
+                    activeOpacity={0.7}
+                  >
+                    <IconComponent
+                      size={18}
+                      color={isActive ? '#FFFFFF' : '#94A3B8'}
+                      style={styles.drawerItemIcon}
+                    />
+                    <Text
+                      style={[
+                        styles.drawerItemText,
+                        isActive ? styles.drawerItemTextActive : styles.drawerItemTextInactive
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
-            {/* Bottom Admin User Profile & Logout */}
-            <View style={[styles.drawerFooter, { borderTopColor: themeColors.border, backgroundColor: isDark ? '#111827' : '#F8FAFC' }]}>
+            {/* Bottom Admin User Profile & Logout matching Web */}
+            <View style={[styles.drawerFooter, { borderTopColor: '#1e293b', backgroundColor: '#0B1120' }]}>
               <View style={styles.drawerUserCard}>
                 <View style={styles.drawerAvatar}>
                   <Text style={styles.drawerAvatarText}>{avatarInitials}</Text>
                 </View>
                 <View style={styles.drawerUserInfo}>
-                  <Text style={[styles.drawerUserName, { color: themeColors.textPrimary }]} numberOfLines={1}>
+                  <Text style={[styles.drawerUserName, { color: '#FFFFFF' }]} numberOfLines={1}>
                     {displayName}
                   </Text>
-                  <Text style={[styles.drawerUserEmail, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                  <Text style={[styles.drawerUserEmail, { color: '#94A3B8' }]} numberOfLines={1}>
                     {displayEmail}
                   </Text>
                 </View>
@@ -475,14 +507,6 @@ export default function AdminHeader({ navigation, options, route }: any) {
   );
 }
 
-function MenuItem({ label, onPress, indent, textColor }: { label: string; onPress: () => void; indent?: boolean; textColor?: string }) {
-  return (
-    <TouchableOpacity style={[styles.menuItem, indent && styles.menuItemIndent]} onPress={onPress}>
-      <Text style={[styles.menuItemText, textColor ? { color: textColor } : {}]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   header: {
     height: 56,
@@ -559,14 +583,77 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   modalRoot: { flex: 1, flexDirection: 'row' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)' },
-  menu: { position: 'absolute', top: 0, bottom: 0, left: 0, width: MENU_WIDTH },
-  menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1 },
-  menuBrand: { fontSize: 16, fontWeight: '800' },
-  groupLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginLeft: 16, marginTop: 12, marginBottom: 4 },
-  menuItem: { paddingVertical: 12, paddingHorizontal: 16 },
-  menuItemIndent: { paddingLeft: 24 },
-  menuItemText: { fontSize: 14, fontWeight: '500' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)' },
+  menu: { position: 'absolute', top: 0, bottom: 0, left: 0, width: MENU_WIDTH, zIndex: 9999 },
+  menuHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 16, 
+    paddingVertical: 18, 
+    borderBottomWidth: 1 
+  },
+  brandContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandIconLetter: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  brandText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  menuScrollContent: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  drawerItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    gap: 12,
+    marginBottom: 2,
+  },
+  drawerItemRowActive: {
+    backgroundColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  drawerItemIcon: {
+    marginRight: 2,
+  },
+  drawerItemText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    flex: 1,
+  },
+  drawerItemTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  drawerItemTextInactive: {
+    color: '#94A3B8',
+  },
   drawerFooter: {
     borderTopWidth: 1,
     padding: Spacing.md,

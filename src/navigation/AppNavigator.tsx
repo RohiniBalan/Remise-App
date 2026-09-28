@@ -38,8 +38,8 @@ export type RootStackParamList = {
   BusinessSignup: undefined;
   AdminLogin: undefined;
   GoogleAuthWebView: { role?: string } | undefined;
-  ForgotPassword: undefined;
-  ResetPassword: { token?: string } | undefined;
+  ForgotPassword: { role?: string; returnTo?: string } | undefined;
+  ResetPassword: { token?: string; role?: string; returnTo?: string } | undefined;
 
   VerifyEmail: undefined;
   VerifyEmailToken: { token?: string } | undefined;
@@ -73,8 +73,12 @@ function RoleGate() {
     return <CustomerNavigator key={navigatorKey} />;
   }
 
-  switch (user.role) {
+  const rawRole = (user?.role ? String(user.role) : '').toLowerCase().trim();
+
+  switch (rawRole) {
     case 'admin':
+    case 'superadmin':
+    case 'super_admin':
       console.log('ROLE GATE -> ADMIN');
       return <AdminNavigator key={navigatorKey} />;
 
@@ -92,6 +96,8 @@ function RoleGate() {
       return <HomeBusinessNavigator key={navigatorKey} />;
 
     case 'delivery_person':
+    case 'delivery_partner':
+    case 'delivery':
       console.log('ROLE GATE -> DELIVERY PARTNER');
       return <DeliveryPartnerNavigator key={navigatorKey} />;
 

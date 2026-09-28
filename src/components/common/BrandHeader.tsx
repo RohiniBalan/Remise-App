@@ -2,14 +2,16 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Sun, Moon } from 'lucide-react-native';
+import { Sun, Moon, Bell } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing } from '../../styles/theme';
 
 export default function BrandHeader() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { theme, toggleTheme, isDark } = useTheme();
+  const { unreadCount } = useUnreadNotifications();
 
   return (
     <View
@@ -33,21 +35,42 @@ export default function BrandHeader() {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={toggleTheme}
-        style={[
-          styles.themeToggleBtn,
-          { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#F5F5F5' },
-        ]}
-        activeOpacity={0.7}
-        accessibilityLabel="Toggle Theme"
-      >
-        {isDark ? (
-          <Sun size={18} color="#FBBF24" />
-        ) : (
-          <Moon size={18} color="#4B5563" />
-        )}
-      </TouchableOpacity>
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          onPress={toggleTheme}
+          style={[
+            styles.headerBtn,
+            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#F5F5F5' },
+          ]}
+          activeOpacity={0.7}
+          accessibilityLabel="Toggle Theme"
+        >
+          {isDark ? (
+            <Sun size={18} color="#FBBF24" />
+          ) : (
+            <Moon size={18} color="#4B5563" />
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Notifications')}
+          style={[
+            styles.headerBtn,
+            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#F5F5F5' },
+          ]}
+          activeOpacity={0.7}
+          accessibilityLabel="Notifications"
+        >
+          <Bell size={18} color={isDark ? '#FFFFFF' : '#4B5563'} />
+          {unreadCount > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -70,11 +93,34 @@ const styles = StyleSheet.create({
     color: CustomerColors.primary,
     fontWeight: '900',
   },
-  themeToggleBtn: {
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerBtn: {
     padding: 7,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    backgroundColor: CustomerColors.primary,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
 });
 

@@ -123,6 +123,7 @@ interface DealStripItem {
 const DEAL_STRIP: DealStripItem[] = [
   { icon: Percent, title: 'Up to 50% Off', subtitle: 'On select products', color: '#FF0000', route: 'Categories' },
   { icon: MapPin, title: 'Nearby Offers', subtitle: 'Deals around you', color: '#0FA3B1', route: 'Nearby' },
+  { icon: Tag, title: 'My Offers', subtitle: 'Private deals for you', color: '#EA580C', route: 'MyOffers' },
   { icon: ShoppingBasket, title: 'Monthly / Bulk', subtitle: 'Smart grocery list', color: '#0d9488', route: 'BulkPurchase' },
   { icon: Store, title: 'Home Supplier', subtitle: 'Buy from home sellers', color: '#8B5CF6', route: 'Suppliers' },
 ];

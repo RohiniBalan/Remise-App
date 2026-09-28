@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { 
   View, Text, TextInput, FlatList, StyleSheet, ActivityIndicator, 
   TouchableOpacity, Alert, Modal, ScrollView 
 } from 'react-native';
 import { Search, Shield, Users, Trash2, UserPlus, X, ShieldCheck, Check, RotateCcw } from 'lucide-react-native';
 import { adminUserApi } from '../../api/adminApi';
-import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { AdminColors, Spacing, FontSizes, BorderRadius, getAdminColors } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -28,8 +28,12 @@ const AVAILABLE_ROLES = [
 
 export default function AdminUsersScreen() {
   const { isDark } = useTheme();
+  const themeColors = getAdminColors(isDark);
+
+  // Core list state
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,20 +54,25 @@ export default function AdminUsersScreen() {
 
   const ITEMS_PER_PAGE = 30;
 
-  const loadUsers = () => {
-    setLoading(true);
-    adminUserApi
-      .getAll()
-      .then(res => setUsers(res.data.data || res.data || []))
-      .catch((err) => {
-        console.warn('Failed to fetch users:', err);
-      })
-      .finally(() => setLoading(false));
-  };
+  const loadUsers = useCallback(async (isPull = false) => {
+    if (isPull) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const res = await adminUserApi.getAll();
+      const userList = res.data?.data || (Array.isArray(res.data) ? res.data : res.data?.users || []);
+      setUsers(Array.isArray(userList) ? userList : []);
+    } catch (err) {
+      console.warn('Failed to fetch real users from gateway:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -127,15 +136,15 @@ export default function AdminUsersScreen() {
     try {
       const res = await adminUserApi.createAdmin(adminForm);
       if (res.data?.success !== false) {
-        Alert.alert('Success', `Admin account created for ${adminForm.fullname}!`);
+        Alert.alert('Success', `Account created for ${adminForm.fullname}!`);
         setShowAddAdminModal(false);
         setAdminForm({ fullname: '', email: '', password: '', mobilenumber: '', role: 'admin' });
         loadUsers();
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to create admin.');
+        Alert.alert('Error', res.data?.message || 'Failed to create account.');
       }
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to create admin.');
+      Alert.alert('Error', err.response?.data?.message || 'Failed to create account.');
     } finally {
       setCreatingAdmin(false);
     }
@@ -187,39 +196,66 @@ export default function AdminUsersScreen() {
     return counts;
   }, [users]);
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={AdminColors.primary} /></View>;
+  const getRoleBadgeStyle = (role: string) => {
+    const r = (role || 'user').toLowerCase();
+    if (r === 'admin') return { bg: isDark ? '#3B0764' : '#F5F3FF', text: isDark ? '#D8B4FE' : '#6D28D9', border: isDark ? '#581C87' : '#DDD6FE' };
+    if (r === 'store_owner') return { bg: isDark ? '#064E3B' : '#ECFDF5', text: isDark ? '#6EE7B7' : '#059669', border: isDark ? '#047857' : '#A7F3D0' };
+    if (r === 'wholesaler' || r === 'whole_saler') return { bg: isDark ? '#1E3A8A' : '#EFF6FF', text: isDark ? '#93C5FD' : '#2563EB', border: isDark ? '#1D4ED8' : '#BFDBFE' };
+    if (r === 'home_business') return { bg: isDark ? '#78350F' : '#FFFBEB', text: isDark ? '#FCD34D' : '#D97706', border: isDark ? '#B45309' : '#FDE68A' };
+    return { bg: isDark ? '#1F2937' : '#F3F4F6', text: isDark ? '#9CA3AF' : '#4B5563', border: isDark ? '#374151' : '#E5E7EB' };
+  };
+
+  const formatRoleText = (role: string) => {
+    if (!role || role === 'user') return 'User';
+    if (role === 'admin') return 'Admin';
+    if (role === 'store_owner') return 'Store Owner';
+    if (role === 'wholesaler' || role === 'whole_saler') return 'Wholesaler';
+    if (role === 'home_business') return 'Home Business';
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
+  if (loading) return <View style={[styles.center, { backgroundColor: themeColors.bg }]}><ActivityIndicator size="large" color={AdminColors.primary} /></View>;
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
       {/* Top Action Bar */}
       <View style={styles.headerRow}>
         <View style={styles.headerTitleGroup}>
-          <Text style={[styles.headerTitle, isDark && styles.textWhite]}>User Management</Text>
-          <Text style={styles.headerSub}>{users.length} registered accounts</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>User Management</Text>
+          <Text style={[styles.headerSub, { color: themeColors.textSecondary }]}>{users.length} registered accounts</Text>
         </View>
 
-        <TouchableOpacity 
-          style={styles.addAdminBtn} 
-          onPress={() => setShowAddAdminModal(true)}
-        >
-          <UserPlus size={14} color="#fff" />
-          <Text style={styles.addAdminBtnText}>+ Add Admin</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity 
+            style={[styles.refreshIconButton, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]} 
+            onPress={() => loadUsers(true)}
+          >
+            <RotateCcw size={15} color={themeColors.textPrimary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.addAdminBtn} 
+            onPress={() => setShowAddAdminModal(true)}
+          >
+            <UserPlus size={14} color="#fff" />
+            <Text style={styles.addAdminBtnText}>+ Add Admin</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Input */}
-      <View style={[styles.searchRow, isDark && styles.searchRowDark]}>
-        <Search size={14} color={AdminColors.textSecondary} />
+      <View style={[styles.searchRow, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
+        <Search size={14} color={themeColors.textSecondary} />
         <TextInput 
-          style={[styles.searchInput, isDark && styles.textWhite]} 
+          style={[styles.searchInput, { color: themeColors.textPrimary }]} 
           value={search} 
           onChangeText={setSearch} 
           placeholder="Search name, email, phone, role…" 
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={themeColors.textMuted}
         />
         {search ? (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <X size={14} color="#9CA3AF" />
+            <X size={14} color={themeColors.textMuted} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -236,11 +272,11 @@ export default function AdminUsersScreen() {
                 onPress={() => setSelectedRoleFilter(rf.value)}
                 style={[
                   styles.filterChip, 
-                  isDark && styles.filterChipDark,
+                  { backgroundColor: themeColors.cardBg, borderColor: themeColors.border },
                   active && styles.filterChipActive
                 ]}
               >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                <Text style={[styles.filterChipText, { color: isDark ? '#D1D5DB' : AdminColors.textSecondary }, active && styles.filterChipTextActive]}>
                   {rf.label} ({count})
                 </Text>
               </TouchableOpacity>
@@ -252,12 +288,14 @@ export default function AdminUsersScreen() {
       {/* Users List */}
       <FlatList
         data={paginated}
-        keyExtractor={u => u._id}
+        keyExtractor={u => u._id || String(Math.random())}
         contentContainerStyle={styles.list}
+        refreshing={refreshing}
+        onRefresh={() => loadUsers(true)}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Users size={36} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No users found</Text>
+            <Users size={36} color={themeColors.textMuted} />
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>No users found</Text>
           </View>
         }
         ListFooterComponent={
@@ -273,47 +311,76 @@ export default function AdminUsersScreen() {
         renderItem={({ item: u }) => {
           const initials = (u.fullname || u.email || 'U').split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2);
           const isAdmin = u.role === 'admin';
+          const badgeTheme = getRoleBadgeStyle(u.role);
+          const joinedDate = u.createdAt 
+            ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+            : null;
+
           return (
-            <View style={[styles.row, isDark && styles.rowDark]}>
+            <View style={[styles.row, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
               {/* Avatar */}
-              <View style={styles.avatar}>
+              <View style={[styles.avatar, isDark && { backgroundColor: '#450A0A' }]}>
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
 
               {/* User Details */}
               <View style={{ flex: 1 }}>
-                <Text style={[styles.name, isDark && styles.textWhite]}>{u.fullname || u.email}</Text>
-                <Text style={styles.email}>{u.email}{u.mobilenumber ? ` · ${u.mobilenumber}` : ''}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.name, { color: themeColors.textPrimary }]} numberOfLines={1}>{u.fullname || u.email}</Text>
+                  {u.googleId && (
+                    <View style={styles.googleBadge}>
+                      <Text style={styles.googleBadgeText}>Google</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={[styles.email, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                  {u.email}{u.mobilenumber ? ` · ${u.mobilenumber}` : ''}
+                </Text>
+
+                {joinedDate && (
+                  <Text style={[styles.joinedText, { color: themeColors.textMuted }]}>
+                    Joined {joinedDate}
+                  </Text>
+                )}
                 
                 {/* Role Badge (Clickable to change role / make admin) */}
                 <TouchableOpacity 
                   onPress={() => setRoleChangeTarget(u)}
-                  style={[styles.roleBadge, isAdmin && styles.roleBadgeAdmin]}
+                  style={[
+                    styles.roleBadge, 
+                    { backgroundColor: badgeTheme.bg, borderColor: badgeTheme.border }
+                  ]}
+                  activeOpacity={0.7}
                 >
-                  {isAdmin ? <Shield size={10} color="#7C3AED" /> : <ShieldCheck size={10} color="#059669" />}
-                  <Text style={[styles.roleBadgeText, isAdmin && styles.roleBadgeTextAdmin]}>
-                    {u.role || 'user'}
+                  {isAdmin ? <Shield size={10} color={badgeTheme.text} /> : <ShieldCheck size={10} color={badgeTheme.text} />}
+                  <Text style={[styles.roleBadgeText, { color: badgeTheme.text }]}>
+                    {formatRoleText(u.role)}
                   </Text>
-                  <Text style={styles.roleChangeHint}>· change</Text>
+                  <Text style={[styles.roleChangeHint, { color: themeColors.textMuted }]}>· change</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Actions: Make Admin & Delete */}
               <View style={styles.actionGroup}>
                 <TouchableOpacity 
-                  style={[styles.roleToggleBtn, isAdmin && styles.roleToggleBtnActive]}
+                  style={[
+                    styles.roleToggleBtn, 
+                    isDark ? { backgroundColor: '#1F2937' } : { backgroundColor: '#F3F4F6' },
+                    isAdmin && (isDark ? { backgroundColor: '#3B0764' } : styles.roleToggleBtnActive)
+                  ]}
                   onPress={() => setRoleChangeTarget(u)}
                   accessibilityLabel="Change Role"
                 >
-                  <ShieldCheck size={14} color={isAdmin ? "#7C3AED" : AdminColors.textSecondary} />
+                  <ShieldCheck size={14} color={isAdmin ? (isDark ? "#C084FC" : "#7C3AED") : (isDark ? "#9CA3AF" : AdminColors.textSecondary)} />
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                  style={styles.deleteBtn}
+                  style={[styles.deleteBtn, isDark && { backgroundColor: '#450A0A' }]}
                   onPress={() => handleDeletePress(u)}
                   accessibilityLabel="Delete User"
                 >
-                  <Trash2 size={15} color="#EF4444" />
+                  <Trash2 size={15} color={isDark ? "#F87171" : "#EF4444"} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -326,62 +393,62 @@ export default function AdminUsersScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, isDark && styles.modalCardDark]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Add Admin / User</Text>
+              <Text style={[styles.modalHeaderTitle, isDark && styles.textWhite]}>Add Admin / User</Text>
               <TouchableOpacity onPress={() => setShowAddAdminModal(false)}>
-                <X size={18} color="#9CA3AF" />
+                <X size={18} color={isDark ? '#9CA3AF' : '#64748b'} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={{ maxHeight: 400 }}>
-              <Text style={styles.inputLabel}>Full Name *</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Full Name *</Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
                 placeholder="e.g. Administrator"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 value={adminForm.fullname}
                 onChangeText={v => setAdminForm(f => ({ ...f, fullname: v }))}
               />
 
-              <Text style={styles.inputLabel}>Email Address *</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Email Address *</Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
                 placeholder="admin@example.com"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={adminForm.email}
                 onChangeText={v => setAdminForm(f => ({ ...f, email: v }))}
               />
 
-              <Text style={styles.inputLabel}>Password *</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Password *</Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
                 placeholder="Min 6 characters"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 secureTextEntry
                 value={adminForm.password}
                 onChangeText={v => setAdminForm(f => ({ ...f, password: v }))}
               />
 
-              <Text style={styles.inputLabel}>Mobile Number (Optional)</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Mobile Number (Optional)</Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
                 placeholder="+91 9876543210"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 keyboardType="phone-pad"
                 value={adminForm.mobilenumber}
                 onChangeText={v => setAdminForm(f => ({ ...f, mobilenumber: v }))}
               />
 
-              <Text style={styles.inputLabel}>Assign Role</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Assign Role</Text>
               <View style={styles.roleOptionsContainer}>
                 {AVAILABLE_ROLES.map(r => (
                   <TouchableOpacity
                     key={r.value}
                     onPress={() => setAdminForm(f => ({ ...f, role: r.value }))}
-                    style={[styles.roleSelectChip, adminForm.role === r.value && styles.roleSelectChipActive]}
+                    style={[styles.roleSelectChip, isDark && styles.roleSelectChipDark, adminForm.role === r.value && styles.roleSelectChipActive]}
                   >
-                    <Text style={[styles.roleSelectChipText, adminForm.role === r.value && styles.roleSelectChipTextActive]}>
+                    <Text style={[styles.roleSelectChipText, isDark && styles.textWhite, adminForm.role === r.value && styles.roleSelectChipTextActive]}>
                       {r.label}
                     </Text>
                   </TouchableOpacity>
@@ -390,8 +457,8 @@ export default function AdminUsersScreen() {
             </ScrollView>
 
             <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAddAdminModal(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && styles.cancelBtnDark]} onPress={() => setShowAddAdminModal(false)}>
+                <Text style={[styles.cancelBtnText, isDark && styles.textWhite]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.submitBtn} onPress={handleCreateAdmin} disabled={creatingAdmin}>
                 {creatingAdmin ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.submitBtnText}>Create Account</Text>}
@@ -406,14 +473,14 @@ export default function AdminUsersScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, isDark && styles.modalCardDark]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Change User Role</Text>
+              <Text style={[styles.modalHeaderTitle, isDark && styles.textWhite]}>Change User Role</Text>
               <TouchableOpacity onPress={() => setRoleChangeTarget(null)}>
-                <X size={18} color="#9CA3AF" />
+                <X size={18} color={isDark ? '#9CA3AF' : '#64748b'} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSub}>
-              Select role for: <Text style={{ fontWeight: '700' }}>{roleChangeTarget?.fullname || roleChangeTarget?.email}</Text>
+            <Text style={[styles.modalSub, isDark && styles.textMutedDark]}>
+              Select role for: <Text style={[{ fontWeight: '700' }, isDark && styles.textWhite]}>{roleChangeTarget?.fullname || roleChangeTarget?.email}</Text>
             </Text>
 
             <View style={{ gap: 8, marginVertical: 12 }}>
@@ -424,10 +491,10 @@ export default function AdminUsersScreen() {
                     key={r.value}
                     disabled={updatingRole}
                     onPress={() => handleRoleSelect(r.value)}
-                    style={[styles.roleOptionRow, isSelected && styles.roleOptionRowSelected]}
+                    style={[styles.roleOptionRow, isDark && styles.roleOptionRowDark, isSelected && styles.roleOptionRowSelected]}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.roleOptionText, isSelected && styles.roleOptionTextSelected]}>
+                      <Text style={[styles.roleOptionText, isDark && styles.textWhite, isSelected && styles.roleOptionTextSelected]}>
                         {r.label}
                       </Text>
                     </View>
@@ -437,8 +504,8 @@ export default function AdminUsersScreen() {
               })}
             </View>
 
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setRoleChangeTarget(null)}>
-              <Text style={styles.cancelBtnText}>Close</Text>
+            <TouchableOpacity style={[styles.cancelBtn, isDark && styles.cancelBtnDark]} onPress={() => setRoleChangeTarget(null)}>
+              <Text style={[styles.cancelBtnText, isDark && styles.textWhite]}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -456,6 +523,7 @@ const styles = StyleSheet.create({
   headerTitleGroup: { flex: 1 },
   headerTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: AdminColors.textPrimary },
   headerSub: { fontSize: FontSizes.xs, color: AdminColors.textSecondary, marginTop: 2 },
+  refreshIconButton: { width: 34, height: 34, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   addAdminBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: AdminColors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: BorderRadius.md },
   addAdminBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
 
@@ -478,13 +546,17 @@ const styles = StyleSheet.create({
   avatarText: { fontWeight: '800', color: AdminColors.primary },
   name: { fontSize: FontSizes.sm, fontWeight: '700', color: AdminColors.textPrimary },
   email: { fontSize: FontSizes.xs, color: AdminColors.textSecondary },
+  joinedText: { fontSize: 10, marginTop: 2 },
+  googleBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: '#BFDBFE' },
+  googleBadgeText: { fontSize: 9, fontWeight: '700', color: '#2563EB' },
   textWhite: { color: '#F9FAFB' },
+  textMutedDark: { color: '#9CA3AF' },
   
-  roleBadge: { flexDirection: 'row', gap: 3, alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill, alignSelf: 'flex-start', marginTop: 4 },
+  roleBadge: { flexDirection: 'row', gap: 3, alignItems: 'center', paddingHorizontal: 7, paddingVertical: 2, borderRadius: BorderRadius.pill, alignSelf: 'flex-start', marginTop: 4, borderWidth: 1 },
   roleBadgeAdmin: { backgroundColor: '#F5F3FF' },
-  roleBadgeText: { fontSize: 10, fontWeight: '700', color: '#6B7280', textTransform: 'capitalize' },
+  roleBadgeText: { fontSize: 10, fontWeight: '700', textTransform: 'capitalize' },
   roleBadgeTextAdmin: { color: '#7C3AED' },
-  roleChangeHint: { fontSize: 9, color: '#9CA3AF' },
+  roleChangeHint: { fontSize: 9 },
 
   actionGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   roleToggleBtn: { padding: 6, borderRadius: 8, backgroundColor: '#F3F4F6' },
@@ -497,7 +569,7 @@ const styles = StyleSheet.create({
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.md },
   modalCard: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: BorderRadius.lg, padding: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
-  modalCardDark: { backgroundColor: '#111827' },
+  modalCardDark: { backgroundColor: '#111827', borderWidth: 1, borderColor: '#374151' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   modalHeaderTitle: { fontSize: FontSizes.md, fontWeight: '800', color: AdminColors.textPrimary },
   modalSub: { fontSize: FontSizes.xs, color: AdminColors.textSecondary, marginBottom: 8 },
@@ -507,17 +579,20 @@ const styles = StyleSheet.create({
   
   roleOptionsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   roleSelectChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: AdminColors.border, backgroundColor: '#fff' },
+  roleSelectChipDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
   roleSelectChipActive: { borderColor: AdminColors.primary, backgroundColor: AdminColors.primaryLight },
   roleSelectChipText: { fontSize: 11, fontWeight: '600', color: AdminColors.textSecondary },
   roleSelectChipTextActive: { color: AdminColors.primary, fontWeight: '700' },
 
   roleOptionRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: AdminColors.border, backgroundColor: '#fff' },
+  roleOptionRowDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
   roleOptionRowSelected: { borderColor: '#7C3AED', backgroundColor: '#F5F3FF' },
   roleOptionText: { fontSize: FontSizes.sm, fontWeight: '600', color: AdminColors.textPrimary },
   roleOptionTextSelected: { color: '#7C3AED', fontWeight: '700' },
 
   modalFooter: { flexDirection: 'row', gap: 10, marginTop: Spacing.lg },
   cancelBtn: { flex: 1, paddingVertical: 10, borderRadius: BorderRadius.md, backgroundColor: '#F3F4F6', alignItems: 'center' },
+  cancelBtnDark: { backgroundColor: '#374151' },
   cancelBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: AdminColors.textSecondary },
   submitBtn: { flex: 1, paddingVertical: 10, borderRadius: BorderRadius.md, backgroundColor: AdminColors.primary, alignItems: 'center' },
   submitBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: '#fff' },

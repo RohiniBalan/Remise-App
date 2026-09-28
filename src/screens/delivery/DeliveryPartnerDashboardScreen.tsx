@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   CheckCircle2,
   Clock3,
@@ -70,6 +71,7 @@ type Dashboard = {
 type ActiveTab = 'live' | 'earnings' | 'profile';
 
 export default function DeliveryPartnerDashboardScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
   const { unreadCount } = useUnreadNotifications();
@@ -284,28 +286,19 @@ export default function DeliveryPartnerDashboardScreen() {
 
 
   const handleReturnHome = () => {
-    Alert.alert(
-      'Return to Store Home',
-      'Would you like to return to the main store?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Go to Store Home',
-          onPress: async () => {
-            await logout();
-            try {
-              navigation.getParent()?.reset({ index: 0, routes: [{ name: 'RoleGate' }] });
-            } catch {
-              try {
-                navigation.reset({ index: 0, routes: [{ name: 'RoleGate' }] });
-              } catch {
-                // AuthContext RoleGate listener will auto-mount Customer home
-              }
-            }
-          },
-        },
-      ],
-    );
+    try {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('CustomerHome');
+      }
+    } catch {
+      try {
+        navigation.navigate('CustomerHome');
+      } catch {
+        navigation.navigate('Home');
+      }
+    }
   };
 
   const handleStartEditProfile = () => {
@@ -366,43 +359,65 @@ export default function DeliveryPartnerDashboardScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* Top Header Bar with Spacing */}
-      <View style={styles.topBar}>
-        <View style={styles.headerIdentity}>
-          <TouchableOpacity
-            style={styles.homeBtn}
-            onPress={handleReturnHome}
-            accessibilityLabel="Return to store home"
-          >
-            <Home size={18} color="#FF0000" />
-          </TouchableOpacity>
+      {/* Top Header Bar with Spacing & Status Safe Area */}
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 14) }]}>
+        {/* Upper Row: Utility Action Buttons & Availability Toggle */}
+        <View style={styles.topRow}>
+          <View style={styles.headerLeftActions}>
+            <TouchableOpacity
+              style={styles.homeBtn}
+              onPress={handleReturnHome}
+              accessibilityLabel="Return to store home"
+            >
+              <Home size={18} color="#FF0000" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.themeBtn}
-            onPress={toggleTheme}
-            accessibilityLabel="Toggle Light/Dark Theme"
-          >
-            {isDark ? <Sun size={17} color="#F59E0B" /> : <Moon size={17} color="#6366F1" />}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.themeBtn}
+              onPress={toggleTheme}
+              accessibilityLabel="Toggle Light/Dark Theme"
+            >
+              {isDark ? <Sun size={17} color="#F59E0B" /> : <Moon size={17} color="#6366F1" />}
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.notifBtn}
-            onPress={() => navigation.navigate('Notifications')}
-            accessibilityLabel="Notifications"
-          >
-            <Bell size={17} color={isDark ? '#E2E8F0' : '#1E293B'} />
-            {unreadCount > 0 && (
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.notifBtn}
+              onPress={() => navigation.navigate('Notifications')}
+              accessibilityLabel="Notifications"
+            >
+              <Bell size={17} color={isDark ? '#E2E8F0' : '#1E293B'} />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
-          <View>
+          <Pressable
+            onPress={toggleAvailability}
+            disabled={working}
+            style={[styles.availability, available && styles.offline]}
+          >
+            <Power size={13} color="#fff" />
+            <Text style={styles.availabilityText}>
+              {available ? 'Go Offline' : 'Go Available'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Lower Row: Delivery Partner Info & Live Status Badge */}
+        <View style={styles.partnerInfoRow}>
+          <View style={styles.partnerAvatar}>
+            <Text style={styles.partnerAvatarText}>
+              {(user?.fullname || profile?.fullname || 'D').trim().charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.partnerDetails}>
             <View style={styles.partnerNameRow}>
-              <Text style={styles.partnerName}>
+              <Text style={styles.partnerName} numberOfLines={1}>
                 {user?.fullname || profile.fullname}
               </Text>
               <View style={styles.verifiedBadge}>
@@ -410,22 +425,17 @@ export default function DeliveryPartnerDashboardScreen() {
                 <Text style={styles.verifiedText}>Verified</Text>
               </View>
             </View>
-            <Text style={styles.vehicleSubtitle}>
-              {profile.deliveryPartner?.vehicleType} · {profile.deliveryPartner?.vehicleNumber}
+            <Text style={styles.vehicleSubtitle} numberOfLines={1}>
+              {profile.deliveryPartner?.vehicleType || 'Vehicle'} · {profile.deliveryPartner?.vehicleNumber || 'Registered'}
+            </Text>
+          </View>
+          <View style={[styles.statusIndicator, available ? styles.statusOnline : styles.statusOffline]}>
+            <View style={[styles.statusIndicatorDot, available ? styles.dotOnline : styles.dotOffline]} />
+            <Text style={[styles.statusIndicatorText, available ? styles.textOnline : styles.textOffline]}>
+              {available ? 'ONLINE' : 'OFFLINE'}
             </Text>
           </View>
         </View>
-
-        <Pressable
-          onPress={toggleAvailability}
-          disabled={working}
-          style={[styles.availability, available && styles.offline]}
-        >
-          <Power size={13} color="#fff" />
-          <Text style={styles.availabilityText}>
-            {available ? 'Go Offline' : 'Go Available'}
-          </Text>
-        </Pressable>
       </View>
 
       {/* Tabs Menu */}
@@ -925,21 +935,27 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#070707' : '#F8FAFC',
     },
     topBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       paddingHorizontal: 16,
-      paddingTop: 16,
-      paddingBottom: 12,
+      paddingBottom: 14,
       backgroundColor: isDark ? '#0E0E0E' : '#FFFFFF',
       borderBottomWidth: 1,
       borderBottomColor: isDark ? '#1F1F1F' : '#E2E8F0',
+      gap: 12,
       elevation: 2,
     },
-    headerIdentity: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    headerLeftActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
     homeBtn: {
-      width: 36,
-      height: 36,
+      width: 38,
+      height: 38,
       borderRadius: 10,
       backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : 'rgba(255, 0, 0, 0.08)',
       alignItems: 'center',
@@ -948,8 +964,8 @@ const getStyles = (isDark: boolean) =>
       borderColor: isDark ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 0, 0, 0.2)',
     },
     themeBtn: {
-      width: 36,
-      height: 36,
+      width: 38,
+      height: 38,
       borderRadius: 10,
       backgroundColor: isDark ? '#18181B' : '#F1F5F9',
       alignItems: 'center',
@@ -958,8 +974,8 @@ const getStyles = (isDark: boolean) =>
       borderColor: isDark ? '#27272A' : '#E2E8F0',
     },
     notifBtn: {
-      width: 36,
-      height: 36,
+      width: 38,
+      height: 38,
       borderRadius: 10,
       backgroundColor: isDark ? '#18181B' : '#F1F5F9',
       alignItems: 'center',
@@ -985,8 +1001,45 @@ const getStyles = (isDark: boolean) =>
       fontSize: 9,
       fontWeight: '800',
     },
-    partnerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    partnerName: { color: isDark ? '#FFFFFF' : '#0F172A', fontSize: 14, fontWeight: '800' },
+    partnerInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: isDark ? '#141414' : '#F8FAFC',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: isDark ? '#222222' : '#EEF2F6',
+    },
+    partnerAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDark ? '#27272A' : '#E2E8F0',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    partnerAvatarText: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    partnerDetails: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    partnerNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    partnerName: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontSize: 14,
+      fontWeight: '800',
+      flexShrink: 1,
+    },
     verifiedBadge: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -996,23 +1049,70 @@ const getStyles = (isDark: boolean) =>
       paddingVertical: 1,
       borderRadius: 4,
     },
-    verifiedText: { color: '#10B981', fontSize: 9, fontWeight: '700' },
-    vehicleSubtitle: { color: isDark ? '#94A3B8' : '#64748B', fontSize: 11, marginTop: 1 },
-    availability: {
+    verifiedText: {
+      color: '#10B981',
+      fontSize: 9,
+      fontWeight: '700',
+    },
+    vehicleSubtitle: {
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontSize: 11,
+      marginTop: 2,
+    },
+    statusIndicator: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    statusOnline: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+    },
+    statusOffline: {
+      backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.1)',
+    },
+    statusIndicatorDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    dotOnline: {
+      backgroundColor: '#10B981',
+    },
+    dotOffline: {
+      backgroundColor: isDark ? '#64748B' : '#94A3B8',
+    },
+    statusIndicatorText: {
+      fontSize: 10,
+      fontWeight: '800',
+    },
+    textOnline: {
+      color: '#10B981',
+    },
+    textOffline: {
+      color: isDark ? '#94A3B8' : '#64748B',
+    },
+    availability: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
       backgroundColor: CustomerColors.primary,
       borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
     },
     offline: {
       backgroundColor: isDark ? '#27272A' : '#64748B',
       borderWidth: 1,
       borderColor: isDark ? '#3F3F46' : '#475569',
     },
-    availabilityText: { color: '#fff', fontWeight: '800', fontSize: 11 },
+    availabilityText: {
+      color: '#fff',
+      fontWeight: '800',
+      fontSize: 12,
+    },
 
     tabBar: {
       flexDirection: 'row',

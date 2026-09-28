@@ -259,7 +259,10 @@ function FormField({ label, cardBg, borderColor, textPri, textSec, ...rest }: Fo
   );
 }
 
+import { resolveImageUrl } from '../../utils/imageUrl';
+
 export default function MyOffersScreen() {
+  const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const { token } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -304,7 +307,7 @@ export default function MyOffersScreen() {
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: textPri }]}>🏷️ My Offers</Text>
         <Text style={[styles.headerSubtitle, { color: textSec }]}>
-          Deals a store has sent you personally
+          Deals and private discounts sent to you personally
         </Text>
       </View>
 
@@ -312,6 +315,25 @@ export default function MyOffersScreen() {
         <View style={styles.centerBox}>
           <ActivityIndicator color={CustomerColors.teal} size="large" />
         </View>
+      ) : !token ? (
+        <ScrollView
+          contentContainerStyle={styles.centerBox}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🏷️</Text>
+          <Text style={[styles.emptyTitle, { color: textPri }]}>Sign in for Private Offers</Text>
+          <Text style={[styles.emptySubtitle, { color: textSec, maxWidth: 300, textAlign: 'center' }]}>
+            When a store sends special deals and discounts directly to your account, they will appear here.
+          </Text>
+          <TouchableOpacity
+            style={[styles.orderNowBtn, { marginTop: Spacing.lg, paddingHorizontal: Spacing.xl, alignSelf: 'center' }]}
+            onPress={() => navigation.navigate('LoginRegister')}
+          >
+            <Text style={styles.orderNowText}>Sign In / Register</Text>
+          </TouchableOpacity>
+        </ScrollView>
       ) : offers.length === 0 ? (
         <ScrollView
           contentContainerStyle={styles.centerBox}
@@ -338,9 +360,7 @@ export default function MyOffersScreen() {
                 <View style={styles.imageWrap}>
                   <Image
                     source={{
-                      uri: offer.image?.startsWith('http')
-                        ? offer.image
-                        : `${GATEWAY_URL}${offer.image}`,
+                      uri: resolveImageUrl(offer.image) || 'https://via.placeholder.com/300x200?text=Offer',
                     }}
                     style={styles.image}
                     resizeMode="cover"

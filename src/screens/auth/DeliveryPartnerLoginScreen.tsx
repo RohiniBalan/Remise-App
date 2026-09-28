@@ -100,7 +100,19 @@ export default function DeliveryPartnerLoginScreen() {
           placeholder="you@example.com"
           placeholderTextColor="#94A3B8"
         />
-        <Text style={styles.label}>Password</Text>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, styles.labelInRow]}>Password</Text>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('ForgotPassword', {
+                role: 'delivery_partner',
+                returnTo: 'DeliveryPartnerLogin',
+              })
+            }
+          >
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
+        </View>
         <View>
           <TextInput
             style={styles.input}
@@ -184,6 +196,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: Spacing.md,
     marginBottom: Spacing.xs,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  labelInRow: {
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  forgotText: {
+    color: CustomerColors.primary,
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
   },
   input: {
     backgroundColor: '#1E1E1E',

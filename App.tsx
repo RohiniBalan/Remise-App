@@ -11,6 +11,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import { WishlistProvider } from './src/context/WishlistContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 function ThemedApp() {
@@ -23,11 +24,13 @@ function ThemedApp() {
         backgroundColor={isDark ? '#0a0f1d' : '#FFFFFF'}
       />
       <AuthProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <AppNavigator />
-          </WishlistProvider>
-        </CartProvider>
+        <NotificationProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <AppNavigator />
+            </WishlistProvider>
+          </CartProvider>
+        </NotificationProvider>
       </AuthProvider>
     </>
   );

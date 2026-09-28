@@ -34,7 +34,11 @@ import {
   Calendar,
   Bell,
   ChevronDown,
+  ChevronRight,
   X,
+  Tag,
+  Package,
+  Settings as SettingsIcon,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
@@ -520,23 +524,65 @@ export default function ProfileScreen() {
   if (!user) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.guestContainer}>
-          <View style={styles.guestAvatar}>
-            <User size={42} color={CustomerColors.primary} />
+        <ScrollView contentContainerStyle={{ padding: Spacing.lg }}>
+          <View style={styles.guestContainer}>
+            <View style={styles.guestAvatar}>
+              <User size={42} color={CustomerColors.primary} />
+            </View>
+            <Text style={styles.guestTitle}>Welcome to REmise</Text>
+            <Text style={styles.guestSubtitle}>
+              Sign in to view your orders, private offers, saved addresses, and manage your account.
+            </Text>
+            <TouchableOpacity
+              style={styles.guestLoginActionBtn}
+              onPress={() => navigation.navigate('LoginRegister')}
+              activeOpacity={0.85}
+            >
+              <LogIn size={18} color="#FFFFFF" />
+              <Text style={styles.guestLoginActionBtnText}>Sign In / Register</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.guestTitle}>Welcome to REmise</Text>
-          <Text style={styles.guestSubtitle}>
-            Sign in to view your orders, saved addresses, wishlist, and manage your account.
-          </Text>
-          <TouchableOpacity
-            style={styles.guestLoginActionBtn}
-            onPress={() => navigation.navigate('LoginRegister')}
-            activeOpacity={0.85}
-          >
-            <LogIn size={18} color="#FFFFFF" />
-            <Text style={styles.guestLoginActionBtnText}>Sign In / Register</Text>
-          </TouchableOpacity>
-        </View>
+
+          {/* Quick shortcuts for guest */}
+          <View style={[styles.quickMenuCard, { marginTop: Spacing.md }]}>
+            <TouchableOpacity
+              style={styles.quickMenuItem}
+              onPress={() => navigation.navigate('MyOffers')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#431407' : '#FFF7ED' }]}>
+                <Tag size={18} color="#EA580C" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.quickMenuTitle}>My Offers</Text>
+                  <View style={[styles.privateOfferBadge, isDark && { backgroundColor: '#78350F' }]}>
+                    <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>Private Deals</Text>
+                  </View>
+                </View>
+                <Text style={styles.quickMenuSub}>Special deals sent personally to your account</Text>
+              </View>
+              <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={styles.quickMenuDivider} />
+
+            <TouchableOpacity
+              style={styles.quickMenuItem}
+              onPress={() => navigation.navigate('Settings')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
+                <SettingsIcon size={18} color={isDark ? '#9CA3AF' : '#4B5563'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.quickMenuTitle}>Settings</Text>
+                <Text style={styles.quickMenuSub}>Preferences, theme & app info</Text>
+              </View>
+              <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -612,6 +658,80 @@ export default function ProfileScreen() {
               <Text style={styles.logoutBtnText}>Logout</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* ── Quick Actions / Shortcuts (matches web UserAvatarMenu) ── */}
+        <View style={styles.quickMenuCard}>
+          <TouchableOpacity
+            style={styles.quickMenuItem}
+            onPress={() => navigation.navigate('MyOffers')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#431407' : '#FFF7ED' }]}>
+              <Tag size={18} color="#EA580C" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.quickMenuTitle}>My Offers</Text>
+                <View style={[styles.privateOfferBadge, isDark && { backgroundColor: '#78350F' }]}>
+                  <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>Private Deals</Text>
+                </View>
+              </View>
+              <Text style={styles.quickMenuSub}>Exclusive personal discounts sent just to you</Text>
+            </View>
+            <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={styles.quickMenuDivider} />
+
+          <TouchableOpacity
+            style={styles.quickMenuItem}
+            onPress={() => navigation.navigate('Orders')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#172554' : '#EFF6FF' }]}>
+              <Package size={18} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.quickMenuTitle}>My Orders</Text>
+              <Text style={styles.quickMenuSub}>Track shipments & order history</Text>
+            </View>
+            <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={styles.quickMenuDivider} />
+
+          <TouchableOpacity
+            style={styles.quickMenuItem}
+            onPress={() => navigation.navigate('Wishlist')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#500724' : '#FDF2F8' }]}>
+              <Heart size={18} color="#DB2777" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.quickMenuTitle}>My Wishlist</Text>
+              <Text style={styles.quickMenuSub}>Products you saved for later</Text>
+            </View>
+            <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={styles.quickMenuDivider} />
+
+          <TouchableOpacity
+            style={styles.quickMenuItem}
+            onPress={() => navigation.navigate('Settings')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
+              <SettingsIcon size={18} color={isDark ? '#9CA3AF' : '#4B5563'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.quickMenuTitle}>Settings</Text>
+              <Text style={styles.quickMenuSub}>Preferences, privacy & about</Text>
+            </View>
+            <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -1546,6 +1666,54 @@ const getStyles = (isDark: boolean) =>
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
       marginBottom: Spacing.md,
+    },
+    quickMenuCard: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderRadius: BorderRadius.lg,
+      borderWidth: 1,
+      borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      marginBottom: Spacing.md,
+      overflow: 'hidden',
+    },
+    quickMenuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      gap: Spacing.sm,
+    },
+    quickMenuIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quickMenuTitle: {
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    quickMenuSub: {
+      fontSize: 11,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginTop: 2,
+    },
+    quickMenuDivider: {
+      height: 1,
+      backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+      marginHorizontal: Spacing.md,
+    },
+    privateOfferBadge: {
+      backgroundColor: '#FEF3C7',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    privateOfferBadgeText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#D97706',
     },
     avatarRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
     avatar: {

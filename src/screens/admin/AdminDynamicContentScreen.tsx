@@ -3,6 +3,7 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Activity
 import { Layers, Plus, Trash2, Search, Lock, Tag, ShieldCheck } from 'lucide-react-native';
 import { adminCategoryApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 export const DEFAULT_STORE_CATEGORIES = [
   'Food & Beverages',
@@ -29,6 +30,7 @@ export type MergedCategory = {
 };
 
 export default function AdminDynamicContentScreen() {
+  const { isDark } = useTheme();
   const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -125,24 +127,24 @@ export default function AdminDynamicContentScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, isDark && styles.containerDark]}>
         <ActivityIndicator size="large" color={AdminColors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && styles.containerDark]}>
       {/* Header Form */}
-      <View style={styles.addCard}>
-        <Text style={styles.sectionTitle}>Add New Category</Text>
+      <View style={[styles.addCard, isDark && styles.addCardDark]}>
+        <Text style={[styles.sectionTitle, isDark && styles.textWhite]}>Add New Category</Text>
         <View style={styles.addForm}>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={[styles.input, { flex: 1 }, isDark && styles.inputDark]}
             value={name}
             onChangeText={setName}
             placeholder="e.g. Pet Supplies, Books..."
-            placeholderTextColor={AdminColors.textMuted}
+            placeholderTextColor={isDark ? '#9CA3AF' : AdminColors.textMuted}
           />
           <TouchableOpacity
             style={[styles.addBtn, (!name.trim() || saving) && { opacity: 0.6 }]}
@@ -157,12 +159,12 @@ export default function AdminDynamicContentScreen() {
       {/* Search & Filter Bar */}
       <View style={styles.controlsSection}>
         {/* Search */}
-        <View style={styles.searchBar}>
-          <Search size={16} color={AdminColors.textMuted} />
+        <View style={[styles.searchBar, isDark && styles.searchBarDark]}>
+          <Search size={16} color={isDark ? '#9CA3AF' : AdminColors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, isDark && styles.textWhite]}
             placeholder="Search categories..."
-            placeholderTextColor={AdminColors.textMuted}
+            placeholderTextColor={isDark ? '#9CA3AF' : AdminColors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -171,26 +173,26 @@ export default function AdminDynamicContentScreen() {
         {/* Filter Chips */}
         <View style={styles.filterRow}>
           <TouchableOpacity
-            style={[styles.filterChip, activeFilter === 'ALL' && styles.filterChipActive]}
+            style={[styles.filterChip, isDark && styles.filterChipDark, activeFilter === 'ALL' && styles.filterChipActive]}
             onPress={() => setActiveFilter('ALL')}
           >
-            <Text style={[styles.filterChipText, activeFilter === 'ALL' && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, isDark && !activeFilter && styles.textMutedDark, activeFilter === 'ALL' && styles.filterChipTextActive]}>
               All ({mergedCategories.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, activeFilter === 'DEFAULT' && styles.filterChipActive]}
+            style={[styles.filterChip, isDark && styles.filterChipDark, activeFilter === 'DEFAULT' && styles.filterChipActive]}
             onPress={() => setActiveFilter('DEFAULT')}
           >
-            <Text style={[styles.filterChipText, activeFilter === 'DEFAULT' && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, isDark && activeFilter !== 'DEFAULT' && styles.textMutedDark, activeFilter === 'DEFAULT' && styles.filterChipTextActive]}>
               Default ({defaultCount})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, activeFilter === 'CUSTOM' && styles.filterChipActive]}
+            style={[styles.filterChip, isDark && styles.filterChipDark, activeFilter === 'CUSTOM' && styles.filterChipActive]}
             onPress={() => setActiveFilter('CUSTOM')}
           >
-            <Text style={[styles.filterChipText, activeFilter === 'CUSTOM' && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, isDark && activeFilter !== 'CUSTOM' && styles.textMutedDark, activeFilter === 'CUSTOM' && styles.filterChipTextActive]}>
               Custom ({customCount})
             </Text>
           </TouchableOpacity>
@@ -207,19 +209,19 @@ export default function AdminDynamicContentScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Layers size={36} color={AdminColors.textMuted} />
-            <Text style={styles.emptyText}>No categories found</Text>
+            <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>No categories found</Text>
           </View>
         }
         renderItem={({ item: c }) => (
-          <View style={styles.card}>
+          <View style={[styles.card, isDark && styles.cardDark]}>
             <View style={styles.cardHeader}>
               <View style={[styles.cardIcon, c.isDefault ? styles.cardIconDefault : styles.cardIconCustom]}>
                 <Layers size={16} color={AdminColors.primary} />
               </View>
               {c.isDefault ? (
-                <View style={styles.defaultBadge}>
-                  <Lock size={10} color="#64748b" />
-                  <Text style={styles.defaultBadgeText}>Default</Text>
+                <View style={[styles.defaultBadge, isDark && styles.defaultBadgeDark]}>
+                  <Lock size={10} color={isDark ? '#9CA3AF' : '#64748b'} />
+                  <Text style={[styles.defaultBadgeText, isDark && styles.textMutedDark]}>Default</Text>
                 </View>
               ) : (
                 <View style={styles.customBadge}>
@@ -229,11 +231,11 @@ export default function AdminDynamicContentScreen() {
               )}
             </View>
 
-            <Text style={styles.cardName} numberOfLines={2}>
+            <Text style={[styles.cardName, isDark && styles.textWhite]} numberOfLines={2}>
               {c.name}
             </Text>
 
-            <View style={styles.cardFooter}>
+            <View style={[styles.cardFooter, isDark && styles.cardFooterDark]}>
               {!c.isDefault ? (
                 <TouchableOpacity
                   style={styles.deleteBtn}
@@ -244,8 +246,8 @@ export default function AdminDynamicContentScreen() {
                 </TouchableOpacity>
               ) : (
                 <View style={styles.systemBadge}>
-                  <ShieldCheck size={12} color="#94a3b8" />
-                  <Text style={styles.systemText}>Protected</Text>
+                  <ShieldCheck size={12} color={isDark ? '#6B7280' : '#94a3b8'} />
+                  <Text style={[styles.systemText, isDark && styles.systemTextDark]}>Protected</Text>
                 </View>
               )}
             </View>
@@ -258,7 +260,11 @@ export default function AdminDynamicContentScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AdminColors.bg },
+  containerDark: { backgroundColor: '#0B0F19' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: AdminColors.bg },
+  textWhite: { color: '#F9FAFB' },
+  textMutedDark: { color: '#9CA3AF' },
+  
   addCard: {
     backgroundColor: '#fff',
     margin: Spacing.md,
@@ -267,6 +273,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: '#FEE2E2',
+  },
+  addCardDark: {
+    backgroundColor: '#1F2937',
+    borderColor: '#374151',
   },
   sectionTitle: {
     fontSize: FontSizes.sm,
@@ -284,6 +294,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: FontSizes.sm,
     color: AdminColors.textPrimary,
+  },
+  inputDark: {
+    backgroundColor: '#111827',
+    borderColor: '#374151',
+    color: '#FFFFFF',
   },
   addBtn: {
     width: 44,
@@ -313,6 +328,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
   },
+  searchBarDark: {
+    backgroundColor: '#1F2937',
+    borderColor: '#374151',
+  },
   searchInput: {
     flex: 1,
     fontSize: FontSizes.sm,
@@ -329,8 +348,14 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     backgroundColor: '#E2E8F0',
   },
+  filterChipDark: {
+    backgroundColor: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
   filterChipActive: {
     backgroundColor: AdminColors.primary,
+    borderColor: AdminColors.primary,
   },
   filterChipText: {
     fontSize: FontSizes.xs,
@@ -351,6 +376,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     justifyContent: 'space-between',
     minHeight: 115,
+  },
+  cardDark: {
+    backgroundColor: '#1F2937',
+    borderColor: '#374151',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -379,6 +408,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
+  },
+  defaultBadgeDark: {
+    backgroundColor: '#374151',
   },
   defaultBadgeText: {
     fontSize: 10,
@@ -414,6 +446,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F8FAFC',
   },
+  cardFooterDark: {
+    borderTopColor: '#374151',
+  },
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -436,6 +471,9 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontWeight: '500',
   },
+  systemTextDark: {
+    color: '#6B7280',
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -448,3 +486,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

@@ -31,7 +31,8 @@ import {
   Globe,
   Share2,
 } from 'lucide-react-native';
-import { AdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { useTheme } from '../../context/ThemeContext';
+import { getAdminColors, AdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pressApi, PressReleaseItem } from '../../api/pressApi';
 
@@ -51,6 +52,9 @@ const STORAGE_KEY = 'remise_press_releases';
 const DUMMY_IDS = ['smarter-local-discovery', 'product-scanning-launch', 'store-comparison-update'];
 
 export default function AdminPressScreen() {
+  const { isDark } = useTheme();
+  const themeColors = getAdminColors(isDark);
+
   const [releases, setReleases] = useState<PressReleaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -295,12 +299,12 @@ export default function AdminPressScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
       {/* Header bar */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Press & Media</Text>
-          <Text style={styles.headerSubtitle}>Publish company news and press releases</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Press & Media</Text>
+          <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>Publish company news and press releases</Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={openCreateModal}>
           <Plus size={16} color="#fff" />
@@ -311,37 +315,38 @@ export default function AdminPressScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Quick Stats Grid */}
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total</Text>
+          <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
+            <Text style={[styles.statNum, { color: themeColors.textPrimary }]}>{stats.total}</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Total</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <Text style={[styles.statNum, { color: '#059669' }]}>{stats.published}</Text>
-            <Text style={styles.statLabel}>Live</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Live</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <Text style={[styles.statNum, { color: '#D97706' }]}>{stats.drafts}</Text>
-            <Text style={styles.statLabel}>Drafts</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Drafts</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <Text style={[styles.statNum, { color: AdminColors.primary }]}>{stats.featured}</Text>
-            <Text style={styles.statLabel}>Featured</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Featured</Text>
           </View>
         </View>
 
         {/* Search Input */}
-        <View style={styles.searchBar}>
-          <Search size={16} color={AdminColors.textMuted} />
+        <View style={[styles.searchBar, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
+          <Search size={16} color={themeColors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
             placeholder="Search press releases..."
-            placeholderTextColor={AdminColors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            selectionColor={AdminColors.primary}
           />
           {searchQuery ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <X size={16} color={AdminColors.textMuted} />
+              <X size={16} color={themeColors.textMuted} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -351,10 +356,20 @@ export default function AdminPressScreen() {
           {(['all', 'published', 'draft', 'featured'] as const).map(s => (
             <TouchableOpacity
               key={s}
-              style={[styles.statusChip, statusFilter === s && styles.statusChipActive]}
+              style={[
+                styles.statusChip,
+                { backgroundColor: themeColors.cardBg, borderColor: themeColors.border },
+                statusFilter === s && styles.statusChipActive,
+              ]}
               onPress={() => setStatusFilter(s)}
             >
-              <Text style={[styles.statusChipText, statusFilter === s && styles.statusChipTextActive]}>
+              <Text
+                style={[
+                  styles.statusChipText,
+                  { color: isDark ? '#CBD5E1' : themeColors.textSecondary },
+                  statusFilter === s && styles.statusChipTextActive,
+                ]}
+              >
                 {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
               </Text>
             </TouchableOpacity>
@@ -366,10 +381,20 @@ export default function AdminPressScreen() {
           {['All', ...CATEGORIES].map(cat => (
             <TouchableOpacity
               key={cat}
-              style={[styles.catChip, activeCategory === cat && styles.catChipActive]}
+              style={[
+                styles.catChip,
+                { backgroundColor: themeColors.cardBg, borderColor: themeColors.border },
+                activeCategory === cat && styles.catChipActive,
+              ]}
               onPress={() => setActiveCategory(cat)}
             >
-              <Text style={[styles.catChipText, activeCategory === cat && styles.catChipTextActive]}>
+              <Text
+                style={[
+                  styles.catChipText,
+                  { color: isDark ? '#CBD5E1' : themeColors.textSecondary },
+                  activeCategory === cat && styles.catChipTextActive,
+                ]}
+              >
                 {cat}
               </Text>
             </TouchableOpacity>
