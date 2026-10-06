@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { notificationApi } from '../api/notificationApi';
+import {
+  syncDeviceToken,
+  setupFCMListeners,
+  setForegroundBannerListener,
+  navigateFromNotificationData,
+} from '../services/fcmService';
+import InAppNotificationBanner, { BannerData } from '../components/common/InAppNotificationBanner';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -19,8 +26,9 @@ const NotificationContext = createContext<NotificationContextType>({
 });
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [bannerData, setBannerData] = useState<BannerData | null>(null);
 
   const fetchUnread = useCallback(async () => {
     if (!token) {
@@ -43,6 +51,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, [fetchUnread]);
+
+  // Synchronize FCM device token and register listeners when authenticated
+  useEffect(() => {
+    if (!token) return;
+
+    // Sync device token with backend
+    syncDeviceToken();
+
+    // Listen for foreground notifications to display banner & increment unread counter
+    setForegroundBannerListener((payload) => {
+      setBannerData(payload);
+    });
+
+    const cleanupListeners = setupFCMListeners(() => {
+      fetchUnread();
+    });
+
+    return () => {
+      setForegroundBannerListener(null);
+      cleanupListeners();
+    };
+  }, [token, fetchUnread]);
 
   const markRead = useCallback(async (id: string) => {
     // Optimistically decrement unread count immediately across all listening screens
@@ -77,9 +107,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }}
     >
       {children}
+      <InAppNotificationBanner
+        notification={bannerData}
+        onPress={(data) => {
+          setBannerData(null);
+          navigateFromNotificationData(data);
+        }}
+        onDismiss={() => setBannerData(null)}
+      />
     </NotificationContext.Provider>
   );
 };
 
 export const useNotifications = () => useContext(NotificationContext);
 export const useUnreadNotifications = () => useContext(NotificationContext);
+

@@ -57,6 +57,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { normalizeSpecifications } from '../../utils/categoryAttributes';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import { useTranslation, translateProductName, translateCategory } from '../../i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -77,6 +78,7 @@ export default function ProductDetailScreen() {
   const { isWishlisted: checkWishlisted, toggleWishlist } = useWishlist();
   const { unreadCount } = useUnreadNotifications();
   const { isDark, colors } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark, colors), [isDark, colors]);
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -543,10 +545,10 @@ export default function ProductDetailScreen() {
             >
               <Text style={styles.stockBadgeText}>
                 {isOutOfStock
-                  ? 'Out of Stock'
+                  ? t('products.outOfStock')
                   : product.totalStock < 5
                   ? `Only ${product.totalStock} ${product.stockUnit || product.unit || 'Left'}`
-                  : `In Stock (${product.totalStock} ${product.stockUnit || product.unit || 'Units'})`}
+                  : `${t('common.inStock')} (${product.totalStock} ${product.stockUnit || product.unit || 'Units'})`}
               </Text>
             </View>
           </View>
@@ -586,20 +588,20 @@ export default function ProductDetailScreen() {
             )}
             {product.category && (
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>{product.category}</Text>
+                <Text style={styles.categoryBadgeText}>{translateCategory(product.category, language)}</Text>
               </View>
             )}
             {product.subcategory && (
               <View style={styles.subcategoryBadge}>
                 <Text style={styles.subcategoryBadgeText}>
-                  {product.subcategory}
+                  {translateCategory(product.subcategory, language)}
                 </Text>
               </View>
             )}
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>{product.title}</Text>
+          <Text style={styles.title}>{translateProductName(product.title, language)}</Text>
 
           {/* Rating Summary */}
           <TouchableOpacity

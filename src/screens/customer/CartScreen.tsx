@@ -22,6 +22,7 @@ import { resolveImageUrl } from '../../utils/imageUrl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import { useTranslation, translateProductName } from '../../i18n';
 
 // Ported from client/app/components-main/CartDrawer.tsx — same qty +/-,
 // remove, subtotal, and the ₹499 free-delivery nudge, and "Proceed to
@@ -32,6 +33,7 @@ const FREE_DELIVERY_THRESHOLD = 499;
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const { language } = useTranslation();
   const { user, token } = useAuth();
   const { isDark } = useTheme();
   const { cart, removeFromCart, decreaseQuantity, addToCart, setBuyNowItem } =
@@ -145,6 +147,7 @@ function CartRow({
   onDecrease: () => void;
   onRemove: () => void;
 }) {
+  const { language } = useTranslation();
   return (
     <View style={[styles.row, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : CustomerColors.border }]}>
       <Image
@@ -153,7 +156,7 @@ function CartRow({
       />
       <View style={styles.rowInfo}>
         <Text style={[styles.rowTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
-          {item.title}
+          {translateProductName(item.title, language)}
         </Text>
         <Text style={styles.rowPrice}>₹{item.price.toLocaleString()}</Text>
         <View style={[styles.qtyStepper, isDark && { borderColor: '#374151' }]}>

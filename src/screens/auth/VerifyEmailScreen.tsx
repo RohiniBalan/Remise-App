@@ -66,11 +66,11 @@ export default function VerifyEmailScreen() {
     try {
       await authApi.resendVerification(email.trim());
       setIsError(false);
-      setMessage('New 6-digit verification code sent to your email.');
+      setMessage('New 6-digit verification code sent to your email and WhatsApp.');
       setCountdown(60);
     } catch (err: any) {
       setIsError(true);
-      setMessage(err.response?.data?.message || 'Could not send verification email.');
+      setMessage(err.response?.data?.message || 'Could not send verification code.');
     } finally {
       setSending(false);
     }
@@ -96,7 +96,7 @@ export default function VerifyEmailScreen() {
           <Text style={styles.subtitle}>
             {success
               ? 'Redirecting to your account...'
-              : 'We sent a 6-digit verification code to your email. Enter it below to verify.'}
+              : 'We sent a 6-digit verification code to your email and WhatsApp. Enter it below to verify.'}
           </Text>
 
           {!success && (
@@ -111,6 +111,14 @@ export default function VerifyEmailScreen() {
                 placeholder="you@example.com"
                 placeholderTextColor="#9CA3AF"
               />
+
+              {user?.mobilenumber ? (
+                <View style={styles.whatsappBadge}>
+                  <Text style={styles.whatsappBadgeText}>
+                    WhatsApp: {user.mobilenumber.startsWith('+') ? user.mobilenumber : `+91 ${user.mobilenumber}`}
+                  </Text>
+                </View>
+              ) : null}
 
               <Text style={styles.label}>6-Digit Verification Code</Text>
               <TextInput
@@ -187,4 +195,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: CustomerColors.teal700, fontWeight: '600', fontSize: FontSizes.base },
   skipLink: { marginTop: Spacing.lg, alignItems: 'center' },
   skipLinkText: { color: CustomerColors.textSecondary, fontSize: FontSizes.sm, textDecorationLine: 'underline' },
+  whatsappBadge: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', borderWidth: 1, borderRadius: BorderRadius.md, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.sm, marginBottom: Spacing.md, alignSelf: 'flex-start' },
+  whatsappBadgeText: { color: '#065F46', fontSize: FontSizes.xs, fontWeight: '600' },
 });

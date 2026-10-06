@@ -58,6 +58,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useTheme } from '../context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type CustomerTabParamList = {
   Home: undefined;
@@ -191,6 +192,7 @@ function CustomerTabs() {
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
   const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -201,8 +203,8 @@ function CustomerTabs() {
         tabBarStyle: {
           backgroundColor: isDark ? '#0B1120' : '#FFFFFF',
           borderTopColor: isDark ? '#1E293B' : '#E2E8F0',
-          height: 60,
-          paddingBottom: 6,
+          height: 60 + insets.bottom,
+          paddingBottom: 6 + insets.bottom,
           paddingTop: 4,
         },
         tabBarLabelStyle: {

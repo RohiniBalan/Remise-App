@@ -45,6 +45,7 @@ import { groupByTitle, TitleGroup } from '../../utils/supplierTypes';
 import { mergeCategories } from '../../utils/storeCategories';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { isValidPlacedOrder } from '../../utils/orderValidation';
+import { useTranslation, translateProductName, translateCategory } from '../../i18n';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Processing: { bg: '#FEF3C7', text: '#92400E' },
@@ -61,6 +62,7 @@ export default function StoreSuppliersScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store, categories } = useStoreDashboard();
   const { cartCount, cartTotal } = useSupplierCart();
@@ -202,7 +204,7 @@ export default function StoreSuppliersScreen() {
   );
   const categoryOptions = supplierCategories.map(category => ({
     key: category,
-    label: category,
+    label: translateCategory(category, language),
   }));
   const titleGroups: TitleGroup[] = groupByTitle(groups);
 
@@ -227,7 +229,7 @@ export default function StoreSuppliersScreen() {
               view === 'browse' && styles.toggleTextActive,
             ]}
           >
-            Browse Suppliers
+            {t.store.browseSuppliersTab}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -243,7 +245,7 @@ export default function StoreSuppliersScreen() {
               view === 'orders' && styles.toggleTextActive,
             ]}
           >
-            My Orders
+            {t.store.myOrdersTab}
           </Text>
         </TouchableOpacity>
       </View>
@@ -269,7 +271,7 @@ export default function StoreSuppliersScreen() {
                   supplierType === 'whole_saler' && styles.typeBtnTextActive,
                 ]}
               >
-                📦 Wholesalers
+                📦 {t.store.wholesalersBtn}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -288,7 +290,7 @@ export default function StoreSuppliersScreen() {
                   supplierType === 'home_business' && styles.typeBtnTextActive,
                 ]}
               >
-                🏠 Home Business
+                🏠 {t.store.homeBusinessBtn}
               </Text>
             </TouchableOpacity>
           </View>
@@ -299,7 +301,7 @@ export default function StoreSuppliersScreen() {
             <SelectField
               label="Category"
               value={categoryFilter}
-              placeholder="Select Category"
+              placeholder={t.store.selectCategoryOption}
               options={categoryOptions}
               onSelect={key => setCategoryFilter(key)}
               isDark={isDark}
@@ -314,7 +316,7 @@ export default function StoreSuppliersScreen() {
               value={search}
               onChangeText={setSearch}
               onSubmitEditing={loadGroups}
-              placeholder="Search products…"
+              placeholder={t.store.searchProductsStockPlaceholder}
               placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
             />
           </View>
@@ -337,8 +339,8 @@ export default function StoreSuppliersScreen() {
                   <Package size={36} color={isDark ? '#374151' : '#E5E7EB'} />
                   <Text style={styles.emptyText}>
                     {categoryFilter
-                      ? 'No products in this category.'
-                      : 'Select a category to view products.'}
+                      ? t.store.noProductsInCategoryMsg
+                      : t.store.selectCategoryToViewMsg}
                   </Text>
                 </View>
               }
@@ -357,12 +359,12 @@ export default function StoreSuppliersScreen() {
                     </View>
                     <View style={{ padding: Spacing.sm }}>
                       <Text style={styles.title} numberOfLines={1}>
-                        {tg.title}
+                        {translateProductName(tg.title, language)}
                       </Text>
                       <Text style={styles.subText}>
-                        Available Brands ({tg.brandCount})
+                        {t.store.availableBrandsLabel} ({tg.brandCount})
                       </Text>
-                      <Text style={styles.startingFrom}>Starting from</Text>
+                      <Text style={styles.startingFrom}>{t.store.startingFromLabel}</Text>
                       <Text style={styles.price}>₹{tg.lowestPrice}</Text>
                       <TouchableOpacity
                         style={styles.viewBrandsBtn}
@@ -373,7 +375,7 @@ export default function StoreSuppliersScreen() {
                         }
                       >
                         <Text style={styles.viewBrandsBtnText}>
-                          View Brands →
+                          {t.store.viewBrandsBtn}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -391,7 +393,7 @@ export default function StoreSuppliersScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <ShoppingBag size={36} color={isDark ? '#374151' : '#E5E7EB'} />
-              <Text style={styles.emptyText}>No supplier orders yet.</Text>
+              <Text style={styles.emptyText}>{t.store.noSupplierOrdersYet}</Text>
             </View>
           }
           renderItem={({ item: o }) => {
@@ -443,7 +445,7 @@ export default function StoreSuppliersScreen() {
                 </View>
                 {o.items?.map((it: any, i: number) => (
                   <Text key={i} style={styles.orderItem}>
-                    {it.quantity}× {it.title}{' '}
+                    {it.quantity}× {translateProductName(it.title, language)}{' '}
                     {it.tierLabel ? `(${it.tierLabel})` : ''}
                   </Text>
                 ))}

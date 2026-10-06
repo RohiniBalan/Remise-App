@@ -27,6 +27,7 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -183,6 +184,7 @@ interface HeroCarouselProps {
 export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
@@ -191,21 +193,20 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
         <View style={[styles.eyebrowBadge, isDark && styles.eyebrowBadgeDark]}>
           <View style={styles.eyebrowDot} />
           <Text style={[styles.eyebrowText, isDark && styles.eyebrowTextDark]}>
-            YOUR EVERYDAY LIFESTYLE STORE
+            {t('common.lifestyleStoreBadge')}
           </Text>
         </View>
       </View>
 
       {/* Main Title */}
       <Text style={[styles.title, isDark && styles.titleDark]}>
-        Everything You{' '}
-        <Text style={styles.titleAccent}>Need, Delivered.</Text>
+        {t('common.heroHeadline1')}{' '}
+        <Text style={styles.titleAccent}>{t('common.heroHeadline2')}</Text>
       </Text>
 
       {/* Subtitle */}
       <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
-        From fresh groceries and beauty essentials to toys, fashion &amp; home —
-        all in one place, right at your doorstep.
+        {t('common.heroSubtitle')}
       </Text>
 
       {/* Graphic Illustration */}
@@ -224,7 +225,7 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
           }}
           activeOpacity={0.88}
         >
-          <Text style={styles.primaryBtnText}>Shop Now</Text>
+          <Text style={styles.primaryBtnText}>{t('common.shopNow')}</Text>
           <ArrowRight size={15} color="#FFFFFF" />
         </TouchableOpacity>
 
@@ -234,7 +235,7 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
           activeOpacity={0.85}
         >
           <Text style={[styles.secondaryBtnText, isDark && styles.secondaryBtnTextDark]}>
-            Browse Categories
+            {t('common.browseCategories')}
           </Text>
         </TouchableOpacity>
       </View>

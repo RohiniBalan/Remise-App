@@ -28,6 +28,7 @@ import { normalizeLoc, lookupPincode } from '../../components/common/LocationSel
 import { mergeCategories } from '../../utils/storeCategories';
 import { useTheme } from '../../context/ThemeContext';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateCategory } from '../../i18n';
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const STORE_CATEGORIES = [
@@ -46,6 +47,7 @@ const STORE_CATEGORIES = [
 export default function SellerSettingsScreen() {
   const { store, refresh, categories } = useSellerDashboard();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const [logoUri, setLogoUri] = useState<string | null>(store?.logo || null);
@@ -97,14 +99,14 @@ export default function SellerSettingsScreen() {
       ? 'Invalid UPI ID format (expected e.g. name@bank).'
       : '';
 
-      const categoryOptions = useMemo(
-  () =>
-    mergeCategories(categories || []).map(c => ({
-      key: c.name,
-      label: c.name,
-    })),
-  [categories]
-);
+  const categoryOptions = useMemo(
+    () =>
+      mergeCategories(categories || []).map(c => ({
+        key: c.name,
+        label: translateCategory(c.name, language),
+      })),
+    [categories, language]
+  );
 
   // ── State/City dropdown support ──
   const [cities, setCities] = useState<any[]>([])
@@ -231,7 +233,7 @@ export default function SellerSettingsScreen() {
       }}
     >
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Business Profile</Text>
+        <Text style={styles.cardTitle}>{t('store.businessProfileTitle') || 'Business Profile'}</Text>
         {error ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
@@ -240,7 +242,7 @@ export default function SellerSettingsScreen() {
 
         {/* Store Logo Section */}
         <View style={styles.logoSection}>
-          <Text style={styles.label}>Business Logo</Text>
+          <Text style={styles.label}>{t('store.businessLogoTitle') || 'Business Logo'}</Text>
           <View style={styles.logoRow}>
             <View style={styles.logoPreviewBox}>
               {logoUri ? (
@@ -252,27 +254,27 @@ export default function SellerSettingsScreen() {
             <View style={{ flex: 1, justifyContent: 'center' }}>
               <TouchableOpacity style={styles.changeLogoBtn} onPress={pickLogo}>
                 <Camera size={14} color="#fff" />
-                <Text style={styles.changeLogoBtnText}>{logoUri ? 'Change Logo' : 'Upload Logo'}</Text>
+                <Text style={styles.changeLogoBtnText}>{logoUri ? (t('store.changeLogoBtn') || 'Change Logo') : (t('store.uploadLogoBtn') || 'Upload Logo')}</Text>
               </TouchableOpacity>
-              <Text style={styles.logoHelpText}>JPG, PNG or WebP image</Text>
+              <Text style={styles.logoHelpText}>{t('store.uploadLogoHint') || 'JPG, PNG or WebP image'}</Text>
             </View>
           </View>
         </View>
 
         <Field
-          label="Business Name *"
+          label={`${t('store.businessNameLabel') || 'Business Name *'}`}
           value={form.name}
           onChangeText={(t: string) => set('name', t)}
         />
         <Field
-          label="Monthly Revenue Target (₹)"
+          label={`${t('store.monthlyTargetLabel') || 'Monthly Revenue Target (₹)'}`}
           value={form.targetRevenue}
           onChangeText={(t: string) => set('targetRevenue', t)}
           keyboardType="numeric"
           placeholder="e.g. 50000"
         />
         <Field
-          label="Description"
+          label={t('store.descriptionLabel') || 'Description'}
           value={form.description}
           onChangeText={(t: string) => set('description', t)}
           multiline
@@ -280,14 +282,14 @@ export default function SellerSettingsScreen() {
         <View style={styles.row2}>
           <Field
             style={{ flex: 1 }}
-            label="Phone"
+            label={t('store.phoneLabel') || 'Phone'}
             value={form.phone}
             onChangeText={(t: string) => set('phone', t)}
             keyboardType="phone-pad"
           />
           <Field
             style={{ flex: 1 }}
-            label="Email"
+            label={t('store.emailLabel') || 'Email'}
             value={form.email}
             onChangeText={(t: string) => set('email', t)}
             keyboardType="email-address"
@@ -297,27 +299,27 @@ export default function SellerSettingsScreen() {
 
         {/* Category */}
         <SelectField
-  label="Category"
-  value={form.category}
-  placeholder="Select Category"
-  options={categoryOptions}
-  onSelect={(key) => set('category', key)}
-/>
+          label={t('store.categoryLabel') || 'Category'}
+          value={form.category}
+          placeholder={t('store.selectCategoryPlaceholder') || 'Select Category'}
+          options={categoryOptions}
+          onSelect={(key) => set('category', key)}
+        />
 
         {/* FSSAI — only for Food & Beverages */}
         {form.category === 'Food & Beverages' && (
           <Field
-            label="FSSAI License Number"
+            label={t('store.fssaiLabel') || 'FSSAI License Number'}
             value={fssai}
             onChangeText={setFssai}
             keyboardType="number-pad"
             maxLength={14}
-            placeholder="14-digit FSSAI number"
+            placeholder={t('store.fssaiPlaceholder') || '14-digit FSSAI number'}
           />
         )}
 
         <Field
-          label="PAN Number * (Mandatory)"
+          label={t('store.panNumberLabel') || "PAN Number * (Mandatory)"}
           value={form.pan}
           onChangeText={(v: string) => set('pan', v.toUpperCase())}
           placeholder="e.g. ABCDE1234F"
@@ -325,7 +327,7 @@ export default function SellerSettingsScreen() {
           autoCapitalize="characters"
         />
         <Field
-          label="GSTIN Number (Optional)"
+          label={t('store.gstinNumberLabel') || "GSTIN Number (Optional)"}
           value={form.gstin}
           onChangeText={(v: string) => set('gstin', v.toUpperCase())}
           placeholder="e.g. 22AAAAA0000A1Z5"
@@ -334,42 +336,42 @@ export default function SellerSettingsScreen() {
         />
 
         <Field
-          label="Street"
+          label={t('store.streetLabel') || "Street"}
           value={form.street}
           onChangeText={(t: string) => set('street', t)}
         />
 
         <View style={styles.row2}>
           <SelectField
-          style={{ flex: 1}}
-  label="State"
-  value={form.state}
-  placeholder="Select State"
-  options={stateOptions}
-  onSelect={handleStateSelect}
-/>
+            style={{ flex: 1}}
+            label={t('store.stateLabel') || "State"}
+            value={form.state}
+            placeholder={t('store.selectStatePlaceholder') || "Select State"}
+            options={stateOptions}
+            onSelect={handleStateSelect}
+          />
           <SelectField
-    style={{ flex: 1 }}
-  label="City"
-  value={form.city}
-  placeholder={form.state ? 'Select City' : 'Select state first'}
-  options={cityOptions}
-  disabled={!form.state}
-  onSelect={handleCitySelect}
-/>
+            style={{ flex: 1 }}
+            label={t('store.cityLabel') || "City"}
+            value={form.city}
+            placeholder={form.state ? (t('store.selectCityPlaceholder') || 'Select City') : (t('store.selectStatePlaceholder') || 'Select state first')}
+            options={cityOptions}
+            disabled={!form.state}
+            onSelect={handleCitySelect}
+          />
         </View>
 
         <Field
-          label="Pin Code"
+          label={t('store.pinCodeLabel') || "Pin Code"}
           value={form.pinCode}
           onChangeText={(t: string) => set('pinCode', t)}
           keyboardType="numeric"
         />
 
         <View style={styles.divider} />
-        <Text style={styles.sectionLabel}>UPI Payment QR Code</Text>
+        <Text style={styles.sectionLabel}>{t('store.upiQrTitle') || "UPI Payment QR Code"}</Text>
         <Text style={styles.sectionHint}>
-          Enter your UPI ID to generate a scannable QR code for order payments.
+          {t('store.upiQrDesc') || "Enter your UPI ID to generate a scannable QR code for order payments."}
         </Text>
         <View style={styles.upiRow}>
           <View style={styles.qrBox}>
@@ -385,7 +387,7 @@ export default function SellerSettingsScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Field
-              label="UPI ID"
+              label={t('store.upiIdLabel') || "UPI ID"}
               value={upiId}
               onChangeText={setUpiId}
               placeholder="merchant@upi"
@@ -394,15 +396,15 @@ export default function SellerSettingsScreen() {
             {upiError ? <Text style={styles.upiError}>{upiError}</Text> : null}
             <Text style={styles.sectionHint}>
               {store?.qrCodeImage
-                ? 'Save changes to regenerate the QR code.'
-                : 'Save a valid UPI ID to generate your QR code.'}
+                ? (t('store.saveUpiRegenerate') || 'Save changes to regenerate the QR code.')
+                : (t('store.saveUpiNotice') || 'Save a valid UPI ID to generate your QR code.')}
             </Text>
           </View>
         </View>
 
         <View style={styles.divider} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
-          <Text style={styles.sectionLabel}>Razorpay Route Payments</Text>
+          <Text style={styles.sectionLabel}>{t('store.razorpayRouteTitle') || "Razorpay Route Payments"}</Text>
           <View style={[
             styles.routeBadge,
             store?.razorpayAccountId
@@ -426,7 +428,7 @@ export default function SellerSettingsScreen() {
           </View>
         </View>
         <Text style={styles.sectionHint}>
-          Connect your Razorpay Linked Account to automatically receive customer payments directly into your bank account.
+          {t('store.razorpayRouteDesc') || "Connect your Razorpay Linked Account to automatically receive customer payments directly into your bank account."}
         </Text>
 
         {store?.razorpayAccountId ? (
@@ -441,20 +443,20 @@ export default function SellerSettingsScreen() {
         ) : null}
 
         <Field
-          label="Legal Business / Entity Name"
+          label={t('store.legalBusinessNameLabel') || "Legal Business / Entity Name"}
           value={form.legalBusinessName}
           onChangeText={(t: string) => set('legalBusinessName', t)}
           placeholder="e.g. John Doe Enterprises"
         />
         <Field
-          label="Bank Account Number"
+          label={t('store.bankAccountNumberLabel') || "Bank Account Number"}
           value={form.bankAccountNumber}
           onChangeText={(t: string) => set('bankAccountNumber', t)}
           placeholder="Account Number"
           keyboardType="numeric"
         />
         <Field
-          label="Bank IFSC Code"
+          label={t('store.bankIfscLabel') || "Bank IFSC Code"}
           value={form.bankIfsc}
           onChangeText={(t: string) => set('bankIfsc', t.toUpperCase())}
           placeholder="e.g. HDFC0001234"
@@ -486,14 +488,14 @@ export default function SellerSettingsScreen() {
             ) : (
               <>
                 <Save size={14} color="#fff" />
-                <Text style={styles.saveBtnText}>Save Changes</Text>
+                <Text style={styles.saveBtnText}>{t('store.saveChangesBtn') || t('common.saveChanges') || 'Save Changes'}</Text>
               </>
             )}
           </TouchableOpacity>
           {saved && (
             <View style={styles.savedRow}>
               <CheckCircle size={14} color="#16A34A" />
-              <Text style={styles.savedText}>Saved!</Text>
+              <Text style={styles.savedText}>{t('store.savedSuccessBadge') || 'Saved!'}</Text>
             </View>
           )}
         </View>

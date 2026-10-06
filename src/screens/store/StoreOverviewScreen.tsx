@@ -7,11 +7,13 @@ import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateProductName, translateCategory } from '../../i18n';
 
 export default function StoreOverviewScreen() {
   const navigation = useNavigation<any>();
   const { store, offers, orders, products, loading, loadError, refresh } = useStoreDashboard();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const totalProductsSold = useMemo(
@@ -35,15 +37,15 @@ export default function StoreOverviewScreen() {
     const pendingOrders = orders.filter(o => o.status === 'Pending').length;
     const lowStock = products.filter(p => p.totalStock < 5 && p.availability !== 'Out Of Stock').length;
     return [
-      { label: 'Total Products', value: products.length, icon: Package, color: isDark ? '#A78BFA' : '#7C3AED' },
-      { label: 'Active Offers', value: activeOffers, icon: Tag, color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
-      { label: 'Total Orders', value: orders.length, icon: ShoppingBag, color: isDark ? '#60A5FA' : '#2563EB' },
-      { label: 'Revenue (₹)', value: `₹${totalRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: isDark ? '#34D399' : CustomerColors.success },
-      { label: 'Pending Orders', value: pendingOrders, icon: Clock, color: pendingOrders > 0 ? (isDark ? '#F87171' : CustomerColors.primary) : (isDark ? '#9CA3AF' : '#6B7280') },
-      { label: 'Offer Revenue (₹)', value: `₹${offerRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: isDark ? '#34D399' : CustomerColors.success },
-      { label: 'Low Stock', value: lowStock, icon: AlertCircle, color: lowStock > 0 ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#9CA3AF' : '#6B7280') },
+      { label: t('store.totalProducts'), value: products.length, icon: Package, color: isDark ? '#A78BFA' : '#7C3AED' },
+      { label: t('store.activeOffers'), value: activeOffers, icon: Tag, color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+      { label: t('store.totalOrders'), value: orders.length, icon: ShoppingBag, color: isDark ? '#60A5FA' : '#2563EB' },
+      { label: `${t('store.totalRevenue')} (₹)`, value: `₹${totalRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: isDark ? '#34D399' : CustomerColors.success },
+      { label: t('store.pendingOrders'), value: pendingOrders, icon: Clock, color: pendingOrders > 0 ? (isDark ? '#F87171' : CustomerColors.primary) : (isDark ? '#9CA3AF' : '#6B7280') },
+      { label: `${t('store.offerRevenue')} (₹)`, value: `₹${offerRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: isDark ? '#34D399' : CustomerColors.success },
+      { label: t('store.lowStock'), value: lowStock, icon: AlertCircle, color: lowStock > 0 ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#9CA3AF' : '#6B7280') },
     ];
-  }, [offers, orders, products, isDark]);
+  }, [offers, orders, products, isDark, t]);
 
   const recentOrders = useMemo(() => [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5), [orders]);
   const topProducts = useMemo(() => [...products].sort((a, b) => b.totalStock - a.totalStock).slice(0, 4), [products]);
@@ -89,7 +91,7 @@ export default function StoreOverviewScreen() {
                   <CheckCircle2 size={16} color={CustomerColors.success} />
                 ) : null}
               </View>
-              <Text style={styles.storeCategoryText}>{store?.category || 'General Store'}</Text>
+              <Text style={styles.storeCategoryText}>{store?.category ? translateCategory(store.category, language) : 'General Store'}</Text>
               {store?.phone ? <Text style={styles.storePhoneText}>{store.phone}</Text> : null}
             </View>
           </View>
@@ -99,11 +101,11 @@ export default function StoreOverviewScreen() {
             <View style={styles.targetHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Target size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                <Text style={styles.targetTitle}>Monthly Target</Text>
+                <Text style={styles.targetTitle}>{t('store.revenueTarget')}</Text>
               </View>
               {target === 0 && (
                 <TouchableOpacity onPress={() => navigation.navigate('StoreSettings')}>
-                  <Text style={styles.link}>Set target</Text>
+                  <Text style={styles.link}>{t('store.setTarget')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -116,10 +118,10 @@ export default function StoreOverviewScreen() {
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${pct}%` }]} />
                 </View>
-                <Text style={styles.targetPct}>{pct}% achieved this month</Text>
+                <Text style={styles.targetPct}>{pct}% {t('store.targetAchieved')} ({t('store.thisMonth')})</Text>
               </>
             ) : (
-              <Text style={styles.targetEmpty}>Set a monthly revenue target in Settings to track progress here.</Text>
+              <Text style={styles.targetEmpty}>{t('store.setMonthlyTargetDesc')}</Text>
             )}
           </View>
 
@@ -127,7 +129,7 @@ export default function StoreOverviewScreen() {
             <View style={styles.statCard}>
               <TrendingUp size={18} color={isDark ? '#A78BFA' : '#7C3AED'} />
               <Text style={[styles.statValue, { color: isDark ? '#A78BFA' : '#7C3AED' }]}>{totalProductsSold}</Text>
-              <Text style={styles.statLabel} numberOfLines={1}>Total Products Sold</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>{t('store.totalProductsSold')}</Text>
             </View>
             {stats.map(s => (
               <View key={s.label} style={styles.statCard}>
@@ -140,7 +142,7 @@ export default function StoreOverviewScreen() {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Orders</Text>
+              <Text style={styles.sectionTitle}>{t('store.recentOrders')}</Text>
               <TouchableOpacity onPress={() => navigation.navigate('StoreOwnerOrders')}><Text style={styles.link}>View all</Text></TouchableOpacity>
             </View>
             {recentOrders.length === 0 ? (
@@ -149,7 +151,9 @@ export default function StoreOverviewScreen() {
               recentOrders.map(o => (
                 <View key={o._id} style={styles.listRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.listRowTitle} numberOfLines={1}>{o.offerTitle || o.customerName}</Text>
+                    <Text style={styles.listRowTitle} numberOfLines={1}>
+                      {o.offerTitle ? translateProductName(o.offerTitle, language) : o.customerName}
+                    </Text>
                     <Text style={styles.listRowSub}>{o.customerName}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
@@ -163,7 +167,7 @@ export default function StoreOverviewScreen() {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Product Stock</Text>
+              <Text style={styles.sectionTitle}>{t('store.productStock')}</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Products')}><Text style={styles.link}>Manage</Text></TouchableOpacity>
             </View>
             {topProducts.length === 0 ? (
@@ -173,11 +177,11 @@ export default function StoreOverviewScreen() {
                 <View key={p._id} style={styles.listRow}>
                   <Image source={{ uri: resolveImageUrl(p.images?.[0] || p.imageUrl) }} style={styles.productThumb} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.listRowTitle} numberOfLines={1}>{p.title}</Text>
-                    <Text style={styles.listRowSub}>{p.category || '—'}</Text>
+                    <Text style={styles.listRowTitle} numberOfLines={1}>{translateProductName(p.title, language)}</Text>
+                    <Text style={styles.listRowSub}>{p.category ? translateCategory(p.category, language) : '—'}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.listRowAmount, p.totalStock < 5 && { color: isDark ? '#FBBF24' : '#D97706' }]}>{p.totalStock} left</Text>
+                    <Text style={[styles.listRowAmount, p.totalStock < 5 && { color: isDark ? '#FBBF24' : '#D97706' }]}>{p.totalStock} {t('store.left')}</Text>
                     <Text style={styles.listRowSub}>₹{p.discountedPrice || p.price}</Text>
                   </View>
                 </View>

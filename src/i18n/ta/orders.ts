@@ -1,0 +1,28 @@
+import { TranslationSchema } from '../types';
+
+export const orders: TranslationSchema['orders'] = {
+  myOrdersTitle: 'என் ஆர்டர்கள்',
+  orderId: 'ஆர்டர் எண்: {{id}}',
+  placedOn: '{{date}} அன்று பதிவு செய்யப்பட்டது',
+  statusPlaced: 'ஆர்டர் செய்யப்பட்டது',
+  statusConfirmed: 'உறுதி செய்யப்பட்டது',
+  statusPreparing: 'தயாராகிறது',
+  statusOutForDelivery: 'டெலிவரிக்கு வந்துள்ளது',
+  statusDelivered: 'டெலிவரி செய்யப்பட்டது',
+  statusCancelled: 'ரத்து செய்யப்பட்டது',
+  statusReturned: 'திரும்பப் பெறப்பட்டது',
+  trackOrder: 'ஆர்டரைக் கண்காணிக்கவும்',
+  estimatedDelivery: 'எதிர்பார்க்கப்படும் டெலிவரி: {{date}}',
+  deliveredOn: '{{date}} அன்று டெலிவரி செய்யப்பட்டது',
+  orderItems: 'ஆர்டர் பொருட்கள் ({{count}})',
+  viewInvoice: 'விலைப்பட்டியலைக் காண்க',
+  downloadInvoice: 'விலைப்பட்டியலை பதிவிறக்கு',
+  cancelOrder: 'ஆர்டரை ரத்து செய்',
+  returnRefund: 'பொருளைத் திருப்பு / பணத்தைத் திரும்பப் பெறு',
+  liveTracking: 'நேரலை டெலிவரி கண்காணிப்பு',
+  partnerAssigned: 'டெலிவரி பார்ட்னர் நியமிக்கப்பட்டுள்ளார்',
+  outForDeliveryMsg: 'உங்கள் ஆர்டர் டெலிவரி பார்ட்னரிடம் ஒப்படைக்கப்பட்டு வழியில் உள்ளது',
+  deliveredMsg: 'உங்கள் ஆர்டர் வெற்றிகரமாக டெலிவரி செய்யப்பட்டது!',
+  noOrdersYet: 'இதுவரை ஆர்டர்கள் எதுவும் இல்லை',
+  noOrdersDesc: 'நீங்கள் ஒரு பொருளை ஆர்டர் செய்ததும், அதன் விவரங்கள் இங்கே தோன்றும்.',
+};

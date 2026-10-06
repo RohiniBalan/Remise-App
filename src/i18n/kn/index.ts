@@ -1,0 +1,28 @@
+import { TranslationSchema } from '../types';
+import { common } from './common';
+import { auth } from './auth';
+import { products } from './products';
+import { cart } from './cart';
+import { checkout } from './checkout';
+import { orders } from './orders';
+import { store } from './store';
+import { delivery } from './delivery';
+import { offers } from './offers';
+import { settings } from './settings';
+import { admin } from './admin';
+import { profile } from './profile';
+
+export const kn: TranslationSchema = {
+  common,
+  auth,
+  products,
+  cart,
+  checkout,
+  orders,
+  store,
+  delivery,
+  offers,
+  settings,
+  admin,
+  profile,
+};

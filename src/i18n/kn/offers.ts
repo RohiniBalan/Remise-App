@@ -1,0 +1,24 @@
+import { TranslationSchema } from '../types';
+
+export const offers: TranslationSchema['offers'] = {
+  nearbyOffersTitle: 'ಹತ್ತಿರದ ಕೊಡುಗೆಗಳು',
+  dealsAroundYou: 'ನಿಮ್ಮ ಸುತ್ತಲಿನ ಕೊಡುಗೆಗಳು',
+  discoverDealsNearYou: 'ನಿಮ್ಮ ಹತ್ತಿರದ ಆಕರ್ಷಕ ಡೀಲ್‌ಗಳನ್ನು ಅನ್ವೇಷಿಸಿ',
+  allowLocationDesc: 'ಹತ್ತಿರದ ಅಂಗಡಿಗಳಿಂದ ವಿಶೇಷ ಕೊಡುಗೆಗಳನ್ನು ನೋಡಲು ಸ್ಥಳ ಪ್ರವೇಶವನ್ನು ಅನುಮತಿಸಿ.',
+  enableLocationBtn: 'ಸ್ಥಳವನ್ನು ಆನ್ ಮಾಡಿ',
+  browseAllOffers: 'ಎಲ್ಲಾ ಕೊಡುಗೆಗಳನ್ನು ಬ್ರೌಸ್ ಮಾಡಿ',
+  radiusKm: '{{distance}} ಕಿ.ಮೀ ವ್ಯಾಪ್ತಿಯಲ್ಲಿ',
+  hoursLeft: 'ಇನ್ನು ಕೇವಲ {{hours}} ಗಂಟೆಗಳು ಮಾತ್ರ ಬಾಕಿ',
+  noOffersNearby: 'ಹತ್ತಿರದಲ್ಲಿ ಯಾವುದೇ ಕೊಡುಗೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ',
+  noOffersDesc: 'ಹುಡುಕಾಟದ ವ್ಯಾಪ್ತಿಯನ್ನು ವಿಸ್ತರಿಸಿ ಅಥವಾ ಎಲ್ಲಾ ಕೊಡುಗೆಗಳನ್ನು ನೋಡಿ.',
+  claimOffer: 'ಕೊಡುಗೆಯನ್ನು ಪಡೆಯಿರಿ',
+  myOffers: 'ನನ್ನ ಕೊಡುಗೆಗಳು',
+  exclusiveDeals: 'ನಿಮಗಾಗಿ ವಿಶೇಷ ಕೊಡುಗೆಗಳು',
+  noPrivateOffersTitle: 'ಇನ್ನೂ ಯಾವುದೇ ಖಾಸಗಿ ಆಫರ್‌ಗಳಿಲ್ಲ',
+  noPrivateOffersDesc: 'ಅಂಗಡಿಯು ನಿಮಗೆ ವೈಯಕ್ತಿಕ ಡೀಲ್ ಕಳುಹಿಸಿದಾಗ, ಅದು ಇಲ್ಲಿ ಕಾಣಿಸಿಕೊಳ್ಳುತ್ತದೆ.',
+  dealsStoreSentPersonally: 'ಅಂಗಡಿಯು ನಿಮಗೆ ವೈಯಕ್ತಿಕವಾಗಿ ಕಳುಹಿಸಿದ ಡೀಲ್‌ಗಳು',
+  justForYou: 'ನಿಮಗಾಗಿ ಮಾತ್ರ',
+  orderNowBtn: 'ಈಗಲೇ ಆರ್ಡರ್ ಮಾಡಿ',
+  signInForPrivateOffers: 'ನಿಮ್ಮ ಆಫರ್‌ಗಳನ್ನು ವೀಕ್ಷಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡಿ',
+  signInForPrivateOffersDesc: 'ನೀವು ಲಾಗಿನ್ ಆದ ನಂತರ ನಿಮ್ಮ ಖಾತೆಗೆ ಕಳುಹಿಸಲಾದ ವಿಶೇಷ ಡೀಲ್‌ಗಳು ಇಲ್ಲಿ ಕಾಣಿಸಿಕೊಳ್ಳುತ್ತವೆ.',
+};

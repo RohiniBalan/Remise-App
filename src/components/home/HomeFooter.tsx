@@ -6,6 +6,8 @@ import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '..
 import { newsletterApi } from '../../api/newsletterApi';
 import { useAuth } from '../../context/AuthContext';
 import AuthRequiredModal from '../common/AuthRequiredModal';
+import { useTranslation } from '../../i18n';
+import { getFooterData } from '../../i18n/footerTranslations';
 
 // Compact mobile counterpart of client/app/components-sections/Footer.tsx.
 // Web's link columns (Company/Support/Shop) mostly point at '#' (no real
@@ -16,28 +18,31 @@ import AuthRequiredModal from '../common/AuthRequiredModal';
 // (Privacy Policy, Terms of Use, Sitemap) are also wired to their screens
 // in screens/customer/.
 
-const QUICK_LINKS = [
-  { label: 'New Arrivals', route: 'NewArrivals' },
-  { label: 'Best Sellers', route: 'BestSellers' },
-  { label: 'Home Seller', route: 'Suppliers' },
-  { label: 'About Us', route: 'About' },
-  { label: 'Our Services', route: 'Services' },
-  { label: 'Help Center', route: 'HelpCenter' },
-  { label: 'Nearby Offers', route: 'Nearby' },
-  { label: 'My Orders', route: 'Orders' },
-];
-
 const PAYMENT_ICONS = ['UPI', 'Visa', 'Mastercard', 'RuPay', 'Net Banking'];
-
-const LEGAL_LINKS = [
-  { label: 'Privacy Policy', route: 'PrivacyPolicy' },
-  { label: 'Terms of Use', route: 'TermsOfUse' },
-  { label: 'Sitemap', route: 'Sitemap' },
-];
 
 export default function HomeFooter() {
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
+  const { t, language } = useTranslation();
+  const footerData = getFooterData(language as any);
+
+  const quickLinks = [
+    { label: t('products.newArrivals'), route: 'NewArrivals', isHomeSeller: false },
+    { label: t('products.bestSellers'), route: 'BestSellers', isHomeSeller: false },
+    { label: footerData.homeSeller, route: 'Suppliers', isHomeSeller: true },
+    { label: t('common.aboutUs'), route: 'About', isHomeSeller: false },
+    { label: t('common.ourServices'), route: 'Services', isHomeSeller: false },
+    { label: t('common.helpCenter'), route: 'HelpCenter', isHomeSeller: false },
+    { label: t('common.nearbyOffers'), route: 'Nearby', isHomeSeller: false },
+    { label: t('common.myOrders'), route: 'Orders', isHomeSeller: false },
+  ];
+
+  const legalLinks = [
+    { label: footerData.privacyPolicy, route: 'PrivacyPolicy' },
+    { label: footerData.termsOfUse, route: 'TermsOfUse' },
+    { label: footerData.sitemap, route: 'Sitemap' },
+  ];
+
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [hasInputError, setHasInputError] = useState(false);
@@ -57,20 +62,20 @@ export default function HomeFooter() {
 
     if (!user && !token) {
       setHasInputError(true);
-      setStatusMessage({ type: 'error', text: 'Please log in first to subscribe' });
+      setStatusMessage({ type: 'error', text: footerData.loginFirstToSubscribe });
       setShowAuthModal(true);
       return;
     }
 
     if (!email.trim()) {
       setHasInputError(true);
-      setStatusMessage({ type: 'error', text: 'Please enter your email' });
+      setStatusMessage({ type: 'error', text: footerData.enterYourEmail });
       return;
     }
 
     if (!validateEmail(email)) {
       setHasInputError(true);
-      setStatusMessage({ type: 'error', text: 'Please enter a valid email address' });
+      setStatusMessage({ type: 'error', text: footerData.enterValidEmail });
       return;
     }
 
@@ -85,10 +90,10 @@ export default function HomeFooter() {
       if (data?.success) {
         if (data.isDuplicate) {
           setHasInputError(true);
-          setStatusMessage({ type: 'duplicate', text: data?.message || 'This email is already subscribed' });
+          setStatusMessage({ type: 'duplicate', text: footerData.alreadySubscribed });
         } else {
           setHasInputError(false);
-          setStatusMessage({ type: 'success', text: data?.message || 'Thanks for subscribing! Check your inbox to confirm.' });
+          setStatusMessage({ type: 'success', text: footerData.thanksForSubscribing });
           setEmail('');
         }
       } else {
@@ -118,14 +123,14 @@ export default function HomeFooter() {
   return (
     <View style={styles.container}>
       <View style={styles.newsletterStrip}>
-        <Text style={styles.newsletterTitle}>Stay in the Loop!</Text>
-        <Text style={styles.newsletterSubtitle}>Get exclusive deals, new arrivals & offers in your inbox.</Text>
+        <Text style={styles.newsletterTitle}>{footerData.newsletterHeading}</Text>
+        <Text style={styles.newsletterSubtitle}>{footerData.newsletterSubtitle}</Text>
         <View style={styles.newsletterInputRow}>
           <View style={[styles.newsletterInputWrap, hasInputError && styles.newsletterInputWrapError]}>
             <Mail size={15} color="#FFFFFF" />
             <TextInput
               style={styles.newsletterInput}
-              placeholder="Enter your email"
+              placeholder={footerData.enterEmailPlaceholder}
               placeholderTextColor="#FFFFFF"
               value={email}
               editable={!isSubscribing}
@@ -148,7 +153,7 @@ export default function HomeFooter() {
             disabled={isSubscribing}
           >
             <Send size={14} color="#fff" />
-            <Text style={styles.subscribeButtonText}>{isSubscribing ? 'Subscribing...' : 'Subscribe'}</Text>
+            <Text style={styles.subscribeButtonText}>{isSubscribing ? footerData.subscribingBtn : footerData.subscribeBtn}</Text>
           </TouchableOpacity>
         </View>
 
@@ -184,10 +189,10 @@ export default function HomeFooter() {
           <Text style={styles.logo}>R<Text style={styles.logoAccent}>E</Text>mise</Text>
         </View>
         <Text style={styles.tagline}>
-          India's favourite lifestyle destination. Groceries, cosmetics, toys & more — delivered to your door.
+          {footerData.description}
         </Text>
 
-        <Text style={styles.companyName}>PORULON TECHNOLOGIES PRIVATE LIMITED</Text>
+        <Text style={styles.companyName}>{footerData.companyName}</Text>
 
         <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL('tel:+919047099277')}>
           <Phone size={13} color={GoldColors.gold} />
@@ -199,15 +204,15 @@ export default function HomeFooter() {
         </TouchableOpacity>
         <View style={styles.contactRow}>
           <MapPin size={13} color={GoldColors.gold} />
-          <Text style={styles.contactText}>Coimbatore, Tamil Nadu, India</Text>
+          <Text style={styles.contactText}>{footerData.location}</Text>
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={styles.sectionLabel}>Quick Links</Text>
+        <Text style={styles.sectionLabel}>{footerData.quickLinksHeading}</Text>
         <View style={styles.linksGrid}>
-          {QUICK_LINKS.filter(link => {
-            if (link.route === 'Suppliers' || link.label === 'Home Seller') {
+          {quickLinks.filter(link => {
+            if (link.isHomeSeller || link.route === 'Suppliers') {
               const role = user?.role ? String(user.role).toLowerCase().trim() : '';
               if (['store_owner', 'whole_saler', 'wholesaler', 'home_business', 'admin', 'home_seller'].includes(role)) {
                 return false;
@@ -215,7 +220,7 @@ export default function HomeFooter() {
             }
             return true;
           }).map(link => (
-            <TouchableOpacity key={link.label} style={styles.linkChip} onPress={() => navigation.navigate(link.route)}>
+            <TouchableOpacity key={link.route} style={styles.linkChip} onPress={() => navigation.navigate(link.route)}>
               <Text style={styles.linkText}>{link.label}</Text>
             </TouchableOpacity>
           ))}
@@ -226,20 +231,20 @@ export default function HomeFooter() {
         <View style={styles.trustRow}>
           <View style={styles.trustItem}>
             <Shield size={13} color="#22C55E" />
-            <Text style={styles.trustText}>Secure Checkout</Text>
+            <Text style={styles.trustText}>{footerData.trustSecure}</Text>
           </View>
           <View style={styles.trustItem}>
             <Truck size={13} color={GoldColors.gold} />
-            <Text style={styles.trustText}>Fast Delivery</Text>
+            <Text style={styles.trustText}>{footerData.trustDelivery}</Text>
           </View>
           <View style={styles.trustItem}>
             <CreditCard size={13} color="#60A5FA" />
-            <Text style={styles.trustText}>Easy Payments</Text>
+            <Text style={styles.trustText}>{footerData.trustPayments}</Text>
           </View>
         </View>
 
         <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>We accept:</Text>
+          <Text style={styles.paymentLabel}>{footerData.weAccept}</Text>
           {PAYMENT_ICONS.map(p => (
             <View key={p} style={styles.paymentPill}>
               <Text style={styles.paymentText}>{p}</Text>
@@ -250,14 +255,14 @@ export default function HomeFooter() {
         <View style={styles.divider} />
 
         <View style={styles.legalRow}>
-          {LEGAL_LINKS.map(link => (
+          {legalLinks.map(link => (
             <TouchableOpacity key={link.label} onPress={() => navigation.navigate(link.route)}>
               <Text style={styles.legalText}>{link.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.copyright}>© 2026 Remise. All rights reserved.</Text>
+        <Text style={styles.copyright}>© 2026 Remise. {footerData.allRightsReserved}</Text>
       </View>
 
       <AuthRequiredModal

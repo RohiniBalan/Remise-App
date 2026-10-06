@@ -15,9 +15,11 @@ import { useCart } from '../../context/CartContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateProductName } from '../../i18n';
 
 export default function WishlistScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { language } = useTranslation();
   const { wishlist, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
   const { isDark } = useTheme();
@@ -58,7 +60,7 @@ export default function WishlistScreen({ navigation }: any) {
       <View style={styles.info}>
         {item.brand ? <Text style={styles.brand}>{item.brand}</Text> : null}
         <Text style={[styles.title, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
-          {item.title}
+          {translateProductName(item.title, language)}
         </Text>
         <Text style={[styles.price, isDark && { color: '#FFFFFF' }]}>₹{item.price}</Text>
 

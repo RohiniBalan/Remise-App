@@ -28,6 +28,7 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
+import { useTranslation, translateProductName } from '../../i18n';
 
 export interface MobileInvoiceData {
   invoiceNumber: string;
@@ -80,6 +81,7 @@ interface Props {
 }
 
 export default function InvoiceModal({ orderId, visible, onClose }: Props) {
+  const { language } = useTranslation();
   const [invoice, setInvoice] = useState<MobileInvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -294,7 +296,7 @@ export default function InvoiceModal({ orderId, visible, onClose }: Props) {
                     <View key={idx} style={styles.itemRow}>
                       <View style={{ flex: 1, paddingRight: Spacing.xs }}>
                         <Text style={styles.itemTitle} numberOfLines={2}>
-                          {item.title}
+                          {translateProductName(item.title, language)}
                           {item.brand ? ` (${item.brand})` : ''}
                         </Text>
                         <Text style={styles.itemSub}>

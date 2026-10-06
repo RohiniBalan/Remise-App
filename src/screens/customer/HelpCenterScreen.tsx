@@ -18,6 +18,8 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../context/ThemeContext";
+import { useTranslation } from "../../i18n";
+import { getHelpCenterData } from "../../i18n/helpCenterTranslations";
 import Svg, {
     Defs,
     LinearGradient as SvgLinearGradient,
@@ -86,149 +88,39 @@ type FAQSection = {
     items: FAQItem[];
 };
 
-const FAQ_SECTIONS: FAQSection[] = [
-    {
-        id: "getting-started",
-        title: "Getting Started",
-        blurb: "Create your account and find your way around.",
-        icon: Rocket,
-        items: [
-            {
-                q: "What is Remise?",
-                a: "Remise is an e-commerce and local shopping platform that connects customers with nearby stores, wholesalers, and home businesses. Search for products, compare prices from nearby sellers, choose a store, select a delivery method, and place an order.",
-            },
-            {
-                q: "How do I create an account?",
-                a: "Select Sign Up, enter your required details, verify your email or mobile number if requested, and complete your profile.",
-            },
-            {
-                q: "What types of accounts are available?",
-                a: "Customer, Store Owner, Wholesaler, and Home Business. Each account type has different features and pricing options.",
-            },
-        ],
-    },
-    {
-        id: "finding-products",
-        title: "Finding Products",
-        blurb: "Search, speak, or scan — however you shop.",
-        icon: Search,
-        items: [
-            {
-                q: "How can I find a product?",
-                a: "You can search for products using the search bar or browse categories.",
-            },
-            {
-                q: "Can I search using my voice?",
-                a: "Yes. Where voice search is available, tap the microphone icon and speak the product name or your requirements.",
-            },
-            {
-                q: "Can I scan a product list?",
-                a: "Yes. The product scanning feature allows you to scan or upload a list containing multiple products. Remise identifies the products and helps you add them to your order.",
-            },
-        ],
-    },
-    {
-        id: "comparing-stores",
-        title: "Comparing Nearby Stores",
-        blurb: "Let Remise find the best price close to you.",
-        icon: Store,
-        items: [
-            {
-                q: "How does store comparison work?",
-                a: "You provide your required products and select the distance within which Remise should search for stores. Remise then compares available nearby stores based on product availability and total price. You can select the store that best suits your requirements.",
-            },
-            {
-                q: "Can I choose how far Remise searches?",
-                a: "Yes. You can select the preferred search distance in kilometres before comparing stores.",
-            },
-        ],
-    },
-    {
-        id: "orders",
-        title: "Orders",
-        blurb: "From cart to confirmation.",
-        icon: Package,
-        items: [
-            {
-                q: "Can I cancel an order?",
-                a: "Cancellation depends on the order status and the applicable store cancellation policy. If cancellation is available, the option will be displayed in your order details.",
-            },
-        ],
-    },
-    {
-        id: "account-security",
-        title: "Account & Security",
-        blurb: "Keep your details up to date and protected.",
-        icon: ShieldCheck,
-        items: [
-            {
-                q: "What can I manage in my account?",
-                a: "Profile information, addresses, password, email or mobile information, and account settings.",
-            },
-            {
-                q: "Is it safe to share my password or OTP?",
-                a: "Never share your password, OTP, or authentication credentials with anyone.",
-            },
-        ],
-    },
+const CATEGORY_ICONS: Record<string, React.ComponentType<any>> = {
+    "getting-started": Rocket,
+    "finding-products": Search,
+    "comparing-stores": Store,
+    "orders": Package,
+    "delivery": Truck,
+    "payments": CreditCard,
+    "sellers": Landmark,
+    "account-security": ShieldCheck,
+    "support": Headphones,
+};
+
+const FAQ_ICONS: Record<string, React.ComponentType<any>> = {
+    "getting-started": Rocket,
+    "finding-products": Search,
+    "comparing-stores": Store,
+    "orders": Package,
+    "account-security": ShieldCheck,
+};
+
+const ORDER_STEP_ICONS = [
+    ScanLine,
+    MapPin,
+    Store,
+    CheckCircle2,
+    Truck,
+    CreditCard,
+    Package,
 ];
 
-const ORDER_STEPS = [
-    { title: "Enter or scan your product list", icon: ScanLine },
-    { title: "Select the search distance", icon: MapPin },
-    { title: "Compare nearby stores", icon: Store },
-    { title: "Select a store", icon: CheckCircle2 },
-    { title: "Select your delivery method", icon: Truck },
-    { title: "Select your payment method", icon: CreditCard },
-    { title: "Confirm your order", icon: Package },
-];
+const DELIVERY_ICONS = [Store, Truck];
 
-const DELIVERY_OPTIONS = [
-    {
-        title: "Self Pickup",
-        icon: Store,
-        desc: "Visit the selected store and collect your order.",
-    },
-    {
-        title: "Home Delivery",
-        icon: Truck,
-        desc: "The selected store prepares and delivers the order to your specified address.",
-    },
-];
-
-const PAYMENT_METHODS = [
-    { title: "UPI / QR payment", icon: QrCode },
-    { title: "Online payment gateway", icon: CreditCard },
-    { title: "Cash", icon: Banknote },
-];
-
-const PAYMENT_NOTE =
-    "Always verify the payment amount and recipient details before completing a payment. For QR payments, the applicable store's payment QR code may be displayed during checkout.";
-
-const SELLER_FEATURES = [
-    "Create and manage their store",
-    "Add products manually",
-    "Scan products",
-    "Bulk scan product lists",
-    "Manage stock",
-    "Set product prices",
-    "Manage customer / store-owner pricing where applicable",
-    "Manage UPI / payment details",
-    "Receive customer orders",
-    "Manage order status",
-];
-
-const CATEGORIES = [
-    { id: "getting-started", label: "Getting Started", icon: Rocket },
-    { id: "finding-products", label: "Finding Products", icon: Search },
-    { id: "comparing-stores", label: "Comparing Stores", icon: Store },
-    { id: "orders", label: "Orders", icon: Package },
-    { id: "delivery", label: "Delivery", icon: Truck },
-    { id: "payments", label: "Payments", icon: CreditCard },
-    { id: "sellers", label: "For Sellers", icon: Landmark },
-    { id: "account-security", label: "Account & Security", icon: ShieldCheck },
-    { id: "support", label: "Contact Support", icon: Headphones },
-];
+const PAYMENT_ICONS = [QrCode, CreditCard, Banknote];
 
 // ─────────────────────────────────────────────────────────────────────────
 // Small building blocks
@@ -352,10 +244,7 @@ function SectionShell({
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Hero illustration — store, phone + pin, delivery scooter.
-// Built from primitive SVG shapes so no external image assets are needed.
-// One orchestrated fade/slide-in, then a single gentle idle loop on the
-// scooter — not a fade-up-everything effect.
+// Hero illustration
 // ─────────────────────────────────────────────────────────────────────────
 function HeroIllustration() {
     const groundScale = useRef(new Animated.Value(0)).current;
@@ -411,11 +300,6 @@ function HeroIllustration() {
         });
     }, []);
 
-    const storeTranslate = storeIn.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
-    const phoneTranslate = phoneIn.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
-    const scooterTranslate = scooterIn.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
-    const scooterFloatY = scooterFloat.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
-
     return (
         <View style={styles.heroIllustrationWrap}>
             <Svg width="100%" height="100%" viewBox="0 0 480 360">
@@ -455,8 +339,45 @@ function HeroIllustration() {
 // ─────────────────────────────────────────────────────────────────────────
 export default function HelpCenterScreen() {
     const navigation = useNavigation<any>();
-
     const { theme, toggleTheme, isLight } = useTheme();
+    const { language } = useTranslation();
+
+    const helpData = useMemo(() => getHelpCenterData(language as any), [language]);
+
+    const categories = useMemo(() => {
+        return helpData.categories.map((c) => ({
+            ...c,
+            icon: CATEGORY_ICONS[c.id] || Package,
+        }));
+    }, [helpData]);
+
+    const faqSections = useMemo<FAQSection[]>(() => {
+        return helpData.faqSections.map((s) => ({
+            ...s,
+            icon: FAQ_ICONS[s.id] || Package,
+        }));
+    }, [helpData]);
+
+    const orderSteps = useMemo(() => {
+        return helpData.orderSteps.map((title, i) => ({
+            title,
+            icon: ORDER_STEP_ICONS[i] || Package,
+        }));
+    }, [helpData]);
+
+    const deliveryOptions = useMemo(() => {
+        return helpData.deliveryOptions.map((opt, i) => ({
+            ...opt,
+            icon: DELIVERY_ICONS[i] || Truck,
+        }));
+    }, [helpData]);
+
+    const paymentMethods = useMemo(() => {
+        return helpData.paymentMethods.map((title, i) => ({
+            title,
+            icon: PAYMENT_ICONS[i] || CreditCard,
+        }));
+    }, [helpData]);
 
     const [query, setQuery] = useState("");
     const [openId, setOpenId] = useState<string | null>("getting-started-0");
@@ -469,29 +390,29 @@ export default function HelpCenterScreen() {
         !normalizedQuery || texts.some((t) => t.toLowerCase().includes(normalizedQuery));
 
     const filteredFaqSections = useMemo(() => {
-        if (!normalizedQuery) return FAQ_SECTIONS;
-        return FAQ_SECTIONS.map((section) => ({
+        if (!normalizedQuery) return faqSections;
+        return faqSections.map((section) => ({
             ...section,
             items: section.items.filter((item) => matches([item.q, item.a])),
         })).filter((section) => section.items.length > 0);
-    }, [normalizedQuery]);
+    }, [normalizedQuery, faqSections]);
 
     const deliveryFiltered = useMemo(
-        () => DELIVERY_OPTIONS.filter((o) => matches([o.title, o.desc])),
-        [normalizedQuery],
+        () => deliveryOptions.filter((o) => matches([o.title, o.desc])),
+        [normalizedQuery, deliveryOptions],
     );
     const paymentMethodsFiltered = useMemo(
-        () => PAYMENT_METHODS.filter((m) => matches([m.title])),
-        [normalizedQuery],
+        () => paymentMethods.filter((m) => matches([m.title])),
+        [normalizedQuery, paymentMethods],
     );
-    const paymentNoteVisible = matches([PAYMENT_NOTE]);
+    const paymentNoteVisible = matches([helpData.paymentNote]);
     const sellerFeaturesFiltered = useMemo(
-        () => SELLER_FEATURES.filter((f) => matches([f])),
-        [normalizedQuery],
+        () => helpData.sellerFeatures.filter((f) => matches([f])),
+        [normalizedQuery, helpData.sellerFeatures],
     );
     const orderStepsFiltered = useMemo(
-        () => ORDER_STEPS.filter((s) => matches([s.title])),
-        [normalizedQuery],
+        () => orderSteps.filter((s) => matches([s.title])),
+        [normalizedQuery, orderSteps],
     );
 
     const gettingStartedSection = filteredFaqSections.find((s) => s.id === "getting-started");
@@ -597,7 +518,7 @@ export default function HelpCenterScreen() {
                     <ArrowLeft size={20} color={isLight ? "#111827" : "#ffffff"} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: isLight ? "#111827" : "#ffffff" }]}>
-                    Help Center
+                    {helpData.heroTitle}
                 </Text>
                 <TouchableOpacity
                     onPress={toggleTheme}
@@ -616,7 +537,7 @@ export default function HelpCenterScreen() {
                 ]}
             >
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipBarContent}>
-                    {CATEGORIES.map((cat) => (
+                    {categories.map((cat) => (
                         <TouchableOpacity
                             key={cat.id}
                             onPress={() => scrollTo(cat.id)}
@@ -648,19 +569,18 @@ export default function HelpCenterScreen() {
                 <View style={styles.hero}>
                     <View style={styles.heroBadge}>
                         <Headphones size={13} color={COLORS.redAccentDark} />
-                        <Text style={styles.heroBadgeText}>We're here to help</Text>
+                        <Text style={styles.heroBadgeText}>{helpData.eyebrow}</Text>
                     </View>
-                    <Text style={styles.heroTitle}>Help Center</Text>
+                    <Text style={styles.heroTitle}>{helpData.heroTitle}</Text>
                     <Text style={styles.heroSubtitle}>
-                        Answers on shopping, stores, products, orders, payments, delivery, and your account —
-                        all in one place.
+                        {helpData.heroSubtitle}
                     </Text>
 
                     <View style={styles.searchBar}>
                         <TextInput
                             value={query}
                             onChangeText={setQuery}
-                            placeholder='Search for a topic, e.g. "cancel order"'
+                            placeholder={helpData.searchPlaceholder}
                             placeholderTextColor="#6b7280"
                             returnKeyType="search"
                             onSubmitEditing={handleSearch}
@@ -668,7 +588,7 @@ export default function HelpCenterScreen() {
                         />
                         {query.length > 0 && (
                             <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn}>
-                                <Text style={styles.clearBtnText}>Clear</Text>
+                                <Text style={styles.clearBtnText}>{helpData.clearBtn}</Text>
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity style={styles.searchBtn} onPress={handleSearch} activeOpacity={0.85}>
@@ -676,7 +596,7 @@ export default function HelpCenterScreen() {
                         </TouchableOpacity>
                     </View>
                     {normalizedQuery.length > 0 && !noResults && (
-                        <Text style={styles.searchHint}>Showing results for "{query.trim()}"</Text>
+                        <Text style={styles.searchHint}>{helpData.showingResultsFor} "{query.trim()}"</Text>
                     )}
 
                     <HeroIllustration />
@@ -688,10 +608,10 @@ export default function HelpCenterScreen() {
                         <View style={styles.noResults}>
                             <SearchX size={34} color={isLight ? "#d1d5db" : "#4b5563"} />
                             <Text style={[styles.noResultsTitle, { color: isLight ? "#374151" : "#d1d5db" }]}>
-                                No results for "{query}"
+                                {helpData.noResultsFor} "{query}"
                             </Text>
                             <Text style={styles.noResultsSubtitle}>
-                                Try a different word, or browse a topic below.
+                                {helpData.noResultsHint}
                             </Text>
                         </View>
                     )}
@@ -699,8 +619,8 @@ export default function HelpCenterScreen() {
                     {/* Getting Started */}
                     {gettingStartedSection && (
                         <SectionShell
-                            title="Getting Started"
-                            blurb="Create your account and find your way around."
+                            title={gettingStartedSection.title}
+                            blurb={gettingStartedSection.blurb}
                             icon={Rocket}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("getting-started", y)}
@@ -708,10 +628,10 @@ export default function HelpCenterScreen() {
                             {!normalizedQuery && (
                                 <View style={styles.accountTypeGrid}>
                                     {[
-                                        { label: "Customer", icon: ShoppingBag },
-                                        { label: "Store Owner", icon: Store },
-                                        { label: "Wholesaler", icon: Landmark },
-                                        { label: "Home Business", icon: HomeIcon },
+                                        { label: helpData.accountTypes.customer, icon: ShoppingBag },
+                                        { label: helpData.accountTypes.storeOwner, icon: Store },
+                                        { label: helpData.accountTypes.wholesaler, icon: Landmark },
+                                        { label: helpData.accountTypes.homeBusiness, icon: HomeIcon },
                                     ].map((t) => (
                                         <View
                                             key={t.label}
@@ -745,8 +665,8 @@ export default function HelpCenterScreen() {
                     {/* Finding Products */}
                     {findingProductsSection && (
                         <SectionShell
-                            title="Finding Products"
-                            blurb="Search, speak, or scan — however you shop."
+                            title={findingProductsSection.title}
+                            blurb={findingProductsSection.blurb}
                             icon={Search}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("finding-products", y)}
@@ -756,13 +676,13 @@ export default function HelpCenterScreen() {
                                     <View style={[styles.tipTile, { borderColor: cardBorder, backgroundColor: tileBg }]}>
                                         <Mic size={17} color={COLORS.red} />
                                         <Text style={[styles.tipText, { color: isLight ? "#4b5563" : "#d1d5db" }]}>
-                                            Tap the mic to search by voice
+                                            {helpData.productSearchTips.voiceSearch}
                                         </Text>
                                     </View>
                                     <View style={[styles.tipTile, { borderColor: cardBorder, backgroundColor: tileBg }]}>
                                         <ScanLine size={17} color={COLORS.red} />
                                         <Text style={[styles.tipText, { color: isLight ? "#4b5563" : "#d1d5db" }]}>
-                                            Scan or upload a product list
+                                            {helpData.productSearchTips.scanList}
                                         </Text>
                                     </View>
                                 </View>
@@ -787,8 +707,8 @@ export default function HelpCenterScreen() {
                     {/* Comparing Nearby Stores */}
                     {comparingStoresSection && (
                         <SectionShell
-                            title="Comparing Nearby Stores"
-                            blurb="Let Remise find the best price close to you."
+                            title={comparingStoresSection.title}
+                            blurb={comparingStoresSection.blurb}
                             icon={Store}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("comparing-stores", y)}
@@ -813,8 +733,8 @@ export default function HelpCenterScreen() {
                     {/* Orders */}
                     {ordersVisible && (
                         <SectionShell
-                            title="Orders"
-                            blurb="From cart to confirmation."
+                            title={ordersFaqSection?.title || helpData.categories.find((c) => c.id === "orders")?.label || "Orders"}
+                            blurb={ordersFaqSection?.blurb || ""}
                             icon={Package}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("orders", y)}
@@ -822,11 +742,11 @@ export default function HelpCenterScreen() {
                             {orderStepsFiltered.length > 0 && (
                                 <View style={{ marginBottom: 20 }}>
                                     <Text style={[styles.kicker, { color: isLight ? "#6b7280" : "#6b7280" }]}>
-                                        How do I place an order?
+                                        {helpData.orderStepsKicker}
                                     </Text>
                                     <View style={styles.stepGrid}>
                                         {orderStepsFiltered.map((step) => {
-                                            const stepNumber = ORDER_STEPS.indexOf(step) + 1;
+                                            const stepNumber = orderSteps.indexOf(step) + 1;
                                             return (
                                                 <View
                                                     key={step.title}
@@ -867,8 +787,8 @@ export default function HelpCenterScreen() {
                     {/* Delivery */}
                     {deliveryVisible && (
                         <SectionShell
-                            title="Delivery"
-                            blurb="Pick up yourself, or have it brought to you."
+                            title={helpData.deliveryTitle}
+                            blurb={helpData.deliverySubtitle}
                             icon={Truck}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("delivery", y)}
@@ -898,7 +818,7 @@ export default function HelpCenterScreen() {
                             </View>
                             {!normalizedQuery && (
                                 <Text style={styles.deliveryFootnote}>
-                                    Delivery availability, charges, and estimated delivery time may vary by store and location.
+                                    {helpData.deliveryFootnote}
                                 </Text>
                             )}
                         </SectionShell>
@@ -907,8 +827,8 @@ export default function HelpCenterScreen() {
                     {/* Payments */}
                     {paymentsVisible && (
                         <SectionShell
-                            title="Payments"
-                            blurb="Pay the way that suits you."
+                            title={helpData.paymentsTitle}
+                            blurb={helpData.paymentsSubtitle}
                             icon={CreditCard}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("payments", y)}
@@ -939,8 +859,8 @@ export default function HelpCenterScreen() {
                                 <View style={styles.paymentNote}>
                                     <Lock size={15} color={COLORS.red} />
                                     <Text style={[styles.paymentNoteText, { color: isLight ? "#374151" : "#d1d5db" }]}>
-                                        <Text style={{ fontWeight: "700" }}>Important: </Text>
-                                        {PAYMENT_NOTE}
+                                        <Text style={{ fontWeight: "700" }}>{helpData.importantNoteLabel} </Text>
+                                        {helpData.paymentNote}
                                     </Text>
                                 </View>
                             )}
@@ -950,8 +870,8 @@ export default function HelpCenterScreen() {
                     {/* For Sellers */}
                     {sellersVisible && (
                         <SectionShell
-                            title="Store Owner / Seller Help"
-                            blurb="Everything store owners, wholesalers, and home businesses can do."
+                            title={helpData.sellersSectionTitle}
+                            blurb={helpData.sellersSectionBlurb}
                             icon={Landmark}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("sellers", y)}
@@ -972,8 +892,8 @@ export default function HelpCenterScreen() {
                     {/* Account & Security */}
                     {accountSection && (
                         <SectionShell
-                            title="Account & Security"
-                            blurb="Keep your details up to date and protected."
+                            title={accountSection.title}
+                            blurb={accountSection.blurb}
                             icon={ShieldCheck}
                             isLight={isLight}
                             onLayout={(y) => registerOffset("account-security", y)}
@@ -1002,18 +922,17 @@ export default function HelpCenterScreen() {
                     >
                         <View style={styles.ctaBadge}>
                             <Headphones size={13} color="rgba(255,255,255,0.8)" />
-                            <Text style={styles.ctaBadgeText}>Still need help?</Text>
+                            <Text style={styles.ctaBadgeText}>{helpData.supportCtaBadge}</Text>
                         </View>
                         <Text style={styles.ctaTitle}>
-                            Contact support with your order ID and we'll take it from there.
+                            {helpData.supportCtaTitle}
                         </Text>
                         <Text style={styles.ctaSubtitle}>
-                            Reach us through the support channel inside the app — include your order ID or
-                            relevant details whenever possible.
+                            {helpData.supportCtaSubtitle}
                         </Text>
                         <TouchableOpacity style={styles.ctaButton} activeOpacity={0.85} onPress={handleContactSupport}>
                             <Mail size={16} color={COLORS.navy} />
-                            <Text style={styles.ctaButtonText}>Get in touch</Text>
+                            <Text style={styles.ctaButtonText}>{helpData.getInTouchBtn}</Text>
                             <ArrowRight size={15} color={COLORS.navy} />
                         </TouchableOpacity>
                     </View>
@@ -1048,7 +967,6 @@ const styles = StyleSheet.create({
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 8,
-        marginRight: 8,
     },
     chipLabel: { fontSize: 12, fontWeight: "600" },
 
@@ -1056,38 +974,48 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.navy,
         paddingHorizontal: 20,
         paddingTop: 28,
-        paddingBottom: 32,
+        paddingBottom: 28,
     },
     heroBadge: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
         alignSelf: "flex-start",
+        gap: 6,
         backgroundColor: "rgba(255,255,255,0.05)",
-        borderWidth: 1,
         borderColor: "rgba(255,255,255,0.1)",
+        borderWidth: 1,
         borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        marginBottom: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        marginBottom: 14,
     },
     heroBadgeText: {
         fontSize: 11,
         fontWeight: "700",
         color: COLORS.redAccentDark,
         textTransform: "uppercase",
-        letterSpacing: 0.4,
+        letterSpacing: 0.6,
     },
-    heroTitle: { fontSize: 32, fontWeight: "900", color: "#ffffff", lineHeight: 36 },
-    heroSubtitle: { fontSize: 14, color: "#d1d5db", marginTop: 12, lineHeight: 20 },
+    heroTitle: {
+        fontSize: 28,
+        fontWeight: "900",
+        color: "#ffffff",
+        letterSpacing: -0.5,
+        marginBottom: 8,
+    },
+    heroSubtitle: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: "#d1d5db",
+        marginBottom: 20,
+    },
 
     searchBar: {
         flexDirection: "row",
         alignItems: "center",
-        marginTop: 22,
+        backgroundColor: "rgba(255,255,255,0.05)",
         borderWidth: 2,
         borderColor: "rgba(255,255,255,0.1)",
-        backgroundColor: "rgba(255,255,255,0.05)",
         borderRadius: 12,
         overflow: "hidden",
     },
@@ -1099,146 +1027,243 @@ const styles = StyleSheet.create({
         color: "#ffffff",
     },
     clearBtn: { paddingHorizontal: 10 },
-    clearBtnText: { fontSize: 12, fontWeight: "600", color: "#9ca3af" },
-    searchBtn: { backgroundColor: COLORS.red, paddingHorizontal: 16, paddingVertical: 12 },
-    searchHint: { fontSize: 12, color: "#9ca3af", marginTop: 8 },
+    clearBtnText: { fontSize: 12, color: "#9ca3af", fontWeight: "600" },
+    searchBtn: {
+        backgroundColor: COLORS.red,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    searchHint: {
+        fontSize: 12,
+        color: "#9ca3af",
+        marginTop: 8,
+    },
 
-    heroIllustrationWrap: { width: "100%", aspectRatio: 480 / 300, marginTop: 24 },
-
-    body: { paddingHorizontal: 20, paddingTop: 28, gap: 40 },
-
-    noResults: { alignItems: "center", paddingVertical: 32 },
-    noResultsTitle: { fontWeight: "700", marginTop: 10 },
-    noResultsSubtitle: { fontSize: 13, color: "#9ca3af", marginTop: 4 },
-
-    sectionShell: { marginBottom: 4 },
-    sectionHeaderRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
-    sectionIconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: 16,
+    heroIllustrationWrap: {
+        width: "100%",
+        height: 200,
+        marginTop: 18,
         alignItems: "center",
         justifyContent: "center",
     },
-    sectionTitle: { fontSize: 18, fontWeight: "900" },
+
+    body: {
+        paddingHorizontal: 16,
+        paddingTop: 24,
+        gap: 28,
+    },
+
+    noResults: {
+        alignItems: "center",
+        paddingVertical: 32,
+        gap: 6,
+    },
+    noResultsTitle: { fontSize: 15, fontWeight: "700" },
+    noResultsSubtitle: { fontSize: 13, color: "#6b7280" },
+
+    sectionShell: { gap: 14 },
+    sectionHeaderRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
+    sectionIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    sectionTitle: { fontSize: 17, fontWeight: "800", letterSpacing: -0.3 },
     sectionBlurb: { fontSize: 12, marginTop: 2 },
 
-    accordionCard: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 14 },
-    accordionRow: { paddingVertical: 4 },
+    accordionCard: {
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: 14,
+        overflow: "hidden",
+    },
+    accordionRow: {
+        paddingVertical: 4,
+    },
     accordionHeader: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        paddingVertical: 12,
         gap: 12,
-        paddingVertical: 14,
     },
-    accordionQuestion: { flex: 1, fontSize: 14, fontWeight: "700", lineHeight: 19 },
-    accordionAnswer: { fontSize: 13, lineHeight: 19, paddingBottom: 14 },
+    accordionQuestion: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: "700",
+        lineHeight: 18,
+    },
+    accordionAnswer: {
+        fontSize: 13,
+        lineHeight: 19,
+        paddingBottom: 14,
+    },
 
-    accountTypeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+    accountTypeGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+    },
     accountTypeTile: {
-        width: "47.5%",
+        flex: 1,
+        minWidth: "47%",
         borderWidth: 1,
-        borderRadius: 14,
-        paddingVertical: 16,
+        borderRadius: 12,
+        paddingVertical: 14,
         alignItems: "center",
+        justifyContent: "center",
         gap: 6,
     },
-    accountTypeLabel: { fontSize: 12, fontWeight: "600" },
+    accountTypeLabel: { fontSize: 12, fontWeight: "700" },
 
-    tipRow: { gap: 10, marginBottom: 16 },
+    tipRow: { gap: 8 },
     tipTile: {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
         borderWidth: 1,
-        borderRadius: 14,
+        borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
-    tipText: { fontSize: 12, fontWeight: "500", flex: 1 },
+    tipText: { fontSize: 13, fontWeight: "500", flex: 1 },
 
-    kicker: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 10 },
+    kicker: {
+        fontSize: 11,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+        marginBottom: 10,
+    },
     stepGrid: { gap: 8 },
     stepTile: {
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
         borderWidth: 1,
-        borderRadius: 14,
+        borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     stepNumberBadge: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 26,
+        height: 26,
+        borderRadius: 13,
         backgroundColor: COLORS.red,
         alignItems: "center",
         justifyContent: "center",
     },
     stepNumberText: { color: "#ffffff", fontSize: 12, fontWeight: "800" },
-    stepTitle: { fontSize: 13, fontWeight: "500", flex: 1 },
+    stepTitle: { fontSize: 13, fontWeight: "600", flex: 1 },
 
     deliveryGrid: { gap: 10 },
-    deliveryCard: { borderWidth: 1, borderRadius: 16, padding: 18 },
+    deliveryCard: {
+        borderWidth: 1,
+        borderRadius: 16,
+        padding: 16,
+    },
     deliveryIconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
+        width: 36,
+        height: 36,
+        borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 10,
     },
-    deliveryTitle: { fontWeight: "700", fontSize: 14, marginBottom: 4 },
+    deliveryTitle: { fontSize: 14, fontWeight: "800", marginBottom: 4 },
     deliveryDesc: { fontSize: 12, lineHeight: 17 },
-    deliveryFootnote: { fontSize: 11, color: "#9ca3af", marginTop: 10 },
+    deliveryFootnote: { fontSize: 11, color: "#6b7280", marginTop: 4 },
 
-    paymentGrid: { gap: 10, marginBottom: 14 },
-    paymentTile: { borderWidth: 1, borderRadius: 16, padding: 18, alignItems: "center", gap: 8 },
-    paymentTitle: { fontSize: 12, fontWeight: "600" },
+    paymentGrid: { gap: 8 },
+    paymentTile: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        borderWidth: 1,
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+    },
+    paymentTitle: { fontSize: 13, fontWeight: "700", flex: 1 },
     paymentNote: {
         flexDirection: "row",
         alignItems: "flex-start",
-        gap: 10,
+        gap: 8,
         borderWidth: 1,
         borderColor: "rgba(255,0,0,0.25)",
         backgroundColor: "rgba(255,0,0,0.06)",
         borderRadius: 12,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
+        padding: 12,
+        marginTop: 10,
     },
-    paymentNoteText: { fontSize: 12, lineHeight: 18, flex: 1 },
+    paymentNoteText: { fontSize: 12, lineHeight: 17, flex: 1 },
 
-    sellerCard: { borderWidth: 1, borderRadius: 16, padding: 20, gap: 12 },
-    sellerFeatureRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+    sellerCard: {
+        borderWidth: 1,
+        borderRadius: 16,
+        padding: 16,
+        gap: 12,
+    },
+    sellerFeatureRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 10,
+    },
     sellerFeatureText: { fontSize: 13, flex: 1, lineHeight: 18 },
 
     ctaCard: {
-        borderRadius: 24,
-        overflow: "hidden",
-        backgroundColor: COLORS.redDeep,
-        padding: 24,
+        backgroundColor: COLORS.red,
+        borderRadius: 22,
+        padding: 22,
+        gap: 10,
     },
-    ctaBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+    ctaBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
     ctaBadgeText: {
         fontSize: 11,
         fontWeight: "700",
-        color: "rgba(255,255,255,0.8)",
+        color: "rgba(255,255,255,0.85)",
         textTransform: "uppercase",
-        letterSpacing: 0.4,
+        letterSpacing: 0.6,
     },
-    ctaTitle: { fontSize: 19, fontWeight: "900", color: "#ffffff", lineHeight: 25, marginBottom: 8 },
-    ctaSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 19, marginBottom: 18 },
+    ctaTitle: {
+        fontSize: 18,
+        fontWeight: "900",
+        color: "#ffffff",
+        letterSpacing: -0.3,
+        lineHeight: 24,
+    },
+    ctaSubtitle: {
+        fontSize: 13,
+        lineHeight: 18,
+        color: "rgba(255,255,255,0.85)",
+    },
     ctaButton: {
         flexDirection: "row",
         alignItems: "center",
-        alignSelf: "flex-start",
+        justifyContent: "center",
         gap: 8,
         backgroundColor: "#ffffff",
-        paddingHorizontal: 18,
-        paddingVertical: 12,
         borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        alignSelf: "flex-start",
+        marginTop: 6,
     },
-    ctaButtonText: { color: COLORS.navy, fontWeight: "800", fontSize: 13 },
+    ctaButtonText: {
+        color: COLORS.navy,
+        fontSize: 13,
+        fontWeight: "800",
+    },
 });

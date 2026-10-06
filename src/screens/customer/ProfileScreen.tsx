@@ -61,6 +61,7 @@ import {
 import { mergeCategories } from '../../utils/storeCategories';
 import { storeProductApi } from '../../api/storeProductApi';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation, translateCategory } from '../../i18n';
 
 type TabKey = 'overview' | 'addresses' | 'security' | 'store';
 
@@ -132,6 +133,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { user, updateUser, logout } = useAuth();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const { unreadCount } = useUnreadNotifications();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -258,13 +260,13 @@ export default function ProfileScreen() {
 }, []);
 
   const categoryOptions = useMemo(
-  () =>
-    mergeCategories(categories || []).map(c => ({
-      key: c.name,
-      label: c.name,
-    })),
-  [categories]
-);
+    () =>
+      mergeCategories(categories || []).map(c => ({
+        key: c.name,
+        label: translateCategory(c.name, language),
+      })),
+    [categories, language]
+  );
 
   const [security, setSecurity] = useState({
     currentPassword: '',
@@ -333,15 +335,22 @@ export default function ProfileScreen() {
 
   const tabs = useMemo<{ id: TabKey; label: string }[]>(() => {
     const base: { id: TabKey; label: string }[] = [
-      { id: 'overview', label: 'Overview' },
-      { id: 'addresses', label: 'Addresses' },
-      { id: 'security', label: 'Security' },
+      { id: 'overview', label: t('profile.overviewTab') },
+      { id: 'addresses', label: t('profile.addressesTab') },
+      { id: 'security', label: t('profile.securityTab') },
     ];
     if (['store_owner', 'whole_saler', 'home_business'].includes(user?.role || '')) {
-      base.push({ id: 'store', label: 'Store' });
+      base.push({ id: 'store', label: t('profile.storeTab') });
     }
     return base;
-  }, [user?.role]);
+  }, [user?.role, t]);
+
+  const genderOptions = useMemo(() => [
+    { key: 'male', label: t('profile.genderMale') },
+    { key: 'female', label: t('profile.genderFemale') },
+    { key: 'other', label: t('profile.genderOther') },
+    { key: 'prefer_not_to_say', label: t('profile.genderPreferNotToSay') },
+  ], [t]);
 
   const validatePersonalDetails = () => {
     const errors: Record<string, string> = {};
@@ -529,9 +538,9 @@ export default function ProfileScreen() {
             <View style={styles.guestAvatar}>
               <User size={42} color={CustomerColors.primary} />
             </View>
-            <Text style={styles.guestTitle}>Welcome to REmise</Text>
+            <Text style={styles.guestTitle}>{t('common.appName') ? `Welcome to ${t('common.appName')}` : 'Welcome to REmise'}</Text>
             <Text style={styles.guestSubtitle}>
-              Sign in to view your orders, private offers, saved addresses, and manage your account.
+              {t('profile.guestSubtitle') || 'Sign in to view your orders, private offers, saved addresses, and manage your account.'}
             </Text>
             <TouchableOpacity
               style={styles.guestLoginActionBtn}
@@ -539,7 +548,7 @@ export default function ProfileScreen() {
               activeOpacity={0.85}
             >
               <LogIn size={18} color="#FFFFFF" />
-              <Text style={styles.guestLoginActionBtnText}>Sign In / Register</Text>
+              <Text style={styles.guestLoginActionBtnText}>{t('common.loginRegister')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -555,12 +564,12 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.quickMenuTitle}>My Offers</Text>
+                  <Text style={styles.quickMenuTitle}>{t('profile.quickOffersTitle')}</Text>
                   <View style={[styles.privateOfferBadge, isDark && { backgroundColor: '#78350F' }]}>
-                    <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>Private Deals</Text>
+                    <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>{t('offers.privateOffers') || 'Private Deals'}</Text>
                   </View>
                 </View>
-                <Text style={styles.quickMenuSub}>Special deals sent personally to your account</Text>
+                <Text style={styles.quickMenuSub}>{t('profile.quickOffersSub')}</Text>
               </View>
               <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             </TouchableOpacity>
@@ -576,8 +585,8 @@ export default function ProfileScreen() {
                 <SettingsIcon size={18} color={isDark ? '#9CA3AF' : '#4B5563'} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.quickMenuTitle}>Settings</Text>
-                <Text style={styles.quickMenuSub}>Preferences, theme & app info</Text>
+                <Text style={styles.quickMenuTitle}>{t('profile.quickSettingsTitle')}</Text>
+                <Text style={styles.quickMenuSub}>{t('profile.quickSettingsSub')}</Text>
               </View>
               <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             </TouchableOpacity>
@@ -596,7 +605,7 @@ export default function ProfileScreen() {
         }}
       >
         <View style={styles.headerRow}>
-          <Text style={styles.heading}>My Profile</Text>
+          <Text style={styles.heading}>{t('profile.myProfileTitle')}</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.notifBtn}
@@ -620,7 +629,7 @@ export default function ProfileScreen() {
             >
               <Save size={15} color="#fff" />
               <Text style={styles.saveBtnText}>
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? t('profile.savingBtn') : t('common.save')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -644,8 +653,8 @@ export default function ProfileScreen() {
                 <CheckCircle size={10} color={CustomerColors.success} />
                 <Text style={styles.verifiedPillText}>
                   {user?.isEmailVerified === false
-                    ? 'Verify email'
-                    : 'Verified'}
+                    ? t('profile.verifyEmailPrompt')
+                    : t('profile.verifiedBadge')}
                 </Text>
               </View>
             </View>
@@ -655,7 +664,7 @@ export default function ProfileScreen() {
               onPress={() => setLogoutModalOpen(true)}
             >
               <LogOut size={16} color={CustomerColors.primary} />
-              <Text style={styles.logoutBtnText}>Logout</Text>
+              <Text style={styles.logoutBtnText}>{t('common.signOut')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -672,12 +681,12 @@ export default function ProfileScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.quickMenuTitle}>My Offers</Text>
+                <Text style={styles.quickMenuTitle}>{t('profile.quickOffersTitle')}</Text>
                 <View style={[styles.privateOfferBadge, isDark && { backgroundColor: '#78350F' }]}>
-                  <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>Private Deals</Text>
+                  <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>{t('offers.privateOffers') || 'Private Deals'}</Text>
                 </View>
               </View>
-              <Text style={styles.quickMenuSub}>Exclusive personal discounts sent just to you</Text>
+              <Text style={styles.quickMenuSub}>{t('profile.quickOffersSub')}</Text>
             </View>
             <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           </TouchableOpacity>
@@ -693,8 +702,8 @@ export default function ProfileScreen() {
               <Package size={18} color="#2563EB" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.quickMenuTitle}>My Orders</Text>
-              <Text style={styles.quickMenuSub}>Track shipments & order history</Text>
+              <Text style={styles.quickMenuTitle}>{t('profile.quickOrdersTitle')}</Text>
+              <Text style={styles.quickMenuSub}>{t('profile.quickOrdersSub')}</Text>
             </View>
             <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           </TouchableOpacity>
@@ -710,8 +719,8 @@ export default function ProfileScreen() {
               <Heart size={18} color="#DB2777" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.quickMenuTitle}>My Wishlist</Text>
-              <Text style={styles.quickMenuSub}>Products you saved for later</Text>
+              <Text style={styles.quickMenuTitle}>{t('profile.quickWishlistTitle')}</Text>
+              <Text style={styles.quickMenuSub}>{t('profile.quickWishlistSub')}</Text>
             </View>
             <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           </TouchableOpacity>
@@ -727,8 +736,8 @@ export default function ProfileScreen() {
               <SettingsIcon size={18} color={isDark ? '#9CA3AF' : '#4B5563'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.quickMenuTitle}>Settings</Text>
-              <Text style={styles.quickMenuSub}>Preferences, privacy & about</Text>
+              <Text style={styles.quickMenuTitle}>{t('profile.quickSettingsTitle')}</Text>
+              <Text style={styles.quickMenuSub}>{t('profile.quickSettingsSub')}</Text>
             </View>
             <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           </TouchableOpacity>
@@ -759,11 +768,11 @@ export default function ProfileScreen() {
 
         {activeTab === 'overview' && (
           <View style={styles.cardSection}>
-            <Text style={styles.sectionTitle}>Personal details</Text>
+            <Text style={styles.sectionTitle}>{t('profile.personalDetailsTitle')}</Text>
             <TextInput
               style={[styles.input, fieldErrors.fullname && styles.inputError]}
               value={form.fullname}
-              placeholder="Full Name"
+              placeholder={t('profile.fullNameLabel')}
               placeholderTextColor="#9CA3AF"
               onChangeText={value => {
                 setForm(prev => ({ ...prev, fullname: value }));
@@ -777,7 +786,7 @@ export default function ProfileScreen() {
             <TextInput
               style={[styles.input, fieldErrors.email && styles.inputError]}
               value={form.email}
-              placeholder="Email"
+              placeholder={t('profile.emailLabel')}
               placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
               onChangeText={value => {
@@ -792,7 +801,7 @@ export default function ProfileScreen() {
             <TextInput
               style={[styles.input, fieldErrors.mobilenumber && styles.inputError]}
               value={form.mobilenumber}
-              placeholder="Mobile number"
+              placeholder={t('profile.mobileNumberLabel')}
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               onChangeText={value => {
@@ -810,7 +819,7 @@ export default function ProfileScreen() {
               onPress={() => setShowDobPicker(true)}
             >
               <Text style={form.dob ? styles.dobValue : styles.dobPlaceholder}>
-                {form.dob ? formatDob(form.dob) : 'Date of birth'}
+                {form.dob ? formatDob(form.dob) : t('profile.dobLabel')}
               </Text>
               <Calendar size={16} color={isDark ? '#F9FAFB' : CustomerColors.textSecondary} />
             </TouchableOpacity>
@@ -845,7 +854,7 @@ export default function ProfileScreen() {
               onPress={() => setShowGenderModal(true)}
             >
               <Text style={form.gender ? styles.dobValue : styles.dobPlaceholder}>
-                {GENDER_OPTIONS.find(g => g.key === form.gender)?.label || form.gender || 'Gender'}
+                {genderOptions.find(g => g.key === form.gender)?.label || form.gender || t('profile.genderLabel')}
               </Text>
               <ChevronDown size={16} color={isDark ? '#F9FAFB' : CustomerColors.textSecondary} />
             </TouchableOpacity>
@@ -863,13 +872,13 @@ export default function ProfileScreen() {
               >
                 <View style={styles.genderModalSheet} onStartShouldSetResponder={() => true}>
                   <View style={styles.genderModalHeader}>
-                    <Text style={styles.genderModalTitle}>Select Gender</Text>
+                    <Text style={styles.genderModalTitle}>{t('profile.selectGenderPlaceholder')}</Text>
                     <TouchableOpacity onPress={() => setShowGenderModal(false)}>
                       <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
                     </TouchableOpacity>
                   </View>
                   <View>
-                    {GENDER_OPTIONS.map(item => (
+                    {genderOptions.map(item => (
                       <TouchableOpacity
                         key={item.key}
                         style={styles.genderModalItem}
@@ -898,7 +907,7 @@ export default function ProfileScreen() {
         {activeTab === 'addresses' && (
           <View style={styles.cardSection}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Saved addresses</Text>
+              <Text style={styles.sectionTitle}>{t('profile.savedAddressesTitle')}</Text>
               <TouchableOpacity
                 style={styles.smallActionBtn}
                 onPress={() => {
@@ -925,7 +934,7 @@ export default function ProfileScreen() {
                 <TextInput
                   style={[styles.input, addressErrors.label && styles.inputError]}
                   value={addressDraft.label}
-                  placeholder="Label (e.g. Home, Work)"
+                  placeholder={`${t('profile.labelLabel')} (e.g. Home, Work)`}
                   placeholderTextColor="#9CA3AF"
                   onChangeText={value => {
                     setAddressDraft(prev => ({ ...prev, label: value }));
@@ -939,7 +948,7 @@ export default function ProfileScreen() {
                 <TextInput
                   style={[styles.input, addressErrors.fullName && styles.inputError]}
                   value={addressDraft.fullName}
-                  placeholder="Full name"
+                  placeholder={t('profile.fullNameLabel')}
                   placeholderTextColor="#9CA3AF"
                   onChangeText={value => {
                     setAddressDraft(prev => ({ ...prev, fullName: value }));
@@ -953,7 +962,7 @@ export default function ProfileScreen() {
                 <TextInput
                   style={[styles.input, addressErrors.phone && styles.inputError]}
                   value={addressDraft.phone}
-                  placeholder="Phone"
+                  placeholder={t('profile.phoneLabel')}
                   placeholderTextColor="#9CA3AF"
                   keyboardType="phone-pad"
                   onChangeText={value => {
@@ -968,7 +977,7 @@ export default function ProfileScreen() {
                 <TextInput
                   style={[styles.input, addressErrors.street && styles.inputError]}
                   value={addressDraft.street}
-                  placeholder="Street"
+                  placeholder={t('profile.streetLabel')}
                   placeholderTextColor="#9CA3AF"
                   onChangeText={value => {
                     setAddressDraft(prev => ({ ...prev, street: value }));
@@ -980,9 +989,9 @@ export default function ProfileScreen() {
                 ) : null}
 
                 <LocationSelectField
-                  label="State"
+                  label={t('profile.stateLabel')}
                   value={addressDraft.state}
-                  placeholder="Select State"
+                  placeholder={t('profile.selectStatePlaceholder')}
                   options={stateOptions}
                   onSelect={handleDraftStateSelect}
                 />
@@ -991,10 +1000,10 @@ export default function ProfileScreen() {
                 ) : null}
 
                 <LocationSelectField
-                  label="City"
+                  label={t('profile.cityLabel')}
                   value={addressDraft.city}
                   placeholder={
-                    addressDraft.state ? 'Select City' : 'Select a state first'
+                    addressDraft.state ? t('profile.selectCityPlaceholder') : 'Select a state first'
                   }
                   options={draftCityOptions}
                   disabled={!addressDraft.state}
@@ -1007,7 +1016,7 @@ export default function ProfileScreen() {
                 <TextInput
                   style={[styles.input, addressErrors.pinCode && styles.inputError]}
                   value={addressDraft.pinCode}
-                  placeholder="Pin code"
+                  placeholder={t('profile.pinCodeLabel')}
                   placeholderTextColor="#9CA3AF"
                   onChangeText={value => {
                     setAddressDraft(prev => ({ ...prev, pinCode: value }));
@@ -1026,7 +1035,7 @@ export default function ProfileScreen() {
                       setAddressErrors({});
                     }}
                   >
-                    <Text style={styles.secondaryBtnText}>Cancel</Text>
+                    <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.saveBtn}
@@ -1083,7 +1092,7 @@ export default function ProfileScreen() {
                       setDraftCities([]);
                     }}
                   >
-                    <Text style={styles.saveBtnText}>Save</Text>
+                    <Text style={styles.saveBtnText}>{t('common.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1121,7 +1130,7 @@ export default function ProfileScreen() {
                         saveProfile({ ...form, profileData: nextProfileData });
                       }}
                     >
-                      <Text style={styles.secondaryBtnText}>Default</Text>
+                      <Text style={styles.secondaryBtnText}>{t('profile.setDefaultBtn')}</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -1131,7 +1140,7 @@ export default function ProfileScreen() {
                       setAddressEditorOpen(true);
                     }}
                   >
-                    <Text style={styles.secondaryBtnText}>Edit</Text>
+                    <Text style={styles.secondaryBtnText}>{t('common.edit')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.secondaryBtn}
@@ -1150,7 +1159,7 @@ export default function ProfileScreen() {
                       saveProfile({ ...form, profileData: nextProfileData });
                     }}
                   >
-                    <Text style={styles.secondaryBtnText}>Delete</Text>
+                    <Text style={styles.secondaryBtnText}>{t('common.delete')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1160,11 +1169,11 @@ export default function ProfileScreen() {
 
         {activeTab === 'security' && (
           <View style={styles.cardSection}>
-            <Text style={styles.sectionTitle}>Security</Text>
+            <Text style={styles.sectionTitle}>{t('profile.securityTitle')}</Text>
             {[
-              { key: 'current', label: 'Current password' },
-              { key: 'new', label: 'New password' },
-              { key: 'confirm', label: 'Confirm password' },
+              { key: 'current', label: t('profile.currentPasswordLabel') },
+              { key: 'new', label: t('profile.newPasswordLabel') },
+              { key: 'confirm', label: t('profile.confirmPasswordLabel') },
             ].map(item => (
               <View key={item.key} style={{ marginBottom: Spacing.sm }}>
                 <Text style={styles.label}>{item.label}</Text>
@@ -1217,7 +1226,7 @@ export default function ProfileScreen() {
               style={styles.saveBtn}
               onPress={handlePasswordChange}
             >
-              <Text style={styles.saveBtnText}>Update password</Text>
+              <Text style={styles.saveBtnText}>{t('profile.updatePasswordBtn')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -1235,7 +1244,7 @@ export default function ProfileScreen() {
               <Text
                 style={[styles.saveBtnText, { color: CustomerColors.primary }]}
               >
-                Logout from all devices
+                {t('profile.logoutAllDevicesBtn')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1243,7 +1252,7 @@ export default function ProfileScreen() {
 
         {activeTab === 'store' && (
           <View style={styles.cardSection}>
-            <Text style={styles.sectionTitle}>Store profile</Text>
+            <Text style={styles.sectionTitle}>{t('profile.storeProfileTitle')}</Text>
             <TextInput
               style={styles.input}
               placeholder="Store name"
@@ -1265,7 +1274,7 @@ export default function ProfileScreen() {
 
             {/* Category — dropdown */}
 <LocationSelectField
-  label="Category"
+  label={t('common.categories') || 'Category'}
   value={form.profileData.storeProfile?.category || ''}
   placeholder="Select Category"
   options={categoryOptions}
@@ -1525,14 +1534,14 @@ export default function ProfileScreen() {
               }}
             >
               <LogOut size={16} color="#FFFFFF" />
-              <Text style={styles.modalConfirmBtnText}>Yes, Log Out</Text>
+              <Text style={styles.modalConfirmBtnText}>{t('common.signOut')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.modalCancelBtn}
               onPress={() => setLogoutModalOpen(false)}
             >
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              <Text style={styles.modalCancelBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

@@ -4,6 +4,7 @@ import { Layers, Plus, Trash2, Search, Lock, Tag, ShieldCheck } from 'lucide-rea
 import { adminCategoryApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateCategory } from '../../i18n';
 
 export const DEFAULT_STORE_CATEGORIES = [
   'Food & Beverages',
@@ -31,6 +32,7 @@ export type MergedCategory = {
 
 export default function AdminDynamicContentScreen() {
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -137,13 +139,13 @@ export default function AdminDynamicContentScreen() {
     <View style={[styles.container, isDark && styles.containerDark]}>
       {/* Header Form */}
       <View style={[styles.addCard, isDark && styles.addCardDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textWhite]}>Add New Category</Text>
+        <Text style={[styles.sectionTitle, isDark && styles.textWhite]}>{t('admin.addNewCategory')}</Text>
         <View style={styles.addForm}>
           <TextInput
             style={[styles.input, { flex: 1 }, isDark && styles.inputDark]}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. Pet Supplies, Books..."
+            placeholder={t('admin.addCategoryPlaceholder')}
             placeholderTextColor={isDark ? '#9CA3AF' : AdminColors.textMuted}
           />
           <TouchableOpacity
@@ -163,7 +165,7 @@ export default function AdminDynamicContentScreen() {
           <Search size={16} color={isDark ? '#9CA3AF' : AdminColors.textMuted} />
           <TextInput
             style={[styles.searchInput, isDark && styles.textWhite]}
-            placeholder="Search categories..."
+            placeholder={t('admin.searchCategoriesPlaceholder')}
             placeholderTextColor={isDark ? '#9CA3AF' : AdminColors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -177,7 +179,7 @@ export default function AdminDynamicContentScreen() {
             onPress={() => setActiveFilter('ALL')}
           >
             <Text style={[styles.filterChipText, isDark && !activeFilter && styles.textMutedDark, activeFilter === 'ALL' && styles.filterChipTextActive]}>
-              All ({mergedCategories.length})
+              {t('admin.allTab')} ({mergedCategories.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -185,7 +187,7 @@ export default function AdminDynamicContentScreen() {
             onPress={() => setActiveFilter('DEFAULT')}
           >
             <Text style={[styles.filterChipText, isDark && activeFilter !== 'DEFAULT' && styles.textMutedDark, activeFilter === 'DEFAULT' && styles.filterChipTextActive]}>
-              Default ({defaultCount})
+              {t('admin.defaultTab')} ({defaultCount})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -193,7 +195,7 @@ export default function AdminDynamicContentScreen() {
             onPress={() => setActiveFilter('CUSTOM')}
           >
             <Text style={[styles.filterChipText, isDark && activeFilter !== 'CUSTOM' && styles.textMutedDark, activeFilter === 'CUSTOM' && styles.filterChipTextActive]}>
-              Custom ({customCount})
+              {t('admin.customTab')} ({customCount})
             </Text>
           </TouchableOpacity>
         </View>
@@ -209,7 +211,7 @@ export default function AdminDynamicContentScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Layers size={36} color={AdminColors.textMuted} />
-            <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>No categories found</Text>
+            <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>{t('admin.noCategoriesMatch')}</Text>
           </View>
         }
         renderItem={({ item: c }) => (
@@ -221,18 +223,18 @@ export default function AdminDynamicContentScreen() {
               {c.isDefault ? (
                 <View style={[styles.defaultBadge, isDark && styles.defaultBadgeDark]}>
                   <Lock size={10} color={isDark ? '#9CA3AF' : '#64748b'} />
-                  <Text style={[styles.defaultBadgeText, isDark && styles.textMutedDark]}>Default</Text>
+                  <Text style={[styles.defaultBadgeText, isDark && styles.textMutedDark]}>{t('admin.defaultBadge')}</Text>
                 </View>
               ) : (
                 <View style={styles.customBadge}>
                   <Tag size={10} color={AdminColors.primary} />
-                  <Text style={styles.customBadgeText}>Custom</Text>
+                  <Text style={styles.customBadgeText}>{t('admin.customBadge')}</Text>
                 </View>
               )}
             </View>
 
             <Text style={[styles.cardName, isDark && styles.textWhite]} numberOfLines={2}>
-              {c.name}
+              {translateCategory(c.name, language)}
             </Text>
 
             <View style={[styles.cardFooter, isDark && styles.cardFooterDark]}>
@@ -242,7 +244,7 @@ export default function AdminDynamicContentScreen() {
                   onPress={() => handleDelete(c._id, c.name, false)}
                 >
                   <Trash2 size={13} color="#DC2626" />
-                  <Text style={styles.deleteBtnText}>Delete</Text>
+                  <Text style={styles.deleteBtnText}>{t('admin.delete')}</Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.systemBadge}>

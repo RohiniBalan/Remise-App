@@ -37,62 +37,51 @@ import {
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
+import { getPrivacyPolicyData } from '../../i18n/policyTranslations';
 
 // Ported from client/app/privacy/page.tsx — uses website brand red (#FF0000).
 
 const BRAND_RED = CustomerColors.primary;
-const LAST_UPDATED = '20 August 2026';
 
-const SECTIONS = [
-    { id: 'collect', navLabel: 'What we collect', title: 'Information We Collect', icon: Database },
-    { id: 'voice-scan', navLabel: 'Voice & scanning', title: 'Voice and Scanning Features', icon: Mic },
-    { id: 'use', navLabel: 'How we use it', title: 'How We Use Information', icon: Settings2 },
-    { id: 'payments', navLabel: 'Payments', title: 'Payments', icon: CreditCard },
-    { id: 'sharing', navLabel: 'Who we share with', title: 'Information Sharing', icon: Share2 },
-    { id: 'security', navLabel: 'Security', title: 'Data Security', icon: Lock },
-    { id: 'retention', navLabel: 'Retention', title: 'Data Retention', icon: Clock },
-    { id: 'rights', navLabel: 'Your rights', title: 'Your Rights', icon: UserCheck },
-    { id: 'children', navLabel: 'Children', title: "Children's Privacy", icon: Baby },
-    { id: 'changes', navLabel: 'Policy changes', title: 'Policy Changes', icon: RefreshCw },
-    { id: 'contact', navLabel: 'Contact', title: 'Contact', icon: Mail },
+const SECTION_ICONS: Record<string, React.ElementType> = {
+    collect: Database,
+    'voice-scan': Mic,
+    use: Settings2,
+    payments: CreditCard,
+    sharing: Share2,
+    security: Lock,
+    retention: Clock,
+    rights: UserCheck,
+    children: Baby,
+    changes: RefreshCw,
+    contact: Mail,
+};
+
+const CATEGORY_ICONS: React.ElementType[] = [
+    User,
+    Fingerprint,
+    Store,
+    Package,
+    MapPin,
+    Smartphone,
 ];
 
-const DATA_CATEGORIES = [
-    { title: 'Account information', icon: User, items: ['Name', 'Email address', 'Mobile number', 'Password / authentication information'] },
-    { title: 'Profile information', icon: Fingerprint, items: ['Profile photo', 'Address', 'Location information', 'Account preferences'] },
-    { title: 'Seller information', icon: Store, items: ['Store name & address', 'Business information', 'Product & pricing information', 'Stock information', 'Payment / UPI details'], note: 'Collected for Store Owners, Wholesalers, and Home Businesses.' },
-    { title: 'Order information', icon: Package, items: ['Products ordered', 'Quantities & prices', 'Store selected', 'Delivery method', 'Order status', 'Transaction information'] },
-    { title: 'Location information', icon: MapPin, items: ['Used to find nearby stores', 'Calculate store distance', 'Support delivery'], note: 'Only collected with your permission.' },
-    { title: 'Device & technical information', icon: Smartphone, items: ['Device type & OS', 'IP address', 'App / browser information', 'Diagnostic information'] },
+const SHARE_ICONS: React.ElementType[] = [
+    Store,
+    CreditCard,
+    Package,
+    Database,
+    Mail,
+    ShieldCheck,
 ];
 
-const USE_ITEMS = [
-    'Create and manage accounts', 'Process orders', 'Compare nearby stores', 'Calculate prices',
-    'Process payments', 'Facilitate delivery or pickup', 'Manage products and inventory',
-    'Send order notifications', 'Prevent fraud and misuse', 'Provide customer support',
-    'Improve our services', 'Maintain security', 'Comply with legal requirements',
-];
-
-const SHARE_WITH = [
-    { title: 'Sellers', desc: 'To fulfil the order you place.', icon: Store },
-    { title: 'Payment providers', desc: 'To process your payment securely.', icon: CreditCard },
-    { title: 'Delivery partners', desc: 'To get your order to you.', icon: Package },
-    { title: 'Hosting & technology providers', desc: 'To keep Remise running.', icon: Database },
-    { title: 'Customer support providers', desc: 'To help resolve your queries.', icon: Mail },
-    { title: 'Authorities', desc: 'Only when required by law.', icon: ShieldCheck },
-];
-
-const RIGHTS = [
-    { title: 'Access', desc: 'Request a copy of what we hold about you.', icon: Eye },
-    { title: 'Correction', desc: "Fix information that's inaccurate.", icon: Pencil },
-    { title: 'Update', desc: 'Keep your details current.', icon: RotateCcw },
-    { title: 'Deletion', desc: 'Ask us to remove your information.', icon: Trash2 },
-    { title: 'Withdrawal', desc: "Withdraw certain permissions you've given.", icon: Ban },
-];
-
-const RETENTION_REASONS = [
-    'Provide our services', 'Maintain account and transaction records', 'Resolve disputes',
-    'Meet legal and regulatory requirements', 'Prevent fraud',
+const RIGHTS_ICONS: React.ElementType[] = [
+    Eye,
+    Pencil,
+    RotateCcw,
+    Trash2,
+    Ban,
 ];
 
 function SectionHeading({ title, Icon, textColor, iconBg }: { title: string; Icon: React.ElementType; textColor?: string; iconBg?: string }) {
@@ -126,6 +115,8 @@ function InfoCard({ title, icon: Icon, items, note, cardBg, borderColor, textPri
 
 export default function PrivacyPolicyScreen() {
     const { isDark } = useTheme();
+    const { language } = useTranslation();
+    const policy = getPrivacyPolicyData(language);
     const navigation = useNavigation<any>();
     const scrollRef = useRef<ScrollView>(null);
     const offsets = useRef<Record<string, number>>({});
@@ -148,6 +139,10 @@ export default function PrivacyPolicyScreen() {
         }
     };
 
+    const getSectionTitle = (id: string, fallback: string) => {
+        return policy.sections.find((s) => s.id === id)?.title || fallback;
+    };
+
     return (
         <View style={[styles.container, { backgroundColor: bg }]}>
             {/* Sticky chip nav */}
@@ -157,8 +152,8 @@ export default function PrivacyPolicyScreen() {
                 style={[styles.chipNav, { backgroundColor: bg, borderBottomColor: borderColor }]}
                 contentContainerStyle={styles.chipNavContent}
             >
-                {SECTIONS.map((s) => {
-                    const Icon = s.icon;
+                {policy.sections.map((s) => {
+                    const Icon = SECTION_ICONS[s.id] || Database;
                     return (
                         <TouchableOpacity
                             key={s.id}
@@ -178,57 +173,62 @@ export default function PrivacyPolicyScreen() {
                 <View style={styles.hero}>
                     <View style={[styles.badge, { backgroundColor: iconBg }]}>
                         <ShieldCheck size={13} color={BRAND_RED} />
-                        <Text style={styles.badgeText}>Last updated {LAST_UPDATED}</Text>
+                        <Text style={styles.badgeText}>{policy.lastUpdatedLabel} {policy.lastUpdatedDate}</Text>
                     </View>
-                    <Text style={[styles.heroTitle, { color: textPri }]}>Privacy Policy</Text>
+                    <Text style={[styles.heroTitle, { color: textPri }]}>{policy.title}</Text>
                     <Text style={[styles.heroSubtitle, { color: textSec }]}>
-                        This explains what Remise collects, how it's used, who it's shared with, and the
-                        choices you have regarding your information.
+                        {policy.subtitle}
                     </Text>
                 </View>
 
                 {/* WHAT WE COLLECT */}
                 <View style={styles.section} onLayout={registerOffset('collect')}>
-                    <SectionHeading title="Information We Collect" Icon={Database} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={getSectionTitle('collect', 'Information We Collect')} Icon={Database} textColor={textPri} iconBg={iconBg} />
                     <Text style={[styles.prose, { color: textSec }]}>
-                        We collect information you provide directly to us, information collected
-                        automatically when you use Remise, and information from third-party services.
+                        {language === 'ta'
+                            ? 'நாங்கள் நீங்கள் நேரடியாக வழங்கும் தகவல்கள், சேவையைப் பயன்படுத்தும்போது தானாக சேகரிக்கப்படும் தகவல்களைச் சேகரிக்கிறோம்.'
+                            : language === 'te'
+                            ? 'మీరు మాకు నేరుగా అందించే సమాచారం, రెమిస్‌ను ఉపయోగించినప్పుడు స్వయంచాలకంగా సేకరించబడే సమాచారాన్ని మేము సేకరిస్తాము.'
+                            : language === 'ml'
+                            ? 'നിങ്ങൾ ഞങ്ങൾക്ക് നേരിട്ട് നൽകുന്ന വിവരങ്ങളും സേവനം ഉപയോഗിക്കുമ്പോൾ ശേഖരിക്കുന്ന വിവരങ്ങളും ഞങ്ങൾ ശേഖരിക്കുന്നു.'
+                            : language === 'kn'
+                            ? 'ನೀವು ನಮಗೆ ನೇರವಾಗಿ ಒದಗಿಸುವ ಮಾಹಿತಿ ಮತ್ತು ಸೇವೆಯನ್ನು ಬಳಸುವಾಗ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಸಂಗ್ರಹಿಸಲಾದ ಮಾಹಿತಿಯನ್ನು ನಾವು ಸಂಗ್ರಹಿಸುತ್ತೇವೆ.'
+                            : language === 'hi'
+                            ? 'हम आपके द्वारा प्रदान की गई जानकारी और सेवा का उपयोग करते समय स्वचालित रूप से एकत्रित जानकारी एकत्र करते हैं।'
+                            : 'We collect information you provide directly to us, information collected automatically when you use Remise, and information from third-party services.'}
                     </Text>
-                    {DATA_CATEGORIES.map((c) => (
-                        <InfoCard key={c.title} title={c.title} icon={c.icon} items={c.items} note={c.note} cardBg={cardBg} borderColor={borderColor} textPri={textPri} textSec={textSec} iconBg={iconBg} />
+                    {policy.dataCategories.map((c, idx) => (
+                        <InfoCard key={c.title} title={c.title} icon={CATEGORY_ICONS[idx] || User} items={c.items} note={c.note} cardBg={cardBg} borderColor={borderColor} textPri={textPri} textSec={textSec} iconBg={iconBg} />
                     ))}
                 </View>
 
                 {/* VOICE & SCANNING */}
                 <View style={styles.section} onLayout={registerOffset('voice-scan')}>
-                    <SectionHeading title="Voice and Scanning Features" Icon={Mic} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={policy.voiceScanTitle} Icon={Mic} textColor={textPri} iconBg={iconBg} />
                     <View style={[styles.plainCard, { backgroundColor: cardBg, borderColor }]}>
                         <Text style={[styles.prose, { color: textSec }]}>
-                            If you use voice search or product barcode/image scanning:
+                            {policy.voiceScanBlurb}
                         </Text>
                         <View style={styles.bulletRow}>
                             <View style={styles.bulletDot} />
                             <Text style={[styles.bulletText, { color: textPri }]}>
-                                Voice data is processed to convert your speech to text for search queries.
+                                {policy.voiceFeatureTitle}: {policy.voiceFeatureDesc}
                             </Text>
                         </View>
                         <View style={styles.bulletRow}>
                             <View style={styles.bulletDot} />
                             <Text style={[styles.bulletText, { color: textPri }]}>
-                                Camera input is processed to identify products or barcodes you scan.
+                                {policy.scanFeatureTitle}: {policy.scanFeatureDesc}
                             </Text>
                         </View>
-                        <Text style={[styles.smallNote, { color: textSec }]}>
-                            These features are optional and only used when you interact with them.
-                        </Text>
                     </View>
                 </View>
 
                 {/* HOW WE USE */}
                 <View style={styles.section} onLayout={registerOffset('use')}>
-                    <SectionHeading title="How We Use Information" Icon={Settings2} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={getSectionTitle('use', 'How We Use Information')} Icon={Settings2} textColor={textPri} iconBg={iconBg} />
                     <View style={[styles.plainCard, { backgroundColor: cardBg, borderColor }]}>
-                        {USE_ITEMS.map((u) => (
+                        {policy.useItems.map((u) => (
                             <View key={u} style={styles.bulletRow}>
                                 <View style={styles.bulletDot} />
                                 <Text style={[styles.bulletText, { color: textPri }]}>{u}</Text>
@@ -239,18 +239,15 @@ export default function PrivacyPolicyScreen() {
 
                 {/* PAYMENTS */}
                 <View style={styles.section} onLayout={registerOffset('payments')}>
-                    <SectionHeading title="Payments" Icon={CreditCard} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={policy.paymentsTitle} Icon={CreditCard} textColor={textPri} iconBg={iconBg} />
                     <View style={[styles.plainCard, { backgroundColor: cardBg, borderColor }]}>
                         <Text style={[styles.prose, { color: textSec }]}>
-                            Payment transactions on Remise are handled through authorized payment gateway
-                            providers and banking channels. Remise does not store your full card numbers, CVVs,
-                            or UPI PINs.
+                            {policy.paymentsBlurb}
                         </Text>
                         <View style={styles.calloutRow}>
                             <Lock size={16} color={BRAND_RED} style={{ marginTop: 2 }} />
                             <Text style={[styles.calloutText, { color: textPri }]}>
-                                Payment details are encrypted and securely transmitted to regulated payment
-                                aggregators.
+                                {policy.razorpayTitle}: {policy.razorpayDesc} {policy.upiDesc}
                             </Text>
                         </View>
                     </View>
@@ -258,13 +255,22 @@ export default function PrivacyPolicyScreen() {
 
                 {/* INFORMATION SHARING */}
                 <View style={styles.section} onLayout={registerOffset('sharing')}>
-                    <SectionHeading title="Information Sharing" Icon={Share2} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={getSectionTitle('sharing', 'Information Sharing')} Icon={Share2} textColor={textPri} iconBg={iconBg} />
                     <Text style={[styles.prose, { color: textSec }]}>
-                        We share information only as necessary to provide our services and operate the
-                        platform:
+                        {language === 'ta'
+                            ? 'எங்கள் சேவைகளை வழங்கவும் தளத்தை இயக்கவும் தேவையான தகவல்களை மட்டுமே நாங்கள் பகிர்ந்து கொள்கிறோம்:'
+                            : language === 'te'
+                            ? 'మా సేవలను అందించడానికి మరియు ప్లాట్‌ఫారమ్‌ను నిర్వహించడానికి అవసరమైన సమాచారాన్ని మాత్రమే మేము పంచుకుంటాము:'
+                            : language === 'ml'
+                            ? 'ഞങ്ങളുടെ സേവനങ്ങൾ നൽകുന്നതിനും പ്ലാറ്റ്ഫോം പ്രവർത്തിപ്പിക്കുന്നതിനും ആവശ്യമായ വിവരങ്ങൾ മാത്രമേ ഞങ്ങൾ പങ്കിടൂ:'
+                            : language === 'kn'
+                            ? 'ನಮ್ಮ ಸೇವೆಗಳನ್ನು ಒದಗಿಸಲು ಮತ್ತು ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಅನ್ನು ನಿರ್ವಹಿಸಲು ಅಗತ್ಯವಿರುವ ಮಾಹಿತಿಯನ್ನು ಮಾತ್ರ ನಾವು ಹಂಚಿಕೊಳ್ಳುತ್ತೇವೆ:'
+                            : language === 'hi'
+                            ? 'हम अपनी सेवाएं प्रदान करने और प्लेटफ़ॉर्म संचालित करने के लिए आवश्यक जानकारी ही साझा करते हैं:'
+                            : 'We share information only as necessary to provide our services and operate the platform:'}
                     </Text>
-                    {SHARE_WITH.map((s) => {
-                        const Icon = s.icon;
+                    {policy.shareWith.map((s, idx) => {
+                        const Icon = SHARE_ICONS[idx] || Store;
                         return (
                             <View key={s.title} style={[styles.shareRow, { backgroundColor: cardBg, borderColor }]}>
                                 <View style={[styles.infoCardIcon, { backgroundColor: iconBg }]}>
@@ -281,23 +287,27 @@ export default function PrivacyPolicyScreen() {
 
                 {/* SECURITY */}
                 <View style={styles.section} onLayout={registerOffset('security')}>
-                    <SectionHeading title="Data Security" Icon={Lock} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={policy.securityTitle} Icon={Lock} textColor={textPri} iconBg={iconBg} />
                     <View style={[styles.plainCard, { backgroundColor: cardBg, borderColor }]}>
                         <Text style={[styles.prose, { color: textSec }]}>
-                            We implement appropriate technical and organisational measures designed to
-                            protect your personal information against unauthorised access, alteration,
-                            disclosure, or destruction.
+                            {policy.securityBlurb}
                         </Text>
+                        {policy.securityPoints.map((pt, pi) => (
+                            <View key={pi} style={styles.bulletRow}>
+                                <View style={styles.bulletDot} />
+                                <Text style={[styles.bulletText, { color: textPri }]}>{pt}</Text>
+                            </View>
+                        ))}
                     </View>
                 </View>
 
                 {/* RETENTION */}
                 <View style={styles.section} onLayout={registerOffset('retention')}>
-                    <SectionHeading title="Data Retention" Icon={Clock} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={policy.retentionTitle} Icon={Clock} textColor={textPri} iconBg={iconBg} />
                     <Text style={[styles.prose, { color: textSec }]}>
-                        We retain personal information for as long as necessary to:
+                        {policy.retentionBlurb}
                     </Text>
-                    {RETENTION_REASONS.map((r) => (
+                    {policy.retentionReasons.map((r) => (
                         <View key={r} style={[styles.retentionRow, { backgroundColor: cardBg, borderColor }]}>
                             <Text style={[styles.retentionText, { color: textPri }]}>{r}</Text>
                         </View>
@@ -306,15 +316,23 @@ export default function PrivacyPolicyScreen() {
 
                 {/* YOUR RIGHTS */}
                 <View style={styles.section} onLayout={registerOffset('rights')}>
-                    <SectionHeading title="Your Rights" Icon={UserCheck} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={getSectionTitle('rights', 'Your Rights')} Icon={UserCheck} textColor={textPri} iconBg={iconBg} />
                     <Text style={[styles.prose, { color: textSec }]}>
-                        Depending on applicable law, you may have rights regarding your personal
-                        information, including requesting the following. Some information may need to be
-                        retained where required by law.
+                        {language === 'ta'
+                            ? 'பொருந்தக்கூடிய சட்டத்தைப் பொறுத்து, உங்கள் தனிப்பட்ட தகவல்கள் தொடர்பாக உங்களுக்கு உரிமைகள் இருக்கலாம்:'
+                            : language === 'te'
+                            ? 'వర్తించే చట్టం ఆధారంగా, మీ వ్యక్తిగత సమాచారానికి సంబంధించి మీకు హక్కులు ఉండవచ్చు:'
+                            : language === 'ml'
+                            ? 'ബാധകമായ നിയമത്തെ ആശ്രയിച്ച്, നിങ്ങളുടെ വ്യക്തിഗത വിവരങ്ങൾ സംബന്ധിച്ച് നിങ്ങൾക്ക് അവകാശങ്ങൾ ഉണ്ടായേക്കാം:'
+                            : language === 'kn'
+                            ? 'ಅನ್ವಯವಾಗುವ ಕಾನೂನನ್ನು ಆಧರಿಸಿ, ನಿಮ್ಮ ವೈಯಕ್ತಿಕ ಮಾಹಿತಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ ನೀವು ಹಕ್ಕುಗಳನ್ನು ಹೊಂದಿರಬಹುದು:'
+                            : language === 'hi'
+                            ? 'लागू कानून के आधार पर, आपके पास अपनी व्यक्तिगत जानकारी के संबंध में अधिकार हो सकते हैं:'
+                            : 'Depending on applicable law, you may have rights regarding your personal information, including requesting the following. Some information may need to be retained where required by law.'}
                     </Text>
                     <View style={styles.rightsGrid}>
-                        {RIGHTS.map((r) => {
-                            const Icon = r.icon;
+                        {policy.rights.map((r, idx) => {
+                            const Icon = RIGHTS_ICONS[idx] || Eye;
                             return (
                                 <View key={r.title} style={[styles.rightCard, { backgroundColor: cardBg, borderColor }]}>
                                     <View style={[styles.infoCardIcon, { backgroundColor: iconBg }]}>
@@ -330,20 +348,17 @@ export default function PrivacyPolicyScreen() {
 
                 {/* CHILDREN */}
                 <View style={styles.section} onLayout={registerOffset('children')}>
-                    <SectionHeading title="Children's Privacy" Icon={Baby} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={policy.childrenTitle} Icon={Baby} textColor={textPri} iconBg={iconBg} />
                     <Text style={[styles.prose, { color: textSec }]}>
-                        Remise is not intended for children who are not legally permitted to use the
-                        service. We do not knowingly collect personal information from children in
-                        violation of applicable law.
+                        {policy.childrenBlurb}
                     </Text>
                 </View>
 
                 {/* CHANGES */}
                 <View style={styles.section} onLayout={registerOffset('changes')}>
-                    <SectionHeading title="Policy Changes" Icon={RefreshCw} textColor={textPri} iconBg={iconBg} />
+                    <SectionHeading title={policy.changesTitle} Icon={RefreshCw} textColor={textPri} iconBg={iconBg} />
                     <Text style={[styles.prose, { color: textSec }]}>
-                        We may update this Privacy Policy from time to time. Changes will be published
-                        through the application or website.
+                        {policy.changesBlurb}
                     </Text>
                 </View>
 
@@ -352,13 +367,13 @@ export default function PrivacyPolicyScreen() {
                     <View style={[styles.ctaCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#fee2e2' }]}>
                         <View style={styles.ctaBadge}>
                             <Mail size={12} color="#FFFFFF" />
-                            <Text style={styles.ctaBadgeText}>Questions about your data?</Text>
+                            <Text style={styles.ctaBadgeText}>{language === 'ta' ? 'உங்கள் தரவு பற்றிய கேள்விகள் உள்ளதா?' : language === 'te' ? 'మీ డేటా గురించి ప్రశ్నలు ఉన్నాయా?' : language === 'ml' ? 'നിങ്ങളുടെ ഡാറ്റയെക്കുറിച്ച് ചോദ്യങ്ങളുണ്ടോ?' : language === 'kn' ? 'ನಿಮ್ಮ ಡೇಟಾ ಬಗ್ಗೆ ಪ್ರಶ್ನೆಗಳಿವೆಯೇ?' : language === 'hi' ? 'क्या आपके डेटा के बारे में कोई प्रश्न हैं?' : 'Questions about your data?'}</Text>
                         </View>
                         <Text style={[styles.ctaTitle, { color: textPri }]}>
-                            Contact us for privacy-related questions or requests.
+                            {policy.contactTitle}
                         </Text>
                         <Text style={[styles.ctaSubtitle, { color: textSec }]}>
-                            Reach Remise through our official Help Center inside the app.
+                            {policy.contactBlurb}
                         </Text>
                         <TouchableOpacity
                             style={styles.ctaButton}
@@ -366,7 +381,7 @@ export default function PrivacyPolicyScreen() {
                             activeOpacity={0.85}
                         >
                             <Mail size={16} color="#FFFFFF" />
-                            <Text style={styles.ctaButtonText}>Get in touch</Text>
+                            <Text style={styles.ctaButtonText}>{language === 'ta' ? 'தொடர்பு கொள்ள' : language === 'te' ? 'సంప్రదించండి' : language === 'ml' ? 'ബന്ധപ്പെടുക' : language === 'kn' ? 'ಸಂಪರ್ಕಿಸಿ' : language === 'hi' ? 'संपर्क करें' : 'Get in touch'}</Text>
                             <ArrowRight size={15} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>

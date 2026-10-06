@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 import { AdminColors, getAdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
 
 // ─── Section tab definitions ──────────────────────────────────────────────────
 const TABS = [
@@ -79,13 +80,13 @@ function InputField({ label, sub, value, onChange, placeholder, secureTextEntry,
   );
 }
 
-function SaveBtn({ loading, onPress }: { loading: boolean; onPress: () => void }) {
+function SaveBtn({ loading, onPress, label, loadingLabel }: { loading: boolean; onPress: () => void; label?: string; loadingLabel?: string }) {
   return (
     <TouchableOpacity style={s.saveBtn} onPress={onPress} activeOpacity={0.85} disabled={loading}>
       {loading
         ? <ActivityIndicator size={14} color="#fff" />
         : <Save size={14} color="#fff" />}
-      <Text style={s.saveBtnText}>{loading ? 'Saving…' : 'Save Changes'}</Text>
+      <Text style={s.saveBtnText}>{loading ? (loadingLabel || 'Saving…') : (label || 'Save Changes')}</Text>
     </TouchableOpacity>
   );
 }
@@ -137,6 +138,7 @@ function SelectRow({ label, value, options, onChange, themeColors, isDark }: { l
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AdminSettingsScreen() {
   const { theme: appTheme, setTheme: setAppTheme, isDark } = useTheme();
+  const { t } = useTranslation();
   const themeColors = getAdminColors(isDark);
 
   const [activeTab, setActiveTab] = useState('general');
@@ -145,6 +147,19 @@ export default function AdminSettingsScreen() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState('');
+
+  const getTabLabel = (id: string) => {
+    switch (id) {
+      case 'general': return t('admin.generalTab');
+      case 'profile': return t('admin.profileTab');
+      case 'appearance': return t('admin.appearanceTab');
+      case 'notifications': return t('admin.notificationsTab');
+      case 'security': return t('admin.securityTab');
+      case 'api': return t('admin.apiServicesTab');
+      case 'danger': return t('admin.dangerZoneTab');
+      default: return id;
+    }
+  };
 
   // General
   const [platformName, setPlatformName] = useState('Remise');
@@ -193,7 +208,7 @@ export default function AdminSettingsScreen() {
     setSaving(true);
     await new Promise(r => setTimeout(r, 900));
     setSaving(false);
-    showToast('Settings saved successfully!');
+    showToast(t('admin.settingsSaved'));
   };
 
   const renderContent = () => {
@@ -201,21 +216,21 @@ export default function AdminSettingsScreen() {
       case 'general':
         return (
           <>
-            <SectionCard title="Platform Identity" description="Core information shown to users." themeColors={themeColors} isDark={isDark}>
-              <InputField label="Platform Name" value={platformName} onChange={setPlatformName} placeholder="Remise" themeColors={themeColors} isDark={isDark} />
-              <InputField label="Support Email" value={supportEmail} onChange={setSupportEmail} placeholder="support@remise.com" themeColors={themeColors} isDark={isDark} />
+            <SectionCard title={t('admin.platformIdentity')} description={t('admin.platformIdentityDesc')} themeColors={themeColors} isDark={isDark}>
+              <InputField label={t('admin.platformName')} value={platformName} onChange={setPlatformName} placeholder="Remise" themeColors={themeColors} isDark={isDark} />
+              <InputField label={t('admin.supportEmail')} value={supportEmail} onChange={setSupportEmail} placeholder="support@remise.com" themeColors={themeColors} isDark={isDark} />
             </SectionCard>
-            <SectionCard title="Locale & Currency" themeColors={themeColors} isDark={isDark}>
-              <SelectRow label="Timezone" value={timezone} onChange={setTimezone} themeColors={themeColors} isDark={isDark}
+            <SectionCard title={t('admin.localeCurrency')} themeColors={themeColors} isDark={isDark}>
+              <SelectRow label={t('admin.timezone')} value={timezone} onChange={setTimezone} themeColors={themeColors} isDark={isDark}
                 options={[{ val: 'IST', label: 'IST (India)' }, { val: 'UTC', label: 'UTC' }, { val: 'EST', label: 'EST (US)' }]} />
-              <SelectRow label="Currency" value={currency} onChange={setCurrency} themeColors={themeColors} isDark={isDark}
+              <SelectRow label={t('admin.currencyLabel')} value={currency} onChange={setCurrency} themeColors={themeColors} isDark={isDark}
                 options={[{ val: 'INR', label: '₹ INR' }, { val: 'USD', label: '$ USD' }, { val: 'EUR', label: '€ EUR' }]} />
             </SectionCard>
             <SectionCard title="Platform Controls" themeColors={themeColors} isDark={isDark}>
               <ToggleRow label="Maintenance Mode" sub="Hide storefront for visitors" value={maintenanceMode} onChange={setMaintenanceMode} themeColors={themeColors} isDark={isDark} />
               <ToggleRow label="Allow Registrations" sub="Let new users sign up" value={allowRegistrations} onChange={setAllowRegistrations} themeColors={themeColors} isDark={isDark} />
             </SectionCard>
-            <SaveBtn loading={saving} onPress={handleSave} />
+            <SaveBtn loading={saving} onPress={handleSave} label={t('admin.saveSettings')} loadingLabel={t('admin.savingSettings')} />
           </>
         );
 
@@ -423,7 +438,7 @@ export default function AdminSettingsScreen() {
             >
               <Icon size={13} color={active ? AdminColors.primary : (tab.id === 'danger' ? '#EF4444' : (isDark ? '#9CA3AF' : AdminColors.textSecondary))} />
               <Text style={[s.tabLabel, { color: isDark ? '#9CA3AF' : AdminColors.textSecondary }, active && s.tabLabelActive, tab.id === 'danger' && !active && { color: '#EF4444' }]}>
-                {tab.label}
+                {getTabLabel(tab.id)}
               </Text>
             </TouchableOpacity>
           );

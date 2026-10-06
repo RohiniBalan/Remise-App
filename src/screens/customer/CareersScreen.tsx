@@ -34,6 +34,8 @@ import {
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
+import { getCareersData } from '../../i18n/careersTranslations';
 
 const BRAND_RED = CustomerColors.primary;
 
@@ -148,8 +150,17 @@ const BENEFITS = [
   { icon: Rocket, label: 'Career Growth' },
 ];
 
+
+const WHY_JOIN_ICONS = [Rocket, Lightbulb, BookOpen, Handshake];
+const LIFE_AT_REMISE_ICONS = [Users, GraduationCap, PenTool, TrendingUp];
+const WHAT_WE_LOOK_FOR_ICONS = [Lightbulb, Puzzle, Handshake, Target, Hammer, Rocket];
+const HIRING_STEPS_ICONS = [Search, FileText, MessageSquare, CheckCircle2];
+const BENEFITS_ICONS = [Laptop, BookOpen, Palmtree, HeartPulse, IndianRupee, Rocket];
+
 export default function CareersScreen({ navigation }: any) {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const data = getCareersData(language as any);
   const [searchQuery, setSearchQuery] = useState('');
 
   const cardBg = isDark ? '#111827' : '#ffffff';
@@ -165,24 +176,21 @@ export default function CareersScreen({ navigation }: any) {
       <View style={styles.hero}>
         <View style={[styles.badge, { backgroundColor: iconBg }]}>
           <Rocket size={13} color={BRAND_RED} />
-          <Text style={styles.badgeText}>Careers at Remise</Text>
+          <Text style={styles.badgeText}>{data.badgeText}</Text>
         </View>
-        <Text style={[styles.heroTitle, { color: textPri }]}>Build the future of local commerce with us</Text>
-        <Text style={[styles.heroSubtitle, { color: textSec }]}>
-          We're creating smart, accessible tools connecting local buyers and sellers across India.
-          Join our team to solve real problems and build software that matters.
-        </Text>
+        <Text style={[styles.heroTitle, { color: textPri }]}>{data.heroTitle}</Text>
+        <Text style={[styles.heroSubtitle, { color: textSec }]}>{data.heroSubtitle}</Text>
       </View>
 
       {/* WHY JOIN */}
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: textPri }]}>Why Join Remise?</Text>
+          <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.whyJoinTitle}</Text>
         </View>
         <View style={styles.gridTwo}>
-          {WHY_JOIN.map((item, i) => {
-            const Icon = item.icon;
+          {data.whyJoinItems.map((item, i) => {
+            const Icon = WHY_JOIN_ICONS[i % WHY_JOIN_ICONS.length];
             return (
               <View key={i} style={[styles.whyCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
@@ -200,11 +208,11 @@ export default function CareersScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: textPri }]}>Life at Remise</Text>
+          <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.lifeTitle}</Text>
         </View>
         <View style={styles.gridTwo}>
-          {LIFE_AT_REMISE.map((item, i) => {
-            const Icon = item.icon;
+          {data.lifeItems.map((item, i) => {
+            const Icon = LIFE_AT_REMISE_ICONS[i % LIFE_AT_REMISE_ICONS.length];
             return (
               <View key={i} style={[styles.whyCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
@@ -222,11 +230,11 @@ export default function CareersScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: textPri }]}>What We Value</Text>
+          <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.whatWeLookForTitle}</Text>
         </View>
         <View style={styles.gridTwo}>
-          {WHAT_WE_LOOK_FOR.map((item, i) => {
-            const Icon = item.icon;
+          {data.whatWeLookForItems.map((item, i) => {
+            const Icon = WHAT_WE_LOOK_FOR_ICONS[i % WHAT_WE_LOOK_FOR_ICONS.length];
             return (
               <View key={i} style={[styles.whyCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
@@ -244,25 +252,22 @@ export default function CareersScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: textPri }]}>Open Positions</Text>
+          <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.openRolesTitle}</Text>
         </View>
 
         <View style={[styles.emptyJobsCard, { backgroundColor: cardBg, borderColor }]}>
           <View style={[styles.emptyIconCircle, { backgroundColor: iconBg }]}>
             <Briefcase size={28} color={BRAND_RED} />
           </View>
-          <Text style={[styles.emptyJobsTitle, { color: textPri }]}>No Open Positions Right Now</Text>
-          <Text style={[styles.emptyJobsSubtitle, { color: textSec }]}>
-            We're not actively recruiting for specific roles at this moment, but we're always eager
-            to meet talented engineers, designers, and growth builders.
-          </Text>
+          <Text style={[styles.emptyJobsTitle, { color: textPri }]}>{data.noRolesTitle}</Text>
+          <Text style={[styles.emptyJobsSubtitle, { color: textSec }]}>{data.noRolesDesc}</Text>
           <TouchableOpacity
             style={styles.openApplyBtn}
             onPress={() => Linking.openURL('mailto:porulontechnologies@gmail.com?subject=Open%20Application%20at%20Remise')}
             activeOpacity={0.85}
           >
             <Mail size={16} color="#FFFFFF" />
-            <Text style={styles.openApplyBtnText}>Send General Application</Text>
+            <Text style={styles.openApplyBtnText}>{data.contactEmailBtn}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -271,7 +276,7 @@ export default function CareersScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: textPri }]}>Our Hiring Process</Text>
+          <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.hiringStepsTitle}</Text>
         </View>
         <View style={{ gap: Spacing.sm }}>
           {HIRING_STEPS.map((step, i) => {
@@ -298,15 +303,15 @@ export default function CareersScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: textPri }]}>Benefits & Perks</Text>
+          <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.benefitsTitle}</Text>
         </View>
         <View style={styles.benefitsGrid}>
-          {BENEFITS.map((b, i) => {
-            const Icon = b.icon;
+          {data.benefits.map((benefitLabel, i) => {
+            const Icon = BENEFITS_ICONS[i % BENEFITS_ICONS.length];
             return (
               <View key={i} style={[styles.benefitChip, { backgroundColor: cardBg, borderColor }]}>
                 <Icon size={14} color={BRAND_RED} />
-                <Text style={[styles.benefitText, { color: textPri }]}>{b.label}</Text>
+                <Text style={[styles.benefitText, { color: textPri }]}>{benefitLabel}</Text>
               </View>
             );
           })}

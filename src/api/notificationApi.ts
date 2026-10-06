@@ -10,4 +10,22 @@ export const notificationApi = {
   getAll: () => gatewayClient.get('/api/notifications'),
   markRead: (id: string) => gatewayClient.patch(`/api/notifications/${id}/read`),
   markAllRead: () => gatewayClient.patch('/api/notifications/read-all'),
+
+  // Mobile FCM Device Token endpoints
+  registerDeviceToken: (payload: {
+    token: string;
+    platform?: 'android' | 'ios';
+    latitude?: number;
+    longitude?: number;
+  }) => gatewayClient.post('/api/notifications/device-token', payload),
+
+  removeDeviceToken: (token: string) =>
+    gatewayClient.delete('/api/notifications/device-token', { data: { token } }),
+
+  updateDeviceLocation: (payload: {
+    token?: string;
+    latitude: number;
+    longitude: number;
+  }) => gatewayClient.put('/api/notifications/device-token/location', payload),
 };
+

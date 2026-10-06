@@ -14,11 +14,13 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { groupProductsByType } from '../../utils/groupProducts';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import BulkScanUploadModal from '../../components/common/BulkScanUploadModal';
+import { useLanguage, translateProductName, translateCategory } from '../../i18n';
 
 export default function StoreProductsScreen() {
   const navigation = useNavigation<any>();
   const { products, categories, loading, refresh } = useStoreDashboard();
   const { isDark } = useTheme();
+  const { language } = useLanguage();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const [search, setSearch] = useState('');
@@ -223,8 +225,8 @@ export default function StoreProductsScreen() {
                 {pt.image ? <Image source={{ uri: resolveImageUrl(pt.image) }} style={styles.image} /> : <Package size={28} color={isDark ? '#4B5563' : '#E5E7EB'} />}
               </View>
               <View style={styles.cardBody}>
-                <Text style={styles.category}>{pt.category || '—'}</Text>
-                <Text style={styles.title} numberOfLines={1}>{pt.title}</Text>
+                <Text style={styles.category}>{pt.category ? translateCategory(pt.category, language) : '—'}</Text>
+                <Text style={styles.title} numberOfLines={1}>{translateProductName(pt.title, language)}</Text>
                 <Text style={styles.brandCountText}>{pt.brandCount} Brand{pt.brandCount !== 1 ? 's' : ''}</Text>
                 <Text style={styles.stock}>Total Stock: {pt.totalStock} {pt.stockUnit || 'Count'}</Text>
 

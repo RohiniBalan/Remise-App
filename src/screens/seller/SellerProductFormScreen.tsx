@@ -41,6 +41,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../..
 import { requestCameraPermission } from '../../utils/permissions';
 import { useTheme } from '../../context/ThemeContext';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateCategory } from '../../i18n';
 import {
   getCategories,
   getSubcategories,
@@ -71,9 +72,16 @@ export default function SellerProductFormScreen() {
   const { store, categories, refresh } = useSellerDashboard();
   const { token, user } = useAuth();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const isHomeBusiness = user?.role === 'home_business';
   const isStoreOwner = user?.role === 'store_owner';
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: isEdit ? (t('store.editProductTitle') || 'Edit Product') : (t('store.addNewProductTitle') || 'Add New Product'),
+    });
+  }, [navigation, isEdit, t]);
 
   const [form, setForm] = useState({
     title: product?.title || scanned?.title || initialTitle || '',
@@ -627,10 +635,10 @@ export default function SellerProductFormScreen() {
       <View style={styles.aiCard}>
         <View style={styles.aiCardHeader}>
           <Sparkles size={18} color={CustomerColors.teal700} />
-          <Text style={styles.aiCardTitle}>✨ Auto-fill Product Details</Text>
+          <Text style={styles.aiCardTitle}>{t('store.aiAutofillTitle') || '✨ Auto-fill Product Details'}</Text>
         </View>
         <Text style={styles.aiCardSubtitle}>
-          Scan product packaging or photo to auto-detect title, category, subcategory, price, and specs.
+          {t('store.aiAutofillDesc') || 'Scan product packaging or photo to auto-detect title, category, subcategory, price, and specs.'}
         </Text>
         <TouchableOpacity
           style={[styles.aiButton, aiAutofilling && styles.buttonDisabled]}
@@ -640,13 +648,13 @@ export default function SellerProductFormScreen() {
           {aiAutofilling ? (
             <>
               <ActivityIndicator size="small" color="#fff" style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.aiButtonText}>Scanning with AI…</Text>
+              <Text style={styles.aiButtonText}>{t('store.scanningWithAi') || 'Scanning with AI…'}</Text>
             </>
           ) : (
             <>
               <Sparkles size={14} color="#fff" style={{ marginRight: Spacing.xs }} />
               <Text style={styles.aiButtonText}>
-                {images.some(img => img.asset) ? 'Auto-fill from current photo' : 'Upload photo & Auto-fill'}
+                {images.some(img => img.asset) ? (t('store.autofillFromCurrentPhoto') || 'Auto-fill from current photo') : (t('store.uploadPhotoAndAutofill') || 'Upload photo & Auto-fill')}
               </Text>
             </>
           )}
@@ -703,17 +711,17 @@ export default function SellerProductFormScreen() {
           {voiceParsing ? (
             <>
               <ActivityIndicator size="small" color="#fff" style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.voiceButtonText}>Processing…</Text>
+              <Text style={styles.voiceButtonText}>{t('store.processingVoice') || 'Processing…'}</Text>
             </>
           ) : voice.listening ? (
             <>
               <MicOff size={16} color="#fff" style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.voiceButtonText}>Stop Listening</Text>
+              <Text style={styles.voiceButtonText}>{t('store.stopListening') || 'Stop Listening'}</Text>
             </>
           ) : (
             <>
               <Mic size={16} color="#fff" style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.voiceButtonText}>Speak Details</Text>
+              <Text style={styles.voiceButtonText}>{t('store.speakDetails') || 'Speak Details'}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -723,8 +731,8 @@ export default function SellerProductFormScreen() {
       <View style={styles.card}>
         <View style={styles.photosHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.sectionLabel}>Product Photos ({images.length})</Text>
-            <Text style={styles.photosSubtext}>First photo is the primary cover photo.</Text>
+            <Text style={styles.sectionLabel}>{t('store.productPhotosTitle') || 'Product Photos'} ({images.length})</Text>
+            <Text style={styles.photosSubtext}>{t('store.photosSubtextApp') || 'First photo is the primary cover photo.'}</Text>
           </View>
           <View style={styles.photoActionsRow}>
             <TouchableOpacity
@@ -732,14 +740,14 @@ export default function SellerProductFormScreen() {
               onPress={() => pickImage(true)}
             >
               <Camera size={13} color="#fff" />
-              <Text style={styles.photoActionButtonText}>Camera</Text>
+              <Text style={styles.photoActionButtonText}>{t('store.cameraBtn') || 'Camera'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.photoActionButton, styles.galleryActionButton]}
               onPress={() => pickImage(false)}
             >
               <ImageIcon size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-              <Text style={[styles.photoActionButtonText, styles.galleryActionButtonText]}>Gallery</Text>
+              <Text style={[styles.photoActionButtonText, styles.galleryActionButtonText]}>{t('store.galleryBtn') || 'Gallery'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -748,7 +756,7 @@ export default function SellerProductFormScreen() {
         <View style={styles.urlInputRow}>
           <TextInput
             style={[styles.input, { flex: 1, marginBottom: 0 }]}
-            placeholder="Or paste image URL (https://...)"
+            placeholder={t('store.pasteImageUrlPlaceholderApp') || 'Or paste image URL (https://...)'}
             placeholderTextColor="#9CA3AF"
             value={newImageUrl}
             onChangeText={setNewImageUrl}
@@ -758,7 +766,7 @@ export default function SellerProductFormScreen() {
             onPress={handleAddUrl}
             disabled={!newImageUrl.trim()}
           >
-            <Text style={styles.addUrlBtnText}>+ Add</Text>
+            <Text style={styles.addUrlBtnText}>{t('store.addBtnShort') || '+ Add'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -767,16 +775,16 @@ export default function SellerProductFormScreen() {
           <TouchableOpacity
             style={styles.emptyPhotoBox}
             onPress={() =>
-              Alert.alert('Add Product Photo', 'Choose source', [
-                { text: 'Camera', onPress: () => pickImage(true) },
-                { text: 'Gallery', onPress: () => pickImage(false) },
-                { text: 'Cancel', style: 'cancel' },
+              Alert.alert(t('store.productPhotosTitle') || 'Add Product Photo', 'Choose source', [
+                { text: t('store.cameraBtn') || 'Camera', onPress: () => pickImage(true) },
+                { text: t('store.galleryBtn') || 'Gallery', onPress: () => pickImage(false) },
+                { text: t('common.cancel') || 'Cancel', style: 'cancel' },
               ])
             }
           >
             <ImageIcon size={28} color={CustomerColors.textSecondary} />
-            <Text style={styles.emptyPhotoText}>Tap to add product photos</Text>
-            <Text style={styles.emptyPhotoSubtext}>Upload multiple photos from gallery or camera</Text>
+            <Text style={styles.emptyPhotoText}>{t('store.tapToAddPhotos') || 'Tap to add product photos'}</Text>
+            <Text style={styles.emptyPhotoSubtext}>{t('store.tapToAddPhotosSub') || 'Upload multiple photos from gallery or camera'}</Text>
           </TouchableOpacity>
         ) : (
           <ScrollView
@@ -792,7 +800,7 @@ export default function SellerProductFormScreen() {
                 {idx === 0 ? (
                   <View style={styles.coverBadge}>
                     <Star size={9} color="#fff" />
-                    <Text style={styles.coverBadgeText}>Cover</Text>
+                    <Text style={styles.coverBadgeText}>{t('store.coverPhotoBadge') || 'Cover'}</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -800,7 +808,7 @@ export default function SellerProductFormScreen() {
                     onPress={() => handleSetCover(idx)}
                   >
                     <Star size={9} color="#D97706" />
-                    <Text style={styles.setCoverBtnText}>Cover</Text>
+                    <Text style={styles.setCoverBtnText}>{t('store.setCoverBtn') || 'Cover'}</Text>
                   </TouchableOpacity>
                 )}
 
@@ -818,15 +826,15 @@ export default function SellerProductFormScreen() {
             <TouchableOpacity
               style={styles.addMoreTile}
               onPress={() =>
-                Alert.alert('Add More Photos', 'Choose source', [
-                  { text: 'Camera', onPress: () => pickImage(true) },
-                  { text: 'Gallery', onPress: () => pickImage(false) },
-                  { text: 'Cancel', style: 'cancel' },
+                Alert.alert(t('store.addMorePhotos') || 'Add More Photos', 'Choose source', [
+                  { text: t('store.cameraBtn') || 'Camera', onPress: () => pickImage(true) },
+                  { text: t('store.galleryBtn') || 'Gallery', onPress: () => pickImage(false) },
+                  { text: t('common.cancel') || 'Cancel', style: 'cancel' },
                 ])
               }
             >
               <Plus size={18} color={CustomerColors.teal700} />
-              <Text style={styles.addMoreText}>Add More</Text>
+              <Text style={styles.addMoreText}>{t('store.addMorePhotos') || 'Add More'}</Text>
             </TouchableOpacity>
           </ScrollView>
         )}
@@ -834,21 +842,21 @@ export default function SellerProductFormScreen() {
 
       {/* Core Fields */}
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Product Details</Text>
+        <Text style={styles.sectionLabel}>{t('store.productTitleLabel')?.replace(' *', '') || 'Product Details'}</Text>
 
-        <Text style={styles.fieldLabel}>Product Title *</Text>
+        <Text style={styles.fieldLabel}>{t('store.productTitleLabel') || 'Product Title *'}</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. Organic Face Moisturizer / Galaxy S24"
+          placeholder={t('store.productTitlePlaceholder') || 'e.g. Organic Face Moisturizer / Galaxy S24'}
           placeholderTextColor="#9CA3AF"
           value={form.title}
           onChangeText={v => set('title', v)}
         />
 
-        <Text style={styles.fieldLabel}>Description</Text>
+        <Text style={styles.fieldLabel}>{t('store.productDescLabel') || 'Description'}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Describe product highlights, materials, and benefits..."
+          placeholder={t('store.productDescPlaceholderApp') || 'Describe product highlights, materials, and benefits...'}
           placeholderTextColor="#9CA3AF"
           multiline
           numberOfLines={3}
@@ -858,7 +866,7 @@ export default function SellerProductFormScreen() {
 
         <View style={styles.row}>
           <View style={styles.half}>
-            <Text style={styles.fieldLabel}>Price (₹) *</Text>
+            <Text style={styles.fieldLabel}>{t('store.priceLabelRequired') || 'Price (₹) *'}</Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -869,7 +877,7 @@ export default function SellerProductFormScreen() {
             />
           </View>
           <View style={styles.half}>
-            <Text style={styles.fieldLabel}>Discounted Price (₹)</Text>
+            <Text style={styles.fieldLabel}>{t('store.discountedPriceLabel') || 'Discounted Price (₹)'}</Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -884,7 +892,7 @@ export default function SellerProductFormScreen() {
         {isHomeBusiness && (
           <View style={styles.row}>
             <View style={styles.half}>
-              <Text style={styles.fieldLabel}>Store Owner Price (₹)</Text>
+              <Text style={styles.fieldLabel}>{t('store.storePriceLabel') || 'Store Owner Price (₹)'}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="0.00"
@@ -895,7 +903,7 @@ export default function SellerProductFormScreen() {
               />
             </View>
             <View style={styles.half}>
-              <Text style={styles.fieldLabel}>Store Disc. Price (₹)</Text>
+              <Text style={styles.fieldLabel}>{t('store.storeDiscountedPriceLabel') || 'Store Disc. Price (₹)'}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="0.00"
@@ -909,19 +917,19 @@ export default function SellerProductFormScreen() {
         )}
 
         {/* Category Selector */}
-        <Text style={styles.fieldLabel}>Category *</Text>
+        <Text style={styles.fieldLabel}>{t('store.categoryLabelRequired') || 'Category *'}</Text>
         <TouchableOpacity
           style={styles.selectBtn}
           onPress={() => setCategoryModalVisible(true)}
         >
           <Text style={form.category ? styles.selectText : styles.placeholderText}>
-            {form.category || 'Select Category'}
+            {translateCategory(form.category, language) || t('store.selectCategoryPlaceholder') || 'Select Category'}
           </Text>
           <ChevronDown size={18} color={CustomerColors.textSecondary} />
         </TouchableOpacity>
 
         {/* Subcategory Selector */}
-        <Text style={styles.fieldLabel}>Subcategory</Text>
+        <Text style={styles.fieldLabel}>{t('store.subcategoryLabel') || 'Subcategory'}</Text>
         <TouchableOpacity
           style={[styles.selectBtn, !form.category && styles.disabledBtn]}
           onPress={() => form.category && setSubcategoryModalVisible(true)}
@@ -929,20 +937,20 @@ export default function SellerProductFormScreen() {
         >
           <Text style={(isCustomSubcategory || form.subcategory) ? styles.selectText : styles.placeholderText}>
             {!form.category
-              ? 'Select Category first'
+              ? (t('store.selectCategoryFirst') || 'Select Category first')
               : isCustomSubcategory
-              ? 'Other'
-              : form.subcategory || 'Select Subcategory'}
+              ? (t('store.otherOption') || 'Other')
+              : (translateCategory(form.subcategory, language) || t('store.selectSubcategoryPlaceholder') || 'Select Subcategory')}
           </Text>
           <ChevronDown size={18} color={CustomerColors.textSecondary} />
         </TouchableOpacity>
 
         {isCustomSubcategory && (
           <View style={{ marginBottom: Spacing.md }}>
-            <Text style={styles.fieldLabel}>Custom Subcategory *</Text>
+            <Text style={styles.fieldLabel}>{t('store.customSubcategoryLabel') || 'Custom Subcategory *'}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter custom subcategory"
+              placeholder={t('store.customSubcategoryPlaceholder') || 'Enter custom subcategory'}
               placeholderTextColor="#9CA3AF"
               value={customSubcategory}
               onChangeText={handleCustomSubcategoryChange}
@@ -952,10 +960,10 @@ export default function SellerProductFormScreen() {
 
         <View style={styles.row}>
           <View style={styles.half}>
-            <Text style={styles.fieldLabel}>Brand</Text>
+            <Text style={styles.fieldLabel}>{t('store.brandLabel') || 'Brand'}</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Apple, Organic India"
+              placeholder={t('store.brandPlaceholder') || 'e.g. Apple, Organic India'}
               placeholderTextColor="#9CA3AF"
               value={form.brand}
               onChangeText={v => set('brand', v)}
@@ -965,10 +973,10 @@ export default function SellerProductFormScreen() {
 
         <View style={styles.row}>
           <View style={{ flex: 1.2 }}>
-            <Text style={styles.fieldLabel}>Stock Quantity</Text>
+            <Text style={styles.fieldLabel}>{t('store.stockQuantityLabel') || 'Stock Quantity'}</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. 50"
+              placeholder={t('store.stockQuantityPlaceholder') || 'e.g. 50'}
               placeholderTextColor="#9CA3AF"
               keyboardType="number-pad"
               value={form.totalStock}
@@ -976,7 +984,7 @@ export default function SellerProductFormScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.fieldLabel}>Stock Unit</Text>
+            <Text style={styles.fieldLabel}>{t('store.stockUnitLabel') || 'Stock Unit'}</Text>
             <TouchableOpacity
               style={styles.selectBtn}
               onPress={() => setStockUnitModalVisible(true)}
@@ -989,10 +997,10 @@ export default function SellerProductFormScreen() {
           </View>
         </View>
 
-        <Text style={styles.fieldLabel}>Tags (comma-separated)</Text>
+        <Text style={styles.fieldLabel}>{t('store.tagsLabel') || 'Tags (comma-separated)'}</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. fresh, organic, fast-delivery"
+          placeholder={t('store.tagsPlaceholder') || 'e.g. fresh, organic, fast-delivery'}
           placeholderTextColor="#9CA3AF"
           value={form.tags}
           onChangeText={v => set('tags', v)}
@@ -1005,7 +1013,7 @@ export default function SellerProductFormScreen() {
           <View style={styles.dynamicHeader}>
             <Sliders size={16} color={CustomerColors.teal700} />
             <Text style={styles.sectionLabel}>
-              {form.subcategory || form.category} Specifications
+              {translateCategory(form.subcategory || form.category, language)} {t('store.specsAndDetailsTitle') || 'Specifications'}
             </Text>
           </View>
 
@@ -1034,9 +1042,9 @@ export default function SellerProductFormScreen() {
       {/* MOQ & Bulk Pricing */}
       {!isStoreOwner && (
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Wholesale & Bulk Pricing</Text>
+          <Text style={styles.sectionLabel}>{t('store.wholesaleBulkPricingTitle') || 'Wholesale & Bulk Pricing'}</Text>
 
-          <Text style={styles.fieldLabel}>Minimum Order Quantity (MOQ) *</Text>
+          <Text style={styles.fieldLabel}>{t('store.moqLabel') || 'Minimum Order Quantity (MOQ) *'}</Text>
           <TextInput
             style={styles.input}
             placeholder="1"
@@ -1046,15 +1054,15 @@ export default function SellerProductFormScreen() {
             onChangeText={v => set('moq', v)}
           />
 
-          <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>Bulk Pricing Tiers</Text>
-          {bulkTiers.map((t, idx) => (
+          <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>{t('store.bulkPricingTiersLabel') || 'Bulk Pricing Tiers'}</Text>
+          {bulkTiers.map((tTier, idx) => (
             <View key={idx} style={styles.tierRow}>
               <TextInput
                 style={[styles.input, styles.half]}
-                placeholder="Min Qty"
+                placeholder={t('store.minQtyPlaceholder') || 'Min Qty'}
                 placeholderTextColor="#9CA3AF"
                 keyboardType="number-pad"
-                value={t.minQty}
+                value={tTier.minQty}
                 onChangeText={v => setTier(idx, 'minQty', v)}
               />
               <TextInput
@@ -1062,7 +1070,7 @@ export default function SellerProductFormScreen() {
                 placeholder="Unit Price ₹"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
-                value={t.price}
+                value={tTier.price}
                 onChangeText={v => setTier(idx, 'price', v)}
               />
               <TouchableOpacity onPress={() => removeTier(idx)} style={styles.trashBtn}>
@@ -1073,7 +1081,7 @@ export default function SellerProductFormScreen() {
 
           <TouchableOpacity style={styles.addTierBtn} onPress={addTier}>
             <Plus size={14} color={CustomerColors.teal700} style={{ marginRight: Spacing.xs }} />
-            <Text style={styles.addTierText}>Add Bulk Price Tier</Text>
+            <Text style={styles.addTierText}>{t('store.addBulkTierBtn') || 'Add Bulk Price Tier'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -1090,7 +1098,7 @@ export default function SellerProductFormScreen() {
           <>
             <Save size={18} color="#fff" style={{ marginRight: Spacing.sm }} />
             <Text style={styles.saveBtnText}>
-              {isEdit ? 'Save Changes' : 'Publish Product'}
+              {isEdit ? (t('store.saveChanges') || 'Save Changes') : (t('store.publishProductBtn') || 'Publish Product')}
             </Text>
           </>
         )}
@@ -1110,7 +1118,7 @@ export default function SellerProductFormScreen() {
         >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
+              <Text style={styles.modalTitle}>{t('store.selectCategoryPlaceholder') || 'Select Category'}</Text>
               <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
                 <X size={20} color={CustomerColors.textSecondary} />
               </TouchableOpacity>
@@ -1129,7 +1137,7 @@ export default function SellerProductFormScreen() {
                       form.category === item && styles.modalItemTextActive,
                     ]}
                   >
-                    {item}
+                    {translateCategory(item, language)}
                   </Text>
                   {form.category === item && (
                     <Check size={16} color={CustomerColors.teal700} />
@@ -1155,7 +1163,7 @@ export default function SellerProductFormScreen() {
         >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Subcategory</Text>
+              <Text style={styles.modalTitle}>{t('store.selectSubcategoryPlaceholder') || 'Select Subcategory'}</Text>
               <TouchableOpacity onPress={() => setSubcategoryModalVisible(false)}>
                 <X size={20} color={CustomerColors.textSecondary} />
               </TouchableOpacity>
@@ -1176,7 +1184,7 @@ export default function SellerProductFormScreen() {
                         isActive && styles.modalItemTextActive,
                       ]}
                     >
-                      {item}
+                      {item === 'Other' ? (t('store.otherOption') || 'Other') : translateCategory(item, language)}
                     </Text>
                     {isActive && (
                       <Check size={16} color={CustomerColors.teal700} />
@@ -1203,7 +1211,7 @@ export default function SellerProductFormScreen() {
         >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Stock Unit</Text>
+              <Text style={styles.modalTitle}>{t('store.stockUnitLabel') || 'Select Stock Unit'}</Text>
               <TouchableOpacity onPress={() => setStockUnitModalVisible(false)}>
                 <X size={20} color={CustomerColors.textSecondary} />
               </TouchableOpacity>

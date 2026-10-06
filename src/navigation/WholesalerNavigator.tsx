@@ -18,7 +18,10 @@ import {
   Plus,
   Tag,
   Users,
+  Globe,
 } from 'lucide-react-native';
+import LanguageSelectorModal from '../components/common/LanguageSelectorModal';
+import { useTranslation } from '../i18n';
 import {
   View,
   Text,
@@ -107,16 +110,17 @@ const Stack = createNativeStackNavigator<WholesalerStackParamList>();
 function WholesalerHeaderTitle({ children }: { children?: string }) {
   const { store } = useSellerDashboard();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerTitleWrap}>
       <View style={styles.headerNameRow}>
         <Truck size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
         <Text style={styles.headerStoreName} numberOfLines={1}>
-          {store?.name || 'Wholesale Business'}
+          {store?.name || t('store.wholesalerDashboard')}
         </Text>
         <View style={styles.roleBadge}>
-          <Text style={styles.roleBadgeText}>Wholesaler</Text>
+          <Text style={styles.roleBadgeText}>{t('store.wholesaler') || 'Wholesaler'}</Text>
         </View>
       </View>
       <Text style={styles.headerTabTitle}>{children}</Text>
@@ -128,10 +132,11 @@ function WholesalerUserMenu() {
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [open, setOpen] = useState(false);
 
-  const displayName = user?.fullname || user?.name || 'Wholesaler';
+  const displayName = user?.fullname || user?.name || t('store.wholesaler') || 'Wholesaler';
   const isVerified = user?.isEmailVerified !== false;
 
   const close = () => setOpen(false);
@@ -163,18 +168,18 @@ function WholesalerUserMenu() {
                     {user?.email}
                   </Text>
                   <View style={styles.roleTag}>
-                    <Text style={styles.roleTagText}>📦 Wholesaler Merchant</Text>
+                    <Text style={styles.roleTagText}>📦 {t('store.wholesaler') || 'Wholesaler'}</Text>
                   </View>
                 </View>
                 {isVerified ? (
                   <View style={styles.verifiedBadge}>
                     <CheckCircle size={9} color="#15803D" />
-                    <Text style={styles.verifiedBadgeText}>Verified</Text>
+                    <Text style={styles.verifiedBadgeText}>{t('profile.verified') || 'Verified'}</Text>
                   </View>
                 ) : (
                   <View style={styles.unverifiedBadge}>
                     <AlertCircle size={9} color="#B45309" />
-                    <Text style={styles.unverifiedBadgeText}>Verify</Text>
+                    <Text style={styles.unverifiedBadgeText}>{t('profile.verify') || 'Verify'}</Text>
                   </View>
                 )}
               </View>
@@ -183,19 +188,19 @@ function WholesalerUserMenu() {
             <View style={styles.menuLinks}>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('Profile')}>
                 <UserIcon size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>My Profile</Text>
+                <Text style={styles.menuItemText}>{t('profile.title') || 'My Profile'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('MyOffers')}>
                 <Tag size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>My Offers</Text>
+                <Text style={styles.menuItemText}>{t('store.offersTab') || 'My Offers'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('WholesalerTabs')}>
                 <Store size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Wholesale Dashboard</Text>
+                <Text style={styles.menuItemText}>{t('store.wholesalerDashboard') || 'Wholesale Dashboard'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('StoreDeliveries')}>
                 <Truck size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Deliveries Log</Text>
+                <Text style={styles.menuItemText}>{t('store.deliveriesTab') || 'Deliveries Log'}</Text>
               </TouchableOpacity>
 
               <View style={styles.menuDivider} />
@@ -205,21 +210,21 @@ function WholesalerUserMenu() {
                 onPress={() => go('AccountSettings', { initialTab: 'account' })}
               >
                 <SettingsIcon size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Settings</Text>
+                <Text style={styles.menuItemText}>{t('store.settingsTab') || 'Settings'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => go('AccountSettings', { initialTab: 'preferences' })}
               >
                 <SlidersHorizontal size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Preferences</Text>
+                <Text style={styles.menuItemText}>{t('settings.preferences') || 'Preferences'}</Text>
               </TouchableOpacity>
 
               <View style={styles.menuDivider} />
 
               <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
                 <LogOut size={15} color="#FF0000" />
-                <Text style={[styles.menuItemText, { color: '#FF0000' }]}>Sign Out</Text>
+                <Text style={[styles.menuItemText, { color: '#FF0000' }]}>{t('store.signOutBtn') || 'Sign Out'}</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -233,9 +238,16 @@ function WholesalerHeaderRight() {
   const navigation = useNavigation<any>();
   const { unreadCount } = useUnreadNotifications();
   const { isDark } = useTheme();
+  const [langModalVisible, setLangModalVisible] = useState(false);
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerIconRow}>
+      <TouchableOpacity
+        style={styles.headerIconBtn}
+        onPress={() => setLangModalVisible(true)}
+      >
+        <Globe size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.headerIconBtn}
         onPress={() => navigation.navigate('Notifications')}
@@ -248,6 +260,11 @@ function WholesalerHeaderRight() {
         )}
       </TouchableOpacity>
       <WholesalerUserMenu />
+      <LanguageSelectorModal
+        visible={langModalVisible}
+        onClose={() => setLangModalVisible(false)}
+        isDark={isDark}
+      />
     </View>
   );
 }
@@ -255,6 +272,7 @@ function WholesalerHeaderRight() {
 function WholesalerTabs() {
   const { newOrderCount } = useSellerDashboard();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -272,7 +290,7 @@ function WholesalerTabs() {
         name="WholesalerOverview"
         component={SellerOverviewScreen}
         options={{
-          title: 'Overview',
+          title: t('store.overview'),
           tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} />,
         }}
       />
@@ -280,7 +298,7 @@ function WholesalerTabs() {
         name="WholesalerCategories"
         component={SellerCategoriesScreen}
         options={{
-          title: 'Categories',
+          title: t('store.categoriesTab'),
           tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
         }}
       />
@@ -288,7 +306,7 @@ function WholesalerTabs() {
         name="WholesalerProducts"
         component={SellerProductsScreen}
         options={{
-          title: 'Products',
+          title: t('store.productsTab'),
           tabBarIcon: ({ color, size }) => <Package color={color} size={size} />,
         }}
       />
@@ -296,7 +314,7 @@ function WholesalerTabs() {
         name="WholesalerOffers"
         component={StoreOffersScreen}
         options={{
-          title: 'Offers',
+          title: t('store.offersTab'),
           tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />,
         }}
       />
@@ -304,7 +322,7 @@ function WholesalerTabs() {
         name="WholesalerCustomers"
         component={StoreCustomersScreen}
         options={{
-          title: 'Customers',
+          title: t('store.customersTab'),
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
@@ -312,7 +330,7 @@ function WholesalerTabs() {
         name="WholesalerOrders"
         component={SellerOrdersScreen}
         options={{
-          title: 'Incoming Orders',
+          title: t('store.incomingOrders'),
           tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
           tabBarBadge: newOrderCount > 0 ? newOrderCount : undefined,
           tabBarBadgeStyle: { backgroundColor: '#FF0000' },
@@ -322,7 +340,7 @@ function WholesalerTabs() {
         name="WholesalerSettings"
         component={SellerSettingsScreen}
         options={{
-          title: 'Settings',
+          title: t('store.settingsTab'),
           tabBarIcon: ({ color, size }) => <SettingsIcon color={color} size={size} />,
         }}
       />
@@ -372,6 +390,7 @@ function WholesalerDashboardGate({ children }: { children: React.ReactNode }) {
 
 export default function WholesalerNavigator() {
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   return (
     <SellerDashboardProvider>
       <WholesalerDashboardGate>
@@ -386,62 +405,62 @@ export default function WholesalerNavigator() {
           <Stack.Screen
             name="NewOffer"
             component={NewOfferScreen}
-            options={{ headerShown: true, title: 'Create Offer' }}
+            options={{ headerShown: true, title: t('store.newOfferBtn') || 'Create Offer' }}
           />
           <Stack.Screen
             name="SellerCategories"
             component={SellerCategoriesScreen}
-            options={{ headerShown: true, title: 'Wholesale Categories' }}
+            options={{ headerShown: true, title: t('store.categoriesTab') || 'Wholesale Categories' }}
           />
           <Stack.Screen
             name="SellerProductForm"
             component={SellerProductFormScreen}
-            options={{ headerShown: true, title: 'Wholesale Product' }}
+            options={{ headerShown: true, title: t('store.productsTab') || 'Wholesale Product' }}
           />
           <Stack.Screen
             name="SellerManageBrands"
             component={SellerManageBrandsScreen}
-            options={{ headerShown: true, title: 'Manage Wholesale Brands' }}
+            options={{ headerShown: true, title: t('store.manageBrands') || 'Manage Wholesale Brands' }}
           />
           <Stack.Screen
             name="SellerScanUpload"
             component={SellerScanUploadScreen}
-            options={{ headerShown: true, title: 'Scan Paper & Add Product' }}
+            options={{ headerShown: true, title: t('store.scanPaperList') || 'Scan Paper & Add Product' }}
           />
           <Stack.Screen
             name="SellerBulkScanUpload"
             component={SellerBulkScanUploadScreen}
-            options={{ headerShown: true, title: 'Scan Wholesale Product List' }}
+            options={{ headerShown: true, title: t('store.bulkProductScan') || 'Scan Wholesale Product List' }}
           />
           <Stack.Screen
             name="Profile"
             component={ProfileScreen}
-            options={{ headerShown: true, title: 'Profile' }}
+            options={{ headerShown: true, title: t('profile.title') || 'Profile' }}
           />
           <Stack.Screen
             name="MyOffers"
             component={MyOffersScreen}
-            options={{ headerShown: true, title: 'My Offers' }}
+            options={{ headerShown: true, title: t('store.offersTab') || 'My Offers' }}
           />
           <Stack.Screen
             name="Notifications"
             component={NotificationScreen}
-            options={{ headerShown: true, title: 'Notifications' }}
+            options={{ headerShown: true, title: t('common.notifications') || 'Notifications' }}
           />
           <Stack.Screen
             name="AccountSettings"
             component={AccountSettingsScreen}
-            options={{ headerShown: true, title: 'Settings' }}
+            options={{ headerShown: true, title: t('store.settingsTab') || 'Settings' }}
           />
           <Stack.Screen
             name="StoreDeliveries"
             component={StoreDeliveriesScreen}
-            options={{ headerShown: true, title: 'Deliveries Log' }}
+            options={{ headerShown: true, title: t('store.deliveriesTab') || 'Deliveries Log' }}
           />
           <Stack.Screen
             name="StoreOrderTracking"
             component={StoreOrderTrackingScreen}
-            options={{ headerShown: true, title: 'Live Order Tracking' }}
+            options={{ headerShown: true, title: t('store.orderTracking') || 'Live Order Tracking' }}
           />
           <Stack.Screen
             name="ProductDetail"

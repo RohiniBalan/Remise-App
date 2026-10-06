@@ -33,6 +33,8 @@ import {
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translatePressContent } from '../../i18n';
+import { getPressData } from '../../i18n/pressTranslations';
 import { pressApi } from '../../api/pressApi';
 
 const BRAND_RED = CustomerColors.primary;
@@ -69,6 +71,8 @@ const MEDIA_KIT = [
 
 export default function PressScreen({ navigation }: any) {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const pressData = getPressData(language as any);
   const [releasesList, setReleasesList] = useState<PressRelease[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRelease, setSelectedRelease] = useState<PressRelease | null>(null);
@@ -160,9 +164,7 @@ export default function PressScreen({ navigation }: any) {
           <Text style={styles.badgeText}>Remise Newsroom</Text>
         </View>
         <Text style={[styles.heroTitle, { color: themeColors.textPrimary }]}>News, announcements & official info</Text>
-        <Text style={[styles.heroSubtitle, { color: themeColors.textSecondary }]}>
-          Everything a journalist, partner, or curious reader needs to know about what we're building.
-        </Text>
+        <Text style={[styles.heroSubtitle, { color: themeColors.textSecondary }]}>{pressData.heroSubtitle}</Text>
       </View>
 
       {/* FEATURED ANNOUNCEMENT */}
@@ -207,7 +209,7 @@ export default function PressScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Press Releases</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>{pressData.pressReleasesTitle}</Text>
         </View>
 
         {releasesList.length > 0 ? (
@@ -230,12 +232,12 @@ export default function PressScreen({ navigation }: any) {
                       <Text style={styles.releaseCategoryBadge}>• {release.category}</Text>
                     ) : null}
                   </View>
-                  <Text style={[styles.releaseTitle, { color: themeColors.textPrimary }]}>{release.title}</Text>
+                  <Text style={[styles.releaseTitle, { color: themeColors.textPrimary }]}>{translatePressContent(release.title, language as any)}</Text>
                   <Text style={[styles.releaseExcerpt, { color: themeColors.textSecondary }]} numberOfLines={2}>
-                    {release.excerpt}
+                    {translatePressContent(release.excerpt, language as any)}
                   </Text>
                   <View style={styles.readMoreRow}>
-                    <Text style={styles.readMoreTextSmall}>Read Full Release</Text>
+                    <Text style={styles.readMoreTextSmall}>{pressData.readFullRelease}</Text>
                     <ArrowRight size={11} color={BRAND_RED} />
                   </View>
                 </TouchableOpacity>
@@ -244,7 +246,7 @@ export default function PressScreen({ navigation }: any) {
           </View>
         ) : (
           <View style={[styles.emptyBox, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-            <Text style={[styles.emptyBoxText, { color: themeColors.textSecondary }]}>No press releases published yet.</Text>
+            <Text style={[styles.emptyBoxText, { color: themeColors.textSecondary }]}>{pressData.noReleasesText}</Text>
           </View>
         )}
       </View>
@@ -253,7 +255,7 @@ export default function PressScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Remise at a Glance</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>{pressData.atAGlanceTitle}</Text>
         </View>
 
         <View style={styles.glanceRow}>
@@ -276,7 +278,7 @@ export default function PressScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>In the News</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>{pressData.inTheNewsTitle}</Text>
         </View>
 
         <View style={[styles.newsEmptyCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
@@ -338,10 +340,8 @@ export default function PressScreen({ navigation }: any) {
         <View style={styles.contactIconCircle}>
           <Mail size={22} color="#FFFFFF" />
         </View>
-        <Text style={[styles.contactTitle, { color: themeColors.textPrimary }]}>Media & Press Contact</Text>
-        <Text style={[styles.contactSubtitle, { color: themeColors.textSecondary }]}>
-          Are you a journalist or publication interested in learning more about Remise?
-        </Text>
+        <Text style={[styles.contactTitle, { color: themeColors.textPrimary }]}>{pressData.mediaContactTitle}</Text>
+        <Text style={[styles.contactSubtitle, { color: themeColors.textSecondary }]}>{pressData.mediaContactSubtitle}</Text>
         <Text style={styles.contactEmail}>porulontechnologies@gmail.com</Text>
 
         <TouchableOpacity
@@ -351,7 +351,7 @@ export default function PressScreen({ navigation }: any) {
           }
           activeOpacity={0.85}
         >
-          <Text style={styles.contactBtnText}>Contact Press Team</Text>
+          <Text style={styles.contactBtnText}>{pressData.contactPressTeamBtn}</Text>
           <ArrowRight size={15} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -393,8 +393,8 @@ export default function PressScreen({ navigation }: any) {
                 ) : null}
               </View>
 
-              <Text style={[styles.readerTitle, { color: themeColors.textPrimary }]}>{selectedRelease.title}</Text>
-              <Text style={[styles.readerExcerpt, { color: themeColors.textSecondary }]}>{selectedRelease.excerpt}</Text>
+              <Text style={[styles.readerTitle, { color: themeColors.textPrimary }]}>{translatePressContent(selectedRelease.title, language as any)}</Text>
+              <Text style={[styles.readerExcerpt, { color: themeColors.textSecondary }]}>{translatePressContent(selectedRelease.excerpt, language as any)}</Text>
 
               {selectedRelease.contactName ? (
                 <View style={styles.readerAuthorRow}>

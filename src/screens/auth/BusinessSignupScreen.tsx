@@ -95,7 +95,7 @@ export default function BusinessSignupScreen() {
 
       const userData = res.data.data;
       await login(userData, userData.token);
-      setSuccessMessage('Business account created! Opening verification...');
+      setSuccessMessage('Business account created! Verification code sent to email & WhatsApp.');
       setShowSuccess(true);
       setTimeout(() => {
         navigation.navigate('VerifyEmail');

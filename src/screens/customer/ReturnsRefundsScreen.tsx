@@ -38,8 +38,27 @@ import {
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
+import { getReturnsData } from '../../i18n/returnsTranslations';
 
 const BRAND_RED = CustomerColors.primary;
+
+const CATEGORY_ICON_MAP: Record<string, any> = {
+  about: PackageSearch,
+  eligible: CheckCircle2,
+  'non-returnable': Ban,
+  'how-to': ClipboardList,
+  refunds: Wallet,
+  cash: Banknote,
+  cancellation: XCircle,
+  damaged: AlertTriangle,
+  sellers: Building2,
+  contact: Headphones,
+};
+
+const NON_RETURNABLE_ICONS = [Snowflake, Droplets, PackageOpen, Wrench, Tag];
+const CANCEL_ICONS = [RotateCcw, Building2, ShieldAlert];
+
 const LAST_UPDATED = '1 September 2026';
 
 const CATEGORIES = [
@@ -161,6 +180,8 @@ function HeroIllustration() {
 
 export default function ReturnsRefundsScreen({ navigation }: any) {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const data = getReturnsData(language as any);
   const scrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
 
@@ -191,8 +212,8 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipNavContent}
         >
-          {CATEGORIES.map(cat => {
-            const Icon = cat.icon;
+          {data.categories.map(cat => {
+            const Icon = CATEGORY_ICON_MAP[cat.id] || PackageSearch;
             return (
               <TouchableOpacity
                 key={cat.id}
@@ -219,12 +240,13 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <RotateCcw size={13} color={BRAND_RED} />
             <Text style={styles.badgeText}>Returns & Refunds</Text>
           </View>
-          <Text style={[styles.heroTitle, { color: textPri }]}>Returns & Refund Policy</Text>
+          <Text style={[styles.heroTitle, { color: textPri }]}>{data.heroTitle}</Text>
           <Text style={[styles.heroSubtitle, { color: textSec }]}>
-            How returns, cancellations, replacements, and refunds work on Remise — for every order,
-            store, and payment method.
+            {data.heroSubtitle}
           </Text>
-          <Text style={[styles.lastUpdated, { color: textSec }]}>Last updated: {LAST_UPDATED}</Text>
+          <Text style={[styles.lastUpdated, { color: textSec }]}>
+            {data.lastUpdatedLabel}: {data.lastUpdatedDate}
+          </Text>
 
           <HeroIllustration />
         </View>
@@ -235,13 +257,13 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <PackageSearch size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>About Returns</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.aboutTitle}</Text>
           </View>
           <Text style={[styles.prose, { color: textSec }]}>
-            Return and replacement availability may depend on:
+            {data.aboutBlurb}
           </Text>
           <View style={styles.chipsGrid}>
-            {RETURN_DEPENDENCIES.map(d => (
+            {data.returnDependencies.map(d => (
               <View key={d} style={[styles.depChip, { backgroundColor: cardBg, borderColor }]}>
                 <CheckCircle2 size={14} color={BRAND_RED} />
                 <Text style={[styles.depChipText, { color: textPri }]}>{d}</Text>
@@ -260,14 +282,13 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <CheckCircle2 size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>Eligible Return Reasons</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.eligibleTitle}</Text>
           </View>
           <Text style={[styles.prose, { color: textSec }]}>
-            Depending on the product and seller policy, a return or replacement may be considered
-            when:
+            {data.eligibleBlurb}
           </Text>
           <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-            {ELIGIBLE_REASONS.map((r, i) => (
+            {data.eligibleReasons.map((r, i) => (
               <View key={i} style={styles.checkRow}>
                 <CheckCircle2 size={16} color={BRAND_RED} style={{ marginTop: 2 }} />
                 <Text style={[styles.checkText, { color: textPri }]}>{r}</Text>
@@ -286,20 +307,20 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <Ban size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>Non-Returnable Products</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.nonReturnableTitle}</Text>
           </View>
           <Text style={[styles.prose, { color: textSec }]}>
-            Some products may not be eligible for return, including certain:
+            {data.nonReturnableBlurb}
           </Text>
           <View style={styles.gridTwo}>
-            {NON_RETURNABLE.map(item => {
-              const Icon = item.icon;
+            {data.nonReturnableItems.map((title, idx) => {
+              const Icon = NON_RETURNABLE_ICONS[idx % NON_RETURNABLE_ICONS.length];
               return (
-                <View key={item.title} style={[styles.nonReturnCard, { backgroundColor: cardBg, borderColor }]}>
+                <View key={title} style={[styles.nonReturnCard, { backgroundColor: cardBg, borderColor }]}>
                   <View style={[styles.nonReturnIconCircle, { backgroundColor: iconBg }]}>
                     <Icon size={18} color={BRAND_RED} />
                   </View>
-                  <Text style={[styles.nonReturnTitle, { color: textPri }]}>{item.title}</Text>
+                  <Text style={[styles.nonReturnTitle, { color: textPri }]}>{title}</Text>
                 </View>
               );
             })}
@@ -315,11 +336,11 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <ClipboardList size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>How to Request a Return</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.howToTitle}</Text>
           </View>
-          <Text style={[styles.prose, { color: textSec }]}>If your order is eligible:</Text>
+          <Text style={[styles.prose, { color: textSec }]}>{data.howToBlurb}</Text>
           <View style={styles.stepsList}>
-            {RETURN_STEPS.map((step, i) => (
+            {data.returnSteps.map((step, i) => (
               <View key={step.title} style={[styles.stepCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={styles.stepNumberBadge}>
                   <Text style={styles.stepNumberText}>{i + 1}</Text>
@@ -342,13 +363,13 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <Wallet size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>Refunds</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.refundsTitle}</Text>
           </View>
           <Text style={[styles.prose, { color: textSec }]}>
-            If a refund is approved, the refund amount and method may depend on:
+            {data.refundsBlurb}
           </Text>
           <View style={styles.chipsGrid}>
-            {REFUND_FACTORS.map(f => (
+            {data.refundFactors.map(f => (
               <View key={f} style={[styles.depChip, { backgroundColor: cardBg, borderColor }]}>
                 <CheckCircle2 size={14} color={BRAND_RED} />
                 <Text style={[styles.depChipText, { color: textPri }]}>{f}</Text>
@@ -370,7 +391,7 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <Banknote size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>Cash Payments</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.cashTitle}</Text>
           </View>
           <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
             <View style={{ flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' }}>
@@ -378,8 +399,7 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
                 <Banknote size={18} color={BRAND_RED} />
               </View>
               <Text style={[styles.proseFlex, { color: textSec }]}>
-                For orders paid in cash, refund arrangements may differ from online payments. Remise
-                or the applicable seller will provide instructions for the approved refund.
+                {data.cashBlurb}
               </Text>
             </View>
           </View>
@@ -391,12 +411,12 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <XCircle size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>Order Cancellation</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.cancellationTitle}</Text>
           </View>
-          <Text style={[styles.prose, { color: textSec }]}>An order may be cancelled:</Text>
+          <Text style={[styles.prose, { color: textSec }]}>{data.cancellationBlurb}</Text>
           <View style={{ gap: Spacing.sm }}>
-            {CANCELLATION_SOURCES.map(src => {
-              const Icon = src.icon;
+            {data.cancellationSources.map((src, idx) => {
+              const Icon = CANCEL_ICONS[idx % CANCEL_ICONS.length];
               return (
                 <View key={src.title} style={[styles.cancelCard, { backgroundColor: cardBg, borderColor }]}>
                   <View style={[styles.nonReturnIconCircle, { backgroundColor: iconBg }]}>
@@ -422,14 +442,12 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <AlertTriangle size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>Damaged or Incorrect Products</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.damagedTitle}</Text>
           </View>
           <View style={[styles.calloutCard, { backgroundColor: cardBg, borderColor }]}>
             <AlertTriangle size={18} color={BRAND_RED} style={{ marginTop: 2 }} />
             <Text style={[styles.calloutText, { color: textPri }]}>
-              If you receive a damaged or incorrect product, report it as soon as possible after
-              receiving the order. Keep the product, packaging, and relevant proof until the issue
-              has been resolved.
+              {data.damagedBlurb} {data.damagedAdvice}
             </Text>
           </View>
         </View>
@@ -440,14 +458,14 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
             <View style={[styles.headingIcon, { backgroundColor: iconBg }]}>
               <Building2 size={18} color={BRAND_RED} />
             </View>
-            <Text style={[styles.sectionHeadingText, { color: textPri }]}>Seller Responsibility</Text>
+            <Text style={[styles.sectionHeadingText, { color: textPri }]}>{data.sellersTitle}</Text>
           </View>
           <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
             <View style={{ flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' }}>
               <View style={[styles.nonReturnIconCircle, { backgroundColor: iconBg }]}>
                 <Building2 size={18} color={BRAND_RED} />
               </View>
-              <Text style={[styles.proseFlex, { color: textSec }]}>{SELLER_RESPONSIBILITIES}</Text>
+              <Text style={[styles.proseFlex, { color: textSec }]}>{data.sellersBlurb}</Text>
             </View>
           </View>
         </View>
@@ -460,11 +478,10 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
               <Text style={styles.ctaBadgeText}>Questions about a return or refund?</Text>
             </View>
             <Text style={[styles.ctaTitle, { color: textPri }]}>
-              Contact Remise support through the app and we'll take it from there.
+              {data.contactTitle}
             </Text>
             <Text style={[styles.ctaSubtitle, { color: textSec }]}>
-              Reach us through the Help Center or Customer Services — include your order ID whenever
-              possible.
+              {data.contactBlurb}
             </Text>
             <TouchableOpacity
               style={styles.ctaButton}
@@ -472,7 +489,7 @@ export default function ReturnsRefundsScreen({ navigation }: any) {
               activeOpacity={0.85}
             >
               <Mail size={16} color="#FFFFFF" />
-              <Text style={styles.ctaButtonText}>Get in touch</Text>
+              <Text style={styles.ctaButtonText}>{data.contactButton}</Text>
               <ArrowRight size={15} color="#FFFFFF" />
             </TouchableOpacity>
           </View>

@@ -23,6 +23,7 @@ import {
 import { useRoute } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../../i18n';
 import { authApi } from '../../api/authApi';
 import {
   CustomerColors,
@@ -43,39 +44,41 @@ import {
 // a toast, nothing persisted (matches web); Security is the one real
 // backend call (POST /api/auth/change-password).
 type Tab = 'account' | 'preferences' | 'security' | 'notifications';
-const TABS: {
-  id: Tab;
-  label: string;
-  icon: (color: string) => React.ReactNode;
-}[] = [
-  { id: 'account', label: 'Account', icon: c => <User size={15} color={c} /> },
-  {
-    id: 'preferences',
-    label: 'Preferences',
-    icon: c => <SlidersHorizontal size={15} color={c} />,
-  },
-  {
-    id: 'security',
-    label: 'Security',
-    icon: c => <Shield size={15} color={c} />,
-  },
-  {
-    id: 'notifications',
-    label: 'Notifications',
-    icon: c => <Bell size={15} color={c} />,
-  },
-];
+
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const route = useRoute<any>();
   const [activeTab, setActiveTab] = useState<Tab>(route.params?.initialTab || 'account');
 
+  const tabs = useMemo<{
+    id: Tab;
+    label: string;
+    icon: (color: string) => React.ReactNode;
+  }[]>(() => [
+    { id: 'account', label: t('profile.accountTab') || 'Account', icon: c => <User size={15} color={c} /> },
+    {
+      id: 'preferences',
+      label: t('profile.preferencesTab') || 'Preferences',
+      icon: c => <SlidersHorizontal size={15} color={c} />,
+    },
+    {
+      id: 'security',
+      label: t('profile.securityTab') || 'Security',
+      icon: c => <Shield size={15} color={c} />,
+    },
+    {
+      id: 'notifications',
+      label: t('profile.notificationsTab') || 'Notifications',
+      icon: c => <Bell size={15} color={c} />,
+    },
+  ], [t]);
+
   const handleSignOut = async () => {
     await logout();
-    // AppNavigator's RoleGate switches to AuthNavigator automatically.
   };
 
   return (
@@ -86,7 +89,7 @@ export default function SettingsScreen() {
         style={styles.tabBar}
         contentContainerStyle={{ paddingHorizontal: Spacing.md }}
       >
-        {TABS.map(tab => (
+        {tabs.map(tab => (
           <TouchableOpacity
             key={tab.id}
             style={[
@@ -126,7 +129,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
           <LogOut size={16} color={CustomerColors.primary} />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>{t('profile.signOutBtn') || 'Sign Out'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -136,6 +139,7 @@ export default function SettingsScreen() {
 function AccountTab() {
   const { user, updateUser } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [fullname, setFullname] = useState(user?.fullname ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -164,24 +168,24 @@ function AccountTab() {
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
         <View>
-          <Text style={styles.avatarName}>{fullname || 'Your Name'}</Text>
+          <Text style={styles.avatarName}>{fullname || t('profile.fullNameLabel')}</Text>
           <Text style={styles.avatarEmail}>{email}</Text>
           {isVerified ? (
             <View style={styles.verifiedPill}>
               <CheckCircle size={10} color={CustomerColors.success} />
-              <Text style={styles.verifiedPillText}>Verified</Text>
+              <Text style={styles.verifiedPillText}>{t('profile.verifiedBadge')}</Text>
             </View>
           ) : (
             <TouchableOpacity style={styles.unverifiedPill}>
               <AlertCircle size={10} color={CustomerColors.warning} />
-              <Text style={styles.unverifiedPillText}>Not verified</Text>
+              <Text style={styles.unverifiedPillText}>{t('profile.verifyEmailPrompt')}</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
       <Field
-        label="Full Name"
+        label={t('profile.fullNameLabel')}
         value={fullname}
         onChangeText={v => {
           setFullname(v);
@@ -189,7 +193,7 @@ function AccountTab() {
         }}
       />
       <Field
-        label="Email Address"
+        label={t('profile.emailLabel')}
         value={email}
         onChangeText={v => {
           setEmail(v);
@@ -198,7 +202,7 @@ function AccountTab() {
         keyboardType="email-address"
       />
       <Field
-        label="Mobile Number"
+        label={t('profile.mobileNumberLabel')}
         value={mobilenumber}
         onChangeText={v => {
           setMobilenumber(v);
@@ -218,7 +222,7 @@ function AccountTab() {
           <Save size={15} color="#fff" />
         )}
         <Text style={styles.saveBtnText}>
-          {saved ? 'Saved!' : 'Save Changes'}
+          {saved ? (t('store.savedSuccessBadge') || 'Saved!') : (t('profile.saveChangesBtn') || 'Save Changes')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -227,11 +231,11 @@ function AccountTab() {
 
 function PreferencesTab() {
   const { setTheme, isDark } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const darkMode = isDark;
   const setDarkMode = (val: boolean) => setTheme(val ? 'dark' : 'light');
   const [newsletter, setNewsletter] = useState(true);
-  const [language, setLanguage] = useState('en');
   const [currency, setCurrency] = useState('INR');
   const [saved, setSaved] = useState(false);
   const save = () => {
@@ -243,46 +247,41 @@ function PreferencesTab() {
     <View>
       <View style={styles.card}>
         <ToggleRow
-          label="Dark Mode"
-          desc="Switch to dark theme across the app"
+          label={t('common.darkMode')}
+          desc={t('settings.darkModeDesc')}
           value={darkMode}
           onChange={setDarkMode}
         />
         <ToggleRow
-          label="Newsletter"
-          desc="Receive weekly deals & product updates"
+          label={t('settings.newsletterLabel')}
+          desc={t('settings.newsletterDesc')}
           value={newsletter}
           onChange={setNewsletter}
           last
         />
       </View>
 
-      <Text style={styles.label}>Language</Text>
+      <Text style={styles.label}>{t('common.language')}</Text>
       <View style={styles.chipRow}>
-        {[
-          ['en', 'English'],
-          ['hi', 'Hindi'],
-          ['ta', 'Tamil'],
-          ['te', 'Telugu'],
-        ].map(([code, label]) => (
+        {SUPPORTED_LANGUAGES.map(item => (
           <TouchableOpacity
-            key={code}
-            style={[styles.chip, language === code && styles.chipActive]}
-            onPress={() => setLanguage(code)}
+            key={item.code}
+            style={[styles.chip, language === item.code && styles.chipActive]}
+            onPress={() => setLanguage(item.code)}
           >
             <Text
               style={[
                 styles.chipText,
-                language === code && styles.chipTextActive,
+                language === item.code && styles.chipTextActive,
               ]}
             >
-              {label}
+              {item.nativeLabel} ({item.label})
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.label}>Currency</Text>
+      <Text style={styles.label}>{t('common.currency')}</Text>
       <View style={styles.chipRow}>
         {[
           ['INR', '₹ INR'],
@@ -312,7 +311,7 @@ function PreferencesTab() {
           <Save size={15} color="#fff" />
         )}
         <Text style={styles.saveBtnText}>
-          {saved ? 'Saved!' : 'Save Preferences'}
+          {saved ? (t('store.savedSuccessBadge') || 'Saved!') : (t('settings.savePreferencesBtn') || 'Save Preferences')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -321,6 +320,7 @@ function PreferencesTab() {
 
 function SecurityTab() {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [current, setCurrent] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -360,12 +360,12 @@ function SecurityTab() {
       <View style={styles.infoBanner}>
         <Shield size={16} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
         <Text style={styles.infoBannerText}>
-          Keep your account secure by using a strong, unique password.
+          {t('settings.securityBanner')}
         </Text>
       </View>
 
       <PasswordField
-        label="Current Password"
+        label={t('profile.currentPasswordLabel')}
         value={current}
         onChangeText={value => {
           setCurrent(value);
@@ -375,7 +375,7 @@ function SecurityTab() {
         onToggleShow={() => setShowPass(v => !v)}
       />
       <PasswordField
-        label="New Password"
+        label={t('profile.newPasswordLabel')}
         value={newPass}
         onChangeText={value => {
           setNewPass(value);
@@ -385,7 +385,7 @@ function SecurityTab() {
         onToggleShow={() => setShowPass(v => !v)}
       />
       <PasswordField
-        label="Confirm Password"
+        label={t('profile.confirmPasswordLabel')}
         value={confirm}
         onChangeText={value => {
           setConfirm(value);
@@ -406,12 +406,12 @@ function SecurityTab() {
       ) : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       {success ? (
-        <Text style={styles.successText}>Password updated successfully!</Text>
+        <Text style={styles.successText}>{t('store.savedSuccessBadge')}</Text>
       ) : null}
 
       <TouchableOpacity style={styles.saveBtn} onPress={handleChange}>
         <Lock size={15} color="#fff" />
-        <Text style={styles.saveBtnText}>Update Password</Text>
+        <Text style={styles.saveBtnText}>{t('profile.updatePasswordBtn')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -419,6 +419,7 @@ function SecurityTab() {
 
 function NotificationsTab() {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [prefs, setPrefs] = useState({
     orderUpdates: true,
@@ -438,46 +439,46 @@ function NotificationsTab() {
 
   return (
     <View>
-      <Text style={styles.groupLabel}>Email Notifications</Text>
+      <Text style={styles.groupLabel}>{t('settings.emailNotificationsTitle')}</Text>
       <View style={styles.card}>
         <ToggleRow
-          label="Order Updates"
-          desc="Shipping, delivery, and status changes"
+          label={t('settings.orderUpdatesLabel')}
+          desc={t('settings.orderUpdatesDesc')}
           value={prefs.orderUpdates}
           onChange={() => toggle('orderUpdates')}
         />
         <ToggleRow
-          label="Promotions"
-          desc="Exclusive deals, sales, and coupons"
+          label={t('settings.promotionsLabel')}
+          desc={t('settings.promotionsDesc')}
           value={prefs.promotions}
           onChange={() => toggle('promotions')}
         />
         <ToggleRow
-          label="Weekly Digest"
-          desc="A summary of activity and new products"
+          label={t('settings.weeklyDigestLabel')}
+          desc={t('settings.weeklyDigestDesc')}
           value={prefs.emailDigest}
           onChange={() => toggle('emailDigest')}
           last
         />
       </View>
 
-      <Text style={styles.groupLabel}>Push & SMS</Text>
+      <Text style={styles.groupLabel}>{t('settings.pushSmsTitle')}</Text>
       <View style={styles.card}>
         <ToggleRow
-          label="Nearby Offers"
-          desc="Alerts when stores near you post deals"
+          label={t('settings.nearbyOffersLabel')}
+          desc={t('settings.nearbyOffersDesc')}
           value={prefs.nearbyOffers}
           onChange={() => toggle('nearbyOffers')}
         />
         <ToggleRow
-          label="Push Alerts"
-          desc="In-app push notifications"
+          label={t('settings.pushAlertsLabel')}
+          desc={t('settings.pushAlertsDesc')}
           value={prefs.pushEnabled}
           onChange={() => toggle('pushEnabled')}
         />
         <ToggleRow
-          label="SMS Alerts"
-          desc="Text message updates for your orders"
+          label={t('settings.smsAlertsLabel')}
+          desc={t('settings.smsAlertsDesc')}
           value={prefs.smsAlerts}
           onChange={() => toggle('smsAlerts')}
           last
@@ -491,7 +492,7 @@ function NotificationsTab() {
           <Save size={15} color="#fff" />
         )}
         <Text style={styles.saveBtnText}>
-          {saved ? 'Saved!' : 'Save Preferences'}
+          {saved ? (t('store.savedSuccessBadge') || 'Saved!') : (t('settings.savePreferencesBtn') || 'Save Preferences')}
         </Text>
       </TouchableOpacity>
     </View>

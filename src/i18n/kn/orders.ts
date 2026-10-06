@@ -1,0 +1,28 @@
+import { TranslationSchema } from '../types';
+
+export const orders: TranslationSchema['orders'] = {
+  myOrdersTitle: 'ನನ್ನ ಆರ್ಡರ್‌ಗಳು',
+  orderId: 'ಆರ್ಡರ್ ID: {{id}}',
+  placedOn: '{{date}} ರಂದು ಆರ್ಡರ್ ಮಾಡಲಾಗಿದೆ',
+  statusPlaced: 'ಆರ್ಡರ್ ಮಾಡಲಾಗಿದೆ',
+  statusConfirmed: 'ದೃಢೀಕರಿಸಲಾಗಿದೆ',
+  statusPreparing: 'ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ',
+  statusOutForDelivery: 'ಡೆಲಿವರಿಗೆ ಹೊರಟಿದೆ',
+  statusDelivered: 'ಡೆಲಿವರಿ ಮಾಡಲಾಗಿದೆ',
+  statusCancelled: 'ರದ್ದುಮಾಡಲಾಗಿದೆ',
+  statusReturned: 'ಹಿಂತಿರುಗಿಸಲಾಗಿದೆ',
+  trackOrder: 'ಆರ್ಡರ್ ಟ್ರ್ಯಾಕ್ ಮಾಡಿ',
+  estimatedDelivery: 'ನಿರೀಕ್ಷಿತ ಡೆಲಿವರಿ: {{date}}',
+  deliveredOn: '{{date}} ರಂದು ಡೆಲಿವರಿ ಮಾಡಲಾಗಿದೆ',
+  orderItems: 'ಆರ್ಡರ್ ವಸ್ತುಗಳು ({{count}})',
+  viewInvoice: 'ಇನ್‌ವಾಯ್ಸ್ ವೀಕ್ಷಿಸಿ',
+  downloadInvoice: 'ಇನ್‌ವಾಯ್ಸ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
+  cancelOrder: 'ಆರ್ಡರ್ ರದ್ದುಮಾಡಿ',
+  returnRefund: 'ಹಿಂತಿರುಗಿಸಿ / ಮರುಪಾವತಿ',
+  liveTracking: 'ಲೈವ್ ಡೆಲಿವರಿ ಟ್ರ್ಯಾಕಿಂಗ್',
+  partnerAssigned: 'ಡೆಲಿವರಿ ಪಾಲುದಾರರನ್ನು ನಿಯೋಜಿಸಲಾಗಿದೆ',
+  outForDeliveryMsg: 'ನಿಮ್ಮ ಆರ್ಡರ್ ನಮ್ಮ ಡೆಲಿವರಿ ಪಾಲುದಾರರೊಂದಿಗೆ ಹೊರಟಿದೆ',
+  deliveredMsg: 'ನಿಮ್ಮ ಆರ್ಡರ್ ಯಶಸ್ವಿಯಾಗಿ ಡೆಲಿವರಿ ಆಗಿದೆ!',
+  noOrdersYet: 'ಇನ್ನೂ ಯಾವುದೇ ಆರ್ಡರ್‌ಗಳನ್ನು ಮಾಡಿಲ್ಲ',
+  noOrdersDesc: 'ನೀವು ಆರ್ಡರ್ ಮಾಡಿದ ನಂತರ, ಅದರ ವಿವರಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.',
+};

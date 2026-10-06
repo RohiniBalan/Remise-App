@@ -1,0 +1,28 @@
+import { TranslationSchema } from '../types';
+
+export const orders: TranslationSchema['orders'] = {
+  myOrdersTitle: 'My Orders',
+  orderId: 'Order ID: {{id}}',
+  placedOn: 'Placed on {{date}}',
+  statusPlaced: 'Placed',
+  statusConfirmed: 'Confirmed',
+  statusPreparing: 'Preparing',
+  statusOutForDelivery: 'Out for Delivery',
+  statusDelivered: 'Delivered',
+  statusCancelled: 'Cancelled',
+  statusReturned: 'Returned',
+  trackOrder: 'Track Order',
+  estimatedDelivery: 'Estimated Delivery: {{date}}',
+  deliveredOn: 'Delivered on {{date}}',
+  orderItems: 'Order Items ({{count}})',
+  viewInvoice: 'View Invoice',
+  downloadInvoice: 'Download Invoice',
+  cancelOrder: 'Cancel Order',
+  returnRefund: 'Return / Refund',
+  liveTracking: 'Live Delivery Tracking',
+  partnerAssigned: 'Delivery partner has been assigned',
+  outForDeliveryMsg: 'Your order is out for delivery with our delivery partner',
+  deliveredMsg: 'Your order has been delivered successfully!',
+  noOrdersYet: 'No orders placed yet',
+  noOrdersDesc: 'Once you place an order, its status and tracking details will appear here.',
+};

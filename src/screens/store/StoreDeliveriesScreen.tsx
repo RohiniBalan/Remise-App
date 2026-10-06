@@ -30,11 +30,32 @@ import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
 import PaginationControl from '../../components/common/PaginationControl';
+import { useTranslation, translateProductName } from '../../i18n';
 
 export default function StoreDeliveriesScreen() {
   const navigation = useNavigation<any>();
   const storeDashboard = React.useContext(StoreDashboardContext);
   const sellerDashboard = React.useContext(SellerDashboardContext);
+  const { t, language } = useTranslation();
+
+  const translateStatus = (s: string) => {
+    switch (s) {
+      case 'Pending':
+        return t.store.deliveryPending;
+      case 'Delivered':
+        return t.store.deliveryDelivered;
+      case 'Out for Delivery':
+        return t.store.deliveryOutForDelivery;
+      case 'Picked Up':
+        return t.store.deliveryPickedUp;
+      case 'Accepted':
+        return t.store.deliveryAccepted;
+      case 'Assigned':
+        return t.store.deliveryAssigned;
+      default:
+        return s;
+    }
+  };
 
   const rawOrders = storeDashboard?.orders || sellerDashboard?.orders || [];
   const loading = storeDashboard?.loading ?? sellerDashboard?.loading ?? false;
@@ -184,7 +205,7 @@ export default function StoreDeliveriesScreen() {
               <Truck size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
             </View>
             <View>
-              <Text style={styles.statLabel}>Total Deliveries</Text>
+              <Text style={styles.statLabel}>{t.store.totalDeliveries}</Text>
               <Text style={styles.statValue}>{totalCount}</Text>
             </View>
           </View>
@@ -194,7 +215,7 @@ export default function StoreDeliveriesScreen() {
               <CheckCircle2 size={14} color={isDark ? '#34D399' : '#15803D'} />
             </View>
             <View>
-              <Text style={[styles.statLabel, { color: isDark ? '#A7F3D0' : '#166534' }]}>Delivered</Text>
+              <Text style={[styles.statLabel, { color: isDark ? '#A7F3D0' : '#166534' }]}>{t.store.deliveredStat}</Text>
               <Text style={[styles.statValue, { color: isDark ? '#34D399' : '#15803D' }]}>{deliveredCount}</Text>
             </View>
           </View>
@@ -204,7 +225,7 @@ export default function StoreDeliveriesScreen() {
               <Navigation size={14} color={isDark ? '#A5B4FC' : '#4338CA'} />
             </View>
             <View>
-              <Text style={[styles.statLabel, { color: isDark ? '#C7D2FE' : '#3730A3' }]}>Out for Delivery</Text>
+              <Text style={[styles.statLabel, { color: isDark ? '#C7D2FE' : '#3730A3' }]}>{t.store.outForDeliveryStat}</Text>
               <Text style={[styles.statValue, { color: isDark ? '#A5B4FC' : '#4338CA' }]}>{outForDeliveryCount}</Text>
             </View>
           </View>
@@ -214,7 +235,7 @@ export default function StoreDeliveriesScreen() {
               <Clock size={14} color={isDark ? '#FBBF24' : '#B45309'} />
             </View>
             <View>
-              <Text style={[styles.statLabel, { color: isDark ? '#FDE68A' : '#92400E' }]}>Pending / Assigned</Text>
+              <Text style={[styles.statLabel, { color: isDark ? '#FDE68A' : '#92400E' }]}>{t.store.pendingAssignedStat}</Text>
               <Text style={[styles.statValue, { color: isDark ? '#FBBF24' : '#B45309' }]}>{pendingCount}</Text>
             </View>
           </View>
@@ -227,7 +248,7 @@ export default function StoreDeliveriesScreen() {
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Search by rider, customer, phone, address…"
+          placeholder={t.store.searchDeliveriesPlaceholder}
           placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
         />
       </View>
@@ -241,7 +262,7 @@ export default function StoreDeliveriesScreen() {
               onPress={() => setStatusFilter(s)}
             >
               <Text style={[styles.filterChipText, statusFilter === s && styles.filterChipTextActive]}>
-                {s === 'all' ? 'All Statuses' : s}
+                {s === 'all' ? t.store.allStatuses : translateStatus(s)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -255,8 +276,8 @@ export default function StoreDeliveriesScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Truck size={44} color={isDark ? '#374151' : '#D1D5DB'} />
-            <Text style={styles.emptyTitle}>No delivery records found</Text>
-            <Text style={styles.emptySubtitle}>Orders with home delivery dispatch will appear here.</Text>
+            <Text style={styles.emptyTitle}>{t.store.noDeliveriesFound}</Text>
+            <Text style={styles.emptySubtitle}>{t.store.noDeliveriesFoundDesc}</Text>
           </View>
         }
         ListFooterComponent={
@@ -277,9 +298,18 @@ export default function StoreDeliveriesScreen() {
             <View style={styles.deliveryCard}>
               <View style={styles.cardHeader}>
                 <View>
-                  <Text style={styles.orderIdText}>#{o.orderId || o._id.slice(-6).toUpperCase()}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.orderIdText}>#{o.orderId || o._id.slice(-6).toUpperCase()}</Text>
+                    {o.orderOtp ? (
+                      <View style={{ backgroundColor: isDark ? '#0f2928' : '#F0FDFA', borderWidth: 1, borderColor: isDark ? '#115e59' : '#99F6E4', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 }}>
+                          Order OTP: {o.orderOtp}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Text style={styles.orderDateText}>
-                    {new Date(o.createdAt).toLocaleString('en-IN', {
+                    {new Date(o.createdAt).toLocaleString(language === 'ta' ? 'ta-IN' : 'en-IN', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
@@ -308,7 +338,7 @@ export default function StoreDeliveriesScreen() {
                         : styles.statusTextPending,
                     ]}
                   >
-                    {currentDeliveryStatus}
+                    {translateStatus(currentDeliveryStatus)}
                   </Text>
                 </View>
               </View>
@@ -317,22 +347,22 @@ export default function StoreDeliveriesScreen() {
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleWithIcon}>
                     <Truck size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.sectionTitle}>BY WHOM (RIDER)</Text>
+                    <Text style={styles.sectionTitle}>{t.store.whoDeliveredTitle}</Text>
                   </View>
                   <View style={styles.modeTag}>
                     <Text style={styles.modeTagText}>
                       {o.deliveryMode === 'portal_delivery'
-                        ? 'Remise Network'
+                        ? t.store.remisePortalNetwork
                         : o.deliveryMode === 'self_arrange'
-                        ? 'Self-Arranged'
-                        : 'Own Rider'}
+                        ? t.store.selfArranged
+                        : t.store.ownDeliveryPerson}
                     </Text>
                   </View>
                 </View>
 
                 <View style={styles.personRow}>
                   <Text style={styles.personName}>
-                    {o.deliveryPerson?.name || 'Rider not assigned yet'}
+                    {o.deliveryPerson?.name || t.store.assignedDeliveryPartner}
                   </Text>
                   {o.deliveryPerson?.phone ? (
                     <TouchableOpacity
@@ -340,7 +370,7 @@ export default function StoreDeliveriesScreen() {
                       onPress={() => handleCall(o.deliveryPerson.phone)}
                     >
                       <Phone size={10} color="#0D9488" />
-                      <Text style={styles.callSmallBtnText}>Call</Text>
+                      <Text style={styles.callSmallBtnText}>{t.store.callBtn}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -350,8 +380,8 @@ export default function StoreDeliveriesScreen() {
 
                 {o.deliveryPerson?.deliveredAt && (
                   <Text style={styles.timestampDelivered}>
-                    ✓ Delivered at{' '}
-                    {new Date(o.deliveryPerson.deliveredAt).toLocaleTimeString('en-IN', {
+                    ✓ {t.store.deliveredTimePrefix}{' '}
+                    {new Date(o.deliveryPerson.deliveredAt).toLocaleTimeString(language === 'ta' ? 'ta-IN' : 'en-IN', {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
@@ -363,7 +393,7 @@ export default function StoreDeliveriesScreen() {
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleWithIcon}>
                     <User size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.sectionTitle}>TO WHOM (CUSTOMER)</Text>
+                    <Text style={styles.sectionTitle}>{t.store.toWhomTitle}</Text>
                   </View>
                   {o.customerPhone ? (
                     <TouchableOpacity
@@ -371,14 +401,14 @@ export default function StoreDeliveriesScreen() {
                       onPress={() => handleCall(o.customerPhone)}
                     >
                       <Phone size={10} color="#0D9488" />
-                      <Text style={styles.callSmallBtnText}>Call</Text>
+                      <Text style={styles.callSmallBtnText}>{t.store.callBtn}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
 
                 <Text style={styles.personName}>{o.customerName || 'Customer'}</Text>
                 <Text style={styles.addressText} numberOfLines={2}>
-                  📍 {o.deliveryAddress || 'Address not provided'}
+                  📍 {o.deliveryAddress || t.store.addressNotProvided}
                 </Text>
 
                 {o.deliveryAddress ? (
@@ -387,7 +417,7 @@ export default function StoreDeliveriesScreen() {
                     onPress={() => handleOpenMap(o.deliveryAddress)}
                   >
                     <MapPin size={11} color="#3B82F6" />
-                    <Text style={styles.mapLinkBtnText}>Open in Google Maps</Text>
+                    <Text style={styles.mapLinkBtnText}>{t.store.openMapNavigation}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -399,7 +429,7 @@ export default function StoreDeliveriesScreen() {
                   </Text>
                   <Text style={styles.paymentInfoText}>
                     ₹{o.totalAmount} · {o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR Payment' : o.paymentMethod === 'cod' ? 'Cash on Delivery' : (o.paymentMethod || 'Online')} (
-                    {o.paymentStatus === 'SUCCESS' ? 'Paid' : 'Pending'})
+                    {o.paymentStatus === 'SUCCESS' ? t.store.paymentPaid : t.store.paymentPending})
                   </Text>
                 </View>
 
@@ -409,7 +439,7 @@ export default function StoreDeliveriesScreen() {
                     onPress={() => navigation.navigate('StoreOrderTracking', { orderId: o.orderId || o._id })}
                   >
                     <Navigation size={12} color="#2563EB" />
-                    <Text style={styles.trackDeliveryBtnText}>Live Track</Text>
+                    <Text style={styles.trackDeliveryBtnText}>{t.store.viewDeliveryLinkBtn || 'Live Track'}</Text>
                   </TouchableOpacity>
 
                   {!isCompleted && (
@@ -419,7 +449,7 @@ export default function StoreDeliveriesScreen() {
                     >
                       <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                       <Text style={styles.manageDeliveryBtnText}>
-                        {o.deliveryToken ? 'View Link' : 'Manage'}
+                        {o.deliveryToken ? t.store.viewDeliveryLinkBtn : t.store.manageDeliveryBtn}
                       </Text>
                     </TouchableOpacity>
                   )}

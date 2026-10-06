@@ -17,7 +17,10 @@ import {
   SlidersHorizontal,
   Store as StoreIcon2,
   CheckCircle2,
+  Globe,
 } from 'lucide-react-native';
+import LanguageSelectorModal from '../components/common/LanguageSelectorModal';
+import { useTranslation } from '../i18n';
 import {
   View,
   Text,
@@ -28,6 +31,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RemiseLoading from '../components/common/RemiseLoading';
 import { Store } from 'lucide-react-native';
 import {
@@ -318,9 +322,16 @@ function StoreHeaderRight() {
   const { cartCount } = useCart();
   const { unreadCount } = useUnreadNotifications();
   const { isDark } = useTheme();
+  const [langModalVisible, setLangModalVisible] = useState(false);
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerIconRow}>
+      <TouchableOpacity
+        style={styles.headerIconBtn}
+        onPress={() => setLangModalVisible(true)}
+      >
+        <Globe size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.headerIconBtn}
         onPress={() => navigation.navigate('Notifications')}
@@ -344,6 +355,11 @@ function StoreHeaderRight() {
         )}
       </TouchableOpacity>
       <StoreProfileMenu />
+      <LanguageSelectorModal
+        visible={langModalVisible}
+        onClose={() => setLangModalVisible(false)}
+        isDark={isDark}
+      />
     </View>
   );
 }
@@ -351,6 +367,8 @@ function StoreHeaderRight() {
 function StoreOwnerTabs() {
   const { isDark } = useTheme();
   const { newOrderCount } = useStoreDashboard();
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -367,9 +385,9 @@ function StoreOwnerTabs() {
         tabBarActiveTintColor: isDark ? '#2DD4BF' : CustomerColors.teal700,
         tabBarInactiveTintColor: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
         tabBarStyle: {
-          height: 62,
+          height: 62 + insets.bottom,
           paddingTop: 6,
-          paddingBottom: 8,
+          paddingBottom: 8 + insets.bottom,
           backgroundColor: isDark ? '#111827' : '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: isDark ? '#1F2937' : '#EAEAEA',
@@ -383,6 +401,7 @@ function StoreOwnerTabs() {
         name="Overview"
         component={StoreOverviewScreen}
         options={{
+          tabBarLabel: t('store.overview'),
           tabBarIcon: ({ color, size }) => (
             <BarChart2 color={color} size={size} />
           ),
@@ -392,6 +411,7 @@ function StoreOwnerTabs() {
         name="Analytics"
         component={StoreAnalyticsScreen}
         options={{
+          tabBarLabel: t('admin.analytics'),
           tabBarIcon: ({ color, size }) => (
             <TrendingUp color={color} size={size} />
           ),
@@ -401,6 +421,7 @@ function StoreOwnerTabs() {
         name="Products"
         component={StoreProductsScreen}
         options={{
+          tabBarLabel: t('store.productsTab'),
           tabBarIcon: ({ color, size }) => (
             <Package color={color} size={size} />
           ),
@@ -410,7 +431,8 @@ function StoreOwnerTabs() {
         name="StoreOwnerOrders"
         component={StoreOrdersScreen}
         options={{
-          title: 'Orders',
+          title: t('store.ordersTab'),
+          tabBarLabel: t('store.ordersTab'),
           tabBarBadge: newOrderCount > 0 ? newOrderCount : undefined,
           tabBarBadgeStyle: { backgroundColor: '#FF0000' },
           tabBarIcon: ({ color, size }) => (
@@ -422,6 +444,7 @@ function StoreOwnerTabs() {
         name="Offers"
         component={StoreOffersScreen}
         options={{
+          tabBarLabel: t('store.offersTab'),
           tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />,
         }}
       />
@@ -429,6 +452,7 @@ function StoreOwnerTabs() {
         name="More"
         component={StoreMoreScreen}
         options={{
+          tabBarLabel: t('common.more') || 'More',
           tabBarIcon: ({ color, size }) => (
             <MoreHorizontal color={color} size={size} />
           ),

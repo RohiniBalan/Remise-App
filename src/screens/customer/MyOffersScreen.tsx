@@ -27,6 +27,8 @@ import { useTheme } from '../../context/ThemeContext';
 
 import { GATEWAY_URL } from '../../api/endpoints';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import { useTranslation, useLanguage, translateProductName } from '../../i18n';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 interface Offer {
   _id: string;
@@ -64,6 +66,7 @@ function ClaimOfferModal({
   onSuccess,
 }: ClaimOfferModalProps) {
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
   const [form, setForm] = useState({
@@ -120,7 +123,7 @@ function ClaimOfferModal({
         <View style={[styles.modalCard, { backgroundColor: cardBg }]}>
           <View style={styles.modalHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.modalTitle, { color: textPri }]}>{offer.title}</Text>
+              <Text style={[styles.modalTitle, { color: textPri }]}>{translateProductName(offer.title, language)}</Text>
               <Text style={[styles.modalStore, { color: textSec }]}>{offer.storeName}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
@@ -129,7 +132,7 @@ function ClaimOfferModal({
           </View>
 
           <View style={[styles.priceRow, { backgroundColor: rowBg }]}>
-            <Text style={[styles.priceLabel, { color: textSec }]}>Price per unit</Text>
+            <Text style={[styles.priceLabel, { color: textSec }]}>{t('products.price') || 'Price per unit'}</Text>
             <View
               style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}
             >
@@ -144,7 +147,7 @@ function ClaimOfferModal({
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <FormField
-              label="Your Name *"
+              label={`${t('profile.fullNameLabel')} *`}
               value={form.customerName}
               onChangeText={v => set('customerName', v)}
               cardBg={cardBg}
@@ -153,7 +156,7 @@ function ClaimOfferModal({
               textSec={textSec}
             />
             <FormField
-              label="Phone *"
+              label={`${t('profile.mobileNumberLabel')} *`}
               value={form.customerPhone}
               onChangeText={v => set('customerPhone', v)}
               keyboardType="phone-pad"
@@ -163,7 +166,7 @@ function ClaimOfferModal({
               textSec={textSec}
             />
             <FormField
-              label="Email"
+              label={t('profile.emailLabel')}
               value={form.customerEmail}
               onChangeText={v => set('customerEmail', v)}
               keyboardType="email-address"
@@ -173,7 +176,7 @@ function ClaimOfferModal({
               textSec={textSec}
             />
             <FormField
-              label="Delivery Address *"
+              label={`${t('checkout.deliveryAddress')} *`}
               value={form.deliveryAddress}
               onChangeText={v => set('deliveryAddress', v)}
               multiline
@@ -184,7 +187,7 @@ function ClaimOfferModal({
               textSec={textSec}
             />
             <FormField
-              label="Quantity"
+              label={t('products.quantity')}
               value={form.quantity}
               onChangeText={v => set('quantity', v.replace(/[^0-9]/g, ''))}
               keyboardType="number-pad"
@@ -194,7 +197,7 @@ function ClaimOfferModal({
               textSec={textSec}
             />
             <Text style={[styles.totalText, { color: textSec }]}>
-              Total: <Text style={{ fontWeight: '800', color: textPri }}>₹{total}</Text>
+              {t('cart.totalAmount')}: <Text style={{ fontWeight: '800', color: textPri }}>₹{total}</Text>
             </Text>
           </ScrollView>
 
@@ -208,7 +211,7 @@ function ClaimOfferModal({
             ) : (
               <>
                 <ShoppingBag size={16} color="#fff" />
-                <Text style={styles.orderBtnText}>Place Order</Text>
+                <Text style={styles.orderBtnText}>{t('checkout.placeOrderBtn')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -259,12 +262,11 @@ function FormField({ label, cardBg, borderColor, textPri, textSec, ...rest }: Fo
   );
 }
 
-import { resolveImageUrl } from '../../utils/imageUrl';
-
 export default function MyOffersScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const { token } = useAuth();
+  const { t, language } = useTranslation();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -305,9 +307,9 @@ export default function MyOffersScreen() {
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: textPri }]}>🏷️ My Offers</Text>
+        <Text style={[styles.headerTitle, { color: textPri }]}>🏷️ {t('offers.myOffers')}</Text>
         <Text style={[styles.headerSubtitle, { color: textSec }]}>
-          Deals and private discounts sent to you personally
+          {t('offers.dealsStoreSentPersonally')}
         </Text>
       </View>
 
@@ -323,15 +325,15 @@ export default function MyOffersScreen() {
           }
         >
           <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🏷️</Text>
-          <Text style={[styles.emptyTitle, { color: textPri }]}>Sign in for Private Offers</Text>
+          <Text style={[styles.emptyTitle, { color: textPri }]}>{t('offers.signInForPrivateOffers')}</Text>
           <Text style={[styles.emptySubtitle, { color: textSec, maxWidth: 300, textAlign: 'center' }]}>
-            When a store sends special deals and discounts directly to your account, they will appear here.
+            {t('offers.signInForPrivateOffersDesc')}
           </Text>
           <TouchableOpacity
             style={[styles.orderNowBtn, { marginTop: Spacing.lg, paddingHorizontal: Spacing.xl, alignSelf: 'center' }]}
             onPress={() => navigation.navigate('LoginRegister')}
           >
-            <Text style={styles.orderNowText}>Sign In / Register</Text>
+            <Text style={styles.orderNowText}>{t('common.loginRegister') || 'Sign In / Register'}</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : offers.length === 0 ? (
@@ -342,9 +344,9 @@ export default function MyOffersScreen() {
           }
         >
           <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🏷️</Text>
-          <Text style={[styles.emptyTitle, { color: textPri }]}>No private offers yet</Text>
+          <Text style={[styles.emptyTitle, { color: textPri }]}>{t('offers.noPrivateOffersTitle')}</Text>
           <Text style={[styles.emptySubtitle, { color: textSec }]}>
-            When a store sends you a personal deal, it'll show up here.
+            {t('offers.noPrivateOffersDesc')}
           </Text>
         </ScrollView>
       ) : (
@@ -368,20 +370,20 @@ export default function MyOffersScreen() {
                   {offer.discountPercent > 0 && (
                     <View style={styles.discountBadge}>
                       <Text style={styles.discountBadgeText}>
-                        {offer.discountPercent}% OFF
+                        {offer.discountPercent}% {t('common.offPercent') || 'OFF'}
                       </Text>
                     </View>
                   )}
                   <View style={styles.justForYouBadge}>
                     <Tag size={9} color="#fff" />
-                    <Text style={styles.justForYouText}>Just for you</Text>
+                    <Text style={styles.justForYouText}>{t('offers.justForYou')}</Text>
                   </View>
                 </View>
 
                 <View style={styles.cardBody}>
                   <Text style={[styles.storeName, { color: textSec }]} numberOfLines={1}>{offer.storeName}</Text>
                   <Text style={[styles.offerTitle, { color: textPri }]} numberOfLines={1}>
-                    {offer.title}
+                    {translateProductName(offer.title, language)}
                   </Text>
                   {!!offer.description && (
                     <Text style={[styles.offerDesc, { color: textSec }]} numberOfLines={2}>
@@ -421,7 +423,7 @@ export default function MyOffersScreen() {
                     }}
                   >
                     <ShoppingBag size={13} color="#fff" />
-                    <Text style={styles.orderNowText}>Order Now</Text>
+                    <Text style={styles.orderNowText}>{t('offers.orderNowBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -441,7 +443,7 @@ export default function MyOffersScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.successCard, { backgroundColor: cardBg, borderColor }]}>
             <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🎉</Text>
-            <Text style={styles.successTitle}>Order Placed!</Text>
+            <Text style={styles.successTitle}>{t('orders.statusPlaced')}!</Text>
             <Text style={[styles.successSubtitle, { color: textSec }]}>
               The store will confirm your order shortly.
             </Text>
@@ -452,7 +454,7 @@ export default function MyOffersScreen() {
                 setOrderSuccess(false);
               }}
             >
-              <Text style={[styles.successBtnText, { color: textPri }]}>Back to Offers</Text>
+              <Text style={[styles.successBtnText, { color: textPri }]}>{t('common.back')}</Text>
             </TouchableOpacity>
           </View>
         </View>

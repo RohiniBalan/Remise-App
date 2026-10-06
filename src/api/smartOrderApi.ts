@@ -91,7 +91,7 @@ export const smartOrderApi = {
       // cod/qr never actually redirect anywhere (see note above) this
       // value only ever gets echoed back as the `?orderId=` prefix, never
       // navigated to.
-      redirectUrl: 'https://payment-return.remise-app.internal/my-orders',
+      redirectUrl: 'https://payment-return.remise-app.internal/orders',
     }),
 
   confirmQrPayment: (orderId: string, screenshotUri?: string | null, utr?: string | null) => {

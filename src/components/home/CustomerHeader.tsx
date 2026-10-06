@@ -8,6 +8,7 @@ import { useCart } from '../../context/CartContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { useTranslation } from '../../i18n';
 
 // Shared header (logo, bell, cart, avatar/account menu) — extracted from
 // HomeScreen so every customer screen renders the identical header instead
@@ -16,6 +17,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../..
 export default function CustomerHeader() {
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const { cartCount } = useCart();
   const { unreadCount } = useUnreadNotifications();
   const { theme, toggleTheme, isDark } = useTheme();
@@ -102,7 +104,7 @@ export default function CustomerHeader() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.loginBtn} onPress={() => navigation.navigate('LoginRegister')}>
-              <Text style={styles.loginBtnText}>Login</Text>
+              <Text style={styles.loginBtnText}>{t('common.loginRegister') || 'Login'}</Text>
             </TouchableOpacity>
           )}
         </View>

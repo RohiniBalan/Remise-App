@@ -1,0 +1,24 @@
+import { TranslationSchema } from '../types';
+
+export const offers: TranslationSchema['offers'] = {
+  nearbyOffersTitle: 'సమీప ఆఫర్లు',
+  dealsAroundYou: 'మీ చుట్టూ ఉన్న ఆఫర్లు',
+  discoverDealsNearYou: 'మీకు సమీపంలోని ఆఫర్లను కనుగొనండి',
+  allowLocationDesc: 'సమీప దుకాణాల నుండి ప్రత్యేక ఆఫర్లను చూడటానికి లొకేషన్ యాక్సెస్ అనుమతించండి.',
+  enableLocationBtn: 'లొకేషన్‌ను ప్రారంభించండి',
+  browseAllOffers: 'అన్ని ఆఫర్లను చూడండి',
+  radiusKm: '{{distance}} కి.మీ పరిధిలో',
+  hoursLeft: 'ఇంకా {{hours}} గంటలు మాత్రమే మిగిలి ఉన్నాయి',
+  noOffersNearby: 'సమీపంలో ఆఫర్లేవీ కనుగొనబడలేదు',
+  noOffersDesc: 'శోధన పరిధిని పెంచండి లేదా అన్ని డీల్స్‌ను అన్వేషించండి.',
+  claimOffer: 'ఆఫర్ పొందండి',
+  myOffers: 'నా ఆఫర్లు',
+  exclusiveDeals: 'మీ కోసం ప్రత్యేక డీల్స్',
+  noPrivateOffersTitle: 'ఇంకా వ్యక్తిగత ఆఫర్‌లు లేవు',
+  noPrivateOffersDesc: 'స్టోర్ మీకు వ్యక్తిగత డీల్ పంపినప్పుడు, అది ఇక్కడ కనిపిస్తుంది.',
+  dealsStoreSentPersonally: 'స్టోర్ మీకు ప్రత్యేకంగా పంపిన డీల్స్',
+  justForYou: 'మీ కోసమే ప్రత్యేకం',
+  orderNowBtn: 'ఇప్పుడే ఆర్డర్ చేయండి',
+  signInForPrivateOffers: 'మీ ఆఫర్‌లను చూడటానికి సైన్ ఇన్ చేయండి',
+  signInForPrivateOffersDesc: 'మీరు లాగిన్ అయిన తర్వాత మీ ఖాతాకు పంపిన ప్రత్యేక ఆఫర్‌లు ఇక్కడ కనిపిస్తాయి.',
+};

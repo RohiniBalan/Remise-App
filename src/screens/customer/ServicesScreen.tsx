@@ -28,9 +28,8 @@ import {
 import ContactModal from '../../components/common/ContactModal';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
-
-// Ported from client/app/services/page.tsx -> CustomerSupportPage.
-// The public Services/Support route uses the website's brand red palette (#FF0000).
+import { useTranslation } from '../../i18n';
+import { getCustomerSupportData } from '../../i18n/customerSupportTranslations';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -38,23 +37,13 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const BRAND = CustomerColors.primary;
 
-const SUPPORT_CATEGORIES = [
-  { icon: Truck, title: 'Orders & Shipping', desc: 'Track your order, check delivery timelines, and see coverage areas.' },
-  { icon: RotateCcw, title: 'Returns & Refunds', desc: 'Learn how exchanges, returns, and refunds work.' },
-  { icon: CreditCard, title: 'Payments & Billing', desc: 'Accepted payment methods, invoices, and discount codes.' },
-  { icon: Shield, title: 'Product & Warranty', desc: 'Authenticity, warranty coverage, and product care tips.' },
-  { icon: Building2, title: 'Wholesale & Bulk Orders', desc: 'Business partnerships, bulk pricing, and volume discounts.' },
-  { icon: Users, title: 'Account & Seller Help', desc: 'Login issues, profile settings, and Home Seller support.' },
-];
-
-const FAQS = [
-  { q: 'How can I track my order?', a: "Once your order ships, you'll receive a tracking link by email and SMS. You can also view live order status anytime from the Orders section of your account." },
-  { q: 'What is your return & refund policy?', a: 'Most items can be returned within 7 days of delivery if unused and in original packaging. Refunds are processed to your original payment method within 5-7 business days after we receive the item.' },
-  { q: 'Do you offer wholesale or bulk pricing?', a: 'Yes. Business partners get volume discounts on bulk orders. Use the Wholesale tab when contacting us, or reach out directly and our team will share a custom quote.' },
-  { q: 'What payment methods do you accept?', a: 'We accept UPI, credit/debit cards, net banking, and popular wallets. Prepaid orders above ₹499 qualify for free delivery, and code REMISE10 gives 10% off.' },
-  { q: 'How long does delivery take?', a: 'Standard delivery typically takes 3-7 business days depending on your location. Bulk/wholesale orders may take longer and will be confirmed at the time of order.' },
-  { q: 'How do I become a Home Seller?', a: 'Visit the Home Seller section from the main menu to apply. Our team will review your application and get in touch with onboarding details.' },
-  { q: 'How do I reach a real person for help?', a: 'Use the Contact Us button on this page to send us a message, or reach out directly using the phone number and email listed below. Our team typically responds within 24 hours.' },
+const SUPPORT_CATEGORY_ICONS = [
+  Truck,
+  RotateCcw,
+  CreditCard,
+  Shield,
+  Building2,
+  Users,
 ];
 
 const OFFICIAL_CONTACT_INFO = {
@@ -68,6 +57,9 @@ const OFFICIAL_CONTACT_INFO = {
 
 export default function ServicesScreen() {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const supportData = getCustomerSupportData(language as any);
+
   const [showContact, setShowContact] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const contactInfo = OFFICIAL_CONTACT_INFO;
@@ -91,18 +83,17 @@ export default function ServicesScreen() {
           <View style={styles.eyebrowIcon}>
             <Headphones size={15} color="#FFFFFF" />
           </View>
-          <Text style={styles.eyebrowText}>We're Here to Help</Text>
+          <Text style={styles.eyebrowText}>{supportData.eyebrow}</Text>
         </View>
         <Text style={[styles.heroTitle, { color: textPri }]}>
-          Customer <Text style={styles.heroTitleAccent}>Support</Text>
+          {supportData.heroTitlePart1}<Text style={styles.heroTitleAccent}>{supportData.heroTitlePart2}</Text>
         </Text>
         <Text style={[styles.heroSubtitle, { color: textSec }]}>
-          Questions about an order, a return, or a bulk purchase? Browse our help topics and FAQs
-          below, or reach our team directly.
+          {supportData.heroSubtitle}
         </Text>
         <TouchableOpacity style={styles.contactBtn} onPress={() => setShowContact(true)} activeOpacity={0.85}>
           <Phone size={16} color="#FFFFFF" />
-          <Text style={styles.contactBtnText}>Contact Us</Text>
+          <Text style={styles.contactBtnText}>{supportData.contactUsBtn}</Text>
         </TouchableOpacity>
       </View>
 
@@ -117,7 +108,7 @@ export default function ServicesScreen() {
             <Mail size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.quickLabel, { color: textSec }]}>Email Us</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>{supportData.emailUs}</Text>
             <Text style={[styles.quickValue, { color: textPri }]} numberOfLines={1}>{contactInfo.email}</Text>
           </View>
         </TouchableOpacity>
@@ -131,7 +122,7 @@ export default function ServicesScreen() {
             <Phone size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.quickLabel, { color: textSec }]}>Call Us</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>{supportData.callUs}</Text>
             <Text style={[styles.quickValue, { color: textPri }]} numberOfLines={1}>{contactInfo.phone}</Text>
           </View>
         </TouchableOpacity>
@@ -141,7 +132,7 @@ export default function ServicesScreen() {
             <MapPin size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.quickLabel, { color: textSec }]}>Location</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>{supportData.location}</Text>
             <Text style={[styles.quickValue, { color: textPri }]} numberOfLines={1}>{contactInfo.address}</Text>
           </View>
         </View>
@@ -151,8 +142,8 @@ export default function ServicesScreen() {
             <Clock size={18} color={BRAND} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.quickLabel, { color: textSec }]}>Support Hours</Text>
-            <Text style={[styles.quickValue, { color: textPri }]}>Mon-Fri: {contactInfo.hoursWeekday}</Text>
+            <Text style={[styles.quickLabel, { color: textSec }]}>{supportData.supportHours}</Text>
+            <Text style={[styles.quickValue, { color: textPri }]}>{supportData.monFri} {contactInfo.hoursWeekday}</Text>
           </View>
         </View>
       </View>
@@ -161,11 +152,11 @@ export default function ServicesScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.sectionHeadingBar} />
-          <Text style={styles.sectionHeadingText}>How Can We Help?</Text>
+          <Text style={styles.sectionHeadingText}>{supportData.howCanWeHelpHeading}</Text>
         </View>
         <View style={styles.grid}>
-          {SUPPORT_CATEGORIES.map((cat, i) => {
-            const Icon = cat.icon;
+          {supportData.categories.map((cat, i) => {
+            const Icon = SUPPORT_CATEGORY_ICONS[i] || Headphones;
             return (
               <View key={i} style={[styles.categoryCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={[styles.quickIconCircle, { backgroundColor: iconBg, borderColor: isDark ? 'rgba(255,0,0,0.2)' : 'rgba(255,0,0,0.1)' }]}>
@@ -183,13 +174,13 @@ export default function ServicesScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.sectionHeadingBar} />
-          <Text style={styles.sectionHeadingText}>Frequently Asked Questions</Text>
+          <Text style={styles.sectionHeadingText}>{supportData.faqHeading}</Text>
         </View>
         <View style={[styles.faqCard, { backgroundColor: cardBg, borderColor }]}>
-          {FAQS.map((item, i) => {
+          {supportData.faqs.map((item, i) => {
             const isOpen = openFaq === i;
             return (
-              <View key={i} style={i !== FAQS.length - 1 ? [styles.faqDivider, { borderBottomColor: borderColor }] : undefined}>
+              <View key={i} style={i !== supportData.faqs.length - 1 ? [styles.faqDivider, { borderBottomColor: borderColor }] : undefined}>
                 <TouchableOpacity style={styles.faqQuestionRow} onPress={() => toggleFaq(i)} activeOpacity={0.7}>
                   <Text style={[styles.faqQuestion, { color: textPri }]}>{item.q}</Text>
                   <ChevronDown
@@ -208,13 +199,13 @@ export default function ServicesScreen() {
       {/* STILL NEED HELP CTA */}
       <View style={[styles.closingCta, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#fee2e2' }]}>
         <Headphones size={28} color={BRAND} style={{ marginBottom: Spacing.sm }} />
-        <Text style={[styles.closingCtaTitle, { color: textPri }]}>Still Need Help?</Text>
+        <Text style={[styles.closingCtaTitle, { color: textPri }]}>{supportData.stillNeedHelpTitle}</Text>
         <Text style={[styles.closingCtaSubtitle, { color: textSec }]}>
-          Send us a message and our concierge team will get back to you within 24 hours.
+          {supportData.stillNeedHelpSubtitle}
         </Text>
         <TouchableOpacity style={styles.contactBtn} onPress={() => setShowContact(true)} activeOpacity={0.85}>
           <Phone size={16} color="#FFFFFF" />
-          <Text style={styles.contactBtnText}>Contact Us</Text>
+          <Text style={styles.contactBtnText}>{supportData.contactUsBtn}</Text>
           <ArrowRight size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -248,54 +239,66 @@ const styles = StyleSheet.create({
   contactBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: FontSizes.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   section: { paddingHorizontal: Spacing.md, marginTop: Spacing.lg },
-
-  sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
-  sectionHeadingBar: { width: 4, height: 20, borderRadius: 2, backgroundColor: BRAND },
-  sectionHeadingText: { fontSize: FontSizes.base, fontWeight: '800', color: BRAND, textTransform: 'uppercase', letterSpacing: 1 },
-
   quickCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: BorderRadius.md,
     padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
     marginBottom: Spacing.sm,
   },
-  quickIconCircle: { width: 40, height: 40, borderRadius: BorderRadius.sm, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 1, borderColor: 'rgba(255,0,0,0.2)', alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { fontSize: 10, fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  quickValue: { fontSize: FontSizes.sm, fontWeight: '700', color: '#fff' },
+  quickIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  quickLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 },
+  quickValue: { fontSize: FontSizes.sm, fontWeight: '700' },
+
+  sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  sectionHeadingBar: { width: 4, height: 20, borderRadius: 2, backgroundColor: BRAND },
+  sectionHeadingText: { fontSize: FontSizes.lg, fontWeight: '900', color: '#fff' },
 
   grid: { gap: Spacing.sm },
   categoryCard: {
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: BorderRadius.md,
     padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
     marginBottom: Spacing.sm,
   },
-  categoryTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: '#fff', marginTop: Spacing.xs, marginBottom: 2 },
-  categoryDesc: { fontSize: FontSizes.xs, color: '#9CA3AF', lineHeight: 16 },
+  categoryTitle: { fontSize: FontSizes.md, fontWeight: '800', marginTop: Spacing.sm, marginBottom: 4 },
+  categoryDesc: { fontSize: FontSizes.xs, lineHeight: 18 },
 
-  faqCard: { backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: BorderRadius.lg, overflow: 'hidden' },
-  faqDivider: { borderBottomWidth: 1, borderBottomColor: '#222' },
-  faqQuestionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, padding: Spacing.md },
-  faqQuestion: { flex: 1, fontSize: FontSizes.sm, fontWeight: '700', color: '#fff' },
-  faqAnswer: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 19, paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
+  faqCard: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    paddingHorizontal: Spacing.md,
+  },
+  faqDivider: { borderBottomWidth: 1 },
+  faqQuestionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+  },
+  faqQuestion: { fontSize: FontSizes.sm, fontWeight: '800', flex: 1 },
+  faqAnswer: { fontSize: FontSizes.xs, lineHeight: 18, paddingBottom: Spacing.md },
 
   closingCta: {
     margin: Spacing.md,
     marginTop: Spacing.xl,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,0,0,0.4)',
-    backgroundColor: '#111',
     padding: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
     alignItems: 'center',
+    textAlign: 'center',
   },
-  closingCtaTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: Spacing.xs },
-  closingCtaSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', textAlign: 'center', marginBottom: Spacing.lg, lineHeight: 19 },
+  closingCtaTitle: { fontSize: FontSizes.lg, fontWeight: '900', marginBottom: Spacing.xs, textAlign: 'center' },
+  closingCtaSubtitle: { fontSize: FontSizes.xs, lineHeight: 18, textAlign: 'center', marginBottom: Spacing.md },
 });

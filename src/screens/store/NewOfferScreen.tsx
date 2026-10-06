@@ -39,6 +39,7 @@ import { useOptionalStoreDashboard } from '../../context/StoreDashboardContext';
 import { useOptionalSellerDashboard } from '../../context/SellerDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { mergeCategories } from '../../utils/storeCategories';
+import { useTranslation, translateCategory } from '../../i18n';
 
 async function requestLocationPermission(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
@@ -64,6 +65,7 @@ const DEFAULT_CATEGORIES = [
 export default function NewOfferScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
+  const { t, language } = useTranslation();
   const storeDash = useOptionalStoreDashboard();
   const sellerDash = useOptionalSellerDashboard();
   const dash = (storeDash && storeDash.store) ? storeDash : ((sellerDash && sellerDash.store) ? sellerDash : (storeDash || sellerDash || {}));
@@ -364,54 +366,54 @@ export default function NewOfferScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.label}>Offer Image *</Text>
+      <Text style={styles.label}>{t('store.offerImage') || 'Offer Image'} *</Text>
       <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
         {imgUri ? (
           <Image source={{ uri: resolveImageUrl(imgUri) || imgUri }} style={styles.imagePreview} />
         ) : (
           <View style={styles.imagePlaceholder}>
             <ImageIcon size={28} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
-            <Text style={styles.uploadText}>Upload Image</Text>
+            <Text style={styles.uploadText}>{t('store.uploadImage') || 'Upload Image'}</Text>
           </View>
         )}
       </TouchableOpacity>
 
       <Field
-        label="Offer Title *"
+        label={`${t('store.offerTitleLabel') || 'Offer Title'} *`}
         value={form.title}
         onChangeText={v => set('title', v)}
-        placeholder="e.g. 20% off all groceries"
+        placeholder={t('store.offerTitlePlaceholder') || 'e.g. 20% off all groceries'}
         styles={styles}
         isDark={isDark}
       />
 
       <View style={{ marginBottom: Spacing.md }}>
-        <Text style={styles.label}>Category *</Text>
+        <Text style={styles.label}>{t('products.category') || 'Category'} *</Text>
         <TouchableOpacity
           style={[styles.input, styles.selectInput]}
           onPress={() => setCategoryModalOpen(true)}
           activeOpacity={0.8}
         >
           <Text style={form.category ? styles.selectValue : styles.selectPlaceholder}>
-            {form.category || 'Select Category'}
+            {form.category ? translateCategory(form.category, language) : (t('common.selectCategory') || 'Select Category')}
           </Text>
           <ChevronDown size={18} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.label}>Description</Text>
+      <Text style={styles.label}>{t('products.description') || 'Description'}</Text>
       <TextInput
         style={[styles.input, { height: 75, textAlignVertical: 'top' }]}
         multiline
         value={form.description}
         onChangeText={v => set('description', v)}
-        placeholder="Describe special discounts, bundled items, or terms…"
+        placeholder={t('store.moreDetailsPlaceholder') || 'Describe special discounts, bundled items, or terms…'}
         placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
       />
 
       <View style={styles.row2}>
         <Field
-          label="Original Price (₹) *"
+          label={`${t('store.originalPriceLabel') || 'Original Price (₹)'} *`}
           value={form.originalPrice}
           onChangeText={v => set('originalPrice', v)}
           keyboardType="numeric"
@@ -421,7 +423,7 @@ export default function NewOfferScreen() {
           isDark={isDark}
         />
         <Field
-          label="Offer Price (₹) *"
+          label={`${t('store.offerPriceLabel') || 'Offer Price (₹)'} *`}
           value={form.offerPrice}
           onChangeText={v => set('offerPrice', v)}
           keyboardType="numeric"
@@ -433,12 +435,12 @@ export default function NewOfferScreen() {
       </View>
       {form.originalPrice && form.offerPrice ? (
         <Text style={styles.discountText}>
-          Customers save ₹{(+form.originalPrice - +form.offerPrice).toFixed(0)} · {discount}% off
+          {t('store.customersSaveLabel', { amount: (+form.originalPrice - +form.offerPrice).toFixed(0), discount })}
         </Text>
       ) : null}
 
       <View style={{ marginBottom: Spacing.md }}>
-        <Text style={styles.label}>Valid Until *</Text>
+        <Text style={styles.label}>{t('store.validUntilLabel') || 'Valid Until'} *</Text>
         <TouchableOpacity
           style={[styles.input, styles.selectInput]}
           onPress={() => setShowDatePicker(true)}
@@ -474,11 +476,11 @@ export default function NewOfferScreen() {
       )}
 
       <View style={styles.locationSection}>
-        <Text style={styles.label}>Notification Target Location *</Text>
+        <Text style={styles.label}>{t('store.notificationTargetLocation') || 'Notification Target Location'} *</Text>
         <View style={styles.locBtnRow}>
           <TouchableOpacity style={styles.locBtn} onPress={resetToStoreLocation}>
             <MapPin size={13} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
-            <Text style={styles.locBtnText}>Use Store Location</Text>
+            <Text style={styles.locBtnText}>{t('store.useStoreLocationBtn') || 'Use Store Location'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.locBtn} onPress={detectGPS} disabled={detecting}>
             {detecting ? (
@@ -486,7 +488,7 @@ export default function NewOfferScreen() {
             ) : (
               <Satellite size={13} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
             )}
-            <Text style={styles.locBtnText}>Use Current GPS</Text>
+            <Text style={styles.locBtnText}>{t('store.useGpsLocationBtn') || 'Use Current GPS'}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.sourceBadge}>
@@ -494,7 +496,7 @@ export default function NewOfferScreen() {
         </View>
         <View style={styles.row2}>
           <Field
-            label="Latitude *"
+            label={`${t('store.latitudeLabel') || 'Latitude'} *`}
             value={latitude}
             onChangeText={setLatitude}
             keyboardType="numeric"
@@ -503,7 +505,7 @@ export default function NewOfferScreen() {
             isDark={isDark}
           />
           <Field
-            label="Longitude *"
+            label={`${t('store.longitudeLabel') || 'Longitude'} *`}
             value={longitude}
             onChangeText={setLongitude}
             keyboardType="numeric"
@@ -518,7 +520,7 @@ export default function NewOfferScreen() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.submitBtnText}>{isEditing ? 'Update Offer' : 'Publish Offer'}</Text>
+          <Text style={styles.submitBtnText}>{isEditing ? (t('store.updateOfferBtn') || 'Update Offer') : (t('store.publishOfferBtn') || 'Publish Offer')}</Text>
         )}
       </TouchableOpacity>
 
@@ -526,7 +528,7 @@ export default function NewOfferScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCategoryModalOpen(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
+              <Text style={styles.modalTitle}>{t('common.selectCategory') || 'Select Category'}</Text>
               <TouchableOpacity onPress={() => setCategoryModalOpen(false)}>
                 <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
               </TouchableOpacity>
@@ -545,7 +547,7 @@ export default function NewOfferScreen() {
                     }}
                   >
                     <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>
-                      {item.name}
+                      {translateCategory(item.name, language)}
                     </Text>
                     {isSelected && <CheckCircle size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />}
                   </TouchableOpacity>
@@ -562,12 +564,12 @@ export default function NewOfferScreen() {
             <View style={styles.successIconCircle}>
               <CheckCircle size={40} color="#FFFFFF" />
             </View>
-            <Text style={styles.successTitle}>{isEditing ? 'Offer Updated!' : 'Offer Published!'}</Text>
+            <Text style={styles.successTitle}>{isEditing ? (t('store.offerUpdated') || 'Offer Updated!') : (t('store.offerPublished') || 'Offer Published!')}</Text>
             <Text style={styles.successSubtitle}>
-              {isEditing ? 'Your offer changes have been saved successfully.' : 'Your offer has been created successfully.'}
+              {isEditing ? (t('store.offerSavedDesc') || 'Your offer changes have been saved successfully.') : (t('store.offerCreatedDesc') || 'Your offer has been created successfully.')}
             </Text>
             <TouchableOpacity style={styles.successButton} onPress={handleSuccessClose} activeOpacity={0.85}>
-              <Text style={styles.successButtonText}>View Offers</Text>
+              <Text style={styles.successButtonText}>{t('store.viewOffers') || 'View Offers'}</Text>
               <ArrowRight size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>

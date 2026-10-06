@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, FlatList, StyleSheet, ActivityIndicator, 
   TouchableOpacity, Alert, Modal, ScrollView 
 } from 'react-native';
-import { Search, Shield, Users, Trash2, UserPlus, X, ShieldCheck, Check, RotateCcw } from 'lucide-react-native';
+import { Search, Shield, Users, Trash2, UserPlus, X, ShieldCheck, Check, RotateCcw, Eye, EyeOff } from 'lucide-react-native';
 import { adminUserApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius, getAdminColors } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
@@ -40,6 +40,7 @@ export default function AdminUsersScreen() {
 
   // Modals state
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [creatingAdmin, setCreatingAdmin] = useState(false);
   const [adminForm, setAdminForm] = useState({
     fullname: '',
@@ -128,8 +129,8 @@ export default function AdminUsersScreen() {
 
   // ── Handle Create Admin User ──
   const handleCreateAdmin = async () => {
-    if (!adminForm.fullname || !adminForm.email || !adminForm.password) {
-      Alert.alert('Validation Error', 'Full Name, Email, and Password are required.');
+    if (!adminForm.fullname || !adminForm.email || !adminForm.password || !adminForm.mobilenumber?.trim()) {
+      Alert.alert('Validation Error', 'Full Name, Email, Password, and Mobile Number are required.');
       return;
     }
     setCreatingAdmin(true);
@@ -421,16 +422,25 @@ export default function AdminUsersScreen() {
               />
 
               <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Password *</Text>
-              <TextInput
-                style={[styles.formInput, isDark && styles.formInputDark]}
-                placeholder="Min 6 characters"
-                placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
-                secureTextEntry
-                value={adminForm.password}
-                onChangeText={v => setAdminForm(f => ({ ...f, password: v }))}
-              />
+              <View style={[styles.passwordInputContainer, isDark && styles.passwordInputContainerDark]}>
+                <TextInput
+                  style={[styles.passwordInput, isDark && styles.textWhite]}
+                  placeholder="Min 6 characters"
+                  placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+                  secureTextEntry={!showPassword}
+                  value={adminForm.password}
+                  onChangeText={v => setAdminForm(f => ({ ...f, password: v }))}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+                  {showPassword ? (
+                    <EyeOff size={18} color={isDark ? '#9CA3AF' : '#64748b'} />
+                  ) : (
+                    <Eye size={18} color={isDark ? '#9CA3AF' : '#64748b'} />
+                  )}
+                </TouchableOpacity>
+              </View>
 
-              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Mobile Number (Optional)</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Mobile Number *</Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
                 placeholder="+91 9876543210"
@@ -576,6 +586,10 @@ const styles = StyleSheet.create({
   inputLabel: { fontSize: 11, fontWeight: '700', color: AdminColors.textSecondary, textTransform: 'uppercase', marginTop: 8, marginBottom: 4 },
   formInput: { borderWidth: 1, borderColor: AdminColors.border, borderRadius: BorderRadius.md, paddingHorizontal: 10, paddingVertical: 8, fontSize: FontSizes.sm, color: '#111827', backgroundColor: '#F9FAFB' },
   formInputDark: { backgroundColor: '#1F2937', borderColor: '#374151', color: '#fff' },
+  passwordInputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: AdminColors.border, borderRadius: BorderRadius.md, backgroundColor: '#F9FAFB', paddingHorizontal: 10 },
+  passwordInputContainerDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
+  passwordInput: { flex: 1, paddingVertical: 8, fontSize: FontSizes.sm, color: '#111827' },
+  eyeBtn: { padding: 4 },
   
   roleOptionsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   roleSelectChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: AdminColors.border, backgroundColor: '#fff' },

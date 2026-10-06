@@ -19,7 +19,10 @@ import {
   Truck,
   Tag,
   Users,
+  Globe,
 } from 'lucide-react-native';
+import LanguageSelectorModal from '../components/common/LanguageSelectorModal';
+import { useTranslation } from '../i18n';
 import {
   View,
   Text,
@@ -240,9 +243,16 @@ function HomeBusinessHeaderRight() {
   const navigation = useNavigation<any>();
   const { unreadCount } = useUnreadNotifications();
   const { isDark } = useTheme();
+  const [langModalVisible, setLangModalVisible] = useState(false);
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerIconRow}>
+      <TouchableOpacity
+        style={styles.headerIconBtn}
+        onPress={() => setLangModalVisible(true)}
+      >
+        <Globe size={18} color={isDark ? '#2DD4BF' : CustomerColors.primary} />
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.headerIconBtn}
         onPress={() => navigation.navigate('Notifications')}
@@ -255,6 +265,11 @@ function HomeBusinessHeaderRight() {
         )}
       </TouchableOpacity>
       <HomeBusinessUserMenu />
+      <LanguageSelectorModal
+        visible={langModalVisible}
+        onClose={() => setLangModalVisible(false)}
+        isDark={isDark}
+      />
     </View>
   );
 }
@@ -262,6 +277,7 @@ function HomeBusinessHeaderRight() {
 function HomeBusinessTabs() {
   const { newOrderCount } = useSellerDashboard();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -279,7 +295,7 @@ function HomeBusinessTabs() {
         name="HomeBusinessOverview"
         component={SellerOverviewScreen}
         options={{
-          title: 'Overview',
+          title: t('store.overview'),
           tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} />,
         }}
       />
@@ -287,7 +303,7 @@ function HomeBusinessTabs() {
         name="HomeBusinessCategories"
         component={SellerCategoriesScreen}
         options={{
-          title: 'Categories',
+          title: t('store.categoriesTab'),
           tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
         }}
       />
@@ -295,7 +311,7 @@ function HomeBusinessTabs() {
         name="HomeBusinessProducts"
         component={SellerProductsScreen}
         options={{
-          title: 'Products',
+          title: t('store.productsTab'),
           tabBarIcon: ({ color, size }) => <Package color={color} size={size} />,
         }}
       />
@@ -303,7 +319,7 @@ function HomeBusinessTabs() {
         name="HomeBusinessOffers"
         component={StoreOffersScreen}
         options={{
-          title: 'Offers',
+          title: t('store.offersTab'),
           tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />,
         }}
       />
@@ -311,7 +327,7 @@ function HomeBusinessTabs() {
         name="HomeBusinessCustomers"
         component={StoreCustomersScreen}
         options={{
-          title: 'Customers',
+          title: t('store.customersTab'),
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
@@ -319,7 +335,7 @@ function HomeBusinessTabs() {
         name="HomeBusinessOrders"
         component={SellerOrdersScreen}
         options={{
-          title: 'Incoming Orders',
+          title: t('store.incomingOrders'),
           tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
           tabBarBadge: newOrderCount > 0 ? newOrderCount : undefined,
           tabBarBadgeStyle: { backgroundColor: '#FF0000' },
@@ -329,7 +345,7 @@ function HomeBusinessTabs() {
         name="HomeBusinessSettings"
         component={SellerSettingsScreen}
         options={{
-          title: 'Settings',
+          title: t('store.settingsTab'),
           tabBarIcon: ({ color, size }) => <SettingsIcon color={color} size={size} />,
         }}
       />

@@ -1,0 +1,24 @@
+import { TranslationSchema } from '../types';
+
+export const offers: TranslationSchema['offers'] = {
+  nearbyOffersTitle: 'அருகிலுள்ள சலுகைகள்',
+  dealsAroundYou: 'உங்களைச் சுற்றியுள்ள சலுகைகள்',
+  discoverDealsNearYou: 'உங்கள் அருகிலுள்ள சலுகைகளைக் கண்டறியவும்',
+  allowLocationDesc: 'அருகிலுள்ள கடைகளிலிருந்து சிறப்புச் சலுகைகளைக் காண இருப்பிட அனுமதியை வழங்கவும்.',
+  enableLocationBtn: 'இருப்பிடத்தை இயக்கு',
+  browseAllOffers: 'அனைத்து சலுகைகளையும் பார்க்கவும்',
+  radiusKm: '{{distance}} கி.மீ சுற்றளவுக்குள்',
+  hoursLeft: 'இன்னும் {{hours}} மணிநேரம் மட்டுமே',
+  noOffersNearby: 'அருகில் சலுகைகள் எதுவும் இல்லை',
+  noOffersDesc: 'சுற்றளவை அதிகரிக்கவும் அல்லது பிற சலுகைகளைப் பார்க்கவும்.',
+  claimOffer: 'சலுகையைப் பெறுங்கள்',
+  myOffers: 'என் சலுகைகள்',
+  exclusiveDeals: 'உங்களுக்கான பிரத்யேகச் சலுகைகள்',
+  noPrivateOffersTitle: 'தனிப்பட்ட சலுகைகள் எதுவும் இதுவரை இல்லை',
+  noPrivateOffersDesc: 'ஒரு கடை உங்களுக்கு தனிப்பட்ட சலுகையை அனுப்பும்போது, அது இங்கே தோன்றும்.',
+  dealsStoreSentPersonally: 'ஒரு கடை உங்களுக்கு தனிப்பட்ட முறையில் அனுப்பிய சலுகைகள்',
+  justForYou: 'உங்களுக்காக மட்டும்',
+  orderNowBtn: 'இப்போதே ஆர்டர் செய்',
+  signInForPrivateOffers: 'உங்கள் சலுகைகளைக் காண உள்நுழையவும்',
+  signInForPrivateOffersDesc: 'நீங்கள் உள்நுழைந்ததும் உங்கள் கணக்கிற்கு அனுப்பப்பட்ட பிரத்யேக சலுகைகள் இங்கே தோன்றும்.',
+};

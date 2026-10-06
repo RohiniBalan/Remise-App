@@ -11,6 +11,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../..
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateProductName } from '../../i18n';
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
   PENDING: { bg: '#FFFBEB', fg: '#B45309', darkBg: 'rgba(217, 119, 6, 0.15)', darkFg: '#FBBF24' },
@@ -22,6 +23,7 @@ export default function SellerOverviewScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store, orders, products, storeNameByOwnerId, loading, refresh } = useSellerDashboard();
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -48,9 +50,9 @@ export default function SellerOverviewScreen() {
   const pct = target > 0 ? Math.min(100, Math.round((monthDeliveredRevenue / target) * 100)) : 0;
 
   const stats = [
-    { label: 'Total Orders', value: String(totalOrders), icon: ShoppingBag, color: '#2563EB' },
-    { label: 'Total Revenue (₹)', value: `₹${totalRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: '#16A34A' },
-    { label: 'Products Sold', value: String(analytics.totalProductsSold), icon: TrendingUp, color: '#7C3AED' },
+    { label: t('store.totalOrders'), value: String(totalOrders), icon: ShoppingBag, color: '#2563EB' },
+    { label: `${t('store.totalRevenue')} (₹)`, value: `₹${totalRevenue.toLocaleString('en-IN')}`, icon: IndianRupee, color: '#16A34A' },
+    { label: t('store.totalProductsSold'), value: String(analytics.totalProductsSold), icon: TrendingUp, color: '#7C3AED' },
   ];
 
   if (loading) {
@@ -75,12 +77,12 @@ export default function SellerOverviewScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.roleBannerText} numberOfLines={1}>
-              {store?.name || (isWholesaler ? 'Wholesale Merchant Console' : 'Home Business Console')}
+              {store?.name || (isWholesaler ? (t('store.wholesaleMerchantConsole') || 'Wholesale Merchant Console') : (t('store.homeBusinessConsole') || 'Home Business Console'))}
             </Text>
             <Text style={styles.roleBannerSub}>
               {isWholesaler
-                ? '📦 Wholesale Merchant Console'
-                : '🏠 Artisan & Home Business Console'}
+                ? `📦 ${t('store.wholesaleMerchantConsole') || 'Wholesale Merchant Console'}`
+                : `🏠 ${t('store.artisanHomeConsole') || 'Artisan & Home Business Console'}`}
             </Text>
           </View>
         </View>
@@ -89,21 +91,21 @@ export default function SellerOverviewScreen() {
       {/* Target revenue */}
       <View style={styles.targetCard}>
         <View style={styles.targetHeader}>
-          <Text style={styles.targetTitle}>Monthly Target</Text>
+          <Text style={styles.targetTitle}>{t('store.revenueTarget')}</Text>
           {target === 0 && (
-            <TouchableOpacity onPress={() => navigation.navigate('SellerSettings')}><Text style={styles.link}>Set target</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('SellerSettings')}><Text style={styles.link}>{t('store.setTarget')}</Text></TouchableOpacity>
           )}
         </View>
         {target > 0 ? (
           <>
             <Text style={styles.targetAmounts}>
-              ₹{monthDeliveredRevenue.toLocaleString('en-IN')} <Text style={styles.targetOf}>of ₹{target.toLocaleString('en-IN')}</Text>
+              ₹{monthDeliveredRevenue.toLocaleString('en-IN')} <Text style={styles.targetOf}>{t('store.of') || 'of'} ₹{target.toLocaleString('en-IN')}</Text>
             </Text>
             <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${pct}%` }]} /></View>
-            <Text style={styles.targetPct}>{pct}% achieved this month</Text>
+            <Text style={styles.targetPct}>{pct}% {t('store.targetAchieved')} ({t('store.thisMonth')})</Text>
           </>
         ) : (
-          <Text style={styles.targetEmpty}>Set a monthly revenue target in Settings to track progress here.</Text>
+          <Text style={styles.targetEmpty}>{t('store.setMonthlyTargetDesc')}</Text>
         )}
       </View>
 
@@ -121,11 +123,13 @@ export default function SellerOverviewScreen() {
       {/* Sales trend */}
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Sales Trend</Text>
+          <Text style={styles.sectionTitle}>{t('store.salesTrend')}</Text>
           <View style={styles.granRow}>
             {(['daily', 'weekly', 'monthly'] as const).map(g => (
               <TouchableOpacity key={g} onPress={() => setGranularity(g)} style={[styles.granChip, granularity === g && styles.granChipActive]}>
-                <Text style={[styles.granChipText, granularity === g && styles.granChipTextActive]}>{g[0].toUpperCase() + g.slice(1)}</Text>
+                <Text style={[styles.granChipText, granularity === g && styles.granChipTextActive]}>
+                  {g === 'daily' ? t('store.daily') : g === 'weekly' ? t('store.weekly') : t('store.monthly')}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -135,25 +139,25 @@ export default function SellerOverviewScreen() {
 
       {/* Revenue by month */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Revenue by Month</Text>
+        <Text style={styles.sectionTitle}>{t('store.revenueByMonth')}</Text>
         <MiniBarChart data={analytics.revenueByMonth} />
       </View>
 
       {/* Top selling products */}
       <View style={styles.tableSection}>
-        <Text style={styles.sectionTitleInset}>Top Selling Products</Text>
+        <Text style={styles.sectionTitleInset}>{t('store.topSellingProducts')}</Text>
         <View style={styles.tableHeaderRow}>
-          <Text style={[styles.tableHeaderText, { flex: 2 }]}>Product</Text>
+          <Text style={[styles.tableHeaderText, { flex: 2 }]}>{t('products.product') || 'Product'}</Text>
           <Text style={[styles.tableHeaderText, { flex: 1 }]}>Brand</Text>
           <Text style={[styles.tableHeaderText, { width: 40, textAlign: 'right' }]}>Qty</Text>
-          <Text style={[styles.tableHeaderText, { width: 70, textAlign: 'right' }]}>Revenue</Text>
+          <Text style={[styles.tableHeaderText, { width: 70, textAlign: 'right' }]}>{t('store.totalRevenue') || 'Revenue'}</Text>
         </View>
         {analytics.topProducts.length === 0 ? (
-          <Text style={styles.emptyText}>No data</Text>
+          <Text style={styles.emptyText}>{t('store.noData')}</Text>
         ) : (
           analytics.topProducts.map(r => (
             <View key={`${r.title}-${r.brand}`} style={styles.tableRow}>
-              <Text style={[styles.tableCell, { flex: 2, fontWeight: '700' }]} numberOfLines={1}>{r.title}</Text>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: '700' }]} numberOfLines={1}>{translateProductName(r.title, language)}</Text>
               <Text style={[styles.tableCell, { flex: 1 }]} numberOfLines={1}>{r.brand}</Text>
               <Text style={[styles.tableCell, { width: 40, textAlign: 'right' }]}>{r.qty}</Text>
               <Text style={[styles.tableCell, { width: 70, textAlign: 'right', color: CustomerColors.teal700, fontWeight: '700' }]}>₹{r.revenue.toLocaleString('en-IN')}</Text>
@@ -166,16 +170,16 @@ export default function SellerOverviewScreen() {
       <View style={styles.tableSection}>
         <View style={styles.sectionHeaderIconRow}>
           <Store size={15} color={CustomerColors.teal600} />
-          <Text style={styles.sectionTitleInset}>Top Buying Stores</Text>
+          <Text style={styles.sectionTitleInset}>{t('store.topBuyingStores')}</Text>
         </View>
         {buyers.length === 0 ? (
-          <Text style={styles.emptyText}>No buyers yet</Text>
+          <Text style={styles.emptyText}>{t('store.noBuyersYet')}</Text>
         ) : (
           buyers.slice(0, 8).map(b => (
             <View key={b.buyerId} style={styles.buyerRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.buyerName} numberOfLines={1}>{b.storeName}</Text>
-                <Text style={styles.buyerSub}>{b.totalOrders} order{b.totalOrders !== 1 ? 's' : ''}</Text>
+                <Text style={styles.buyerSub}>{b.totalOrders} {t('store.ordersCountLabel') || 'orders'}</Text>
               </View>
               <Text style={styles.buyerRevenue}>₹{b.totalRevenue.toLocaleString('en-IN')}</Text>
             </View>
@@ -185,7 +189,7 @@ export default function SellerOverviewScreen() {
 
       {/* Payment status overview */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Payment Status Overview</Text>
+        <Text style={styles.sectionTitle}>{t('store.paymentStatusOverview')}</Text>
         <View style={styles.paymentGrid}>
           {Object.entries(payments.statusCounts).map(([status, count]) => {
             const c = STATUS_COLORS[status] || { bg: '#F3F4F6', fg: '#4B5563', darkBg: '#1F2937', darkFg: '#9CA3AF' };
@@ -199,14 +203,14 @@ export default function SellerOverviewScreen() {
               </View>
             );
           })}
-          {Object.keys(payments.statusCounts).length === 0 && <Text style={styles.emptyText}>No orders yet</Text>}
+          {Object.keys(payments.statusCounts).length === 0 && <Text style={styles.emptyText}>{t('orders.noOrders') || 'No orders yet'}</Text>}
         </View>
         <View style={styles.paymentStatLine}>
-          <Text style={styles.paymentStatLabel}>Avg. pending days</Text>
-          <Text style={styles.paymentStatValue}>{payments.avgPendingDays.toFixed(1)} days</Text>
+          <Text style={styles.paymentStatLabel}>{t('store.avgPendingDays')}</Text>
+          <Text style={styles.paymentStatValue}>{payments.avgPendingDays.toFixed(1)} {t('store.days')}</Text>
         </View>
         <View style={styles.paymentStatLine}>
-          <Text style={styles.paymentStatLabel}>Pending &gt; 7 days</Text>
+          <Text style={styles.paymentStatLabel}>{t('store.pendingOver7Days')}</Text>
           <Text style={[styles.paymentStatValue, payments.over7Days.length > 0 && { color: '#FF0000' }]}>{payments.over7Days.length}</Text>
         </View>
       </View>
@@ -215,10 +219,10 @@ export default function SellerOverviewScreen() {
       <View style={styles.tableSection}>
         <View style={styles.sectionHeaderIconRow}>
           <Clock size={15} color="#D97706" />
-          <Text style={styles.sectionTitleInset}>Pending Payment Aging</Text>
+          <Text style={styles.sectionTitleInset}>{t('store.pendingAging')}</Text>
         </View>
         {payments.pendingAging.length === 0 ? (
-          <Text style={styles.emptyText}>No pending payments</Text>
+          <Text style={styles.emptyText}>{t('store.noPendingPayments')}</Text>
         ) : (
           payments.pendingAging.map(p => (
             <View key={p.orderId} style={styles.buyerRow}>
@@ -231,7 +235,7 @@ export default function SellerOverviewScreen() {
                 <View style={[styles.agingBadge, p.daysPending > 7 ? styles.agingBadgeUrgent : styles.agingBadgeWarn]}>
                   {p.daysPending > 7 && <AlertCircle size={10} color="#FF0000" />}
                   <Text style={[styles.agingText, p.daysPending > 7 && { color: '#FF0000' }]}>
-                    Pending {p.daysPending} day{p.daysPending !== 1 ? 's' : ''}
+                    {t('store.pendingDays') ? `${t('store.pendingDays')}: ${p.daysPending}` : `Pending ${p.daysPending} days`}
                   </Text>
                 </View>
               </View>

@@ -14,3 +14,15 @@ fs.writeFileSync(
 );
 
 console.log('Created .env for EAS build.');
+
+// Optional: if google-services.json is stored as an EAS secret base64 string
+const googleServicesBase64 = process.env.GOOGLE_SERVICES_JSON_BASE64;
+if (googleServicesBase64) {
+  try {
+    const decoded = Buffer.from(googleServicesBase64, 'base64').toString('utf8');
+    fs.writeFileSync('android/app/google-services.json', decoded, { encoding: 'utf8' });
+    console.log('Wrote android/app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret.');
+  } catch (err) {
+    console.warn('Could not decode GOOGLE_SERVICES_JSON_BASE64:', err.message);
+  }
+}

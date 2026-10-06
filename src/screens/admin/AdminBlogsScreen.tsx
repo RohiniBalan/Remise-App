@@ -37,6 +37,7 @@ import { blogApi } from '../../api/blogApi';
 import { useTheme } from '../../context/ThemeContext';
 import { getAdminColors, AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation, translateCategory, translatePressContent, translateDate } from '../../i18n';
 
 const CATEGORIES = [
   'All',
@@ -49,6 +50,7 @@ const CATEGORIES = [
 ];
 
 export default function AdminBlogsScreen() {
+  const { t, language } = useTranslation();
   const { isDark: globalDark } = useTheme();
   const [adminDark, setAdminDark] = useState<boolean | null>(null);
   const [articles, setArticles] = useState<any[]>([]);
@@ -309,11 +311,11 @@ export default function AdminBlogsScreen() {
         <View style={{ flex: 1 }}>
           <View style={styles.badgeRow}>
             <Newspaper size={12} color={AdminColors.primary} />
-            <Text style={styles.badgeText}>Publishing Studio</Text>
+            <Text style={styles.badgeText}>{t('admin.adminPublishingStudio')}</Text>
           </View>
-          <Text style={[styles.title, { color: dynamicColors.textPrimary }]}>Blogs & News</Text>
+          <Text style={[styles.title, { color: dynamicColors.textPrimary }]}>{t('admin.blogsNewsManagement')}</Text>
           <Text style={[styles.subtitle, { color: dynamicColors.textSecondary }]}>
-            Write and publish stories that sync live to app & web.
+            {t('admin.blogsSubtitle')}
           </Text>
         </View>
 
@@ -329,7 +331,7 @@ export default function AdminBlogsScreen() {
 
           <TouchableOpacity style={styles.addBtn} onPress={openNewModal} activeOpacity={0.8}>
             <Plus size={15} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>Write</Text>
+            <Text style={styles.addBtnText}>{t('admin.newStory')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -337,23 +339,23 @@ export default function AdminBlogsScreen() {
       {/* STATS STRIP */}
       <View style={[styles.statsStrip, { backgroundColor: dynamicColors.card, borderBottomColor: dynamicColors.border }]}>
         <View style={styles.statBox}>
-          <Text style={[styles.statLabel, { color: dynamicColors.textSecondary }]}>Total</Text>
+          <Text style={[styles.statLabel, { color: dynamicColors.textSecondary }]}>{t('admin.totalStories')}</Text>
           <Text style={[styles.statValue, { color: dynamicColors.textPrimary }]}>{articles.length}</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={[styles.statLabel, { color: '#22C55E' }]}>Live</Text>
+          <Text style={[styles.statLabel, { color: '#22C55E' }]}>{t('admin.published')}</Text>
           <Text style={[styles.statValue, { color: '#22C55E' }]}>
             {articles.filter(a => a.published).length}
           </Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={[styles.statLabel, { color: '#F59E0B' }]}>Drafts</Text>
+          <Text style={[styles.statLabel, { color: '#F59E0B' }]}>{t('admin.drafts')}</Text>
           <Text style={[styles.statValue, { color: '#F59E0B' }]}>
             {articles.filter(a => !a.published).length}
           </Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={[styles.statLabel, { color: AdminColors.primary }]}>News</Text>
+          <Text style={[styles.statLabel, { color: AdminColors.primary }]}>{t('admin.newsItems')}</Text>
           <Text style={[styles.statValue, { color: AdminColors.primary }]}>
             {articles.filter(a => a.type === 'news').length}
           </Text>
@@ -366,7 +368,7 @@ export default function AdminBlogsScreen() {
           <Search size={15} color={dynamicColors.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#0F172A' }]}
-            placeholder="Search stories..."
+            placeholder={t('admin.searchBlogsPlaceholder')}
             placeholderTextColor={dynamicColors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -392,7 +394,11 @@ export default function AdminBlogsScreen() {
                   statusFilter === tab && styles.statusTabTextActive,
                 ]}
               >
-                {tab.toUpperCase()}
+                {tab === 'all'
+                  ? t('admin.all').toUpperCase()
+                  : tab === 'published'
+                  ? t('admin.liveBadge').toUpperCase()
+                  : t('admin.draftBadge').toUpperCase()}
               </Text>
             </TouchableOpacity>
           ))}
@@ -419,7 +425,7 @@ export default function AdminBlogsScreen() {
                   activeCategory === cat && styles.catChipTextActive,
                 ]}
               >
-                {cat}
+                {cat === 'All' ? t('admin.allCategories') : translateCategory(cat, language)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -457,23 +463,23 @@ export default function AdminBlogsScreen() {
                   {art.featured && (
                     <View style={styles.featuredBadge}>
                       <Star size={10} color="#FBBF24" fill="#FBBF24" />
-                      <Text style={styles.featuredBadgeText}>FEATURED</Text>
+                      <Text style={styles.featuredBadgeText}>{t('admin.featured')}</Text>
                     </View>
                   )}
                   <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{art.category}</Text>
+                    <Text style={styles.categoryBadgeText}>{translateCategory(art.category, language)}</Text>
                   </View>
                   <View style={[styles.statusBadge, art.published ? styles.liveBadge : styles.draftBadge]}>
                     <Text style={[styles.statusBadgeText, art.published ? styles.liveText : styles.draftText]}>
-                      {art.published ? 'LIVE' : 'DRAFT'}
+                      {art.published ? t('admin.liveBadge') : t('admin.draftBadge')}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              <Text style={[styles.cardTitle, { color: dynamicColors.textPrimary }]}>{art.title}</Text>
+              <Text style={[styles.cardTitle, { color: dynamicColors.textPrimary }]}>{translatePressContent(art.title, language)}</Text>
               <Text style={[styles.cardExcerpt, { color: dynamicColors.textSecondary }]} numberOfLines={2}>
-                {art.excerpt}
+                {translatePressContent(art.excerpt, language)}
               </Text>
 
               <View style={styles.metaRow}>
@@ -483,7 +489,7 @@ export default function AdminBlogsScreen() {
                 </View>
                 <View style={styles.metaItem}>
                   <Calendar size={11} color={dynamicColors.textSecondary} />
-                  <Text style={[styles.metaText, { color: dynamicColors.textSecondary }]}>{art.date}</Text>
+                  <Text style={[styles.metaText, { color: dynamicColors.textSecondary }]}>{translateDate(art.date, language)}</Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Clock size={11} color={dynamicColors.textSecondary} />
@@ -499,7 +505,7 @@ export default function AdminBlogsScreen() {
                 >
                   {art.published ? <EyeOff size={13} color="#F59E0B" /> : <Eye size={13} color="#22C55E" />}
                   <Text style={[styles.actionBtnText, { color: art.published ? '#F59E0B' : '#22C55E' }]}>
-                    {art.published ? 'Draft' : 'Publish'}
+                    {art.published ? t('admin.draftBadge') : t('admin.publish')}
                   </Text>
                 </TouchableOpacity>
 
@@ -508,7 +514,7 @@ export default function AdminBlogsScreen() {
                   onPress={() => openEditModal(art)}
                 >
                   <Edit3 size={13} color={isDark ? '#FFF' : '#0F172A'} />
-                  <Text style={[styles.actionBtnText, { color: isDark ? '#FFF' : '#0F172A' }]}>Edit</Text>
+                  <Text style={[styles.actionBtnText, { color: isDark ? '#FFF' : '#0F172A' }]}>{t('admin.edit')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -537,7 +543,7 @@ export default function AdminBlogsScreen() {
               <Text style={[styles.modalHeaderTitle, { color: dynamicColors.textPrimary }]}>
                 {isEditing ? 'Edit Story' : 'Compose Story'}
               </Text>
-              <Text style={[styles.modalHeaderSub, { color: dynamicColors.textSecondary }]}>
+              <Text style={[styles.modalHeaderSub, { color: isDark ? '#CBD5E1' : dynamicColors.textSecondary }]}>
                 Publish live to web & mobile app
               </Text>
             </View>

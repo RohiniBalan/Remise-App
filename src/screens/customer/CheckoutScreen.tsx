@@ -43,6 +43,7 @@ import {
 } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateProductName } from '../../i18n';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
@@ -60,6 +61,7 @@ const emptyAddress = (): AddressData => ({
 
 export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
+  const { language } = useTranslation();
   const { isDark } = useTheme();
   const { user, token } = useAuth();
   const {
@@ -370,7 +372,7 @@ export default function CheckoutScreen() {
                   style={[styles.lineTitle, isDark && { color: '#FFFFFF' }]}
                   numberOfLines={2}
                 >
-                  {item.title}
+                  {translateProductName(item.title, language)}
                 </Text>
                 <View style={styles.lineBottomRow}>
                   <View

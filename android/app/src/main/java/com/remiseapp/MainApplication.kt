@@ -1,6 +1,9 @@
 package com.remiseapp
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -22,6 +25,22 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+
+    // Register high-priority notification channel for Android 8.0+ (API 26+)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channel = NotificationChannel(
+        "remise_notifications",
+        "Remise Notifications",
+        NotificationManager.IMPORTANCE_HIGH
+      ).apply {
+        description = "Remise order updates, offers, and delivery alerts"
+        enableLights(true)
+        enableVibration(true)
+      }
+      getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+    }
+
     loadReactNative(this)
   }
 }
+

@@ -58,6 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }, []);
 
   const logout = useCallback(async () => {
+    try {
+      const { unregisterDeviceToken } = require('../services/fcmService');
+      await unregisterDeviceToken();
+    } catch (e) {
+      // non-fatal
+    }
     await Promise.all([storage.removeUser(), storage.removeToken()]);
     setUser(null);
     setToken(null);

@@ -37,6 +37,8 @@ import {
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
+import { getTermsData, ArticleItem, ArticleBlock } from '../../i18n/termsTranslations';
 
 // Ported from client/app/terms/page.tsx — uses website brand red (#FF0000).
 
@@ -45,211 +47,40 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const BRAND_RED = CustomerColors.primary;
-const LAST_UPDATED = '20 August 2026';
 
-type Block =
-    | { type: 'p'; text: string; bold?: string }
-    | { type: 'ul'; items: string[] };
-
-type Article = {
-    n: number;
-    title: string;
-    icon: React.ElementType;
-    summary: string;
-    blocks: Block[];
+const ARTICLE_ICONS: Record<number, React.ElementType> = {
+    1: Info,
+    2: UserCog,
+    3: ShoppingBag,
+    4: Store,
+    5: ClipboardList,
+    6: IndianRupee,
+    7: Package,
+    8: Truck,
+    9: CreditCard,
+    10: RotateCcw,
+    11: Ban,
+    12: Copyright,
+    13: Plug,
+    14: UserX,
+    15: ShieldAlert,
+    16: Settings2,
+    17: FileEdit,
+    18: Scale,
+    19: Mail,
 };
 
-const ARTICLES: Article[] = [
-    {
-        n: 1,
-        title: 'About Remise',
-        icon: Info,
-        summary: 'What Remise connects customers and sellers to do.',
-        blocks: [
-            { type: 'p', text: 'Remise is an e-commerce and local commerce platform that facilitates interactions between customers and sellers, including Store Owners, Wholesalers, and Home Businesses.' },
-            { type: 'p', text: 'Depending on the service, Remise may facilitate:' },
-            { type: 'ul', items: ['Product discovery', 'Store comparison', 'Product ordering', 'Payment processing', 'Pickup', 'Delivery', 'Seller-customer communication'] },
-        ],
-    },
-    {
-        n: 2,
-        title: 'User Accounts',
-        icon: UserCog,
-        summary: 'Keep your details accurate and your login secure.',
-        blocks: [
-            { type: 'p', text: 'You must provide accurate information when creating an account. You are responsible for:' },
-            { type: 'ul', items: ['Maintaining the confidentiality of your account.', 'Keeping your login credentials secure.', 'Providing accurate information.', 'All activities performed through your account.'] },
-            { type: 'p', text: 'Do not share your password or OTP with others.' },
-        ],
-    },
-    {
-        n: 3,
-        title: 'Customer Responsibilities',
-        icon: ShoppingBag,
-        summary: 'Accurate details, correct orders, and required payment.',
-        blocks: [
-            { type: 'ul', items: ['Provide accurate delivery information.', 'Select the correct store and products.', 'Verify order details before confirmation.', 'Make required payments.', 'Follow applicable store policies.'] },
-        ],
-    },
-    {
-        n: 4,
-        title: 'Seller Responsibilities',
-        icon: Store,
-        summary: 'Accurate listings, lawful products, and honoring orders.',
-        blocks: [
-            { type: 'ul', items: ['Providing accurate product information.', 'Maintaining correct prices.', 'Maintaining accurate stock information.', 'Fulfilling accepted orders.', 'Providing genuine and lawful products.', 'Following applicable laws and regulations.', 'Honoring applicable return/refund policies.'] },
-        ],
-    },
-    {
-        n: 5,
-        title: 'Ordering & Acceptance',
-        icon: ClipboardList,
-        summary: 'Orders are offers subject to seller acceptance.',
-        blocks: [
-            { type: 'p', text: 'Orders placed on Remise are offers to purchase products from sellers. Orders are subject to seller acceptance, product availability, and confirmation of pricing and delivery terms.' },
-        ],
-    },
-    {
-        n: 6,
-        title: 'Pricing & Availability',
-        icon: IndianRupee,
-        summary: 'Prices set by sellers, subject to change before confirmation.',
-        blocks: [
-            { type: 'p', text: 'Product prices and availability are managed by sellers and are subject to change. Prices may vary depending on customer type, bulk quantities, or promotional offers.' },
-        ],
-    },
-    {
-        n: 7,
-        title: 'Bulk & Wholesale Orders',
-        icon: Package,
-        summary: 'Special terms for high-volume transactions.',
-        blocks: [
-            { type: 'p', text: 'Bulk and wholesale orders may be subject to minimum order quantities, custom pricing, and specific delivery schedules agreed upon between the buyer and seller.' },
-        ],
-    },
-    {
-        n: 8,
-        title: 'Fulfillment & Delivery',
-        icon: Truck,
-        summary: 'Delivery timelines, pickup options, and shipping terms.',
-        blocks: [
-            { type: 'p', text: 'Fulfillment options include store pickup and home delivery where supported. Delivery timelines and charges are determined based on store location and fulfillment method.' },
-        ],
-    },
-    {
-        n: 9,
-        title: 'Payment Terms',
-        icon: CreditCard,
-        summary: 'Authorized gateways, pre-paid and COD terms.',
-        blocks: [
-            { type: 'p', text: 'Payments are processed through secure payment gateways. Remise supports accepted payment methods including UPI, cards, and net banking. Cash on delivery is subject to seller policy.' },
-        ],
-    },
-    {
-        n: 10,
-        title: 'Returns & Refunds',
-        icon: RotateCcw,
-        summary: 'Return eligibility, inspection, and refund processing.',
-        blocks: [
-            { type: 'p', text: 'Returns and refunds are governed by the platform Return Policy and individual seller terms. Eligible returns must meet condition requirements within the return window.' },
-        ],
-    },
-    {
-        n: 11,
-        title: 'Prohibited Activities',
-        icon: Ban,
-        summary: 'Misuse, fraudulent orders, and scraping restrictions.',
-        blocks: [
-            { type: 'p', text: 'Users may not misuse the platform, engage in fraudulent transactions, attempt unauthorised access, or disrupt the service operations.' },
-        ],
-    },
-    {
-        n: 12,
-        title: 'Intellectual Property',
-        icon: Copyright,
-        summary: 'Trademarks, content rights, and brand assets.',
-        blocks: [
-            { type: 'p', text: 'All branding, platform content, designs, and logos belong to Remise or its licensors and may not be reproduced without written permission.' },
-        ],
-    },
-    {
-        n: 13,
-        title: 'Third-Party Services',
-        icon: Plug,
-        summary: 'Gateways, maps, and logistics integrations.',
-        blocks: [
-            { type: 'p', text: 'Remise integrates third-party tools such as mapping and payment providers. Use of these tools is subject to their respective terms.' },
-        ],
-    },
-    {
-        n: 14,
-        title: 'Termination',
-        icon: UserX,
-        summary: 'Account suspension and termination grounds.',
-        blocks: [
-            { type: 'p', text: 'Remise reserves the right to suspend or terminate accounts that violate these Terms or engage in unlawful or fraudulent behavior.' },
-        ],
-    },
-    {
-        n: 15,
-        title: 'Limitation of Liability',
-        icon: ShieldAlert,
-        summary: 'Platform intermediary liability scope.',
-        blocks: [
-            { type: 'p', text: 'Remise operates as an intermediary marketplace and is not directly liable for seller product defects, delivery delays caused by third parties, or consequential damages.' },
-        ],
-    },
-    {
-        n: 16,
-        title: 'Platform Modifications',
-        icon: Settings2,
-        summary: 'Features and service updates.',
-        blocks: [
-            { type: 'p', text: 'We may modify, suspend, or improve platform features at any time to enhance the user experience.' },
-        ],
-    },
-    {
-        n: 17,
-        title: 'Changes to Terms',
-        icon: FileEdit,
-        summary: 'Notice and acceptance of updated Terms.',
-        blocks: [
-            { type: 'p', text: 'We may revise these Terms periodically. Continued use of Remise following updates constitutes acceptance.' },
-        ],
-    },
-    {
-        n: 18,
-        title: 'Governing Law',
-        icon: Scale,
-        summary: 'Applicable jurisdiction and dispute resolution.',
-        blocks: [
-            { type: 'p', text: 'These Terms are governed by the laws of India. Any legal proceedings shall be subject to the exclusive jurisdiction of the competent courts in India.' },
-        ],
-    },
-    {
-        n: 19,
-        title: 'Contact Information',
-        icon: Mail,
-        summary: 'How to reach our legal and support teams.',
-        blocks: [
-            { type: 'p', text: 'For questions regarding these Terms, contact us at porulontechnologies@gmail.com or via the Help Center.' },
-        ],
-    },
-];
-
-const HIGHLIGHTS = [
-    { title: 'One account, your responsibility', icon: UserCog, desc: 'Keep your login and OTP private — every action on your account is yours.' },
-    { title: 'Sellers vouch for listings', icon: Store, desc: 'Store Owners, Wholesalers, and Home Businesses must keep prices, stock, and product info accurate.' },
-    { title: 'Pricing can vary by account', icon: IndianRupee, desc: 'You may see a different price than a Store Owner or bulk buyer for the same item.' },
-    { title: 'Pickup or delivery, your choice', icon: Truck, desc: 'Availability, fees, and timing can vary by store and location.' },
-    { title: 'India-governed', icon: Scale, desc: 'These Terms are governed by Indian law, with disputes subject to the appropriate courts.' },
-];
-
-function ArticleBlocks({ blocks, textPri, textSec }: { blocks: Block[]; textPri?: string; textSec?: string }) {
+const HIGHLIGHT_ICONS: React.ElementType[] = [
+    UserCog,
+    Store,
+    IndianRupee,
+    Truck,
+    Scale,
+];function ArticleBlocks({ blocks, textPri, textSec }: { blocks: ArticleBlock[]; textPri?: string; textSec?: string }) {
     return (
         <>
             {blocks.map((b, i) => {
-                if (b.type === 'ul') {
+                if (b.type === 'ul' && b.items) {
                     return (
                         <View key={i} style={{ marginTop: Spacing.xs }}>
                             {b.items.map((it) => (
@@ -263,7 +94,6 @@ function ArticleBlocks({ blocks, textPri, textSec }: { blocks: Block[]; textPri?
                 }
                 return (
                     <Text key={i} style={[styles.articleParagraph, textSec ? { color: textSec } : undefined]}>
-                        {b.bold ? <Text style={[styles.boldInline, textPri ? { color: textPri } : undefined]}>{b.bold} </Text> : null}
                         {b.text}
                     </Text>
                 );
@@ -281,7 +111,7 @@ function ArticleRow({
     textSec,
     iconBg,
 }: {
-    article: Article;
+    article: ArticleItem;
     isOpen: boolean;
     onToggle: () => void;
     borderColor?: string;
@@ -289,7 +119,7 @@ function ArticleRow({
     textSec?: string;
     iconBg?: string;
 }) {
-    const Icon = article.icon;
+    const Icon = ARTICLE_ICONS[article.n] || Info;
     return (
         <View style={[styles.articleRow, borderColor ? { borderBottomColor: borderColor } : undefined]}>
             <TouchableOpacity style={styles.articleHeader} onPress={onToggle} activeOpacity={0.75}>
@@ -318,6 +148,8 @@ function ArticleRow({
 
 export default function TermsOfServiceScreen() {
     const { isDark } = useTheme();
+    const { language } = useTranslation();
+    const terms = getTermsData(language);
     const navigation = useNavigation<any>();
     const [openSet, setOpenSet] = useState<Set<number>>(new Set([1]));
 
@@ -340,7 +172,7 @@ export default function TermsOfServiceScreen() {
 
     const expandAll = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setOpenSet(new Set(ARTICLES.map((a) => a.n)));
+        setOpenSet(new Set(terms.articles.map((a) => a.n)));
     };
     const collapseAll = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -358,21 +190,20 @@ export default function TermsOfServiceScreen() {
             <View style={styles.hero}>
                 <View style={[styles.badge, { backgroundColor: iconBg }]}>
                     <FileText size={13} color={BRAND_RED} />
-                    <Text style={styles.badgeText}>Last updated {LAST_UPDATED}</Text>
+                    <Text style={styles.badgeText}>{terms.lastUpdatedLabel} {terms.lastUpdatedDate}</Text>
                 </View>
-                <Text style={[styles.heroTitle, { color: textPri }]}>Terms of Service</Text>
+                <Text style={[styles.heroTitle, { color: textPri }]}>{terms.heroTitle}</Text>
                 <Text style={[styles.heroSubtitle, { color: textSec }]}>
-                    19 short clauses covering accounts, orders, pricing, payments, and what happens if
-                    something goes wrong. By using Remise, you agree to these Terms.
+                    {terms.heroSubtitle}
                 </Text>
             </View>
 
             {/* THE GIST */}
             <View style={styles.section}>
-                <Text style={[styles.h2, { color: textPri }]}>The gist</Text>
-                <Text style={[styles.h2Sub, { color: textSec }]}>Not a substitute for the full Terms below — just the shape of them.</Text>
-                {HIGHLIGHTS.map((h) => {
-                    const Icon = h.icon;
+                <Text style={[styles.h2, { color: textPri }]}>{terms.highlightsTitle}</Text>
+                <Text style={[styles.h2Sub, { color: textSec }]}>{terms.highlightsSubtitle}</Text>
+                {terms.highlights.map((h, idx) => {
+                    const Icon = HIGHLIGHT_ICONS[idx] || UserCog;
                     return (
                         <View key={h.title} style={[styles.highlightCard, { backgroundColor: cardBg, borderColor }]}>
                             <View style={[styles.highlightIcon, { backgroundColor: iconBg }]}>
@@ -390,18 +221,18 @@ export default function TermsOfServiceScreen() {
             {/* INDEX */}
             <View style={styles.section}>
                 <View style={styles.indexHeaderRow}>
-                    <Text style={[styles.h2, { color: textPri }]}>Index</Text>
+                    <Text style={[styles.h2, { color: textPri }]}>{language === 'ta' ? 'பொருளடக்கம்' : language === 'te' ? 'విషయ సూచిక' : language === 'ml' ? 'സൂചിക' : language === 'kn' ? 'ಪರಿವಿಡಿ' : language === 'hi' ? 'विषय - सूची' : 'Index'}</Text>
                     <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                         <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={expandAll}>
-                            <Text style={[styles.pillBtnText, { color: textPri }]}>Expand all</Text>
+                            <Text style={[styles.pillBtnText, { color: textPri }]}>{language === 'ta' ? 'அனைத்தையும் விரிவாக்கு' : language === 'te' ? 'అన్నీ విస్తరించండి' : language === 'ml' ? 'എല്ലാം വികസിപ്പിക്കുക' : language === 'kn' ? 'ಎಲ್ಲವನ್ನೂ ವಿಸ್ತರಿಸಿ' : language === 'hi' ? 'सभी विस्तृत करें' : 'Expand all'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={collapseAll}>
-                            <Text style={[styles.pillBtnText, { color: textPri }]}>Collapse all</Text>
+                            <Text style={[styles.pillBtnText, { color: textPri }]}>{language === 'ta' ? 'அனைத்தையும் சுருக்கு' : language === 'te' ? 'అన్నీ కుదించండి' : language === 'ml' ? 'എല്ലാം ചുരുക്കുക' : language === 'kn' ? 'ಎಲ್ಲವನ್ನೂ ಕುಗ್ಗಿಸಿ' : language === 'hi' ? 'सभी संक्षिप्त करें' : 'Collapse all'}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
                 <View style={[styles.indexGrid, { borderColor }]}>
-                    {ARTICLES.map((a) => (
+                    {terms.articles.map((a) => (
                         <TouchableOpacity
                             key={a.n}
                             style={[styles.indexItem, { backgroundColor: cardBg, borderBottomColor: borderColor }]}
@@ -417,9 +248,9 @@ export default function TermsOfServiceScreen() {
 
             {/* FULL TERMS */}
             <View style={styles.section}>
-                <Text style={[styles.h2, { color: textPri }]}>Full terms</Text>
+                <Text style={[styles.h2, { color: textPri }]}>{language === 'ta' ? 'முழு விதிமுறைகள்' : language === 'te' ? 'పూర్తి నిబంధనలు' : language === 'ml' ? 'പൂർണ്ണ നിബന്ധനകൾ' : language === 'kn' ? 'ಸಂಪೂರ್ಣ ನಿಯಮಗಳು' : language === 'hi' ? 'पूर्ण शर्तें' : 'Full terms'}</Text>
                 <View style={[styles.articlesCard, { backgroundColor: cardBg, borderColor }]}>
-                    {ARTICLES.map((a) => (
+                    {terms.articles.map((a) => (
                         <ArticleRow key={a.n} article={a} isOpen={openSet.has(a.n)} onToggle={() => toggle(a.n)} borderColor={borderColor} textPri={textPri} textSec={textSec} iconBg={iconBg} />
                     ))}
                 </View>
@@ -430,16 +261,16 @@ export default function TermsOfServiceScreen() {
                 <View style={[styles.ctaCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#fee2e2' }]}>
                     <View style={styles.ctaBadge}>
                         <Mail size={12} color="#FFFFFF" />
-                        <Text style={styles.ctaBadgeText}>Questions about these Terms?</Text>
+                        <Text style={styles.ctaBadgeText}>{terms.contactTag}</Text>
                     </View>
-                    <Text style={[styles.ctaTitle, { color: textPri }]}>Contact Remise through the official support channel.</Text>
+                    <Text style={[styles.ctaTitle, { color: textPri }]}>{terms.contactTitle}</Text>
                     <TouchableOpacity
                         style={styles.ctaButton}
                         onPress={() => navigation.navigate('HelpCenter')}
                         activeOpacity={0.85}
                     >
                         <Mail size={16} color="#FFFFFF" />
-                        <Text style={styles.ctaButtonText}>Get in touch</Text>
+                        <Text style={styles.ctaButtonText}>{terms.contactButton}</Text>
                         <ArrowRight size={15} color="#FFFFFF" />
                     </TouchableOpacity>
                 </View>

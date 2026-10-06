@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   CART: 'cart',
   WISHLIST: 'wishlist',
   THEME: 'theme',
+  LANGUAGE: 'remise_language',
   // Legacy fallback key some web flows read defensively
   // (`localStorage.getItem('token') || localStorage.getItem('accessToken')`);
   // web never writes it, only clears it. Kept here purely so a stale value
@@ -76,6 +77,9 @@ export const storage = {
 
   getTheme: () => AsyncStorage.getItem(STORAGE_KEYS.THEME),
   setTheme: (theme: 'dark' | 'light') => AsyncStorage.setItem(STORAGE_KEYS.THEME, theme),
+
+  getLanguage: () => AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE),
+  setLanguage: (lang: string) => AsyncStorage.setItem(STORAGE_KEYS.LANGUAGE, lang),
 
   // Matches web's cleanup-only handling of the legacy key.
   clearLegacyAccessToken: () => AsyncStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN),

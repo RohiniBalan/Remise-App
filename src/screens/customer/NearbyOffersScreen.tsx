@@ -56,6 +56,7 @@ import {
 } from '../../components/common/LocationSelectField';
 import { indianStates, getCities } from '../../utils/indiaLocation';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import { useTranslation, translateProductName } from '../../i18n';
 
 export interface Offer {
   _id: string;
@@ -109,6 +110,7 @@ export default function NearbyOffersScreen() {
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -328,7 +330,7 @@ export default function NearbyOffersScreen() {
                 <View style={styles.cardBody}>
                   <Text style={[styles.storeName, isDark && { color: '#5EEAD4' }]}>{item.storeName}</Text>
                   <Text style={[styles.offerTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={1}>
-                    {item.title}
+                    {translateProductName(item.title, language)}
                   </Text>
                   <View style={styles.priceRow}>
                     <Text style={[styles.offerPrice, isDark && { color: '#FFFFFF' }]}>
@@ -426,6 +428,7 @@ function OrderModal({
 }) {
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
+  const { language } = useTranslation();
 
   const [step, setStep] = useState<Step>('details');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup' | null>(null);
@@ -641,7 +644,7 @@ function OrderModal({
             <View style={styles.offerBadgePill}>
               <Text style={styles.offerBadgePillText}>Nearby Deal</Text>
             </View>
-            <Text style={styles.modalTitle} numberOfLines={1}>{offer.title}</Text>
+            <Text style={styles.modalTitle} numberOfLines={1}>{translateProductName(offer.title, language)}</Text>
             <Text style={styles.modalSubtitle} numberOfLines={1}>{offer.storeName}</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.modalCloseBtn}>
@@ -1023,7 +1026,7 @@ function OrderModal({
 
                 <View style={styles.billRow}>
                   <Text style={styles.billLabel}>Item:</Text>
-                  <Text style={styles.billValue}>{offer.title} × {form.quantity}</Text>
+                  <Text style={styles.billValue}>{translateProductName(offer.title, language)} × {form.quantity}</Text>
                 </View>
 
                 <View style={styles.billRow}>

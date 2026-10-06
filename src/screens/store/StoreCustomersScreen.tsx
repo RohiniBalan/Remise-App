@@ -9,9 +9,12 @@ import { buildCustomerInsights } from '../../utils/customerInsights';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
 
+import { useTranslation } from '../../i18n';
+
 export default function StoreCustomersScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const storeDash = useOptionalStoreDashboard();
   const sellerDash = useOptionalSellerDashboard();
@@ -42,7 +45,12 @@ export default function StoreCustomersScreen() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  const fmtDate = (d: string) =>
+    new Date(d).toLocaleDateString(language === 'en' ? 'en-IN' : `${language}-IN`, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
 
   return (
     <View style={styles.container}>
@@ -53,7 +61,7 @@ export default function StoreCustomersScreen() {
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search by name, phone or email…"
+            placeholder={t('store.searchCustomersPlaceholder')}
             placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
         </View>
@@ -63,7 +71,9 @@ export default function StoreCustomersScreen() {
         onPress={() => setOnlyRecurring(v => !v)}
       >
         <Star size={13} color={onlyRecurring ? '#fff' : (isDark ? '#9CA3AF' : CustomerColors.textSecondary)} />
-        <Text style={[styles.recurringBtnText, onlyRecurring && styles.recurringBtnTextActive]}>Recurring only ({recurringCount})</Text>
+        <Text style={[styles.recurringBtnText, onlyRecurring && styles.recurringBtnTextActive]}>
+          {t('store.recurringOnlyBtn')} ({recurringCount})
+        </Text>
       </TouchableOpacity>
 
       <FlatList
@@ -73,7 +83,7 @@ export default function StoreCustomersScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Users size={40} color={isDark ? '#374151' : '#E5E7EB'} />
-            <Text style={styles.emptyTitle}>No customers found</Text>
+            <Text style={styles.emptyTitle}>{t('store.noCustomersFound')}</Text>
           </View>
         }
         ListFooterComponent={
@@ -93,28 +103,28 @@ export default function StoreCustomersScreen() {
                   {c.isRecurring && (
                     <View style={styles.recurBadge}>
                       <Star size={9} color={isDark ? '#FCD34D' : '#B45309'} />
-                      <Text style={styles.recurBadgeText}>Recurring buyer</Text>
+                      <Text style={styles.recurBadgeText}>{t('store.recurringBuyerBadge')}</Text>
                     </View>
                   )}
                 </View>
                 <Text style={styles.meta}>
-                  {[c.phone, c.email, c.customerId ? `Customer ID: ${c.customerId}` : null].filter(Boolean).join(' · ')}
+                  {[c.phone, c.email, c.customerId ? `${t('store.customerIdPrefix')} ${c.customerId}` : null].filter(Boolean).join(' · ')}
                 </Text>
-                {c.lastOrderDate ? <Text style={styles.lastOrder}>Last order: {fmtDate(c.lastOrderDate)}</Text> : null}
+                {c.lastOrderDate ? <Text style={styles.lastOrder}>{t('store.lastOrderPrefix')} {fmtDate(c.lastOrderDate)}</Text> : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.spent}>₹{c.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                <Text style={styles.orderCount}>{c.totalOrders} order{c.totalOrders !== 1 ? 's' : ''}</Text>
+                <Text style={styles.orderCount}>{c.totalOrders} {c.totalOrders !== 1 ? t('store.ordersCountLabel') : t('store.orderCountLabel')}</Text>
               </View>
             </View>
 
             {c.isRecurring && (
               <View style={styles.recurSection}>
-                <Text style={styles.recurLabel}>Buys repeatedly</Text>
+                <Text style={styles.recurLabel}>{t('store.buysRepeatedlyTitle')}</Text>
                 <View style={styles.chipRow}>
                   {c.recurringProducts.map((p: any) => (
                     <View key={p.title} style={styles.chip}>
-                      <Text style={styles.chipText}>{p.title} · {p.monthCount} months</Text>
+                      <Text style={styles.chipText}>{p.title} · {p.monthCount} {t('store.monthsCountLabel')}</Text>
                     </View>
                   ))}
                 </View>
@@ -123,7 +133,7 @@ export default function StoreCustomersScreen() {
                   onPress={() => navigation.navigate('NewOffer', { customerId: c.customerId || c.key, customerName: c.name })}
                 >
                   <Tag size={13} color="#fff" />
-                  <Text style={styles.offerBtnText}>Create Offer →</Text>
+                  <Text style={styles.offerBtnText}>{t('store.createOfferBtn')}</Text>
                 </TouchableOpacity>
               </View>
             )}

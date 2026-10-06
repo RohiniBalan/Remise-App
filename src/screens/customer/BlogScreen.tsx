@@ -36,6 +36,8 @@ import { resolveImageUrl } from '../../utils/imageUrl';
 import { newsletterApi } from '../../api/newsletterApi';
 import { blogApi } from '../../api/blogApi';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translatePressContent, translateDate } from '../../i18n';
+import { getBlogData, formatReadTime } from '../../i18n/blogTranslations';
 import { useAuth } from '../../context/AuthContext';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 
@@ -197,6 +199,8 @@ const BUSINESS_TOPICS = [
 
 export default function BlogScreen({ navigation }: any) {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const blogData = getBlogData(language as any);
   const { user, token } = useAuth();
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [query, setQuery] = useState('');
@@ -342,19 +346,17 @@ export default function BlogScreen({ navigation }: any) {
       <View style={styles.hero}>
         <View style={styles.badge}>
           <Newspaper size={13} color={BRAND_RED} />
-          <Text style={styles.badgeText}>Blogs & News</Text>
+          <Text style={styles.badgeText}>{blogData.eyebrow}</Text>
         </View>
-        <Text style={[styles.heroTitle, { color: themeColors.textPrimary }]}>Stories from Remise</Text>
-        <Text style={[styles.heroSubtitle, { color: themeColors.textSecondary }]}>
-          Shopping tips, product updates, and news from local businesses building on Remise.
-        </Text>
+        <Text style={[styles.heroTitle, { color: themeColors.textPrimary }]}>{blogData.heroTitle}</Text>
+        <Text style={[styles.heroSubtitle, { color: themeColors.textSecondary }]}>{blogData.heroSubtitle}</Text>
 
         {/* SEARCH BAR */}
         <View style={[styles.searchContainer, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}>
           <Search size={16} color={BRAND_RED} />
           <TextInput
             style={[styles.searchInput, { color: themeColors.textPrimary }]}
-            placeholder="Search articles..."
+            placeholder={blogData.searchPlaceholder}
             placeholderTextColor={themeColors.textSecondary}
             value={query}
             onChangeText={setQuery}
@@ -385,7 +387,7 @@ export default function BlogScreen({ navigation }: any) {
               >
                 <Icon size={14} color={active ? '#FFFFFF' : themeColors.textSecondary} />
                 <Text style={[styles.categoryChipText, { color: themeColors.textSecondary }, active && styles.categoryChipTextActive]}>
-                  {cat}
+                  {blogData.categories[cat] || cat}
                 </Text>
               </TouchableOpacity>
             );
@@ -411,24 +413,24 @@ export default function BlogScreen({ navigation }: any) {
 
             <View style={styles.featuredHeader}>
               <View style={styles.featuredTag}>
-                <Text style={styles.featuredTagText}>FEATURED</Text>
+                <Text style={styles.featuredTagText}>{blogData.featuredBadge}</Text>
               </View>
-              <Text style={styles.featuredCategoryText}>{featured.category}</Text>
+              <Text style={styles.featuredCategoryText}>{blogData.categories[featured.category] || translatePressContent(featured.category, language as any) || featured.category}</Text>
             </View>
 
-            <Text style={[styles.featuredTitle, { color: themeColors.textPrimary }]}>{featured.title}</Text>
-            <Text style={[styles.featuredExcerpt, { color: themeColors.textSecondary }]}>{featured.excerpt}</Text>
+            <Text style={[styles.featuredTitle, { color: themeColors.textPrimary }]}>{translatePressContent(featured.title, language as any)}</Text>
+            <Text style={[styles.featuredExcerpt, { color: themeColors.textSecondary }]}>{translatePressContent(featured.excerpt, language as any)}</Text>
 
             <View style={styles.featuredMetaRow}>
               <View style={styles.metaItem}>
                 <Clock size={12} color={themeColors.textSecondary} />
-                <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{featured.readTime}</Text>
+                <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{formatReadTime(featured.readTime, language)}</Text>
               </View>
               <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>•</Text>
               <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{featured.date}</Text>
               <View style={{ flex: 1 }} />
               <View style={styles.readLink}>
-                <Text style={styles.readLinkText}>Read Story</Text>
+                <Text style={styles.readLinkText}>{blogData.readStoryBtn}</Text>
                 <ArrowRight size={12} color={BRAND_RED} />
               </View>
             </View>
@@ -440,12 +442,12 @@ export default function BlogScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Latest from Remise</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>{blogData.latestStoriesTitle}</Text>
         </View>
 
         {filteredArticles.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>No articles match that search yet.</Text>
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>{blogData.noArticlesFound}</Text>
           </View>
         ) : (
           <View style={{ gap: Spacing.md }}>
@@ -469,23 +471,23 @@ export default function BlogScreen({ navigation }: any) {
                   <View style={styles.articleHeader}>
                     <View style={styles.articleTagRow}>
                       <Icon size={12} color={BRAND_RED} />
-                      <Text style={styles.articleCategory}>{article.category}</Text>
+                      <Text style={styles.articleCategory}>{blogData.categories[article.category] || translatePressContent(article.category, language as any) || article.category}</Text>
                     </View>
                     <View style={styles.metaItem}>
                       <Clock size={11} color={themeColors.textSecondary} />
-                      <Text style={[styles.metaTextSmall, { color: themeColors.textSecondary }]}>{article.readTime}</Text>
+                      <Text style={[styles.metaTextSmall, { color: themeColors.textSecondary }]}>{formatReadTime(article.readTime, language)}</Text>
                     </View>
                   </View>
 
-                  <Text style={[styles.articleTitle, { color: themeColors.textPrimary }]}>{article.title}</Text>
+                  <Text style={[styles.articleTitle, { color: themeColors.textPrimary }]}>{translatePressContent(article.title, language as any)}</Text>
                   <Text style={[styles.articleExcerpt, { color: themeColors.textSecondary }]} numberOfLines={2}>
-                    {article.excerpt}
+                    {translatePressContent(article.excerpt, language as any)}
                   </Text>
 
                   <View style={styles.articleFooter}>
                     <Text style={[styles.metaTextSmall, { color: themeColors.textSecondary }]}>{article.date}</Text>
                     <View style={styles.readLink}>
-                      <Text style={styles.readLinkTextSmall}>Read</Text>
+                      <Text style={styles.readLinkTextSmall}>{blogData.readBtn}</Text>
                       <ArrowRight size={11} color={BRAND_RED} />
                     </View>
                   </View>
@@ -500,7 +502,7 @@ export default function BlogScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>Remise Updates</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>{blogData.remiseUpdatesTitle}</Text>
         </View>
 
         <View style={[styles.updatesCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
@@ -518,8 +520,8 @@ export default function BlogScreen({ navigation }: any) {
                   <Icon size={16} color={BRAND_RED} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.updateTag}>{u.tag}</Text>
-                  <Text style={[styles.updateText, { color: themeColors.textPrimary }]}>{u.text}</Text>
+                  <Text style={styles.updateTag}>{translatePressContent(u.tag, language as any)}</Text>
+                  <Text style={[styles.updateText, { color: themeColors.textPrimary }]}>{translatePressContent(u.text, language as any)}</Text>
                 </View>
               </View>
             );
@@ -532,12 +534,11 @@ export default function BlogScreen({ navigation }: any) {
         <View style={[styles.highlightCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.35)' : '#FCA5A5' }]}>
           <View style={styles.highlightHeader}>
             <Lightbulb size={16} color={BRAND_RED} />
-            <Text style={styles.highlightTag}>Smart Shopping Tips</Text>
+            <Text style={styles.highlightTag}>{blogData.smartShoppingTitle || "Smart Shopping Tips"}</Text>
           </View>
-          <Text style={[styles.highlightTitle, { color: themeColors.textPrimary }]}>How to Compare Prices Before You Buy</Text>
+          <Text style={[styles.highlightTitle, { color: themeColors.textPrimary }]}>{translatePressContent("How to Compare Prices Before You Buy", language as any)}</Text>
           <Text style={[styles.highlightDesc, { color: themeColors.textSecondary }]}>
-            Five practical habits that make it easier to spot a genuinely good deal nearby.
-            Check store listings, verify stock, and look for bundled nearby promotions.
+            {translatePressContent("Five practical habits that make it easier to spot a genuinely good deal nearby.", language as any)}
           </Text>
         </View>
       </View>
@@ -546,7 +547,7 @@ export default function BlogScreen({ navigation }: any) {
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
           <View style={styles.headingBar} />
-          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>For Local Businesses</Text>
+          <Text style={[styles.sectionHeadingText, { color: themeColors.textPrimary }]}>{blogData.forBusinessesTitle || "For Local Businesses"}</Text>
         </View>
 
         <View style={{ gap: Spacing.sm }}>
@@ -558,8 +559,8 @@ export default function BlogScreen({ navigation }: any) {
                   <Icon size={18} color={BRAND_RED} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.businessTitle, { color: themeColors.textPrimary }]}>{topic.title}</Text>
-                  <Text style={[styles.businessDesc, { color: themeColors.textSecondary }]}>{topic.desc}</Text>
+                  <Text style={[styles.businessTitle, { color: themeColors.textPrimary }]}>{translatePressContent(topic.title, language as any)}</Text>
+                  <Text style={[styles.businessDesc, { color: themeColors.textSecondary }]}>{translatePressContent(topic.desc, language as any)}</Text>
                 </View>
               </View>
             );
@@ -570,10 +571,8 @@ export default function BlogScreen({ navigation }: any) {
       {/* STAY UPDATED / NEWSLETTER */}
       <View style={[styles.newsletterCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#FCA5A5' }]}>
         <Mail size={24} color={BRAND_RED} style={{ marginBottom: Spacing.xs }} />
-        <Text style={[styles.newsletterTitle, { color: themeColors.textPrimary }]}>Stay Updated</Text>
-        <Text style={[styles.newsletterSubtitle, { color: themeColors.textSecondary }]}>
-          Get the latest Remise news, shopping tips, and business insights sent directly to you.
-        </Text>
+        <Text style={[styles.newsletterTitle, { color: themeColors.textPrimary }]}>{blogData.stayUpdatedTitle}</Text>
+        <Text style={[styles.newsletterSubtitle, { color: themeColors.textSecondary }]}>{blogData.newsletterSubtitle}</Text>
 
         {subscribed ? (
           <View style={styles.subscribedBox}>
@@ -584,7 +583,7 @@ export default function BlogScreen({ navigation }: any) {
           <View style={styles.subscribeRow}>
             <TextInput
               style={[styles.subscribeInput, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.textPrimary }]}
-              placeholder="Enter your email"
+              placeholder={blogData.emailPlaceholder || "Enter your email"}
               placeholderTextColor={themeColors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -600,7 +599,7 @@ export default function BlogScreen({ navigation }: any) {
               {subscribing ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.subscribeBtnText}>Subscribe</Text>
+                <Text style={styles.subscribeBtnText}>{blogData.subscribeBtn}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -622,7 +621,7 @@ export default function BlogScreen({ navigation }: any) {
               <X size={20} color={themeColors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.readerHeaderCategory}>
-              {selectedArticle?.category || 'Article'}
+              {selectedArticle?.category ? (blogData.categories[selectedArticle.category] || translatePressContent(selectedArticle.category, language as any) || selectedArticle.category) : 'Article'}
             </Text>
             <View style={{ width: 24 }} />
           </View>
@@ -633,20 +632,20 @@ export default function BlogScreen({ navigation }: any) {
               contentContainerStyle={{ paddingBottom: 60 }}
             >
               <View style={styles.readerTagRow}>
-                <Text style={styles.readerCategoryTag}>{selectedArticle.category}</Text>
+                <Text style={styles.readerCategoryTag}>{blogData.categories[selectedArticle.category] || translatePressContent(selectedArticle.category, language as any) || selectedArticle.category}</Text>
                 <Text style={styles.readerDot}>•</Text>
-                <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{selectedArticle.readTime}</Text>
+                <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{formatReadTime(selectedArticle.readTime, language)}</Text>
                 <Text style={styles.readerDot}>•</Text>
-                <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{selectedArticle.date}</Text>
+                <Text style={[styles.readerMetaText, { color: themeColors.textSecondary }]}>{translateDate(selectedArticle.date, language as any)}</Text>
               </View>
 
-              <Text style={[styles.readerTitle, { color: themeColors.textPrimary }]}>{selectedArticle.title}</Text>
-              <Text style={[styles.readerExcerpt, { color: themeColors.textSecondary }]}>{selectedArticle.excerpt}</Text>
+              <Text style={[styles.readerTitle, { color: themeColors.textPrimary }]}>{translatePressContent(selectedArticle.title, language as any)}</Text>
+              <Text style={[styles.readerExcerpt, { color: themeColors.textSecondary }]}>{translatePressContent(selectedArticle.excerpt, language as any)}</Text>
 
               <View style={styles.readerAuthorRow}>
                 <User size={13} color={themeColors.textSecondary} />
                 <Text style={[styles.readerAuthorText, { color: themeColors.textSecondary }]}>
-                  By {selectedArticle.author || 'Team Remise'}
+                  {blogData.byAuthor || 'By'} {translatePressContent(selectedArticle.author, language as any) || selectedArticle.author || 'Team Remise'}
                 </Text>
               </View>
 
@@ -664,7 +663,7 @@ export default function BlogScreen({ navigation }: any) {
                   : [selectedArticle.excerpt]
                 ).map((para, i) => (
                   <Text key={i} style={[styles.readerParagraph, { color: themeColors.textPrimary }]}>
-                    {para}
+                    {translatePressContent(para, language as any)}
                   </Text>
                 ))}
               </View>

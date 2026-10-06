@@ -11,6 +11,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { indianStates, getCities } from '../../utils/indiaLocation';
 import { mergeCategories } from '../../utils/storeCategories';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateCategory } from '../../i18n';
 
 const STORE_CATEGORIES = ['Food & Beverages', 'Grocery', 'Fashion', 'Electronics', 'Pharmacy', 'Toys', 'Home & Living', 'Beauty', 'Sports', 'Other'];
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
@@ -21,6 +22,7 @@ export default function StoreSettingsScreen() {
   const { store, loading, refresh, categories } = useStoreDashboard();
   const { logout } = useAuth();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const [logoUri, setLogoUri] = useState<string | null>(store?.logo || null);
@@ -66,9 +68,9 @@ export default function StoreSettingsScreen() {
     () =>
       mergeCategories(categories || []).map(c => ({
         key: c.name,
-        label: c.name,
+        label: translateCategory ? translateCategory(c.name, language) : c.name,
       })),
-    [categories]
+    [categories, language]
   );
 
   // ── State/City dropdown support ──
@@ -189,13 +191,13 @@ export default function StoreSettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.lg, paddingBottom: Spacing.xxl }}>
-      <Text style={styles.sectionTitle}>Store Profile</Text>
+      <Text style={styles.sectionTitle}>{t('store.storeProfileTitle')}</Text>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.formCard}>
         {/* Store Logo Section */}
         <View style={styles.logoSection}>
-          <Text style={styles.label}>Store Logo</Text>
+          <Text style={styles.label}>{t('store.storeLogoTitle')}</Text>
           <View style={styles.logoRow}>
             <View style={styles.logoPreviewBox}>
               {logoUri ? (
@@ -207,16 +209,16 @@ export default function StoreSettingsScreen() {
             <View style={{ flex: 1, justifyContent: 'center' }}>
               <TouchableOpacity style={styles.changeLogoBtn} onPress={pickLogo}>
                 <Camera size={14} color="#fff" />
-                <Text style={styles.changeLogoBtnText}>{logoUri ? 'Change Logo' : 'Upload Logo'}</Text>
+                <Text style={styles.changeLogoBtnText}>{logoUri ? t('store.changeLogoBtn') : t('store.uploadLogoBtn')}</Text>
               </TouchableOpacity>
-              <Text style={styles.logoHelpText}>JPG, PNG or WebP image</Text>
+              <Text style={styles.logoHelpText}>{t('store.uploadLogoHint')}</Text>
             </View>
           </View>
         </View>
 
-        <Field label="Store Name *" value={form.name} onChangeText={v => set('name', v)} styles={styles} isDark={isDark} />
+        <Field label={t('store.storeNameLabel')} value={form.name} onChangeText={v => set('name', v)} styles={styles} isDark={isDark} />
         <Field
-          label="Monthly Revenue Target (₹)"
+          label={t('store.monthlyTargetLabel')}
           value={form.targetRevenue}
           onChangeText={v => set('targetRevenue', v)}
           keyboardType="numeric"
@@ -225,7 +227,7 @@ export default function StoreSettingsScreen() {
           isDark={isDark}
         />
         <View style={{ marginBottom: Spacing.md }}>
-          <Text style={styles.label}>Description</Text>
+          <Text style={styles.label}>{t('store.descriptionLabel')}</Text>
           <TextInput
             style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
             multiline
@@ -235,13 +237,13 @@ export default function StoreSettingsScreen() {
             placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
         </View>
-        <Field label="Phone" value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" styles={styles} isDark={isDark} />
-        <Field label="Email" value={form.email} onChangeText={v => set('email', v)} keyboardType="email-address" styles={styles} isDark={isDark} />
+        <Field label={t('store.phoneLabel')} value={form.phone} onChangeText={v => set('phone', v)} keyboardType="phone-pad" styles={styles} isDark={isDark} />
+        <Field label={t('store.emailLabel')} value={form.email} onChangeText={v => set('email', v)} keyboardType="email-address" styles={styles} isDark={isDark} />
 
         <SelectField
-          label="Category"
+          label={t('store.categoryLabel')}
           value={form.category}
-          placeholder="Select Category"
+          placeholder={t('store.selectCategoryPlaceholder')}
           options={categoryOptions}
           onSelect={(key) => set('category', key)}
           styles={styles}
@@ -282,21 +284,21 @@ export default function StoreSettingsScreen() {
           isDark={isDark}
         />
 
-        <Field label="Street" value={form.street} onChangeText={v => set('street', v)} styles={styles} isDark={isDark} />
+        <Field label={t('store.streetLabel')} value={form.street} onChangeText={v => set('street', v)} styles={styles} isDark={isDark} />
 
         <SelectField
-          label="State"
+          label={t('store.stateLabel')}
           value={form.state}
-          placeholder="Select State"
+          placeholder={t('store.selectStatePlaceholder')}
           options={stateOptions}
           onSelect={handleStateSelect}
           styles={styles}
           isDark={isDark}
         />
         <SelectField
-          label="City"
+          label={t('store.cityLabel')}
           value={form.city}
-          placeholder={form.state ? 'Select City' : 'Select a state first'}
+          placeholder={form.state ? t('store.selectCityPlaceholder') : 'Select a state first'}
           options={cityOptions}
           disabled={!form.state}
           onSelect={handleCitySelect}
@@ -304,7 +306,7 @@ export default function StoreSettingsScreen() {
           isDark={isDark}
         />
 
-        <Field label="Pin Code" value={form.pinCode} onChangeText={v => set('pinCode', v)} keyboardType="numeric" styles={styles} isDark={isDark} />
+        <Field label={t('store.pinCodeLabel')} value={form.pinCode} onChangeText={v => set('pinCode', v)} keyboardType="numeric" styles={styles} isDark={isDark} />
 
         <View style={styles.qrSection}>
           <Text style={styles.qrTitle}>UPI Payment QR Code</Text>
@@ -377,7 +379,7 @@ export default function StoreSettingsScreen() {
             isDark={isDark}
           />
           <Field
-            label="Bank Account Number"
+            label={t('store.bankAccountNumberLabel')}
             value={form.bankAccountNumber}
             onChangeText={v => set('bankAccountNumber', v)}
             placeholder="Account Number"
@@ -386,7 +388,7 @@ export default function StoreSettingsScreen() {
             isDark={isDark}
           />
           <Field
-            label="Bank IFSC Code"
+            label={t('store.bankIfscLabel')}
             value={form.bankIfsc}
             onChangeText={v => set('bankIfsc', v.toUpperCase())}
             placeholder="e.g. HDFC0001234"
@@ -411,22 +413,22 @@ export default function StoreSettingsScreen() {
         </View>
 
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : saved ? <><CheckCircle size={15} color="#fff" /><Text style={styles.saveBtnText}>Saved!</Text></> : <><Save size={15} color="#fff" /><Text style={styles.saveBtnText}>Save Changes</Text></>}
+          {saving ? <ActivityIndicator color="#fff" /> : saved ? <><CheckCircle size={15} color="#fff" /><Text style={styles.saveBtnText}>{t('store.savedSuccessBadge')}</Text></> : <><Save size={15} color="#fff" /><Text style={styles.saveBtnText}>{t('store.saveChangesBtn')}</Text></>}
         </TouchableOpacity>
       </View>
 
       <View style={styles.verificationCard}>
-        <Text style={styles.verificationTitle}>Verification Status</Text>
+        <Text style={styles.verificationTitle}>{t('store.verificationStatusTitle')}</Text>
         {store?.isVerified ? (
-          <View style={styles.verifiedBanner}><CheckCircle size={16} color={CustomerColors.success} /><Text style={styles.verifiedText}>Your store is verified</Text></View>
+          <View style={styles.verifiedBanner}><CheckCircle size={16} color={CustomerColors.success} /><Text style={styles.verifiedText}>{t('store.storeVerifiedTitle')}</Text></View>
         ) : (
-          <View style={styles.pendingBanner}><RefreshCw size={16} color={isDark ? '#FBBF24' : '#D97706'} /><Text style={styles.pendingText}>Verification pending — our team typically verifies stores within 24–48 hours.</Text></View>
+          <View style={styles.pendingBanner}><RefreshCw size={16} color={isDark ? '#FBBF24' : '#D97706'} /><Text style={styles.pendingText}>{t('store.verificationPendingDesc')}</Text></View>
         )}
       </View>
 
       <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
         <LogOut size={16} color={isDark ? '#F87171' : CustomerColors.primary} />
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={styles.signOutText}>{t('store.signOutBtn')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

@@ -25,8 +25,17 @@ import {
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
+import { getAboutData } from '../../i18n/aboutTranslations';
 
 const BRAND_RED = CustomerColors.primary;
+
+const WHAT_IS_ICONS = [Search, Scale, ShoppingBag];
+const HOW_IT_WORKS_ICONS = [Search, MapPin, Scale, Store, Truck, CheckCircle2];
+const WHY_REMISE_ICONS = [MapPin, IndianRupee, Search, ShoppingCart, Store, Smartphone];
+const BUSINESS_ICONS = [Store, Package, IndianRupee, BarChart3, ShoppingBag, Users];
+const TRUST_ICONS = [FileText, IndianRupee, Lock, ClipboardList, Building2, Headphones];
+
 
 const WHAT_IS_REMISE = [
   { icon: Search, title: 'Discover', desc: 'Find products and businesses around you.' },
@@ -123,6 +132,8 @@ function CTAButton({ label, onPress, filled = true }: { label: string; onPress: 
 
 export default function AboutScreen({ navigation }: any) {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const data = getAboutData(language as any);
   const goTo = (route: string, params?: any) => {
     if (!navigation?.navigate) return;
     if (route === 'Home') {
@@ -153,12 +164,12 @@ export default function AboutScreen({ navigation }: any) {
           <Text style={styles.eyebrowText}>About Remise</Text>
         </View>
         <Text style={[styles.heroTitle, { color: textPri }]}>
-          Making local shopping <Text style={styles.heroTitleAccent}>smarter, simpler, and closer to home</Text>
-        </Text>
+              {data.heroTitlePart1}{' '}
+              <Text style={{ color: BRAND_RED }}>{data.heroTitleHighlight}</Text>
+            </Text>
         <Text style={[styles.heroSubtitle, { color: textSec }]}>
-          Remise connects customers with nearby stores and businesses, making it easier to discover
-          products, compare prices, choose the right store, and shop with confidence.
-        </Text>
+              {data.heroSubtitle}
+            </Text>
         <CTAButton label="Explore Products" onPress={() => goTo('Categories')} />
       </View>
 

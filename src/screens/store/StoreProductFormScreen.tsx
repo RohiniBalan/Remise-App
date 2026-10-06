@@ -40,6 +40,7 @@ import { useVoiceInput, VOICE_LANGUAGES, VoiceLanguageOption } from '../../hooks
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { requestCameraPermission } from '../../utils/permissions';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateCategory } from '../../i18n';
 import {
   getCategories,
   getSubcategories,
@@ -60,12 +61,19 @@ export default function StoreProductFormScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const product = route.params?.product;
   const scanned = route.params?.scanned;
   const initialTitle = route.params?.initialTitle;
   const initialCategory = route.params?.initialCategory;
   const isEdit = Boolean(product?._id);
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: isEdit ? (t('store.editProductTitle') || 'Edit Product') : (t('store.addNewProductTitle') || 'Add New Product'),
+    });
+  }, [navigation, isEdit, t]);
 
   const { store, categories, refresh } = useStoreDashboard();
 
@@ -556,10 +564,10 @@ export default function StoreProductFormScreen() {
       <View style={styles.aiCard}>
         <View style={styles.aiCardHeader}>
           <Sparkles size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-          <Text style={styles.aiCardTitle}>✨ Auto-fill Product Details</Text>
+          <Text style={styles.aiCardTitle}>{t('store.aiAutofillTitle') || '✨ Auto-fill Product Details'}</Text>
         </View>
         <Text style={styles.aiCardSubtitle}>
-          Scan product packaging or photo to auto-detect title, category, subcategory, price, and specs.
+          {t('store.aiAutofillDesc') || 'Scan product packaging or photo to auto-detect title, category, subcategory, price, and specs.'}
         </Text>
         <TouchableOpacity
           style={[styles.aiButton, aiAutofilling && styles.buttonDisabled]}
@@ -569,13 +577,13 @@ export default function StoreProductFormScreen() {
           {aiAutofilling ? (
             <>
               <ActivityIndicator size="small" color="#fff" style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.aiButtonText}>Scanning with AI…</Text>
+              <Text style={styles.aiButtonText}>{t('store.scanningWithAi') || 'Scanning with AI…'}</Text>
             </>
           ) : (
             <>
               <Sparkles size={14} color="#fff" style={{ marginRight: Spacing.xs }} />
               <Text style={styles.aiButtonText}>
-                {images.some(img => img.asset) ? 'Auto-fill from current photo' : 'Upload photo & Auto-fill'}
+                {images.some(img => img.asset) ? (t('store.autofillFromCurrentPhoto') || 'Auto-fill from current photo') : (t('store.uploadPhotoAndAutofill') || 'Upload photo & Auto-fill')}
               </Text>
             </>
           )}
@@ -633,24 +641,24 @@ export default function StoreProductFormScreen() {
           {voiceParsing ? (
             <>
               <RefreshCw size={15} color="#fff" style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.voiceButtonText}>Processing Voice…</Text>
+              <Text style={styles.voiceButtonText}>{t('store.processingVoice') || 'Processing Voice…'}</Text>
             </>
           ) : voice.listening ? (
             <>
               <MicOff size={15} color="#fff" style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.voiceButtonText}>Stop Listening</Text>
+              <Text style={styles.voiceButtonText}>{t('store.stopListening') || 'Stop Listening'}</Text>
             </>
           ) : (
             <>
               <Mic size={15} color={isDark ? '#F9FAFB' : CustomerColors.black} style={{ marginRight: Spacing.xs }} />
-              <Text style={styles.voiceButtonTextInactive}>Speak product details</Text>
+              <Text style={styles.voiceButtonTextInactive}>{t('store.speakProductDetails') || 'Speak product details'}</Text>
             </>
           )}
         </TouchableOpacity>
 
         {voice.listening && (
           <Text style={styles.voiceTranscript} numberOfLines={2}>
-            Listening: "{voice.partialTranscript || voice.transcript || '…'}"
+            {t('store.listeningTranscript') || 'Listening:'} "{voice.partialTranscript || voice.transcript || '…'}"
           </Text>
         )}
 
@@ -666,8 +674,8 @@ export default function StoreProductFormScreen() {
       <View style={styles.section}>
         <View style={styles.photosHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.sectionLabel}>PRODUCT PHOTOS ({images.length})</Text>
-            <Text style={styles.photosSubtext}>First photo is the primary cover photo.</Text>
+            <Text style={styles.sectionLabel}>{t('store.productPhotosTitle') || 'PRODUCT PHOTOS'} ({images.length})</Text>
+            <Text style={styles.photosSubtext}>{t('store.photosSubtextApp') || 'First photo is the primary cover photo.'}</Text>
           </View>
           <View style={styles.photoActionsRow}>
             <TouchableOpacity
@@ -675,14 +683,14 @@ export default function StoreProductFormScreen() {
               onPress={() => pickImage(true)}
             >
               <Camera size={13} color="#fff" />
-              <Text style={styles.photoActionButtonText}>Camera</Text>
+              <Text style={styles.photoActionButtonText}>{t('store.cameraBtn') || 'Camera'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.photoActionButton, styles.galleryActionButton]}
               onPress={() => pickImage(false)}
             >
               <ImageIcon size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-              <Text style={[styles.photoActionButtonText, styles.galleryActionButtonText]}>Gallery</Text>
+              <Text style={[styles.photoActionButtonText, styles.galleryActionButtonText]}>{t('store.galleryBtn') || 'Gallery'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -691,7 +699,7 @@ export default function StoreProductFormScreen() {
         <View style={styles.urlInputRow}>
           <TextInput
             style={[styles.input, { flex: 1 }]}
-            placeholder="Or paste image URL (https://...)"
+            placeholder={t('store.pasteImageUrlPlaceholderApp') || 'Or paste image URL (https://...)'}
             placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
             value={newImageUrl}
             onChangeText={setNewImageUrl}
@@ -701,7 +709,7 @@ export default function StoreProductFormScreen() {
             onPress={handleAddUrl}
             disabled={!newImageUrl.trim()}
           >
-            <Text style={styles.addUrlBtnText}>+ Add</Text>
+            <Text style={styles.addUrlBtnText}>{t('store.addBtnShort') || '+ Add'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -710,16 +718,16 @@ export default function StoreProductFormScreen() {
           <TouchableOpacity
             style={styles.emptyPhotoBox}
             onPress={() =>
-              Alert.alert('Add Product Photo', 'Choose source', [
-                { text: 'Camera', onPress: () => pickImage(true) },
-                { text: 'Gallery', onPress: () => pickImage(false) },
-                { text: 'Cancel', style: 'cancel' },
+              Alert.alert(t('store.productPhotosTitle') || 'Add Product Photo', 'Choose source', [
+                { text: t('store.cameraBtn') || 'Camera', onPress: () => pickImage(true) },
+                { text: t('store.galleryBtn') || 'Gallery', onPress: () => pickImage(false) },
+                { text: t('common.cancel') || 'Cancel', style: 'cancel' },
               ])
             }
           >
             <ImageIcon size={28} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-            <Text style={styles.emptyPhotoText}>Tap to add product photos</Text>
-            <Text style={styles.emptyPhotoSubtext}>Upload multiple photos from gallery or camera</Text>
+            <Text style={styles.emptyPhotoText}>{t('store.tapToAddPhotos') || 'Tap to add product photos'}</Text>
+            <Text style={styles.emptyPhotoSubtext}>{t('store.tapToAddPhotosSub') || 'Upload multiple photos from gallery or camera'}</Text>
           </TouchableOpacity>
         ) : (
           <ScrollView
@@ -735,7 +743,7 @@ export default function StoreProductFormScreen() {
                 {idx === 0 ? (
                   <View style={styles.coverBadge}>
                     <Star size={9} color="#fff" />
-                    <Text style={styles.coverBadgeText}>Cover</Text>
+                    <Text style={styles.coverBadgeText}>{t('store.coverPhotoBadge') || 'Cover'}</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -743,7 +751,7 @@ export default function StoreProductFormScreen() {
                     onPress={() => handleSetCover(idx)}
                   >
                     <Star size={9} color="#D97706" />
-                    <Text style={styles.setCoverBtnText}>Cover</Text>
+                    <Text style={styles.setCoverBtnText}>{t('store.setCoverBtn') || 'Cover'}</Text>
                   </TouchableOpacity>
                 )}
 
@@ -761,15 +769,15 @@ export default function StoreProductFormScreen() {
             <TouchableOpacity
               style={styles.addMoreTile}
               onPress={() =>
-                Alert.alert('Add More Photos', 'Choose source', [
-                  { text: 'Camera', onPress: () => pickImage(true) },
-                  { text: 'Gallery', onPress: () => pickImage(false) },
-                  { text: 'Cancel', style: 'cancel' },
+                Alert.alert(t('store.addMorePhotos') || 'Add More Photos', 'Choose source', [
+                  { text: t('store.cameraBtn') || 'Camera', onPress: () => pickImage(true) },
+                  { text: t('store.galleryBtn') || 'Gallery', onPress: () => pickImage(false) },
+                  { text: t('common.cancel') || 'Cancel', style: 'cancel' },
                 ])
               }
             >
               <Plus size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-              <Text style={styles.addMoreText}>Add More</Text>
+              <Text style={styles.addMoreText}>{t('store.addMorePhotos') || 'Add More'}</Text>
             </TouchableOpacity>
           </ScrollView>
         )}
@@ -777,21 +785,21 @@ export default function StoreProductFormScreen() {
 
       {/* Basic Info */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>PRODUCT DETAILS</Text>
+        <Text style={styles.sectionLabel}>{t('store.productTitleLabel')?.replace(' *', '') || 'PRODUCT DETAILS'}</Text>
 
-        <Text style={styles.inputLabel}>Product Title *</Text>
+        <Text style={styles.inputLabel}>{t('store.productTitleLabel') || 'Product Title *'}</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. Organic Face Moisturizer / Galaxy S24"
+          placeholder={t('store.productTitlePlaceholder') || 'e.g. Organic Face Moisturizer / Galaxy S24'}
           placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
           value={form.title}
           onChangeText={v => set('title', v)}
         />
 
-        <Text style={styles.inputLabel}>Description</Text>
+        <Text style={styles.inputLabel}>{t('store.productDescLabel') || 'Description'}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Provide product highlights, features, and key specifications..."
+          placeholder={t('store.productDescPlaceholderApp') || 'Provide product highlights, features, and key specifications...'}
           placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
           multiline
           numberOfLines={3}
@@ -801,7 +809,7 @@ export default function StoreProductFormScreen() {
 
         <View style={styles.row}>
           <View style={styles.col}>
-            <Text style={styles.inputLabel}>Price (₹) *</Text>
+            <Text style={styles.inputLabel}>{t('store.priceLabelRequired') || 'Price (₹) *'}</Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -812,7 +820,7 @@ export default function StoreProductFormScreen() {
             />
           </View>
           <View style={styles.col}>
-            <Text style={styles.inputLabel}>Discounted Price (₹)</Text>
+            <Text style={styles.inputLabel}>{t('store.discountedPriceLabel') || 'Discounted Price (₹)'}</Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -827,20 +835,20 @@ export default function StoreProductFormScreen() {
         {/* Category & Subcategory Selectors */}
         <View style={styles.row}>
           <View style={styles.col}>
-            <Text style={styles.inputLabel}>Category *</Text>
+            <Text style={styles.inputLabel}>{t('store.categoryLabelRequired') || 'Category *'}</Text>
             <TouchableOpacity
               style={styles.selector}
               onPress={() => setCategoryModalVisible(true)}
             >
               <Text style={form.category ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
-                {form.category || 'Select Category'}
+                {translateCategory(form.category, language) || t('store.selectCategoryPlaceholder') || 'Select Category'}
               </Text>
               <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.col}>
-            <Text style={styles.inputLabel}>Subcategory</Text>
+            <Text style={styles.inputLabel}>{t('store.subcategoryLabel') || 'Subcategory'}</Text>
             <TouchableOpacity
               style={[styles.selector, !form.category && styles.selectorDisabled]}
               onPress={() => {
@@ -851,7 +859,11 @@ export default function StoreProductFormScreen() {
               disabled={!form.category}
             >
               <Text style={(isCustomSubcategory || form.subcategory) ? styles.selectorValue : styles.selectorPlaceholder} numberOfLines={1}>
-                {isCustomSubcategory ? 'Other' : (form.subcategory || (form.category ? 'Select Subcategory' : 'Select Category first'))}
+                {!form.category
+                  ? (t('store.selectCategoryFirst') || 'Select Category first')
+                  : isCustomSubcategory
+                  ? (t('store.otherOption') || 'Other')
+                  : (translateCategory(form.subcategory, language) || t('store.selectSubcategoryPlaceholder') || 'Select Subcategory')}
               </Text>
               <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             </TouchableOpacity>
@@ -860,10 +872,10 @@ export default function StoreProductFormScreen() {
 
         {isCustomSubcategory && (
           <View style={{ marginBottom: Spacing.md }}>
-            <Text style={styles.inputLabel}>Custom Subcategory *</Text>
+            <Text style={styles.inputLabel}>{t('store.customSubcategoryLabel') || 'Custom Subcategory *'}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter custom subcategory"
+              placeholder={t('store.customSubcategoryPlaceholder') || 'Enter custom subcategory'}
               placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               value={customSubcategory}
               onChangeText={handleCustomSubcategoryChange}
@@ -873,10 +885,10 @@ export default function StoreProductFormScreen() {
 
         <View style={styles.row}>
           <View style={styles.col}>
-            <Text style={styles.inputLabel}>Brand</Text>
+            <Text style={styles.inputLabel}>{t('store.brandLabel') || 'Brand'}</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Apple, Organic India"
+              placeholder={t('store.brandPlaceholder') || 'e.g. Apple, Organic India'}
               placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               value={form.brand}
               onChangeText={v => set('brand', v)}
@@ -886,10 +898,10 @@ export default function StoreProductFormScreen() {
 
         <View style={styles.row}>
           <View style={{ flex: 1.2 }}>
-            <Text style={styles.inputLabel}>Stock Quantity</Text>
+            <Text style={styles.inputLabel}>{t('store.stockQuantityLabel') || 'Stock Quantity'}</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. 50"
+              placeholder={t('store.stockQuantityPlaceholder') || 'e.g. 50'}
               placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
               keyboardType="numeric"
               value={form.totalStock}
@@ -897,7 +909,7 @@ export default function StoreProductFormScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.inputLabel}>Stock Unit</Text>
+            <Text style={styles.inputLabel}>{t('store.stockUnitLabel') || 'Stock Unit'}</Text>
             <TouchableOpacity
               style={styles.selector}
               onPress={() => setStockUnitModalVisible(true)}
@@ -910,7 +922,7 @@ export default function StoreProductFormScreen() {
           </View>
         </View>
 
-        <Text style={styles.inputLabel}>Availability</Text>
+        <Text style={styles.inputLabel}>{t('store.availabilityLabel') || 'Availability'}</Text>
         <View style={styles.chipRow}>
           {AVAILABILITY_OPTIONS.map(opt => (
             <TouchableOpacity
@@ -927,16 +939,16 @@ export default function StoreProductFormScreen() {
                   form.availability === opt && styles.chipTextActive,
                 ]}
               >
-                {opt}
+                {opt === 'In Stock' ? (t('store.inStock') || 'In Stock') : opt === 'Out of Stock' || opt === 'Out Of Stock' ? (t('store.outOfStock') || 'Out of Stock') : opt}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.inputLabel}>Tags (Comma-separated)</Text>
+        <Text style={styles.inputLabel}>{t('store.tagsLabel') || 'Tags (Comma-separated)'}</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. bestseller, trending, fast-delivery"
+          placeholder={t('store.tagsPlaceholder') || 'e.g. bestseller, trending, fast-delivery'}
           placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
           value={form.tags}
           onChangeText={v => set('tags', v)}
@@ -989,13 +1001,13 @@ export default function StoreProductFormScreen() {
         {saving ? (
           <>
             <ActivityIndicator size="small" color="#fff" style={{ marginRight: Spacing.sm }} />
-            <Text style={styles.saveButtonText}>Saving Product…</Text>
+            <Text style={styles.saveButtonText}>{t('store.savingProductBtn') || 'Saving Product…'}</Text>
           </>
         ) : (
           <>
             <Save size={18} color="#fff" style={{ marginRight: Spacing.sm }} />
             <Text style={styles.saveButtonText}>
-              {isEdit ? 'Save Changes' : 'Publish Product'}
+              {isEdit ? (t('store.saveChanges') || 'Save Changes') : (t('store.publishProductBtn') || 'Publish Product')}
             </Text>
           </>
         )}
@@ -1006,7 +1018,7 @@ export default function StoreProductFormScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
+              <Text style={styles.modalTitle}>{t('store.selectCategoryPlaceholder') || 'Select Category'}</Text>
               <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
                 <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
               </TouchableOpacity>
@@ -1028,7 +1040,7 @@ export default function StoreProductFormScreen() {
                       form.category === item && styles.modalItemTextActive,
                     ]}
                   >
-                    {item}
+                    {translateCategory(item, language)}
                   </Text>
                   {form.category === item && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
                 </TouchableOpacity>
@@ -1043,7 +1055,7 @@ export default function StoreProductFormScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Subcategory</Text>
+              <Text style={styles.modalTitle}>{t('store.selectSubcategoryPlaceholder') || 'Select Subcategory'}</Text>
               <TouchableOpacity onPress={() => setSubcategoryModalVisible(false)}>
                 <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
               </TouchableOpacity>
@@ -1067,7 +1079,7 @@ export default function StoreProductFormScreen() {
                         isActive && styles.modalItemTextActive,
                       ]}
                     >
-                      {item}
+                      {item === 'Other' ? (t('store.otherOption') || 'Other') : translateCategory(item, language)}
                     </Text>
                     {isActive && <Check size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />}
                   </TouchableOpacity>
@@ -1083,7 +1095,7 @@ export default function StoreProductFormScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Stock Unit</Text>
+              <Text style={styles.modalTitle}>{t('store.stockUnitLabel') || 'Select Stock Unit'}</Text>
               <TouchableOpacity onPress={() => setStockUnitModalVisible(false)}>
                 <X size={20} color={isDark ? '#F9FAFB' : CustomerColors.black} />
               </TouchableOpacity>

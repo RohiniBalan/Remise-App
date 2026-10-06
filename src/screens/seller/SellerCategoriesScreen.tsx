@@ -6,10 +6,12 @@ import { storeProductApi } from '../../api/storeProductApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { mergeCategories } from '../../utils/storeCategories';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateCategory } from '../../i18n';
 
 export default function SellerCategoriesScreen() {
   const { categories, products, loading, refresh } = useSellerDashboard();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -44,12 +46,26 @@ export default function SellerCategoriesScreen() {
   };
 
   const handleDelete = (id: string, catName: string) => {
-    Alert.alert(`Delete category "${catName}"?`, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await storeProductApi.deleteCategory(id); refresh(); } catch { Alert.alert('Error', 'Failed to delete category.'); }
-      } },
-    ]);
+    const translatedName = translateCategory(catName, language);
+    Alert.alert(
+      t('store.deleteCategoryTitle'),
+      `${t('store.deleteCategoryMsg')} ("${translatedName}")`,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await storeProductApi.deleteCategory(id);
+              refresh();
+            } catch {
+              Alert.alert('Error', 'Failed to delete category.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -59,13 +75,13 @@ export default function SellerCategoriesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.addForm}>
-        <Text style={styles.formTitle}>Add New Category</Text>
+        <Text style={styles.formTitle}>{t('store.addNewCategory')}</Text>
         <View style={styles.addRow}>
           <TextInput
             style={[styles.input, { flex: 1 }]}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. Skincare"
+            placeholder={t('store.categoryPlaceholder')}
             placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
           <TouchableOpacity style={styles.addBtn} onPress={handleAdd} disabled={saving || !name.trim()}>
@@ -75,13 +91,13 @@ export default function SellerCategoriesScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </View>
 
-      <Text style={styles.listHeader}>ALL CATEGORIES ({mergedCategories.length})</Text>
+      <Text style={styles.listHeader}>{t('store.allCategoriesCount')} ({mergedCategories.length})</Text>
 
       <FlatList
         data={mergedCategories}
         keyExtractor={c => c._id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.emptyText}>No categories yet. Add one above.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>{t('store.noCategoriesYet')}</Text>}
         renderItem={({ item: c }) => {
           const count = countByCategory[c.name] || 0;
           return (
@@ -89,15 +105,15 @@ export default function SellerCategoriesScreen() {
               <View style={styles.rowIcon}><Layers size={14} color={CustomerColors.teal600} /></View>
               <View style={{ flex: 1 }}>
                 <View style={styles.rowNameRow}>
-                  <Text style={styles.rowName}>{c.name}</Text>
+                  <Text style={styles.rowName}>{translateCategory(c.name, language)}</Text>
                   {c.isDefault && (
                     <View style={styles.defaultBadge}>
-                      <Text style={styles.defaultBadgeText}>Default</Text>
+                      <Text style={styles.defaultBadgeText}>{t('store.defaultBadge')}</Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{count} product{count !== 1 ? 's' : ''}</Text>
+                  <Text style={styles.countBadgeText}>{count} {count === 1 ? t('store.productCountLabel') : t('store.productsCountLabel')}</Text>
                 </View>
               </View>
               {!c.isDefault && (

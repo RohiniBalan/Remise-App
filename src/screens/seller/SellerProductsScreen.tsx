@@ -23,6 +23,7 @@ import { resolveImageUrl } from '../../utils/imageUrl';
 import { requestCameraPermission } from '../../utils/permissions';
 import { sellerAiApi } from '../../api/sellerApi';
 import BulkScanUploadModal from '../../components/common/BulkScanUploadModal';
+import { useTranslation, translateProductName, translateCategory } from '../../i18n';
 
 function getProductImage(p: any): string {
   const raw =
@@ -86,6 +87,7 @@ export default function SellerProductsScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { products, refresh, loading } = useSellerDashboard();
   const [search, setSearch] = useState('');
@@ -187,7 +189,7 @@ export default function SellerProductsScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder={isWholesaler ? 'Search wholesale catalog…' : 'Search artisan products…'}
+            placeholder={isWholesaler ? (t('products.searchWholesaleCatalog') || 'Search wholesale catalog…') : (t('products.searchArtisanProducts') || 'Search artisan products…')}
             placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
             style={styles.searchInput}
           />
@@ -201,19 +203,19 @@ export default function SellerProductsScreen() {
           ) : (
             <>
               <ScanLine size={15} color="#fff" />
-              <Text style={styles.actionBtnText}>Scan Paper</Text>
+              <Text style={styles.actionBtnText}>{t('store.scanPaperList') || 'Scan Paper'}</Text>
             </>
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => setShowBulkScanModal(true)} disabled={scanning}>
           <ListChecks size={15} color="#fff" />
-          <Text style={styles.actionBtnText}>Scan List</Text>
+          <Text style={styles.actionBtnText}>{t('store.bulkProductScan') || t('store.scanGroceryList') || 'Scan List'}</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('SellerProductForm', {})}>
         <Plus size={15} color="#fff" />
         <Text style={styles.addBtnText}>
-          {isWholesaler ? 'Add Wholesale Product' : 'Add Home Product'}
+          {isWholesaler ? (t('store.addProduct') || 'Add Wholesale Product') : (t('store.addProduct') || 'Add Home Product')}
         </Text>
       </TouchableOpacity>
 
@@ -227,9 +229,9 @@ export default function SellerProductsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <Package size={36} color={isDark ? '#374151' : '#E5E7EB'} />
-            <Text style={styles.emptyTitle}>{products.length === 0 ? 'No products yet' : 'No results'}</Text>
+            <Text style={styles.emptyTitle}>{products.length === 0 ? (t('store.noProductsYet') || 'No products yet') : (t('common.noResults') || 'No results')}</Text>
             <Text style={styles.emptySub}>
-              {products.length === 0 ? 'Add your first bulk product for store owners to order.' : 'Try a different search.'}
+              {products.length === 0 ? (t('store.addFirstBulkProduct') || 'Add your first bulk product for store owners to order.') : (t('common.tryDifferentSearch') || 'Try a different search.')}
             </Text>
           </View>
         }
@@ -244,11 +246,11 @@ export default function SellerProductsScreen() {
                 {img ? <Image source={{ uri: img }} style={styles.cardImage} /> : <Package size={30} color={isDark ? '#4B5563' : '#E5E7EB'} />}
               </View>
               <View style={{ padding: Spacing.sm }}>
-                <Text style={styles.cardCategory} numberOfLines={1}>{pt.category || '—'}</Text>
-                <Text style={styles.cardTitle} numberOfLines={1}>{pt.title}</Text>
-                <Text style={styles.cardSub}>{pt.brandCount} Brand{pt.brandCount !== 1 ? 's' : ''}</Text>
-                <Text style={styles.cardSub}>Total Stock: {pt.totalStock} {(pt as any).stockUnit || 'Count'}</Text>
-                <View style={styles.manageBtn}><Text style={styles.manageBtnText}>Manage Brands →</Text></View>
+                <Text style={styles.cardCategory} numberOfLines={1}>{pt.category ? translateCategory(pt.category, language) : '—'}</Text>
+                <Text style={styles.cardTitle} numberOfLines={1}>{translateProductName(pt.title, language)}</Text>
+                <Text style={styles.cardSub}>{pt.brandCount} {t('store.availableBrandsLabel') || 'Brands'}</Text>
+                <Text style={styles.cardSub}>{t('store.totalStock') || 'Total Stock'}: {pt.totalStock} {(pt as any).stockUnit || 'Count'}</Text>
+                <View style={styles.manageBtn}><Text style={styles.manageBtnText}>{t('store.manageBrands') || 'Manage Brands'} →</Text></View>
               </View>
             </TouchableOpacity>
           );
@@ -262,7 +264,7 @@ export default function SellerProductsScreen() {
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <ScanLine size={20} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
-                <Text style={styles.modalTitle}>Scan Paper Label</Text>
+                <Text style={styles.modalTitle}>{t('store.scanPaperList') || 'Scan Paper Label'}</Text>
               </View>
               <TouchableOpacity onPress={() => setScanModalType(null)}>
                 <X size={20} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
@@ -270,23 +272,23 @@ export default function SellerProductsScreen() {
             </View>
 
             <Text style={styles.modalSub}>
-              Take a clear photo of the product label/packaging or choose from gallery to auto-detect details.
+              {t('store.scanPaperDesc') || 'Take a clear photo of the product label/packaging or choose from gallery to auto-detect details.'}
             </Text>
 
             <TouchableOpacity style={styles.cameraActionBtn} onPress={handleCamera}>
               <Camera size={18} color="#fff" />
-              <Text style={styles.cameraActionBtnText}>Take Photo with Camera</Text>
+              <Text style={styles.cameraActionBtnText}>{t('store.takePhotoCamera') || 'Take Photo with Camera'}</Text>
             </TouchableOpacity>
 
             <View style={styles.orDivider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.orText}>or</Text>
+              <Text style={styles.orText}>{t('common.or') || 'or'}</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <TouchableOpacity style={styles.galleryActionBtn} onPress={handleGallery}>
               <ImageIcon size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-              <Text style={styles.galleryActionBtnText}>Choose from Gallery</Text>
+              <Text style={styles.galleryActionBtnText}>{t('store.chooseGallery') || 'Choose from Gallery'}</Text>
             </TouchableOpacity>
           </View>
         </View>

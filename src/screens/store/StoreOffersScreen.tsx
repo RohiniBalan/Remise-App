@@ -31,6 +31,8 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 
+import { useTranslation, translateProductName } from '../../i18n';
+
 export default function StoreOffersScreen() {
   const navigation = useNavigation<any>();
   const storeDash = useOptionalStoreDashboard();
@@ -38,6 +40,7 @@ export default function StoreOffersScreen() {
   const dash = (storeDash && storeDash.store) ? storeDash : ((sellerDash && sellerDash.store) ? sellerDash : (storeDash || sellerDash || {}));
   const { offers = [], loading = false, refresh = () => {} } = dash as any;
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [deleteTargetOffer, setDeleteTargetOffer] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -68,14 +71,14 @@ export default function StoreOffersScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.count}>
-          {offers.length} offer{offers.length !== 1 ? 's' : ''}
+          {offers.length} {offers.length !== 1 ? t('store.offersCountLabel') : t('store.offerCountLabel')}
         </Text>
         <TouchableOpacity
           style={styles.newBtn}
           onPress={() => navigation.navigate('NewOffer')}
         >
           <Plus size={14} color="#fff" />
-          <Text style={styles.newBtnText}>New Offer</Text>
+          <Text style={styles.newBtnText}>{t('store.newOfferBtn')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -88,9 +91,9 @@ export default function StoreOffersScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Tag size={40} color={isDark ? '#374151' : '#E5E7EB'} />
-            <Text style={styles.emptyTitle}>No offers yet</Text>
+            <Text style={styles.emptyTitle}>{t('store.noOffersYet')}</Text>
             <Text style={styles.emptySubtitle}>
-              Publish location-based deals to attract nearby customers.
+              {t('store.noOffersDesc')}
             </Text>
           </View>
         }
@@ -103,23 +106,23 @@ export default function StoreOffersScreen() {
                 <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
                 {offer.discountPercent > 0 && (
                   <View style={styles.discountBadge}>
-                    <Text style={styles.discountBadgeText}>{offer.discountPercent}% OFF</Text>
+                    <Text style={styles.discountBadgeText}>{offer.discountPercent}% {t('store.offPercentLabel')}</Text>
                   </View>
                 )}
                 {offer.targetCustomerId && (
                   <View style={styles.privateBadge}>
-                    <Text style={styles.privateBadgeText} numberOfLines={1}>Private · {offer.targetCustomerName}</Text>
+                    <Text style={styles.privateBadgeText} numberOfLines={1}>{t('store.privateOfferBadge')} · {offer.targetCustomerName}</Text>
                   </View>
                 )}
                 {expired && (
                   <View style={styles.expiredOverlay}>
-                    <Text style={styles.expiredText}>EXPIRED</Text>
+                    <Text style={styles.expiredText}>{t('store.expiredBadge')}</Text>
                   </View>
                 )}
               </View>
               <View style={styles.cardBody}>
                 <Text style={styles.title} numberOfLines={1}>
-                  {offer.title}
+                  {translateProductName(offer.title, language)}
                 </Text>
                 <View style={styles.priceRow}>
                   <Text style={styles.price}>₹{offer.offerPrice}</Text>
@@ -130,8 +133,8 @@ export default function StoreOffersScreen() {
                 <View style={styles.validRow}>
                   <Clock size={9} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
                   <Text style={styles.validText}>
-                    Until{' '}
-                    {new Date(offer.validUntil).toLocaleDateString('en-IN', {
+                    {t('store.validUntilPrefix')}{' '}
+                    {new Date(offer.validUntil).toLocaleDateString(language === 'en' ? 'en-IN' : `${language}-IN`, {
                       day: 'numeric',
                       month: 'short',
                     })}
@@ -143,7 +146,7 @@ export default function StoreOffersScreen() {
                     onPress={() => navigation.navigate('NewOffer', { offer })}
                   >
                     <Edit2 size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.editBtnText}>Edit</Text>
+                    <Text style={styles.editBtnText}>{t('store.editOfferBtn')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.deleteBtn}
@@ -151,7 +154,7 @@ export default function StoreOffersScreen() {
                     disabled={deleting === offer._id}
                   >
                     <Trash2 size={12} color={isDark ? '#F87171' : CustomerColors.primary} />
-                    <Text style={styles.deleteBtnText}>Delete</Text>
+                    <Text style={styles.deleteBtnText}>{t('store.deleteOfferBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -172,7 +175,7 @@ export default function StoreOffersScreen() {
             <View style={styles.deleteIconWrap}>
               <Trash2 size={26} color="#EF4444" />
             </View>
-            <Text style={styles.modalTitle}>Delete this offer?</Text>
+            <Text style={styles.modalTitle}>{t('store.deleteOfferConfirm')}</Text>
             <Text style={styles.modalSubtitle}>
               Are you sure you want to delete "{deleteTargetOffer?.title}"? This offer will be removed from customer feeds.
             </Text>
@@ -183,7 +186,7 @@ export default function StoreOffersScreen() {
                 onPress={() => setDeleteTargetOffer(null)}
                 disabled={Boolean(deleting)}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.confirmDeleteBtn}
@@ -193,7 +196,7 @@ export default function StoreOffersScreen() {
                 {deleting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.confirmDeleteBtnText}>Delete</Text>
+                  <Text style={styles.confirmDeleteBtnText}>{t('store.deleteOfferBtn')}</Text>
                 )}
               </TouchableOpacity>
             </View>

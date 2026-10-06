@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import RemiseLoading from '../components/common/RemiseLoading';
+import { setNotificationNavigationRef } from '../services/fcmService';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -122,8 +123,15 @@ export default function AppNavigator() {
     );
   }
 
+  const navRef = React.useRef<any>(null);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      ref={navRef}
+      onReady={() => {
+        setNotificationNavigationRef(navRef.current);
+      }}
+    >
       <RootStack.Navigator
         initialRouteName="RoleGate"
         screenOptions={{ headerShown: false }}

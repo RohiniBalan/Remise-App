@@ -8,6 +8,7 @@ import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { LanguageProvider } from './src/i18n';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import { WishlistProvider } from './src/context/WishlistContext';
@@ -23,15 +24,17 @@ function ThemedApp() {
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={isDark ? '#0a0f1d' : '#FFFFFF'}
       />
-      <AuthProvider>
-        <NotificationProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <AppNavigator />
-            </WishlistProvider>
-          </CartProvider>
-        </NotificationProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <AppNavigator />
+              </WishlistProvider>
+            </CartProvider>
+          </NotificationProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </>
   );
 }

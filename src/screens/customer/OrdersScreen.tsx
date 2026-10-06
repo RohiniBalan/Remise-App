@@ -33,6 +33,7 @@ import RefundModal from '../../components/common/RefundModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateProductName } from '../../i18n';
 import {
   CustomerColors,
   Spacing,
@@ -175,6 +176,7 @@ function getStatusUI(
 
 export default function OrdersScreen() {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -610,7 +612,7 @@ export default function OrdersScreen() {
               <Image source={{ uri: resolveImageUrl(item.image) }} style={[styles.orderImage, isDark && { backgroundColor: '#1F2937' }]} />
               <View style={styles.orderInfo}>
                 <Text style={[styles.orderTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
-                  {item.title}
+                  {translateProductName(item.title, language)}
                 </Text>
                 <Text style={[styles.orderQty, isDark && { color: '#9CA3AF' }]}>
                   Qty: {item.quantity} · ₹{item.price.toLocaleString()}

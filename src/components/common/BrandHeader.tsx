@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Sun, Moon, Bell } from 'lucide-react-native';
+import { Sun, Moon, Bell, Globe } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
+import { useTranslation } from '../../i18n';
+import LanguageSelectorModal from './LanguageSelectorModal';
 import { CustomerColors, Spacing } from '../../styles/theme';
 
 export default function BrandHeader() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
   const { unreadCount } = useUnreadNotifications();
+  const { currentLanguage } = useTranslation();
+  const [langModalVisible, setLangModalVisible] = useState(false);
 
   return (
     <View
@@ -36,6 +40,27 @@ export default function BrandHeader() {
       </TouchableOpacity>
 
       <View style={styles.actionsRow}>
+        <TouchableOpacity
+          onPress={() => setLangModalVisible(true)}
+          style={[
+            styles.headerBtn,
+            styles.langBtn,
+            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#F5F5F5' },
+          ]}
+          activeOpacity={0.7}
+          accessibilityLabel="Change Language"
+        >
+          <Globe size={16} color={CustomerColors.primary} />
+          <Text
+            style={[
+              styles.langCodeText,
+              { color: isDark ? '#FFFFFF' : CustomerColors.black },
+            ]}
+          >
+            {currentLanguage.code.toUpperCase()}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={toggleTheme}
           style={[
@@ -71,6 +96,12 @@ export default function BrandHeader() {
           )}
         </TouchableOpacity>
       </View>
+
+      <LanguageSelectorModal
+        visible={langModalVisible}
+        onClose={() => setLangModalVisible(false)}
+        isDark={isDark}
+      />
     </View>
   );
 }
@@ -104,6 +135,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  langBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  langCodeText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   notifBadge: {
     position: 'absolute',

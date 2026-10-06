@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { getAdminColors, AdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { useTranslation, translateCategory, translatePressContent, translateDate } from '../../i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pressApi, PressReleaseItem } from '../../api/pressApi';
 
@@ -53,6 +54,7 @@ const DUMMY_IDS = ['smarter-local-discovery', 'product-scanning-launch', 'store-
 
 export default function AdminPressScreen() {
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const themeColors = getAdminColors(isDark);
 
   const [releases, setReleases] = useState<PressReleaseItem[]>([]);
@@ -303,12 +305,12 @@ export default function AdminPressScreen() {
       {/* Header bar */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Press & Media</Text>
-          <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>Publish company news and press releases</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>{t('admin.pressNewsroom')}</Text>
+          <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>{t('admin.pressSubtitle')}</Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={openCreateModal}>
           <Plus size={16} color="#fff" />
-          <Text style={styles.addBtnText}>New Press</Text>
+          <Text style={styles.addBtnText}>{t('admin.newRelease')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -317,19 +319,19 @@ export default function AdminPressScreen() {
         <View style={styles.statsGrid}>
           <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <Text style={[styles.statNum, { color: themeColors.textPrimary }]}>{stats.total}</Text>
-            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Total</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.totalReleases')}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <Text style={[styles.statNum, { color: '#059669' }]}>{stats.published}</Text>
-            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Live</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.published')}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <Text style={[styles.statNum, { color: '#D97706' }]}>{stats.drafts}</Text>
-            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Drafts</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.drafts')}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <Text style={[styles.statNum, { color: AdminColors.primary }]}>{stats.featured}</Text>
-            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Featured</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.featured')}</Text>
           </View>
         </View>
 
@@ -338,7 +340,7 @@ export default function AdminPressScreen() {
           <Search size={16} color={themeColors.textMuted} />
           <TextInput
             style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
-            placeholder="Search press releases..."
+            placeholder={t('admin.searchPressPlaceholder')}
             placeholderTextColor={themeColors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -370,7 +372,7 @@ export default function AdminPressScreen() {
                   statusFilter === s && styles.statusChipTextActive,
                 ]}
               >
-                {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'all' ? t('admin.all') : s === 'published' ? t('admin.published') : s === 'draft' ? t('admin.drafts') : t('admin.featured')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -395,7 +397,7 @@ export default function AdminPressScreen() {
                   activeCategory === cat && styles.catChipTextActive,
                 ]}
               >
-                {cat}
+                {cat === 'All' ? t('admin.allCategories') : translateCategory(cat, language)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -429,17 +431,17 @@ export default function AdminPressScreen() {
                 )}
                 <View style={[styles.pubBadge, { backgroundColor: item.published ? '#ECFDF5' : '#FFFBEB' }]}>
                   <Text style={[styles.pubBadgeText, { color: item.published ? '#059669' : '#D97706' }]}>
-                    {item.published ? 'Published' : 'Draft'}
+                    {item.published ? t('admin.published') : t('admin.draftBadge')}
                   </Text>
                 </View>
-                <Text style={styles.catBadge}>{item.category || 'General'}</Text>
-                <Text style={styles.dateText}>{item.date}</Text>
+                <Text style={styles.catBadge}>{translateCategory(item.category || 'General', language)}</Text>
+                <Text style={styles.dateText}>{translateDate(item.date, language)}</Text>
               </View>
 
               {/* Title & Excerpt */}
-              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={styles.itemTitle}>{translatePressContent(item.title, language)}</Text>
               <Text style={styles.itemExcerpt} numberOfLines={2}>
-                {item.excerpt}
+                {translatePressContent(item.excerpt, language)}
               </Text>
 
               {/* Footer / Meta */}
@@ -468,12 +470,12 @@ export default function AdminPressScreen() {
 
                 <TouchableOpacity style={styles.actionPill} onPress={() => openEditModal(item)}>
                   <Edit3 size={13} color={AdminColors.textPrimary} />
-                  <Text style={styles.actionPillText}>Edit</Text>
+                  <Text style={styles.actionPillText}>{t('admin.edit')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.actionPill, styles.deletePill]} onPress={() => confirmDelete(item)}>
                   <Trash2 size={13} color="#DC2626" />
-                  <Text style={[styles.actionPillText, { color: '#DC2626' }]}>Delete</Text>
+                  <Text style={[styles.actionPillText, { color: '#DC2626' }]}>{t('admin.delete')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -485,14 +487,16 @@ export default function AdminPressScreen() {
       {/* ─── CREATE / EDIT MODAL ────────────────────────────────────── */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, isDark && { backgroundColor: themeColors.cardBg }]}>
             {/* Modal Header */}
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.border }]}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>
+                <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>
                   {isEditing ? 'Edit Press Release' : 'New Press Release'}
                 </Text>
-                <Text style={styles.modalSub}>Remise Newsroom announcement</Text>
+                <Text style={[styles.modalSub, { color: isDark ? '#CBD5E1' : AdminColors.textMuted }]}>
+                  Remise Newsroom announcement
+                </Text>
               </View>
               <View style={styles.tabToggle}>
                 <TouchableOpacity
@@ -509,25 +513,25 @@ export default function AdminPressScreen() {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
-                <X size={20} color={AdminColors.textSecondary} />
+                <X size={20} color={isDark ? themeColors.textSecondary : AdminColors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {editorTab === 'write' ? (
                 <>
-                  <Text style={styles.inputLabel}>Headline Title *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Headline Title *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                     placeholder="e.g. Remise introduces new smart shopping features..."
                     placeholderTextColor={AdminColors.textMuted}
                     value={formTitle}
                     onChangeText={handleTitleChange}
                   />
 
-                  <Text style={styles.inputLabel}>URL Slug *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>URL Slug *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                     placeholder="smarter-local-discovery"
                     placeholderTextColor={AdminColors.textMuted}
                     value={formSlug}
@@ -537,9 +541,9 @@ export default function AdminPressScreen() {
 
                   <View style={styles.formRow}>
                     <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={styles.inputLabel}>Date</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Date</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                         placeholder="September 2026"
                         placeholderTextColor={AdminColors.textMuted}
                         value={formDate}
@@ -547,9 +551,9 @@ export default function AdminPressScreen() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.inputLabel}>Location / Dateline</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Location / Dateline</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                         placeholder="San Francisco, CA"
                         placeholderTextColor={AdminColors.textMuted}
                         value={formLocation}
@@ -558,22 +562,22 @@ export default function AdminPressScreen() {
                     </View>
                   </View>
 
-                  <Text style={styles.inputLabel}>Category</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Category</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                     {CATEGORIES.map(c => (
                       <TouchableOpacity
                         key={c}
-                        style={[styles.catChip, formCategory === c && styles.catChipActive]}
+                        style={[styles.catChip, formCategory === c && styles.catChipActive, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}
                         onPress={() => setFormCategory(c)}
                       >
-                        <Text style={[styles.catChipText, formCategory === c && styles.catChipTextActive]}>{c}</Text>
+                        <Text style={[styles.catChipText, formCategory === c && styles.catChipTextActive, isDark && formCategory !== c && { color: themeColors.textSecondary }]}>{c}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
 
-                  <Text style={styles.inputLabel}>Summary / Excerpt (1-2 sentences) *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Summary / Excerpt (1-2 sentences) *</Text>
                   <TextInput
-                    style={[styles.input, { height: 60 }]}
+                    style={[styles.input, { height: 60 }, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                     placeholder="Brief summary for listings and preview cards..."
                     placeholderTextColor={AdminColors.textMuted}
                     value={formExcerpt}
@@ -581,9 +585,9 @@ export default function AdminPressScreen() {
                     multiline
                   />
 
-                  <Text style={styles.inputLabel}>Full Body (Separate paragraphs with double lines) *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Full Body (Separate paragraphs with double lines) *</Text>
                   <TextInput
-                    style={[styles.input, { height: 140, textAlignVertical: 'top' }]}
+                    style={[styles.input, { height: 140, textAlignVertical: 'top' }, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                     placeholder="SAN FRANCISCO — Remise today announced...&#10;&#10;The new capabilities allow..."
                     placeholderTextColor={AdminColors.textMuted}
                     value={formBody}
@@ -593,9 +597,9 @@ export default function AdminPressScreen() {
 
                   <View style={styles.formRow}>
                     <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={styles.inputLabel}>Contact Name</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Contact Name</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                         placeholder="Remise Press Team"
                         placeholderTextColor={AdminColors.textMuted}
                         value={formContactName}
@@ -603,9 +607,9 @@ export default function AdminPressScreen() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.inputLabel}>Contact Email</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Contact Email</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                         placeholder="porulontechnologies@gmail.com"
                         placeholderTextColor={AdminColors.textMuted}
                         value={formContactEmail}

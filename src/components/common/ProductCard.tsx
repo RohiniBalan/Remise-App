@@ -4,6 +4,7 @@ import { Heart, ShoppingCart, Zap, Sparkles } from 'lucide-react-native';
 import { Product, productImage, productId, discountPercent } from '../../api/productApi';
 import { CustomerColors, GoldColors, Spacing, BorderRadius, FontSizes, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateProductName } from '../../i18n';
 
 // Shared between CategoryScreen, NewArrivalsScreen and (later) HomeScreen — reproduces the
 // same card fields/actions as web's product-card markup: discount badge, NEW badge, wishlist
@@ -22,6 +23,7 @@ interface Props {
 
 export default function ProductCard({ product, isWished, onPress, onToggleWishlist, onAddToCart, onBuyNow, hideBuyNow = false }: Props) {
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
 
   const effectivePrice =
     product.discountedPrice != null &&
@@ -47,6 +49,7 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
   const isOutOfStock =
     product.totalStock <= 0 || product.availability === 'Out of Stock';
   const image = productImage(product);
+  const translatedTitle = translateProductName(product.title, language);
 
   return (
     <TouchableOpacity
@@ -65,7 +68,13 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
           {product.badge && (
             <View style={styles.productBadge}>
               {product.badge.toUpperCase() === 'NEW' && <Sparkles size={8} color="#FFF" />}
-              <Text style={styles.productBadgeText}>{product.badge}</Text>
+              <Text style={styles.productBadgeText}>
+                {product.badge.toUpperCase() === 'NEW'
+                  ? t('common.newBadge')
+                  : product.badge.toLowerCase() === 'featured'
+                  ? t('common.featuredBadge')
+                  : product.badge}
+              </Text>
             </View>
           )}
           {discount > 0 && (
@@ -89,7 +98,7 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
 
       <View style={styles.info}>
         <Text style={[styles.brand, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>{product.brand || ' '}</Text>
-        <Text style={[styles.title, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>{product.title}</Text>
+        <Text style={[styles.title, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>{translatedTitle}</Text>
         <View style={styles.priceRow}>
           <Text style={[styles.price, isDark && { color: '#FFFFFF' }]}>₹{effectivePrice?.toLocaleString()}</Text>
           {originalPrice != null && (
@@ -100,7 +109,7 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
 
       {isOutOfStock ? (
         <View style={[styles.outOfStockRow, isDark && { borderTopColor: '#1F2937' }]}>
-          <Text style={[styles.outOfStockText, isDark && { color: '#9CA3AF' }]}>Out of Stock</Text>
+          <Text style={[styles.outOfStockText, isDark && { color: '#9CA3AF' }]}>{t('products.outOfStock')}</Text>
         </View>
       ) : (
         <View style={[styles.ctaRow, isDark && { borderTopColor: '#1F2937' }]}>
@@ -114,13 +123,13 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
           >
             <ShoppingCart size={12} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             {hideBuyNow && (
-              <Text style={[styles.cartBtnText, isDark && { color: '#9CA3AF' }]}>Add to Cart</Text>
+              <Text style={[styles.cartBtnText, isDark && { color: '#9CA3AF' }]}>{t('products.addToCart')}</Text>
             )}
           </TouchableOpacity>
           {!hideBuyNow && (
             <TouchableOpacity style={styles.buyBtn} onPress={onBuyNow}>
               <Zap size={12} color="#FFF" />
-              <Text style={styles.buyBtnText}>Buy Now</Text>
+              <Text style={styles.buyBtnText}>{t('products.buyNow')}</Text>
             </TouchableOpacity>
           )}
         </View>

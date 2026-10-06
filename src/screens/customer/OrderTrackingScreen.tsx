@@ -35,6 +35,7 @@ import { smartOrderApi } from '../../api/smartOrderApi';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import LiveDeliveryTrackingMap from '../../components/common/LiveDeliveryTrackingMap';
+import { useTranslation, translateProductName } from '../../i18n';
 
 const TRACKING_STEPS = [
   { key: 'Pending', label: 'Order Placed', desc: 'Order received by store' },
@@ -50,6 +51,7 @@ export default function OrderTrackingScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
+  const { language } = useTranslation();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
@@ -459,7 +461,7 @@ export default function OrderTrackingScreen() {
               {(order.items || []).map((item: any, idx: number) => (
                 <View key={idx} style={styles.itemRow}>
                   <View style={styles.itemInfoCol}>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
+                    <Text style={styles.itemTitle}>{translateProductName(item.title, language)}</Text>
                     {item.brand ? (
                       <Text style={styles.itemBrand}>{item.brand}</Text>
                     ) : null}

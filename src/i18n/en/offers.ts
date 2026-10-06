@@ -1,0 +1,24 @@
+import { TranslationSchema } from '../types';
+
+export const offers: TranslationSchema['offers'] = {
+  nearbyOffersTitle: 'Nearby Offers',
+  dealsAroundYou: 'Deals Around You',
+  discoverDealsNearYou: 'Discover deals near you',
+  allowLocationDesc: 'Allow location access to see exclusive offers from nearby stores.',
+  enableLocationBtn: 'Enable Location',
+  browseAllOffers: 'Browse All Offers',
+  radiusKm: 'Within {{distance}} km',
+  hoursLeft: '{{hours}} hours left',
+  noOffersNearby: 'No offers found nearby',
+  noOffersDesc: 'Try expanding your search radius or exploring all deals.',
+  claimOffer: 'Claim Offer',
+  myOffers: 'My Offers',
+  exclusiveDeals: 'Exclusive Deals for You',
+  noPrivateOffersTitle: 'No private offers yet',
+  noPrivateOffersDesc: "When a store sends you a personal deal, it'll show up here.",
+  dealsStoreSentPersonally: 'Deals a store has sent you personally',
+  justForYou: 'Just for you',
+  orderNowBtn: 'Order Now',
+  signInForPrivateOffers: 'Sign in to view your offers',
+  signInForPrivateOffersDesc: 'Exclusive deals sent to your account will appear here once you log in.',
+};

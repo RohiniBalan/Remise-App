@@ -71,7 +71,7 @@ export default function DeliveryPartnerRegisterScreen() {
       });
       const data = response.data.data;
       await login(data, data.token);
-      setSuccessMessage('Account created! Opening verification...');
+      setSuccessMessage('Account created! Verification code sent to email & WhatsApp.');
       setShowSuccess(true);
       setTimeout(() => {
         navigation.navigate('VerifyEmail');

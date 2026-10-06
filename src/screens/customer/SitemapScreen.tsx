@@ -14,6 +14,8 @@ import {
 } from 'lucide-react-native';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
+import { getSitemapData } from '../../i18n/sitemapTranslations';
 
 // Ported from client/app/sitemap/page.tsx — uses website brand red (#FF0000).
 
@@ -157,6 +159,8 @@ const QUICK_NAV: QuickNavGroup[] = [
 
 export default function SitemapScreen({ navigation }: any) {
     const { isDark } = useTheme();
+    const { language } = useTranslation();
+    const data = getSitemapData(language as any);
 
     const cardBg = isDark ? '#111827' : '#ffffff';
     const borderColor = isDark ? '#1F2937' : '#e2e8f0';

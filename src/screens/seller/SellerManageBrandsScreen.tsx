@@ -9,6 +9,7 @@ import { storeProductApi } from '../../api/storeProductApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateProductName } from '../../i18n';
 
 const AVAILABILITY_STYLE: Record<string, { bg: string; fg: string; darkBg: string; darkFg: string }> = {
   'In Stock': { bg: '#F0FDF4', fg: '#15803D', darkBg: 'rgba(22, 163, 74, 0.15)', darkFg: '#4ADE80' },
@@ -20,6 +21,7 @@ export default function SellerManageBrandsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { title, category, items: initialItems, brandCount, totalStock } = route.params;
   const { refresh, products } = useSellerDashboard();
@@ -52,16 +54,16 @@ export default function SellerManageBrandsScreen() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ArrowLeft size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-          <Text style={styles.backText}>Back to Products</Text>
+          <Text style={styles.backText}>{t('store.backToProducts') || 'Back to Products'}</Text>
         </TouchableOpacity>
         <View style={styles.headerTitleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <Text style={styles.headerSub}>{brandCount} brand{brandCount !== 1 ? 's' : ''} · {totalStock} total stock</Text>
+            <Text style={styles.headerTitle}>{translateProductName(title, language)}</Text>
+            <Text style={styles.headerSub}>{brandCount} {t('store.availableBrandsLabel') || 'brands'} · {totalStock} {t('store.totalStock') || 'total stock'}</Text>
           </View>
           <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('SellerProductForm', { initialTitle: title, initialCategory: category })}>
             <Plus size={14} color="#fff" />
-            <Text style={styles.addBtnText}>Add Brand</Text>
+            <Text style={styles.addBtnText}>{t('store.addBrand') || 'Add Brand'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -104,7 +106,7 @@ export default function SellerManageBrandsScreen() {
                     <Text style={[styles.badgeText, { color: badgeFg }]}>{p.availability}</Text>
                   </View>
                   <Text style={[styles.stockText, p.totalStock < 5 && { color: '#D97706', fontWeight: '700' }]}>
-                    Stock {p.totalStock} {p.stockUnit || p.unit || 'Count'}
+                    {t('store.stock') || 'Stock'} {p.totalStock} {p.stockUnit || p.unit || 'Count'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -139,9 +141,9 @@ export default function SellerManageBrandsScreen() {
             <View style={styles.deleteIconWrap}>
               <Trash2 size={26} color="#EF4444" />
             </View>
-            <Text style={styles.modalTitle}>Delete this product?</Text>
+            <Text style={styles.modalTitle}>{t('store.deleteProductConfirm') || 'Delete this product?'}</Text>
             <Text style={styles.modalSubtitle}>
-              Are you sure you want to delete "{deleteTarget?.brand || deleteTarget?.title || 'this item'}"? This action cannot be undone.
+              {deleteTarget?.brand || deleteTarget?.title || 'this item'}
             </Text>
 
             <View style={styles.modalActions}>
@@ -150,7 +152,7 @@ export default function SellerManageBrandsScreen() {
                 onPress={() => setDeleteTarget(null)}
                 disabled={Boolean(deleting)}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('common.cancel') || 'Cancel'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.confirmDeleteBtn}
@@ -160,7 +162,7 @@ export default function SellerManageBrandsScreen() {
                 {deleting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.confirmDeleteBtnText}>Delete</Text>
+                  <Text style={styles.confirmDeleteBtnText}>{t('common.delete') || 'Delete'}</Text>
                 )}
               </TouchableOpacity>
             </View>

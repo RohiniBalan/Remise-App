@@ -25,6 +25,7 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation, translateCategory } from '../../i18n';
 
 // Ported from client/app/category/[categoryId]/page.tsx — same single
 // full-catalog fetch, same client-side filter/sort logic (category
@@ -54,6 +55,7 @@ export default function CategoryScreen() {
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { theme, toggleTheme, isDark } = useTheme();
+  const { t, language } = useTranslation();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
@@ -347,7 +349,7 @@ export default function CategoryScreen() {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={activeCategory ? `Search in ${activeCategory}…` : "Search all products…"}
+              placeholder={activeCategory ? `${t('common.searchPlaceholder')} ${translateCategory(activeCategory, language)}…` : t('common.searchPlaceholder')}
               placeholderTextColor={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
               style={[styles.searchInput, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
               autoCapitalize="none"
@@ -381,10 +383,12 @@ export default function CategoryScreen() {
         >
           <Filter size={13} color={CustomerColors.primary} />
           <Text style={styles.filterToggleText}>
-            Filters{hasActiveFilters ? ' •' : ''}
+            {t('common.filter')}{hasActiveFilters ? ' •' : ''}
           </Text>
         </TouchableOpacity>
-        <Text style={[styles.count, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>{filtered.length} products</Text>
+        <Text style={[styles.count, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
+          {filtered.length} {t('products.resultsCount')}
+        </Text>
       </View>
 
       {filtersOpen && (
@@ -397,7 +401,7 @@ export default function CategoryScreen() {
             {categories.map(cat => (
               <Chip
                 key={cat}
-                label={cat}
+                label={translateCategory(cat, language)}
                 active={activeCategory === cat}
                 isDark={isDark}
                 onPress={() =>
@@ -429,7 +433,7 @@ export default function CategoryScreen() {
             {PRICE_PRESETS.map(preset => (
               <Chip
                 key={preset.label}
-                label={preset.label}
+                label={preset.label === 'All' ? t('common.allCategories') : preset.label}
                 active={pricePreset.label === preset.label}
                 isDark={isDark}
                 onPress={() => setPricePreset(preset)}
@@ -458,7 +462,7 @@ export default function CategoryScreen() {
           {hasActiveFilters && (
             <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
               <X size={12} color={CustomerColors.primary} />
-              <Text style={styles.clearBtnText}>Clear all filters</Text>
+              <Text style={styles.clearBtnText}>{t('products.clearAllFilters')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -475,7 +479,7 @@ export default function CategoryScreen() {
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
-            No products found. Try adjusting your filters.
+            {t('products.noProductsMatch')}
           </Text>
         }
         renderItem={({ item }) => (
@@ -500,7 +504,7 @@ export default function CategoryScreen() {
           ) : !hasNextPage && filtered.length > 0 ? (
             <View style={{ paddingVertical: 16, alignItems: 'center' }}>
               <Text style={{ fontSize: 11, color: isDark ? '#64748B' : '#94A3B8', fontWeight: '600' }}>
-                ✦ End of product list ✦
+                ✦ {t('products.loadingMoreProducts') ? '' : '✦'}
               </Text>
             </View>
           ) : null
@@ -510,8 +514,8 @@ export default function CategoryScreen() {
       <AuthRequiredModal
         visible={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        title="Login to Purchase"
-        subtitle="Please sign in or register to complete this purchase."
+        title={t('auth.signInBtn')}
+        subtitle={t('auth.alreadyHaveAccount')}
         onLogin={() => navigation.navigate('LoginRegister')}
       />
     </View>

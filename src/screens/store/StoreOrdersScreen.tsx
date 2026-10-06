@@ -9,6 +9,7 @@ import { offersApi } from '../../api/offersApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
+import { useTranslation, translateProductName } from '../../i18n';
 
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Ready', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
@@ -16,7 +17,27 @@ export default function StoreOrdersScreen() {
   const navigation = useNavigation<any>();
   const { orders, loading, refresh, markOrdersAsSeen } = useStoreDashboard();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case 'Pending':
+        return t.store.deliveryPending;
+      case 'Delivered':
+        return t.store.deliveryDelivered;
+      case 'Out for Delivery':
+        return t.store.deliveryOutForDelivery;
+      case 'Picked Up':
+        return t.store.deliveryPickedUp;
+      case 'Accepted':
+        return t.store.deliveryAccepted;
+      case 'Assigned':
+        return t.store.deliveryAssigned;
+      default:
+        return status;
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -81,7 +102,7 @@ export default function StoreOrdersScreen() {
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search by customer or offer…"
+            placeholder={t.store.searchOrdersPlaceholder}
             placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
           />
         </View>
@@ -90,7 +111,7 @@ export default function StoreOrdersScreen() {
           onPress={() => navigation.navigate('StoreDeliveries')}
         >
           <Truck size={14} color="#FFFFFF" />
-          <Text style={styles.deliveryLogsNavBtnText}>Deliveries Log</Text>
+          <Text style={styles.deliveryLogsNavBtnText}>{t.store.totalDeliveries}</Text>
         </TouchableOpacity>
       </View>
 
@@ -98,7 +119,7 @@ export default function StoreOrdersScreen() {
         {['all', ...ORDER_STATUSES].map(s => (
           <TouchableOpacity key={s} style={[styles.filterChip, filter === s && styles.filterChipActive]} onPress={() => setFilter(s)}>
             <Text style={[styles.filterChipText, filter === s && styles.filterChipTextActive]}>
-              {s === 'all' ? `All (${counts.all})` : `${s} (${counts[s] || 0})`}
+              {s === 'all' ? t.store.allOrdersCount.replace('{count}', String(counts.all)) : `${translateStatus(s)} (${counts[s] || 0})`}
             </Text>
           </TouchableOpacity>
         ))}
@@ -111,7 +132,10 @@ export default function StoreOrdersScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <ShoppingBag size={40} color={isDark ? '#374151' : '#E5E7EB'} />
-            <Text style={styles.emptyTitle}>No orders found</Text>
+            <Text style={styles.emptyTitle}>{t.store.noOrdersFound}</Text>
+            <Text style={{ marginTop: 4, color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 13, textAlign: 'center' }}>
+              {t.store.ordersPlacedHere || 'Orders placed by customers will show up here.'}
+            </Text>
           </View>
         }
         ListFooterComponent={
@@ -125,14 +149,14 @@ export default function StoreOrdersScreen() {
         renderItem={({ item: o }) => (
           <View style={styles.card}>
             <View style={styles.orderHeaderRow}>
-              <Text style={styles.orderTitle} numberOfLines={1}>{o.offerTitle || o.productName || o.customerName || 'Order'}</Text>
+              <Text style={styles.orderTitle} numberOfLines={1}>{translateProductName(o.offerTitle || o.productName || o.customerName || 'Order', language)}</Text>
               <View style={styles.badgeGroup}>
                 <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>{o.status}</Text>
+                  <Text style={styles.statusBadgeText}>{translateStatus(o.status)}</Text>
                 </View>
                 {o.deliveryStatus ? (
                   <View style={styles.deliveryBadge}>
-                    <Text style={styles.deliveryBadgeText}>Delivery: {o.deliveryStatus}</Text>
+                    <Text style={styles.deliveryBadgeText}>{translateStatus(o.deliveryStatus)}</Text>
                   </View>
                 ) : null}
                 {o.refundStatus && o.refundStatus !== 'none' ? (
@@ -146,14 +170,14 @@ export default function StoreOrdersScreen() {
                       (o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? styles.refundBadgeTextCompleted : styles.refundBadgeTextPending
                     ]}>
                       {o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED'
-                        ? `Refunded: ₹${o.totalRefundedAmount || o.totalAmount}`
+                        ? t.store.refundCompletedAmount.replace('{amount}', String(o.totalRefundedAmount || o.totalAmount))
                         : o.refundStatus === 'partially_refunded'
-                        ? `Partially Refunded: ₹${o.totalRefundedAmount}`
+                        ? t.store.partiallyRefundedAmount.replace('{amount}', String(o.totalRefundedAmount))
                         : o.refundStatus === 'requested'
-                        ? 'Refund Requested'
+                        ? t.store.refundRequested
                         : o.refundStatus === 'processing'
-                        ? 'Refund Processing'
-                        : `Refund: ${o.refundStatus}`}
+                        ? t.store.refundProcessing
+                        : `${t.store.refundStatusPrefix} ${o.refundStatus}`}
                     </Text>
                   </View>
                 ) : null}
@@ -170,19 +194,26 @@ export default function StoreOrdersScreen() {
               <View style={styles.chipRow}>
                 <View style={styles.metaChip}>
                   {o.deliveryMethod === 'pickup' ? <Store size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : <Truck size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />}
-                  <Text style={styles.metaChipText}>{o.deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}</Text>
+                  <Text style={styles.metaChipText}>{o.deliveryMethod === 'pickup' ? t.store.selfPickup : t.store.homeDelivery}</Text>
                 </View>
+                {o.orderOtp ? (
+                  <View style={[styles.metaChip, { backgroundColor: isDark ? '#0f2928' : '#F0FDFA', borderColor: isDark ? '#115e59' : '#99F6E4' }]}>
+                    <Text style={[styles.metaChipText, { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' }]}>
+                      Order OTP: {o.orderOtp}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={[styles.metaChip, (o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded') && { backgroundColor: isDark ? '#3b0764' : '#FAF5FF', borderColor: '#E9D5FF' }]}>
                   <CreditCard size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />
                   <Text style={[styles.metaChipText, (o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded') && { color: '#9333EA', fontWeight: '700' }]}>
                     {o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR' : o.paymentMethod === 'cod' ? 'Cash' : (o.paymentMethod || 'Online')} · {
                       o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded'
-                        ? 'Refunded'
+                        ? t.store.paymentRefunded
                         : o.refundStatus === 'requested'
-                        ? 'Refund Requested'
+                        ? t.store.refundRequested
                         : o.paymentStatus === 'SUCCESS'
-                        ? 'Paid'
-                        : 'Pending'
+                        ? t.store.paymentPaid
+                        : t.store.paymentPending
                     }
                   </Text>
                 </View>
@@ -208,14 +239,14 @@ export default function StoreOrdersScreen() {
                     (o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED') ? styles.refundNoticeTitleCompleted : styles.refundNoticeTitlePending
                   ]}>
                     {o.refundStatus === 'refunded' || o.paymentStatus === 'REFUNDED'
-                      ? `Refund Completed (₹${o.totalRefundedAmount || o.totalAmount})`
+                      ? t.store.refundCompletedAmount.replace('{amount}', String(o.totalRefundedAmount || o.totalAmount))
                       : o.refundStatus === 'partially_refunded'
-                      ? `Partially Refunded (₹${o.totalRefundedAmount})`
+                      ? t.store.partiallyRefundedAmount.replace('{amount}', String(o.totalRefundedAmount))
                       : o.refundStatus === 'requested'
-                      ? 'Customer Requested a Refund'
+                      ? t.store.customerRequestedRefundNote
                       : o.refundStatus === 'processing'
-                      ? 'Refund Processing via Gateway'
-                      : `Refund Status: ${o.refundStatus}`}
+                      ? t.store.refundProcessing
+                      : `${t.store.refundStatusPrefix} ${o.refundStatus}`}
                   </Text>
                   {o.refunds?.[0]?.reason ? (
                     <Text style={styles.refundNoticeReason}>Reason: "{o.refunds[0].reason}"</Text>
@@ -225,11 +256,18 @@ export default function StoreOrdersScreen() {
             ) : null}
 
             <Text style={styles.orderDate}>
-              {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {new Date(o.createdAt).toLocaleString(language === 'ta' ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </Text>
             <View style={styles.footerRow}>
               <View style={styles.footerTop}>
                 <Text style={styles.orderId}>#{o._id.slice(-6).toUpperCase()}</Text>
+                {o.orderOtp ? (
+                  <View style={{ backgroundColor: isDark ? '#0f2928' : '#F0FDFA', borderWidth: 1, borderColor: isDark ? '#115e59' : '#99F6E4', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 }}>
+                      OTP: {o.orderOtp}
+                    </Text>
+                  </View>
+                ) : null}
                 {updating === o._id && <ActivityIndicator size="small" color={isDark ? '#2DD4BF' : CustomerColors.teal700} style={{ marginLeft: 6 }} />}
               </View>
               <Text style={styles.orderAmount}>₹{o.totalAmount}</Text>
@@ -243,7 +281,7 @@ export default function StoreOrdersScreen() {
                       onPress={() => navigation.navigate('StoreOrderTracking', { orderId: o.orderId || o._id })}
                     >
                       <Truck size={12} color="#2563EB" />
-                      <Text style={styles.trackOrderBtnText}>Live Track</Text>
+                      <Text style={styles.trackOrderBtnText}>{t.store.viewDeliveryLinkBtn || 'Live Track'}</Text>
                     </TouchableOpacity>
                   )}
 
@@ -257,13 +295,13 @@ export default function StoreOrdersScreen() {
                     >
                       <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                       <Text style={styles.deliveryFlowBtnText}>
-                        {o.deliveryToken ? 'View Delivery Link' : 'Manage Delivery'}
+                        {o.deliveryToken ? t.store.viewDeliveryLinkBtn : t.store.manageDeliveryBtn}
                       </Text>
                     </TouchableOpacity>
                   )}
 
                 <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>{o.status}</Text>
+                  <Text style={styles.statusBadgeText}>{translateStatus(o.status)}</Text>
                 </View>
               </View>
             </View>

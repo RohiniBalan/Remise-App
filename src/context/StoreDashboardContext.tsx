@@ -66,6 +66,7 @@ function normalizeSmartOrder(o: any) {
     paymentStatus: o.paymentStatus,
     vendorTransfers: o.vendorTransfers || [],
     rawItems: items,
+    orderOtp: o.orderOtp,
     refundStatus: o.refundStatus || (o.paymentStatus === 'REFUNDED' ? 'refunded' : 'none'),
     totalRefundedAmount: o.totalRefundedAmount || (o.paymentStatus === 'REFUNDED' ? o.totalAmount : 0),
     refunds: o.refunds || [],

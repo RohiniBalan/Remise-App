@@ -35,11 +35,13 @@ import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { GATEWAY_URL } from '../../api/endpoints';
 import LiveDeliveryTrackingMap from '../../components/common/LiveDeliveryTrackingMap';
+import { useTranslation, translateProductName } from '../../i18n';
 
 export default function StoreOrderTrackingScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
+  const { language } = useTranslation();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
@@ -366,7 +368,7 @@ export default function StoreOrderTrackingScreen() {
               {(order.items || []).map((item: any, idx: number) => (
                 <View key={idx} style={styles.itemRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
+                    <Text style={styles.itemTitle}>{translateProductName(item.title, language)}</Text>
                     {item.brand ? <Text style={styles.itemBrand}>{item.brand}</Text> : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>

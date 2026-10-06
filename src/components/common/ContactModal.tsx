@@ -6,6 +6,8 @@ import { contactApi } from '../../api/contentApi';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { GoldColors, CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTranslation } from '../../i18n';
+import { getCustomerSupportData } from '../../i18n/customerSupportTranslations';
 
 // Ported from client/app/services/ContactPage.tsx — same GET /contact
 // (business info) + POST /contact/messages (the actual form submission)
@@ -36,6 +38,10 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
   const navigation = useNavigation<any>();
   const { token } = useAuth();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const supportData = getCustomerSupportData(language as any);
+  const modalStrings = supportData.contactModal;
+
   const [data, setData] = useState<ContactData>(OFFICIAL_CONTACT_INFO);
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [errors, setErrors] = useState<{ name?: string; email?: string; phone?: string; message?: string }>({});
@@ -129,8 +135,8 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>{data.title}</Text>
-              <Text style={styles.subtitle}>{data.subtitle}</Text>
+              <Text style={styles.title}>{data.title === 'Get in Touch' ? modalStrings.title : data.title}</Text>
+              <Text style={styles.subtitle}>{data.subtitle.includes("queries") ? modalStrings.subtitle : data.subtitle}</Text>
             </View>
             <TouchableOpacity onPress={onClose}><X size={22} color={CustomerColors.textSecondary} /></TouchableOpacity>
           </View>
@@ -169,7 +175,7 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
           <View>
             <TextInput
               style={[styles.input, errors.name && styles.inputError]}
-              placeholder="Your Name"
+              placeholder={modalStrings.nameLabel}
               placeholderTextColor="#9CA3AF"
               value={form.name}
               onChangeText={v => {
@@ -183,7 +189,7 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
           <View>
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
-              placeholder="Email"
+              placeholder={modalStrings.emailLabel}
               placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -199,7 +205,7 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
           <View>
             <TextInput
               style={[styles.input, errors.phone && styles.inputError]}
-              placeholder="Phone"
+              placeholder={modalStrings.phoneLabel}
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               value={form.phone}
@@ -214,7 +220,7 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
           <View>
             <TextInput
               style={[styles.input, { height: 80, textAlignVertical: 'top' }, errors.message && styles.inputError]}
-              placeholder="Message"
+              placeholder={modalStrings.messageLabel}
               placeholderTextColor="#9CA3AF"
               multiline
               value={form.message}
@@ -227,7 +233,7 @@ export default function ContactModal({ visible, onClose }: { visible: boolean; o
           </View>
 
           <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={submitting}>
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Send Message</Text>}
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>{modalStrings.sendMessageBtn}</Text>}
           </TouchableOpacity>
         </View>
       </View>

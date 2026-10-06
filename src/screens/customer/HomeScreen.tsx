@@ -80,6 +80,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateProductName, translateCategory } from '../../i18n';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { resolveImageUrl } from '../../utils/imageUrl';
@@ -156,6 +157,7 @@ export default function HomeScreen() {
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { unreadCount } = useUnreadNotifications();
   const { theme, toggleTheme, isDark, colors } = useTheme();
+  const { t, language } = useTranslation();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -179,9 +181,24 @@ export default function HomeScreen() {
     ].includes(String(user.role).toLowerCase().trim())
   );
 
+  const dynamicDealStrip: DealStripItem[] = useMemo(() => [
+    { icon: Percent, title: t('common.lifestyleStoreBadge'), subtitle: '50% Off', color: '#FF0000', route: 'Categories' },
+    { icon: MapPin, title: t('common.nearbyOffers'), subtitle: t('common.nearYou'), color: '#0FA3B1', route: 'Nearby' },
+    { icon: Tag, title: t('offers.myOffers'), subtitle: t('offers.activeOffers'), color: '#EA580C', route: 'MyOffers' },
+    { icon: ShoppingBasket, title: t('common.bulkPurchase'), subtitle: t('products.grocery'), color: '#0d9488', route: 'BulkPurchase' },
+    { icon: Store, title: t('store.homeSuppliers'), subtitle: t('store.verifiedStore'), color: '#8B5CF6', route: 'Suppliers' },
+  ], [t]);
+
+  const dynamicInfoStrip = useMemo(() => [
+    { icon: Truck, title: t('common.freeDelivery'), subtitle: t('common.freeDeliveryDesc') },
+    { icon: ShieldCheck, title: t('common.securePayments'), subtitle: t('common.securePaymentsDesc') },
+    { icon: RefreshCw, title: t('common.easyReturns'), subtitle: t('common.easyReturnsDesc') },
+    { icon: Tag, title: t('common.bestPrices'), subtitle: t('common.bestPricesDesc') },
+  ], [t]);
+
   const visibleDealStrip = isMerchantOrAdmin
-    ? DEAL_STRIP.filter(deal => deal.route !== 'Suppliers')
-    : DEAL_STRIP;
+    ? dynamicDealStrip.filter(deal => deal.route !== 'Suppliers')
+    : dynamicDealStrip;
 
   const handleShopNow = () => {
     if (categorySectionY > 0) {
@@ -370,7 +387,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={[styles.infoStrip, isDark && { backgroundColor: '#111827', borderBottomColor: '#1e293b' }]}>
-          {INFO_STRIP.map(item => (
+          {dynamicInfoStrip.map(item => (
             <View key={item.title} style={styles.infoItem}>
               <item.icon size={16} color={CustomerColors.teal600} />
               <View style={styles.infoTextWrap}>
@@ -383,7 +400,7 @@ export default function HomeScreen() {
 
         {/* ── Shop by Offers Nearby ─────────────────────────────────────── */}
         <Section
-          title="Shop by Offers Nearby"
+          title={t('common.nearbyOffers')}
           onViewAll={() => navigation.navigate('Nearby')}
           showViewAll={nearbyStatus === 'done' && nearbyOffers.length > 3}
         >
@@ -393,12 +410,12 @@ export default function HomeScreen() {
                 <Navigation size={22} color={CustomerColors.teal600} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.locationPromptTitle}>Discover deals near you</Text>
-                <Text style={styles.locationPromptSubtitle}>Allow location access to see exclusive offers from nearby stores.</Text>
+                <Text style={styles.locationPromptTitle}>{t('common.nearYou')}</Text>
+                <Text style={styles.locationPromptSubtitle}>{t('common.showingDealsWithin', { radius: 10 })}</Text>
               </View>
               <TouchableOpacity style={styles.enableLocationBtn} onPress={handleEnableLocation}>
                 <MapPin size={13} color="#fff" />
-                <Text style={styles.enableLocationBtnText}>Enable</Text>
+                <Text style={styles.enableLocationBtnText}>{t('common.apply')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -488,7 +505,7 @@ export default function HomeScreen() {
         {/* ── Shop by Category ─────────────────────────────────────────── */}
         <View onLayout={e => setCategorySectionY(e.nativeEvent.layout.y)}>
           <Section
-            title="Shop by Category"
+            title={t('products.shopByCategory')}
             onViewAll={() => navigation.navigate('Categories')}
             showViewAll={categories.filter(cat => cat.count > 0).length > 3}
           >
@@ -517,12 +534,12 @@ export default function HomeScreen() {
                         <IconComp size={14} color="#fff" />
                       </View>
                     </View>
-                    <Text style={[styles.categoryTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{cat.title}</Text>
+                    <Text style={[styles.categoryTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{translateCategory(cat.title, language)}</Text>
                     <Text style={[styles.categoryDesc, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>{cat.description}</Text>
                     <View style={styles.categoryFooterRow}>
-                      <Text style={styles.categoryCount}>{cat.count} items</Text>
+                      <Text style={styles.categoryCount}>{cat.count} {t('cart.itemCount', { count: cat.count })}</Text>
                       <View style={styles.exploreRow}>
-                        <Text style={styles.exploreText}>Explore</Text>
+                        <Text style={styles.exploreText}>{t('common.viewDetails')}</Text>
                         <ChevronRight size={10} color={CustomerColors.teal600} />
                       </View>
                     </View>
@@ -535,7 +552,7 @@ export default function HomeScreen() {
 
         {/* ── Best Sellers ─────────────────────────────────────────────── */}
         <Section
-          title="Best Sellers"
+          title={t('products.bestSellers')}
           onViewAll={() => navigation.navigate('BestSellers')}
           showViewAll={bestSellers.filter(p => (p.totalStock ?? 1) > 0).length > 3}
         >
@@ -559,15 +576,15 @@ export default function HomeScreen() {
                     <View style={styles.sellerImageWrap}>
                       <Image source={{ uri: resolveImage(item.img) }} style={styles.sellerImage} />
                       {item.badge && (
-                        <View style={styles.sellerBadge}><Text style={styles.sellerBadgeText}>{item.badge}</Text></View>
+                        <View style={styles.sellerBadge}><Text style={styles.sellerBadgeText}>{item.badge.toLowerCase() === 'featured' ? t('common.featuredBadge') : item.badge}</Text></View>
                       )}
                       {discount > 0 && (
                         <View style={styles.sellerDiscount}><Text style={styles.sellerDiscountText}>-{discount}%</Text></View>
                       )}
                     </View>
                     <View style={styles.sellerBody}>
-                      <Text style={styles.sellerBrand} numberOfLines={1}>{item.category || 'Remise'}</Text>
-                      <Text style={styles.sellerName} numberOfLines={2}>{item.name}</Text>
+                      <Text style={styles.sellerBrand} numberOfLines={1}>{translateCategory(item.category, language) || 'Remise'}</Text>
+                      <Text style={styles.sellerName} numberOfLines={2}>{translateProductName(item.name, language)}</Text>
                       <View style={styles.ratingRow}>
                         <View style={styles.ratingPill}>
                           <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
@@ -605,7 +622,7 @@ export default function HomeScreen() {
                       }}
                     >
                       <ShoppingCart size={12} color={CustomerColors.teal700} />
-                      <Text style={styles.sellerCartText}>Add to Cart</Text>
+                      <Text style={styles.sellerCartText}>{t('products.addToCart')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -617,7 +634,7 @@ export default function HomeScreen() {
         {/* ── New Arrivals ─────────────────────────────────────────────── */}
         {newArrivals.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0).length > 0 && (
           <Section
-            title="New Arrivals"
+            title={t('products.newArrivals')}
             onViewAll={() => navigation.navigate('NewArrivals')}
             showViewAll={newArrivals.filter(p => ((p as any).totalStock ?? (p as any).stock ?? 1) > 0).length > 3}
           >
@@ -644,7 +661,7 @@ export default function HomeScreen() {
                         <Image source={{ uri: img ? resolveImage(img) : undefined }} style={styles.newArrivalImage} />
                         <View style={styles.newArrivalNewBadge}>
                           <Sparkles size={8} color="#fff" />
-                          <Text style={styles.newArrivalNewBadgeText}>NEW</Text>
+                          <Text style={styles.newArrivalNewBadgeText}>{t('common.newBadge')}</Text>
                         </View>
                         {discount > 0 && (
                           <View style={styles.newArrivalDiscount}>
@@ -664,10 +681,10 @@ export default function HomeScreen() {
                       </View>
                       <View style={styles.newArrivalBody}>
                         <Text style={styles.newArrivalCategory} numberOfLines={1}>
-                          {item.category || ' '}
+                          {translateCategory(item.category, language) || ' '}
                         </Text>
                         <Text style={styles.newArrivalTitle} numberOfLines={2}>
-                          {item.title}
+                          {translateProductName(item.title, language)}
                         </Text>
                         <View style={styles.newArrivalPriceRow}>
                           <Text style={styles.newArrivalPrice}>₹{price?.toLocaleString()}</Text>
@@ -702,7 +719,7 @@ export default function HomeScreen() {
                         }}
                       >
                         <ShoppingCart size={12} color={CustomerColors.teal700} />
-                        <Text style={styles.newArrivalCartText}>Add to Cart</Text>
+                        <Text style={styles.newArrivalCartText}>{t('products.addToCart')}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -739,13 +756,14 @@ function Section({
   children: React.ReactNode;
 }) {
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, isDark && { color: '#F1F5F9' }]}>{title}</Text>
         {showViewAll && onViewAll && (
           <TouchableOpacity style={styles.viewAllBtn} onPress={onViewAll}>
-            <Text style={styles.viewAllText}>View All</Text>
+            <Text style={styles.viewAllText}>{t('common.viewAll')}</Text>
             <ChevronRight size={14} color={CustomerColors.teal600} />
           </TouchableOpacity>
         )}

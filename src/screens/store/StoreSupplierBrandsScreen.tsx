@@ -6,12 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TitleGroup } from '../../utils/supplierTypes';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTranslation, translateProductName } from '../../i18n';
 
 export default function StoreSupplierBrandsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const titleGroup: TitleGroup = route.params.titleGroup;
   const [index, setIndex] = useState(0);
@@ -30,7 +32,7 @@ export default function StoreSupplierBrandsScreen() {
           <ArrowLeft size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{titleGroup.title}</Text>
+        <Text style={styles.headerTitle}>{translateProductName(titleGroup.title, language)}</Text>
         <Text style={styles.headerSub}>{titleGroup.brandCount} brand{titleGroup.brandCount !== 1 ? 's' : ''} available</Text>
       </View>
 
@@ -50,7 +52,7 @@ export default function StoreSupplierBrandsScreen() {
               <View style={[styles.card, index === 0 && styles.cardBest]}>
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.productTitle}>{titleGroup.title}</Text>
+                    <Text style={styles.productTitle}>{translateProductName(titleGroup.title, language)}</Text>
                     <Text style={styles.brandName}>{b.brand || 'Unbranded'}</Text>
                     {index === 0 && (
                       <View style={styles.bestBadge}><Text style={styles.bestBadgeText}>Best price</Text></View>

@@ -8,6 +8,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import PaginationControl from '../../components/common/PaginationControl';
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateProductName } from '../../i18n';
 
 const ORDER_STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'] as const;
 const DELIVERY_STATUSES = ['Pending', 'Assigned', 'Accepted', 'Ready', 'Picked Up', 'Out for Delivery', 'Delivered', 'Cancelled'] as const;
@@ -22,6 +23,7 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string; darkBg: string; dar
 export default function SellerOrdersScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { orders, refresh, loading, markOrdersAsSeen } = useSellerDashboard();
   const [filter, setFilter] = useState<string>('all');
@@ -98,7 +100,7 @@ export default function SellerOrdersScreen() {
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search orders by ID or email…"
+            placeholder={t('store.searchOrdersPlaceholder') || 'Search orders by ID or email…'}
             placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
           />
           {search.length > 0 && (
@@ -113,7 +115,7 @@ export default function SellerOrdersScreen() {
           activeOpacity={0.8}
         >
           <Truck size={14} color="#FFFFFF" />
-          <Text style={styles.deliveryLogsNavBtnText}>Deliveries Log</Text>
+          <Text style={styles.deliveryLogsNavBtnText}>{t('store.deliveriesTab') || 'Deliveries Log'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -125,7 +127,13 @@ export default function SellerOrdersScreen() {
             onPress={() => setFilter(s)}
           >
             <Text style={[styles.filterChipText, filter === s && styles.filterChipTextActive]}>
-              {s === 'all' ? 'All' : s} ({counts[s] || 0})
+              {s === 'all'
+                ? (t('store.allFilterOption') || t('common.all') || 'All')
+                : (s === 'Processing' ? (t('orders.statusPreparing') || 'Processing')
+                  : s === 'Shipped' ? (t('orders.statusOutForDelivery') || 'Shipped')
+                  : s === 'Delivered' ? (t('orders.statusDelivered') || 'Delivered')
+                  : s === 'Cancelled' ? (t('orders.statusCancelled') || 'Cancelled')
+                  : s)} ({counts[s] || 0})
             </Text>
           </TouchableOpacity>
         ))}
@@ -139,8 +147,8 @@ export default function SellerOrdersScreen() {
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <ShoppingBag size={36} color={isDark ? '#374151' : '#E5E7EB'} />
-            <Text style={styles.emptyTitle}>No orders yet</Text>
-            <Text style={styles.emptySub}>Orders placed by store owners will show up here.</Text>
+            <Text style={styles.emptyTitle}>{t('orders.noOrdersYet') || t('store.noOrdersYet') || 'No orders yet'}</Text>
+            <Text style={styles.emptySub}>{t('store.ordersPlacedHere') || t('orders.noOrdersDesc') || 'Orders placed by store owners will show up here.'}</Text>
           </View>
         }
         ListFooterComponent={
@@ -210,7 +218,7 @@ export default function SellerOrdersScreen() {
                   <Text style={styles.email}>{(o as any).user?.email || (o as any).shippingAddress?.phone}</Text>
                   {o.items?.map((it: any, i: number) => (
                     <Text key={i} style={styles.itemLine}>
-                      {it.quantity}× {it.title} {it.tierLabel ? `(${it.tierLabel})` : ''} — ₹{it.price}/unit
+                      {it.quantity}× {translateProductName(it.title, language)} {it.tierLabel ? `(${it.tierLabel})` : ''} — ₹{it.price}/unit
                     </Text>
                   ))}
                   {o.vendorTransfers?.[0] ? (
@@ -237,7 +245,7 @@ export default function SellerOrdersScreen() {
                       onPress={() => navigation.navigate('StoreOrderTracking', { orderId: o.orderId || o._id })}
                     >
                       <Truck size={12} color="#2563EB" />
-                      <Text style={styles.trackOrderBtnText}>Live Track</Text>
+                      <Text style={styles.trackOrderBtnText}>{t('store.orderTracking') || 'Live Track'}</Text>
                     </TouchableOpacity>
                   )}
 
@@ -248,17 +256,17 @@ export default function SellerOrdersScreen() {
                     >
                       <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                       <Text style={styles.deliveryFlowBtnText}>
-                        {(o as any).deliveryToken ? 'View Delivery Link' : 'Assign Delivery Person'}
+                        {(o as any).deliveryToken ? (t('store.viewDeliveryLinkBtn') || 'View Delivery Link') : (t('store.assignDriver') || 'Assign Delivery Person')}
                       </Text>
                     </TouchableOpacity>
                   )}
 
                   <View style={[styles.statusBadge, { backgroundColor: badgeBg }]}>
-                    <Text style={[styles.statusBadgeText, { color: badgeFg }]}>Order: {o.orderStatus}</Text>
+                    <Text style={[styles.statusBadgeText, { color: badgeFg }]}>{t('orders.order') || 'Order'}: {o.orderStatus}</Text>
                   </View>
                   <View style={styles.deliveryBadge}>
                     <Truck size={10} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.deliveryBadgeText}>Delivery: {currentDeliveryStatus}</Text>
+                    <Text style={styles.deliveryBadgeText}>{t('store.deliveriesTab') || 'Delivery'}: {currentDeliveryStatus}</Text>
                   </View>
                 </View>
               </View>

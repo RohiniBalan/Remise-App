@@ -91,7 +91,7 @@ export default function LoginRegisterScreen() {
           role: 'user',
         });
         await login(res.data.data, res.data.data.token);
-        setSuccessMessage('Account created! Opening verification...');
+        setSuccessMessage('Account created! Verification code sent to email & WhatsApp.');
         setShowSuccess(true);
         setTimeout(() => {
           navigation.navigate('VerifyEmail');
