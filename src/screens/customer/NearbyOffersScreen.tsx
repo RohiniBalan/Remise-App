@@ -34,6 +34,7 @@ import {
   ChevronRight,
   Check,
   Star,
+  Banknote,
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { offersApi } from '../../api/offersApi';
@@ -826,7 +827,7 @@ function OrderModal({
 
   const [step, setStep] = useState<Step>('details');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup' | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
   const [orderId, setOrderId] = useState('');
   const [selectedStateCode, setSelectedStateCode] = useState('');
@@ -972,7 +973,7 @@ function OrderModal({
         storeId: offer.storeId,
         storeName: offer.storeName,
         deliveryMethod,
-        paymentMethod: 'razorpay',
+        paymentMethod,
       });
 
       // Also sync offers-service order
@@ -986,14 +987,21 @@ function OrderModal({
           state: form.state,
           pinCode: form.pinCode,
           deliveryMethod,
-          paymentMethod: 'razorpay',
-          paymentStatus: 'Pending',
+          paymentMethod,
+          paymentStatus: paymentMethod === 'cod' ? 'Pending' : 'Pending',
           quantity: qty,
         })
         .catch(() => {});
 
       if (!res.data.success) {
         throw new Error(res.data.message || 'Order failed.');
+      }
+
+      if (paymentMethod === 'cod') {
+        const targetOrderId = res.data?.orderId || res.data?.order?._id || '';
+        setOrderId(targetOrderId);
+        setStep('success');
+        return;
       }
 
       const data = res.data;
@@ -1358,8 +1366,13 @@ function OrderModal({
 
               {/* Razorpay Online Payment Card */}
               <TouchableOpacity
-                style={[styles.optionCard, styles.razorpayOptionCard, isDark && { backgroundColor: '#0f2f2c', borderColor: '#0D9488' }]}
-                onPress={() => handlePlaceOrder()}
+                style={[
+                  styles.optionCard,
+                  paymentMethod === 'razorpay' ? styles.razorpayOptionCard : {},
+                  isDark && paymentMethod === 'razorpay' && { backgroundColor: '#0f2f2c', borderColor: '#0D9488' },
+                  paymentMethod !== 'razorpay' && { opacity: 0.75, borderColor: isDark ? '#374151' : '#E5E7EB' },
+                ]}
+                onPress={() => setPaymentMethod('razorpay')}
               >
                 <View style={styles.razorpayIconBox}>
                   <CreditCard size={20} color="#FFFFFF" />
@@ -1381,17 +1394,97 @@ function OrderModal({
                     <View style={[styles.pill, isDark && { backgroundColor: '#1E293B' }]}><Text style={[styles.pillText, isDark && { color: '#38BDF8' }]}>👛 {txt.wallets}</Text></View>
                   </View>
                 </View>
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    borderWidth: 2,
+                    borderColor: paymentMethod === 'razorpay' ? '#0D9488' : '#9CA3AF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 4,
+                  }}
+                >
+                  {paymentMethod === 'razorpay' && (
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#0D9488' }} />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Cash on Delivery (COD) Card */}
+              <TouchableOpacity
+                style={[
+                  styles.optionCard,
+                  paymentMethod === 'cod'
+                    ? {
+                        borderColor: '#059669',
+                        borderWidth: 2,
+                        backgroundColor: isDark ? '#064e3b33' : '#ECFDF5',
+                      }
+                    : {
+                        opacity: 0.75,
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                      },
+                ]}
+                onPress={() => setPaymentMethod('cod')}
+              >
+                <View style={[styles.razorpayIconBox, { backgroundColor: '#059669' }]}>
+                  <Banknote size={20} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>Cash on Delivery (COD)</Text>
+                    <View style={[styles.instantBadge, { backgroundColor: '#059669' }]}>
+                      <Text style={styles.instantBadgeText}>Pay in Cash</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                    Pay with physical cash upon order delivery or pickup.
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    borderWidth: 2,
+                    borderColor: paymentMethod === 'cod' ? '#059669' : '#9CA3AF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 4,
+                  }}
+                >
+                  {paymentMethod === 'cod' && (
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#059669' }} />
+                  )}
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.primaryBtn, { marginTop: Spacing.xs }]}
+                style={[
+                  styles.primaryBtn,
+                  { marginTop: Spacing.xs },
+                  paymentMethod === 'cod' && { backgroundColor: '#059669' },
+                ]}
                 onPress={() => handlePlaceOrder()}
                 activeOpacity={0.85}
               >
-                <Lock size={16} color="#fff" />
-                <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                  {txt.payVia.replace('{amount}', total)}
-                </Text>
+                {paymentMethod === 'cod' ? (
+                  <>
+                    <Banknote size={16} color="#fff" />
+                    <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      Place Cash on Delivery Order (₹{total})
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Lock size={16} color="#fff" />
+                    <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      {txt.payVia.replace('{amount}', total)}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setStep('delivery')} style={{ alignSelf: 'flex-start', marginTop: Spacing.xs }}>
@@ -1450,7 +1543,7 @@ function OrderModal({
                 <View style={styles.billRow}>
                   <Text style={[styles.billLabel, isDark && { color: '#9CA3AF' }]}>{txt.paymentMode}</Text>
                   <Text style={[styles.billValue, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}>
-                    {txt.onlinePayment}
+                    {paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : txt.onlinePayment}
                   </Text>
                 </View>
 

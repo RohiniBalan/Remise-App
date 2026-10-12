@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Truck,
+  Banknote,
 } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useSupplierCart } from '../../context/SupplierCartContext';
@@ -48,6 +49,7 @@ export default function StoreSupplierCartScreen() {
   const { user, token } = useAuth();
   const { cart, cartTotal, clearCart } = useSupplierCart();
   const [placing, setPlacing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
 
   const [form, setForm] = useState({
     firstName:
@@ -214,7 +216,7 @@ export default function StoreSupplierCartScreen() {
         shippingAddress,
         billingAddress: shippingAddress,
         deliveryMethod: 'delivery',
-        paymentMethod: 'razorpay',
+        paymentMethod,
       });
 
       const data = res.data;
@@ -223,6 +225,14 @@ export default function StoreSupplierCartScreen() {
 
       // 2. Concurrently record wholesale order in wholesale microservice
       orderApi.placeWholesaleOrders(orderGroups, form).catch(() => {});
+
+      if (paymentMethod === 'cod') {
+        clearCart();
+        setPlacing(false);
+        Alert.alert('Success', 'Cash on Delivery stock order placed successfully!');
+        navigation.navigate('StoreOwnerTabs', { screen: 'StoreOwnerOrders' });
+        return;
+      }
 
       if (data?.success && (data.razorpayOrderId || data.orderId)) {
         const options = {
@@ -553,9 +563,26 @@ export default function StoreSupplierCartScreen() {
             </View>
 
             <View style={styles.paymentCard}>
-              <View style={styles.paymentMethodRow}>
-                <View style={styles.paymentRadioActive}>
-                  <View style={styles.paymentRadioInner} />
+              {/* Online Payment (Razorpay) */}
+              <TouchableOpacity
+                style={[
+                  styles.paymentMethodRow,
+                  { paddingVertical: Spacing.xs },
+                ]}
+                onPress={() => setPaymentMethod('razorpay')}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.paymentRadioActive,
+                    paymentMethod !== 'razorpay' && {
+                      borderColor: isDark ? '#4B5563' : '#D1D5DB',
+                    },
+                  ]}
+                >
+                  {paymentMethod === 'razorpay' && (
+                    <View style={styles.paymentRadioInner} />
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <View
@@ -577,14 +604,69 @@ export default function StoreSupplierCartScreen() {
                     UPI, Credit/Debit Cards, NetBanking & Wallets
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
+
+              {/* Cash on Delivery (COD) */}
+              <TouchableOpacity
+                style={[
+                  styles.paymentMethodRow,
+                  {
+                    paddingVertical: Spacing.xs,
+                    borderTopWidth: 1,
+                    borderTopColor: isDark ? '#1F2937' : '#F3F4F6',
+                    marginTop: Spacing.xs,
+                    paddingTop: Spacing.sm,
+                  },
+                ]}
+                onPress={() => setPaymentMethod('cod')}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.paymentRadioActive,
+                    paymentMethod === 'cod'
+                      ? { borderColor: '#059669' }
+                      : { borderColor: isDark ? '#4B5563' : '#D1D5DB' },
+                  ]}
+                >
+                  {paymentMethod === 'cod' && (
+                    <View
+                      style={[
+                        styles.paymentRadioInner,
+                        { backgroundColor: '#059669' },
+                      ]}
+                    />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Banknote
+                      size={18}
+                      color={isDark ? '#34D399' : '#059669'}
+                    />
+                    <Text style={styles.paymentTitle}>
+                      Cash on Delivery (COD)
+                    </Text>
+                  </View>
+                  <Text style={styles.paymentSubtitle}>
+                    Pay in cash when order is delivered by the supplier
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
               <View style={styles.securityBadge}>
                 <ShieldCheck
                   size={14}
                   color={isDark ? '#2DD4BF' : CustomerColors.teal700}
                 />
                 <Text style={styles.securityBadgeText}>
-                  Secure 256-bit SSL encrypted payment
+                  Secure checkout & direct supplier verification
                 </Text>
               </View>
             </View>
@@ -605,7 +687,10 @@ export default function StoreSupplierCartScreen() {
                 </Text>
               </View>
               <TouchableOpacity
-                style={styles.placeBtn}
+                style={[
+                  styles.placeBtn,
+                  paymentMethod === 'cod' && { backgroundColor: '#059669' },
+                ]}
                 onPress={handlePlaceOrder}
                 disabled={placing || orderGroups.length === 0}
                 activeOpacity={0.85}
@@ -614,7 +699,9 @@ export default function StoreSupplierCartScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.placeBtnText}>
-                    Place Stock Order & Pay
+                    {paymentMethod === 'cod'
+                      ? `Place COD Order (₹${cartTotal.toLocaleString('en-IN')})`
+                      : `Pay ₹${cartTotal.toLocaleString('en-IN')} via Razorpay`}
                   </Text>
                 )}
               </TouchableOpacity>

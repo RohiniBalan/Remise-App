@@ -83,7 +83,7 @@ export default function DeliveryPartnerDashboardScreen() {
       case 'Picked Up':
         return { status: 'Out for Delivery', label: tPartner.actionStartDelivery };
       case 'Out for Delivery':
-        return { status: 'Delivered', label: tPartner.actionMarkDelivered };
+        return { status: 'Delivered', label: 'Verify OTP & Deliver' };
       default:
         return null;
     }
@@ -182,6 +182,12 @@ export default function DeliveryPartnerDashboardScreen() {
   // Logout Confirmation Modal State
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  // Delivery OTP Verification Modal State
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [deliveryOtp, setDeliveryOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
   const load = useCallback(async () => {
     if (!token) return;
     try {
@@ -205,7 +211,10 @@ export default function DeliveryPartnerDashboardScreen() {
         activeDelivery: null,
         completedDeliveries: 0,
       };
-      const currentReqs: any[] = nextDash.requests || [];
+      const currentReqs: any[] = (nextDash.requests || []).filter(
+        (r: any) => !r.assignedPartnerId && r.deliveryStatus !== 'Accepted',
+      );
+      nextDash.requests = currentReqs;
       const currentIds = new Set<string>(currentReqs.map((r: any) => String(r.orderId || r.deliveryRequestId)));
 
       if (!isInitialLoadRef.current) {
@@ -239,7 +248,7 @@ export default function DeliveryPartnerDashboardScreen() {
       if (token) {
         load();
       }
-    }, 8000);
+    }, 4000);
     return () => clearInterval(timer);
   }, [load, token]);
 
@@ -279,6 +288,11 @@ export default function DeliveryPartnerDashboardScreen() {
       await smartOrderApi.acceptDeliveryPartnerRequest(orderId);
       await load();
     } catch (error: any) {
+      // Optimistically remove request from list so it disappears immediately
+      setDashboard((prev: any) => ({
+        ...prev,
+        requests: (prev?.requests || []).filter((r: any) => (r.orderId || r._id) !== orderId),
+      }));
       showAlert(
         tPartner.deliveryUnavailableTitle || 'Delivery Unavailable',
         error?.response?.data?.message ||
@@ -294,6 +308,11 @@ export default function DeliveryPartnerDashboardScreen() {
 
   const decline = async (orderId: string) => {
     setWorking(true);
+    // Optimistically remove request from list so UI responds instantly
+    setDashboard((prev: any) => ({
+      ...prev,
+      requests: (prev?.requests || []).filter((r: any) => (r.orderId || r._id) !== orderId),
+    }));
     try {
       await smartOrderApi.declineDeliveryPartnerRequest(orderId);
       await load();
@@ -303,6 +322,7 @@ export default function DeliveryPartnerDashboardScreen() {
         error?.response?.data?.message || 'Could not decline this request.',
         'error',
       );
+      await load();
     } finally {
       setWorking(false);
     }
@@ -330,10 +350,42 @@ export default function DeliveryPartnerDashboardScreen() {
     });
   };
 
+  const handleVerifyAndDeliver = async () => {
+    const active = dashboard.activeDelivery;
+    const clean = deliveryOtp.trim();
+    if (!active) return;
+    if (clean.length !== 6 || !/^\d{6}$/.test(clean)) {
+      setOtpError('Please enter a valid 6-digit numeric OTP provided by the customer.');
+      return;
+    }
+    setVerifyingOtp(true);
+    setOtpError('');
+    try {
+      await smartOrderApi.updateDeliveryPartnerStatus(active.orderId, 'Delivered', undefined, clean);
+      setShowOtpModal(false);
+      setDeliveryOtp('');
+      showAlert('Delivery Verified', '🎉 Order delivered successfully! Customer OTP verified.', 'success');
+      await load();
+    } catch (err: any) {
+      setOtpError(err?.response?.data?.message || 'Invalid OTP. Please check with the customer and try again.');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
   const advance = async () => {
     const active = dashboard.activeDelivery;
     const action = active && getNextAction(active.deliveryStatus);
     if (!active || !action) return;
+
+    // If advancing to Delivered, customer OTP verification is mandatory
+    if (action.status === 'Delivered') {
+      setDeliveryOtp('');
+      setOtpError('');
+      setShowOtpModal(true);
+      return;
+    }
+
     setWorking(true);
     try {
       await smartOrderApi.updateDeliveryPartnerStatus(
@@ -513,6 +565,14 @@ export default function DeliveryPartnerDashboardScreen() {
                 </View>
               )}
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutHeaderBtn}
+              onPress={() => setShowLogoutModal(true)}
+              accessibilityLabel="Sign out"
+            >
+              <LogOut size={17} color="#EF4444" />
+            </TouchableOpacity>
           </View>
 
           <Pressable
@@ -665,6 +725,49 @@ export default function DeliveryPartnerDashboardScreen() {
                     value={active.deliveryRequest?.dropAddress || tPartner.customerDropoffDestination}
                     styles={styles}
                   />
+                  <Info
+                    label="Customer Name"
+                    value={active.customerName || [active.shippingAddress?.firstName, active.shippingAddress?.lastName].filter(Boolean).join(' ') || 'Customer'}
+                    styles={styles}
+                    icon={<User size={13} color="#3B82F6" />}
+                  />
+                  <View style={styles.phoneRowCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <Phone size={13} color="#10B981" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.statLabel}>Customer Mobile</Text>
+                        <Text style={styles.infoValue}>{active.customerPhone || active.shippingAddress?.phone || 'N/A'}</Text>
+                      </View>
+                    </View>
+                    {(active.customerPhone || active.shippingAddress?.phone) && (
+                      <TouchableOpacity
+                        style={styles.callSmallBtn}
+                        onPress={() => Linking.openURL(`tel:${active.customerPhone || active.shippingAddress?.phone}`)}
+                      >
+                        <Phone size={11} color="#FFFFFF" />
+                        <Text style={styles.callSmallBtnText}>Call</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {/* Total Bill / Order Total Amount Highlight Box */}
+                <View style={styles.totalBillBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={styles.walletIconWrap}>
+                      <Wallet size={16} color="#FF0000" />
+                    </View>
+                    <View>
+                      <Text style={styles.totalBillLabel}>Customer Total Bill</Text>
+                      <Text style={styles.totalBillSub}>Total Order Amount</Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.totalBillAmount}>Rs {Number(active.totalAmount || 0).toLocaleString()}</Text>
+                    <Text style={styles.totalBillPaymentType}>
+                      {active.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Prepaid Online'}
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.activeActionsRow}>
@@ -720,15 +823,25 @@ export default function DeliveryPartnerDashboardScreen() {
                         value={request.dropAddress || tPartner.customerDropoffDestination}
                         styles={styles}
                       />
+                      <Info
+                        label="Customer Details"
+                        value={`${request.customerName || 'Customer'}${request.customerPhone ? ' · ' + request.customerPhone : ''}`}
+                        styles={styles}
+                        icon={<User size={13} color="#3B82F6" />}
+                      />
                     </View>
                     <View style={styles.earningsBox}>
                       <Text style={styles.earnings}>Rs {request.earnings || 120}</Text>
                       <Text style={styles.distanceKm}>{request.distanceKm || 2.4} {tPartner.kmUnit}</Text>
+                      <View style={styles.reqBillWrap}>
+                        <Text style={styles.reqBillLabel}>Customer Bill</Text>
+                        <Text style={styles.reqBillAmount}>Rs {Number(request.totalAmount || 0).toLocaleString()}</Text>
+                      </View>
                     </View>
                   </View>
                   <View style={styles.actions}>
                     <Pressable
-                      onPress={() => accept(request.orderId)}
+                      onPress={() => accept(request.orderId || request._id)}
                       disabled={working}
                       style={[styles.primary, { flex: 1 }]}
                     >
@@ -736,7 +849,7 @@ export default function DeliveryPartnerDashboardScreen() {
                       <Text style={styles.primaryText}>{tPartner.acceptRequestBtn}</Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => decline(request.orderId)}
+                      onPress={() => decline(request.orderId || request._id)}
                       disabled={working}
                       style={styles.secondary}
                     >
@@ -1007,6 +1120,111 @@ export default function DeliveryPartnerDashboardScreen() {
         </View>
       </Modal>
 
+      {/* ══════════════ OTP VERIFICATION MODAL ══════════════ */}
+      <Modal
+        visible={showOtpModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          if (!verifyingOtp) setShowOtpModal(false);
+        }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            if (!verifyingOtp) setShowOtpModal(false);
+          }}
+        >
+          <Pressable style={styles.otpModalCard} onPress={e => e.stopPropagation?.()}>
+            <View style={styles.shieldIconWrap}>
+              <ShieldCheck size={28} color="#10B981" />
+            </View>
+
+            <Text style={styles.otpModalTitle}>Verify Customer Delivery OTP</Text>
+            <Text style={styles.otpModalSub}>
+              Ask the customer for the 6-digit confirmation OTP received upon placing the home delivery order.
+            </Text>
+
+            {dashboard.activeDelivery && (
+              <View style={styles.otpSummaryCard}>
+                <View style={styles.otpSummaryRow}>
+                  <Text style={styles.otpSummaryLabel}>Customer:</Text>
+                  <Text style={styles.otpSummaryValue}>
+                    {dashboard.activeDelivery.customerName || 'Customer'}
+                  </Text>
+                </View>
+                {dashboard.activeDelivery.customerPhone ? (
+                  <View style={styles.otpSummaryRow}>
+                    <Text style={styles.otpSummaryLabel}>Mobile:</Text>
+                    <Text style={styles.otpSummaryValue}>
+                      {dashboard.activeDelivery.customerPhone}
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={[styles.otpSummaryRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                  <Text style={styles.otpSummaryLabel}>Bill Total:</Text>
+                  <Text style={[styles.otpSummaryValue, { color: '#10B981', fontWeight: '800' }]}>
+                    ₹{Number(dashboard.activeDelivery.totalAmount || 0).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              <Text style={styles.otpInputLabel}>ENTER 6-DIGIT OTP</Text>
+              <TextInput
+                style={styles.otpTextInput}
+                placeholder="• • • • • •"
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                keyboardType="numeric"
+                maxLength={6}
+                value={deliveryOtp}
+                onChangeText={text => {
+                  setDeliveryOtp(text.replace(/[^0-9]/g, ''));
+                  if (otpError) setOtpError('');
+                }}
+                editable={!verifyingOtp}
+                autoFocus={true}
+              />
+              {otpError ? (
+                <View style={styles.otpErrorWrap}>
+                  <AlertCircle size={14} color="#EF4444" />
+                  <Text style={styles.otpErrorText}>{otpError}</Text>
+                </View>
+              ) : (
+                <Text style={styles.otpHelperText}>
+                  Both you and the store owner will be updated instantly once verified.
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={[styles.alertCancelBtn, { flex: 1 }]}
+                onPress={() => setShowOtpModal(false)}
+                disabled={verifyingOtp}
+              >
+                <Text style={styles.alertCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.alertBtn,
+                  { flex: 1.5, backgroundColor: deliveryOtp.trim().length === 6 ? '#10B981' : CustomerColors.primary },
+                  verifyingOtp && { opacity: 0.7 },
+                ]}
+                onPress={handleVerifyAndDeliver}
+                disabled={verifyingOtp}
+              >
+                <Text style={styles.alertBtnText}>
+                  {verifyingOtp ? 'Verifying...' : 'Confirm & Deliver'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* ══════════════ CUSTOM THEMED ALERT MODAL ══════════════ */}
       <Modal
         visible={alertModal.visible}
@@ -1114,10 +1332,10 @@ function Stat({ label, value, sub, styles, highlight = false }: any) {
   );
 }
 
-function Info({ label, value, styles }: any) {
+function Info({ label, value, styles, icon }: any) {
   return (
     <View style={styles.info}>
-      <MapPin size={13} color={CustomerColors.primary} />
+      {icon || <MapPin size={13} color={CustomerColors.primary} />}
       <View style={{ flex: 1 }}>
         <Text style={styles.statLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -1202,6 +1420,16 @@ const getStyles = (isDark: boolean) =>
       color: '#FFFFFF',
       fontSize: 9,
       fontWeight: '800',
+    },
+    logoutHeaderBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.2)',
     },
     partnerInfoRow: {
       flexDirection: 'row',
@@ -1812,6 +2040,188 @@ const getStyles = (isDark: boolean) =>
       flexDirection: 'row',
       gap: 10,
       width: '100%',
+    },
+    phoneRowCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    callSmallBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#10B981',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    callSmallBtnText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    totalBillBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: isDark ? 'rgba(255, 0, 0, 0.08)' : '#FFF1F2',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 0, 0, 0.2)' : '#FECDD3',
+      borderRadius: 12,
+      padding: 12,
+      marginVertical: 10,
+    },
+    walletIconWrap: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(255, 0, 0, 0.15)' : '#FFE4E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    totalBillLabel: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : '#1E293B',
+    },
+    totalBillSub: {
+      fontSize: 11,
+      color: isDark ? '#94A3B8' : '#64748B',
+    },
+    totalBillAmount: {
+      fontSize: 16,
+      fontWeight: '900',
+      color: '#FF0000',
+    },
+    totalBillPaymentType: {
+      fontSize: 10,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      color: isDark ? '#94A3B8' : '#64748B',
+    },
+    reqBillWrap: {
+      marginTop: 4,
+      alignItems: 'flex-end',
+      backgroundColor: isDark ? 'rgba(255, 0, 0, 0.08)' : '#FFF1F2',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    reqBillLabel: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: isDark ? '#94A3B8' : '#64748B',
+      textTransform: 'uppercase',
+    },
+    reqBillAmount: {
+      fontSize: 13,
+      fontWeight: '900',
+      color: '#FF0000',
+    },
+    otpModalCard: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: isDark ? '#161616' : '#FFFFFF',
+      borderRadius: 24,
+      paddingVertical: 24,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#27272A' : '#E2E8F0',
+      elevation: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.35,
+      shadowRadius: 10,
+    },
+    shieldIconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    otpModalTitle: {
+      fontSize: 18,
+      fontWeight: '900',
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      textAlign: 'center',
+      marginBottom: 6,
+    },
+    otpModalSub: {
+      fontSize: 13,
+      color: isDark ? '#94A3B8' : '#64748B',
+      textAlign: 'center',
+      lineHeight: 18,
+      marginBottom: 16,
+    },
+    otpSummaryCard: {
+      width: '100%',
+      backgroundColor: isDark ? '#1E1E20' : '#F8FAFC',
+      borderRadius: 14,
+      padding: 12,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: isDark ? '#27272A' : '#E2E8F0',
+    },
+    otpSummaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#27272A' : '#F1F5F9',
+    },
+    otpSummaryLabel: {
+      fontSize: 12,
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontWeight: '600',
+    },
+    otpSummaryValue: {
+      fontSize: 12,
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontWeight: '700',
+    },
+    otpInputLabel: {
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+      color: isDark ? '#94A3B8' : '#64748B',
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    otpTextInput: {
+      width: '100%',
+      height: 52,
+      backgroundColor: isDark ? '#1F1F23' : '#F1F5F9',
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: isDark ? '#3F3F46' : '#CBD5E1',
+      fontSize: 24,
+      fontWeight: '900',
+      letterSpacing: 8,
+      textAlign: 'center',
+      color: isDark ? '#FFFFFF' : '#0F172A',
+    },
+    otpHelperText: {
+      fontSize: 11,
+      color: isDark ? '#71717A' : '#94A3B8',
+      textAlign: 'center',
+      marginTop: 6,
+    },
+    otpErrorWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 6,
+    },
+    otpErrorText: {
+      fontSize: 12,
+      color: '#EF4444',
+      fontWeight: '600',
     },
   });
 

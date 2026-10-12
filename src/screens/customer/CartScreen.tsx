@@ -24,12 +24,7 @@ import BrandHeader from '../../components/common/BrandHeader';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { useTranslation, translateProductName } from '../../i18n';
 import { usePlatformFee } from '../../utils/platformFee';
-
-// Ported from client/app/components-main/CartDrawer.tsx — same qty +/-,
-// remove, subtotal, and the ₹499 free-delivery nudge, and "Proceed to
-// Checkout" clears buyNowItem (full-cart checkout, not a Buy-Now one)
-// before navigating, same as web.
-const FREE_DELIVERY_THRESHOLD = 499;
+import { useDeliveryFee } from '../../utils/deliveryFee';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
@@ -50,11 +45,8 @@ export default function CartScreen() {
     [cart],
   );
   const platformFee = usePlatformFee(subtotal);
+  const { remainingForFreeDelivery } = useDeliveryFee(subtotal, 'delivery');
   const grandTotal = subtotal + platformFee;
-  const remainingForFreeDelivery = Math.max(
-    0,
-    FREE_DELIVERY_THRESHOLD - subtotal,
-  );
 
   const handleCheckout = () => {
     if (!token || !user) {

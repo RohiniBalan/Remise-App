@@ -52,6 +52,9 @@ export const paymentApi = {
   getPlatformFee: (subtotal: number = 0) =>
     gatewayClient.get('/api/payment/platform-fee', { params: { subtotal } }),
 
+  getDeliveryFee: (subtotal: number = 0, deliveryMethod: string = 'delivery') =>
+    gatewayClient.get('/api/payment/delivery-fee', { params: { subtotal, deliveryMethod } }),
+
   createOrder: (payload: InitiatePaymentPayload) =>
     gatewayClient.post('/api/payment/create-order', payload),
 

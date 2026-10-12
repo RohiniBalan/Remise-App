@@ -50,6 +50,7 @@ import AuthRequiredModal from '../common/AuthRequiredModal';
 import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
 import { useTranslation, translateProductName, getSupplierTranslations } from '../../i18n';
 import { usePlatformFee } from '../../utils/platformFee';
+import { useDeliveryFee } from '../../utils/deliveryFee';
 
 type Step = 'contact' | 'deliveryMethod' | 'confirm' | 'placing' | 'success';
 
@@ -101,7 +102,7 @@ export default function CartCheckoutModal({
   const [step, setStep] = useState<Step>('contact');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>(initialDeliveryMethod);
   const platformFee = usePlatformFee(totalAmount);
-  const deliveryFee = deliveryMethod === 'pickup' ? 0 : (totalAmount >= 499 ? 0 : 49);
+  const { deliveryFee } = useDeliveryFee(totalAmount, deliveryMethod);
   const totalPayable = totalAmount + platformFee + deliveryFee;
   const [groupIndex, setGroupIndex] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');

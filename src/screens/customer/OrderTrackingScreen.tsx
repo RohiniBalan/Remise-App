@@ -31,6 +31,7 @@ import {
   Bike,
   RotateCcw,
   Star,
+  ShieldCheck,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { useTheme } from '../../context/ThemeContext';
@@ -315,6 +316,34 @@ export default function OrderTrackingScreen() {
               </View>
             ) : null}
           </View>
+
+          {/* Delivery Handover OTP Card */}
+          {Boolean(
+            order?.orderOtp &&
+              !order?.isOtpVerified &&
+              currentStatus !== 'Delivered' &&
+              !isRefundCompleted &&
+              !isRefundProcessing &&
+              (order?.deliveryMethod || '').toLowerCase() !== 'pickup'
+          ) && (
+            <View style={styles.otpBannerCard}>
+              <View style={styles.otpBannerHeader}>
+                <View style={styles.otpIconWrap}>
+                  <ShieldCheck size={22} color="#10B981" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.otpBannerBadge}>DELIVERY HANDOVER OTP</Text>
+                  <Text style={styles.otpBannerTitle}>Share this OTP with Delivery Partner</Text>
+                  <Text style={styles.otpBannerSub}>
+                    Provide this 6-digit code upon receiving your items to verify delivery.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.otpCodeContainer}>
+                <Text style={styles.otpCodeText}>{order.orderOtp}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Post-Fulfillment Store Review Prompt */}
           {isEligibleForReview && !reviewSubmitted && (
@@ -1090,5 +1119,65 @@ const getStyles = (isDark: boolean) =>
       fontSize: 11,
       fontWeight: '800',
       color: '#D97706',
+    },
+    otpBannerCard: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#ECFDF5',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.md,
+      marginBottom: Spacing.md,
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(16, 185, 129, 0.4)' : '#A7F3D0',
+    },
+    otpBannerHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    otpIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#D1FAE5',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    otpBannerBadge: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#10B981',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+      marginBottom: 2,
+    },
+    otpBannerTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : '#0F172A',
+    },
+    otpBannerSub: {
+      fontSize: 11,
+      color: isDark ? '#94A3B8' : '#64748B',
+      marginTop: 2,
+      lineHeight: 15,
+    },
+    otpCodeContainer: {
+      marginTop: 12,
+      alignSelf: 'center',
+      backgroundColor: '#10B981',
+      paddingVertical: 8,
+      paddingHorizontal: 24,
+      borderRadius: BorderRadius.md,
+      shadowColor: '#10B981',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    otpCodeText: {
+      color: '#FFFFFF',
+      fontSize: 22,
+      fontWeight: '900',
+      letterSpacing: 6,
+      textAlign: 'center',
     },
   });

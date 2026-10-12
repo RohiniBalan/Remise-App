@@ -171,7 +171,7 @@ export const smartOrderApi = {
 
   declineDeliveryPartnerRequest: (orderId: string, reason?: string) => gatewayClient.post(`/api/orders/delivery/partner/requests/${orderId}/decline`, { reason }),
 
-  updateDeliveryPartnerStatus: (orderId: string, status: string, note?: string) => gatewayClient.post(`/api/orders/delivery/partner/${orderId}/status`, { status, note }),
+  updateDeliveryPartnerStatus: (orderId: string, status: string, note?: string, otp?: string) => gatewayClient.post(`/api/orders/delivery/partner/${orderId}/status`, { status, note, otp }),
 
   // Store Owner: Confirm Self Pickup delivery via customer OTP
   confirmSelfPickupOtp: (orderId: string, otp: string) =>

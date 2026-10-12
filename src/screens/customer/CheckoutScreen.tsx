@@ -51,6 +51,7 @@ import { useTranslation, translateProductName } from '../../i18n';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { usePlatformFee } from '../../utils/platformFee';
+import { useDeliveryFee } from '../../utils/deliveryFee';
 
 const emptyAddress = (): AddressData => ({
   country: 'India',
@@ -120,7 +121,7 @@ export default function CheckoutScreen() {
     [itemsToCheckout],
   );
   const platformFee = usePlatformFee(subtotal);
-  const deliveryFee = deliveryMethod === 'pickup' ? 0 : (subtotal >= 499 ? 0 : 49);
+  const { deliveryFee } = useDeliveryFee(subtotal, deliveryMethod);
   const totalPayable = subtotal + platformFee + deliveryFee;
 
   useEffect(() => {

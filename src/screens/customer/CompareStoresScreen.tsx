@@ -33,6 +33,7 @@ import {
   FileText,
   Download,
   Star,
+  Banknote,
 } from 'lucide-react-native';
 import {
   smartOrderApi,
@@ -60,6 +61,7 @@ import {
 import { lookupTanglishDictionary } from '../../utils/tanglishTranslator';
 import { translateGroceryTerm } from '../../api/geminiScanApi';
 import { usePlatformFee } from '../../utils/platformFee';
+import { useDeliveryFee } from '../../utils/deliveryFee';
 
 
 // Ported from client/app/(root)/bulk-purchase/CompareModal.tsx — same step
@@ -478,7 +480,7 @@ export default function CompareStoresScreen() {
   const [deliveryMethod, setDeliveryMethod] = useState<
     'pickup' | 'delivery' | null
   >(null);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
   const [orderId, setOrderId] = useState('');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -486,7 +488,7 @@ export default function CompareStoresScreen() {
 
   const productSubtotal = chosen ? chosen.totalAmount : 0;
   const platformFee = usePlatformFee(productSubtotal);
-  const deliveryFee = deliveryMethod === 'pickup' ? 0 : (productSubtotal >= 499 ? 0 : 49);
+  const { deliveryFee } = useDeliveryFee(productSubtotal, deliveryMethod);
   const totalPayable = productSubtotal + platformFee + deliveryFee;
 
 
@@ -668,8 +670,8 @@ export default function CompareStoresScreen() {
               ...r,
               storeName: byId[r.storeId]?.name || 'Store',
               distanceKm: byId[r.storeId]?.distanceKm ?? 0,
-              rating: byId[r.storeId]?.rating,
-              reviewCount: byId[r.storeId]?.reviewCount,
+              rating: byId[r.storeId]?.rating ?? 0,
+              reviewCount: byId[r.storeId]?.reviewCount ?? 0,
             }));
           }
           console.log('[NearbySearch] final merged results shown to UI', {
@@ -758,11 +760,19 @@ export default function CompareStoresScreen() {
         storeId: chosen.storeId,
         storeName: chosen.storeName,
         deliveryMethod,
-        paymentMethod: 'razorpay',
+        paymentMethod,
       });
 
       if (!res.data.success)
         throw new Error(res.data.message || 'Order failed.');
+
+      if (paymentMethod === 'cod') {
+        const targetOrderId = res.data?.orderId || res.data?.order?._id || '';
+        setOrderId(targetOrderId);
+        setStep('success');
+        route.params?.onSuccess?.();
+        return;
+      }
 
       const data = res.data;
       if (!data.razorpayOrderId && !data.keyId) {
@@ -927,14 +937,12 @@ export default function CompareStoresScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={styles.storeNameRow}>
                         <Text style={[styles.storeName, isDark && { color: '#FFFFFF' }]}>{r.storeName}</Text>
-                        {r.rating ? (
-                          <View style={styles.storeRatingTag}>
-                            <Star size={10} color="#D97706" fill="#D97706" />
-                            <Text style={styles.storeRatingTagText}>
-                              {Number(r.rating).toFixed(1)}{r.reviewCount ? ` (${r.reviewCount})` : ''}
-                            </Text>
-                          </View>
-                        ) : null}
+                        <View style={[styles.storeRatingTag, isDark && { backgroundColor: '#451a03' }]}>
+                          <Star size={10} color="#D97706" fill="#D97706" />
+                          <Text style={[styles.storeRatingTagText, isDark && { color: '#FCD34D' }]}>
+                            {Number(r.rating || 0).toFixed(1)}{r.reviewCount ? ` (${r.reviewCount})` : ''}
+                          </Text>
+                        </View>
                         {idx === 0 && (
                           <View style={[styles.bestBadge, isDark && { backgroundColor: '#115E59' }]}>
                             <Text style={[styles.bestBadgeText, isDark && { color: '#5EEAD4' }]}>{txt.bestMatch}</Text>
@@ -1002,14 +1010,12 @@ export default function CompareStoresScreen() {
                 <View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={[styles.storeName, isDark && { color: '#FFFFFF' }]}>{chosen.storeName}</Text>
-                    {chosen.rating ? (
-                      <View style={styles.storeRatingTag}>
-                        <Star size={10} color="#D97706" fill="#D97706" />
-                        <Text style={styles.storeRatingTagText}>
-                          {Number(chosen.rating).toFixed(1)}{chosen.reviewCount ? ` (${chosen.reviewCount})` : ''}
-                        </Text>
-                      </View>
-                    ) : null}
+                    <View style={[styles.storeRatingTag, isDark && { backgroundColor: '#451a03' }]}>
+                      <Star size={10} color="#D97706" fill="#D97706" />
+                      <Text style={[styles.storeRatingTagText, isDark && { color: '#FCD34D' }]}>
+                        {Number(chosen.rating || 0).toFixed(1)}{chosen.reviewCount ? ` (${chosen.reviewCount})` : ''}
+                      </Text>
+                    </View>
                   </View>
                   <Text style={[styles.storeMeta, isDark && { color: '#9CA3AF' }]}>
                     {chosen.matchedCount}/{chosen.totalRequested} {txt.items} ·{' '}
@@ -1211,10 +1217,11 @@ export default function CompareStoresScreen() {
               <TouchableOpacity
                 style={[
                   styles.optionCard,
-                  styles.razorpayOptionCard,
-                  isDark && { backgroundColor: '#0f2f2c', borderColor: '#0D9488' },
+                  paymentMethod === 'razorpay' ? styles.razorpayOptionCard : {},
+                  isDark && paymentMethod === 'razorpay' && { backgroundColor: '#0f2f2c', borderColor: '#0D9488' },
+                  paymentMethod !== 'razorpay' && { opacity: 0.75, borderColor: isDark ? '#374151' : '#E5E7EB' },
                 ]}
-                onPress={() => handlePlaceOrder()}
+                onPress={() => setPaymentMethod('razorpay')}
               >
                 <View style={styles.razorpayIconBox}>
                   <CreditCard size={20} color="#FFFFFF" />
@@ -1235,6 +1242,71 @@ export default function CompareStoresScreen() {
                     <View style={[styles.pill, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}><Text style={[styles.pillText, isDark && { color: '#38BDF8' }]}>🏦 {txt.netBanking}</Text></View>
                     <View style={[styles.pill, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}><Text style={[styles.pillText, isDark && { color: '#38BDF8' }]}>👛 {txt.wallets}</Text></View>
                   </View>
+                </View>
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    borderWidth: 2,
+                    borderColor: paymentMethod === 'razorpay' ? '#0D9488' : '#9CA3AF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 4,
+                  }}
+                >
+                  {paymentMethod === 'razorpay' && (
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#0D9488' }} />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Cash on Delivery (COD) Card */}
+              <TouchableOpacity
+                style={[
+                  styles.optionCard,
+                  paymentMethod === 'cod'
+                    ? {
+                        borderColor: '#059669',
+                        borderWidth: 2,
+                        backgroundColor: isDark ? '#064e3b33' : '#ECFDF5',
+                      }
+                    : {
+                        opacity: 0.75,
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                      },
+                ]}
+                onPress={() => setPaymentMethod('cod')}
+              >
+                <View style={[styles.razorpayIconBox, { backgroundColor: '#059669' }]}>
+                  <Banknote size={20} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>Cash on Delivery (COD)</Text>
+                    <View style={[styles.instantBadge, { backgroundColor: '#059669' }]}>
+                      <Text style={styles.instantBadgeText}>Pay in Cash</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                    Pay with physical cash upon order delivery or pickup.
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    borderWidth: 2,
+                    borderColor: paymentMethod === 'cod' ? '#059669' : '#9CA3AF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 4,
+                  }}
+                >
+                  {paymentMethod === 'cod' && (
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#059669' }} />
+                  )}
                 </View>
               </TouchableOpacity>
 
@@ -1280,13 +1352,28 @@ export default function CompareStoresScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.primaryBtn, { marginTop: Spacing.xs }]}
+                style={[
+                  styles.primaryBtn,
+                  { marginTop: Spacing.xs },
+                  paymentMethod === 'cod' && { backgroundColor: '#059669' },
+                ]}
                 onPress={() => handlePlaceOrder()}
               >
-                <Lock size={16} color="#fff" />
-                <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                  {txt.payVia.replace('{amount}', totalPayable.toFixed(0))}
-                </Text>
+                {paymentMethod === 'cod' ? (
+                  <>
+                    <Banknote size={16} color="#fff" />
+                    <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      Place Cash on Delivery Order (₹{totalPayable.toFixed(0)})
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Lock size={16} color="#fff" />
+                    <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      {txt.payVia.replace('{amount}', totalPayable.toFixed(0))}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setStep('delivery')}>
@@ -1338,7 +1425,7 @@ export default function CompareStoresScreen() {
                 <View style={styles.billRow}>
                   <Text style={[styles.billLabel, isDark && { color: '#9CA3AF' }]}>{txt.paymentMode}</Text>
                   <Text style={[styles.billValue, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}>
-                    {txt.onlinePayment}
+                    {paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : txt.onlinePayment}
                   </Text>
                 </View>
 
