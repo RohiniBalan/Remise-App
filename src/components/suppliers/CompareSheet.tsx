@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
-import { X, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react-native';
+import { X, ChevronLeft, ChevronRight, CheckCircle2, Star } from 'lucide-react-native';
 import { ProductGroup, GroupedSupplier, tierFor } from '../../utils/supplierGrouping';
 import { useTheme } from '../../context/ThemeContext';
-import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTranslation, translateProductName, translateCategory, getSupplierTranslations } from '../../i18n';
 
 interface Props {
   group: ProductGroup | null;
@@ -14,6 +15,9 @@ interface Props {
 
 export default function CompareSheet({ group, visible, onClose, onAddToCart }: Props) {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const tSupplier = getSupplierTranslations(language);
+
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [selected, setSelected] = useState<GroupedSupplier | null>(null);
   const [qty, setQty] = useState(1);
@@ -48,15 +52,18 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
     setTimeout(onClose, 900);
   };
 
+  const displayTitle = translateProductName(group.title, language);
+  const displayCategory = translateCategory(group.category, language);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
         <View style={[styles.sheet, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
           <View style={[styles.header, isDark && { backgroundColor: '#1F2937', borderBottomColor: '#374151' }]}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: isDark ? '#ffffff' : '#000000' }]}>{group.title}</Text>
-              <Text style={styles.subtitle}>
-                {selected ? `Ordering from ${selected.storeName}` : `${group.supplierCount} suppliers available`}
+              <Text style={[styles.title, { color: isDark ? '#ffffff' : '#000000' }]}>{displayTitle}</Text>
+              <Text style={[styles.subtitle, isDark && { color: '#9CA3AF' }]}>
+                {selected ? `${tSupplier.orderingFrom} ${selected.storeName}` : `${group.supplierCount} ${tSupplier.suppliersAvailable}`}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
@@ -74,45 +81,59 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
                 )}
 
                 <View style={{ flex: 1 }}>
-                  <View style={[styles.card, carouselIndex === 0 && styles.cardBest, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
+                  <View style={[styles.card, carouselIndex === 0 && styles.cardBest, isDark && { backgroundColor: carouselIndex === 0 ? '#134e4a' : '#1F2937', borderColor: '#374151' }]}>
                     <View style={styles.cardTopRow}>
                       <View style={{ flex: 1, marginRight: Spacing.sm }}>
-                        <Text style={[styles.storeName, { color: isDark ? '#ffffff' : '#000000' }]} numberOfLines={1}>{s.storeName}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={[styles.storeName, { color: isDark ? '#ffffff' : '#000000' }]} numberOfLines={1}>{s.storeName}</Text>
+                          {s.storeRating ? (
+                            <View style={styles.ratingBadge}>
+                              <Star size={10} color="#D97706" fill="#D97706" />
+                              <Text style={styles.ratingBadgeText}>
+                                {Number(s.storeRating).toFixed(1)}{s.reviewCount ? ` (${s.reviewCount})` : ''}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
                         {carouselIndex === 0 && (
-                          <View style={styles.bestPill}><Text style={styles.bestPillText}>Best price</Text></View>
+                          <View style={styles.bestPill}><Text style={styles.bestPillText}>{tSupplier.bestPrice}</Text></View>
                         )}
                       </View>
-                      <Text style={styles.priceText}>₹{s.price}</Text>
+                      <Text style={[styles.priceText, isDark && { color: '#2DD4BF' }]}>₹{s.price}</Text>
                     </View>
 
                     {/* Product Details Grid */}
                     <View style={{ marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: isDark ? '#374151' : CustomerColors.steelBorder, gap: 8 }}>
                       {brand ? (
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                          <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>BRAND</Text>
+                          <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>{tSupplier.brand}</Text>
                           <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#ffffff' : '#000000', flex: 1, textAlign: 'right' }}>{brand}</Text>
                         </View>
                       ) : null}
                       {model ? (
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                          <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>MODEL</Text>
+                          <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>{tSupplier.model}</Text>
                           <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#ffffff' : '#000000', flex: 1, textAlign: 'right' }}>{model}</Text>
                         </View>
                       ) : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                        <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>CATEGORY</Text>
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#ffffff' : '#000000', flex: 1, textAlign: 'right' }} numberOfLines={2}>{group.category}{subcategory ? ` • ${subcategory}` : ''}</Text>
+                        <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>{tSupplier.categoryCaps}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#ffffff' : '#000000', flex: 1, textAlign: 'right' }} numberOfLines={2}>
+                          {displayCategory}{subcategory ? ` • ${subcategory}` : ''}
+                        </Text>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>STOCK / MOQ</Text>
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#ffffff' : '#000000', flex: 1, textAlign: 'right' }}>Stock: {s.totalStock} · MOQ: {s.moq}</Text>
+                        <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '700', width: 85 }}>{tSupplier.stockMoqCaps}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#ffffff' : '#000000', flex: 1, textAlign: 'right' }}>
+                          {tSupplier.stock}: {s.totalStock} · {tSupplier.moq}: {s.moq}
+                        </Text>
                       </View>
                     </View>
 
                     {/* Description */}
                     {desc ? (
                       <View style={{ marginTop: 8, padding: 8, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#111827' : '#F9FAFB', borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 2 }}>Description</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 2 }}>{tSupplier.description}</Text>
                         <Text style={{ fontSize: 11, color: isDark ? '#ffffff' : '#000000', lineHeight: 16 }}>{desc}</Text>
                       </View>
                     ) : null}
@@ -120,7 +141,7 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
                     {/* Specifications */}
                     {specs && specs.length > 0 && (
                       <View style={{ marginTop: 6, padding: 8, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#111827' : '#F9FAFB', borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 4 }}>Specifications</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase', marginBottom: 4 }}>{tSupplier.specifications}</Text>
                         {specs.slice(0, 3).map((sp: any, i: number) => (
                           <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 2, gap: 8 }}>
                             <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, width: 85 }}>{sp.label}:</Text>
@@ -133,7 +154,7 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
                     {/* Bulk Pricing */}
                     {s.bulkPricing?.length > 0 && (
                       <View style={{ marginTop: 6, padding: 6, borderRadius: BorderRadius.sm, backgroundColor: isDark ? '#134e4a' : '#F0FDFA' }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, textTransform: 'uppercase' }}>Wholesale Bulk Tiers</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, textTransform: 'uppercase' }}>{tSupplier.wholesaleBulkTiers}</Text>
                         {s.bulkPricing.map((t, i) => (
                           <Text key={i} style={{ fontSize: 11, color: isDark ? '#ffffff' : '#000000', fontWeight: '600', marginTop: 2 }}>
                             {t.minQty}+ units — ₹{t.price}
@@ -143,19 +164,19 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
                     )}
 
                     <TouchableOpacity style={styles.selectBtn} onPress={() => handleSelect(s)}>
-                      <Text style={styles.selectBtnText}>Select Supplier</Text>
+                      <Text style={styles.selectBtnText}>{tSupplier.selectSupplier}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {total > 1 && (
                     <View style={styles.dots}>
                       {group.suppliers.map((_, i) => (
-                        <View key={i} style={[styles.dot, i === carouselIndex && styles.dotActive]} />
+                        <View key={i} style={[styles.dot, i === carouselIndex && styles.dotActive, isDark && i !== carouselIndex && { backgroundColor: '#374151' }]} />
                       ))}
                     </View>
                   )}
                   {total > 1 && (
-                    <Text style={[styles.countText, isDark && { color: '#9CA3AF' }]}>{carouselIndex + 1} of {total}</Text>
+                    <Text style={[styles.countText, isDark && { color: '#9CA3AF' }]}>{carouselIndex + 1} / {total}</Text>
                   )}
                 </View>
 
@@ -170,7 +191,7 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
             {selected && !added && (
               <View style={[styles.selectedBox, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
                 <View style={{ marginBottom: Spacing.sm }}>
-                  <Text style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}>Quantity</Text>
+                  <Text style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}>{tSupplier.quantity}</Text>
                   <View style={[styles.stepperRow, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]}>
                     <TouchableOpacity style={styles.stepBtn} onPress={() => setQty(q => Math.max(selected.moq, q - 1))}>
                       <Text style={[styles.stepBtnText, isDark && { color: '#9CA3AF' }]}>−</Text>
@@ -184,16 +205,16 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
                 </View>
 
                 <View style={[styles.subtotalRow, isDark && { borderTopColor: '#374151' }]}>
-                  <Text style={[styles.subtotalLabel, { color: isDark ? '#ffffff' : '#000000' }]}>Subtotal</Text>
-                  <Text style={styles.subtotalValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
+                  <Text style={[styles.subtotalLabel, { color: isDark ? '#ffffff' : '#000000' }]}>{tSupplier.subtotal}</Text>
+                  <Text style={[styles.subtotalValue, isDark && { color: '#2DD4BF' }]}>₹{subtotal.toLocaleString('en-IN')}</Text>
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                   <TouchableOpacity style={[styles.backBtn, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]} onPress={() => setSelected(null)}>
-                    <Text style={[styles.backBtnText, isDark && { color: '#9CA3AF' }]}>Back</Text>
+                    <Text style={[styles.backBtnText, isDark && { color: '#9CA3AF' }]}>{tSupplier.back}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-                    <Text style={styles.addBtnText}>Add to Cart</Text>
+                    <Text style={styles.addBtnText}>{tSupplier.addToCart}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -201,14 +222,14 @@ export default function CompareSheet({ group, visible, onClose, onAddToCart }: P
 
             {added && (
               <View style={{ alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm }}>
-                <View style={styles.successIconCircle}>
+                <View style={[styles.successIconCircle, isDark && { backgroundColor: '#064e3b' }]}>
                   <CheckCircle2 size={40} color="#10B981" />
                 </View>
                 <Text style={{ fontWeight: '800', fontSize: FontSizes.md, color: isDark ? '#FFFFFF' : '#111827', textAlign: 'center' }}>
-                  Product Added to Cart!
+                  {tSupplier.addedToCart}
                 </Text>
                 <Text style={{ fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', paddingHorizontal: Spacing.md }}>
-                  Your selected items have been added to your order list.
+                  {displayTitle}
                 </Text>
               </View>
             )}
@@ -267,6 +288,20 @@ const styles = StyleSheet.create({
   cardBest: { borderColor: CustomerColors.teal600, backgroundColor: '#f0fbfb' },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
   storeName: { fontSize: FontSizes.base, fontWeight: '700', color: CustomerColors.black },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.pill,
+  },
+  ratingBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#D97706',
+  },
   bestPill: { alignSelf: 'flex-start', backgroundColor: CustomerColors.mint, borderRadius: BorderRadius.pill, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 },
   bestPillText: { fontSize: 10, fontWeight: '800', color: CustomerColors.teal700 },
   metaText: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, marginTop: 4 },

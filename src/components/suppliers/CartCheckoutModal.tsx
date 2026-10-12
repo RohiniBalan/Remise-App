@@ -9,12 +9,14 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   X,
   ShoppingBag,
   Truck,
+  Store,
   CheckCircle,
   AlertCircle,
   RefreshCw,
@@ -23,7 +25,6 @@ import {
   Check,
   CreditCard,
 } from 'lucide-react-native';
-import { State, City } from 'country-state-city';
 import {
   orderApi,
   WholesaleOrderGroup,
@@ -46,15 +47,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../common/AuthRequiredModal';
+import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
+import { useTranslation, translateProductName, getSupplierTranslations } from '../../i18n';
+import { usePlatformFee } from '../../utils/platformFee';
 
-const indianStates = State.getStatesOfCountry('IN');
-const getCities = (stateCode: string) => City.getCitiesOfState('IN', stateCode);
-
-type Step = 'contact' | 'delivery' | 'placing' | 'success';
+type Step = 'contact' | 'deliveryMethod' | 'confirm' | 'placing' | 'success';
 
 interface Props {
   cartLines: CartLine[];
   prefill?: { firstName?: string; lastName?: string; contactEmail?: string };
+  initialDeliveryMethod?: 'delivery' | 'pickup';
   visible: boolean;
   onClose: () => void;
   onComplete: () => void;
@@ -63,13 +65,21 @@ interface Props {
 export default function CartCheckoutModal({
   cartLines,
   prefill,
+  initialDeliveryMethod = 'delivery',
   visible,
   onClose,
   onComplete,
 }: Props) {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const tSupplier = useMemo(
+    () => getSupplierTranslations(language) || getSupplierTranslations('en'),
+    [language]
+  );
   const { user, token } = useAuth();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxScrollHeight = Math.min(windowHeight * 0.70, 520);
 
   const groups = useMemo(() => {
     const byStore: Record<string, CartLine[]> = {};
@@ -88,8 +98,11 @@ export default function CartCheckoutModal({
     () => cartLines.reduce((sum, i) => sum + i.price * i.qty, 0),
     [cartLines],
   );
-
   const [step, setStep] = useState<Step>('contact');
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>(initialDeliveryMethod);
+  const platformFee = usePlatformFee(totalAmount);
+  const deliveryFee = deliveryMethod === 'pickup' ? 0 : (totalAmount >= 499 ? 0 : 49);
+  const totalPayable = totalAmount + platformFee + deliveryFee;
   const [groupIndex, setGroupIndex] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -116,6 +129,7 @@ export default function CartCheckoutModal({
   useEffect(() => {
     if (visible) {
       setStep('contact');
+      setDeliveryMethod(initialDeliveryMethod);
       setGroupIndex(0);
       setErrorMsg('');
       if (prefill) {
@@ -127,7 +141,7 @@ export default function CartCheckoutModal({
         }));
       }
     }
-  }, [visible, prefill]);
+  }, [visible, prefill, initialDeliveryMethod]);
 
   const setField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -147,9 +161,7 @@ export default function CartCheckoutModal({
     setIsFetchingPin(true);
     try {
       const res = await fetch(
-        `https://api.postalpincode.in/postoffice/${encodeURIComponent(
-          cityName,
-        )}`,
+        `https://api.postalpincode.in/postoffice/${encodeURIComponent(cityName)}`,
       );
       const data = await res.json();
       if (data[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
@@ -164,17 +176,21 @@ export default function CartCheckoutModal({
 
   const filteredStates = useMemo(() => {
     if (!stateSearch.trim()) return indianStates;
+    const q = stateSearch.toLowerCase().trim();
     return indianStates.filter(s =>
-      s.name.toLowerCase().includes(stateSearch.toLowerCase().trim()),
+      s.name.toLowerCase().includes(q) ||
+      translateState(s.name, language).toLowerCase().includes(q),
     );
-  }, [stateSearch]);
+  }, [stateSearch, language]);
 
   const filteredCities = useMemo(() => {
     if (!citySearch.trim()) return cities;
+    const q = citySearch.toLowerCase().trim();
     return cities.filter(c =>
-      c.name.toLowerCase().includes(citySearch.toLowerCase().trim()),
+      c.name.toLowerCase().includes(q) ||
+      translateCity(c.name, language).toLowerCase().includes(q),
     );
-  }, [cities, citySearch]);
+  }, [cities, citySearch, language]);
 
   const handleConfirmContact = () => {
     if (
@@ -185,15 +201,24 @@ export default function CartCheckoutModal({
       !form.city ||
       !form.pinCode.trim()
     ) {
-      setErrorMsg('Please fill in all required fields.');
+      setErrorMsg(tSupplier.errFillRequired);
       return;
     }
     if (!/^\d{10}$/.test(form.phone.trim())) {
-      setErrorMsg('Please enter a valid 10-digit phone number.');
+      setErrorMsg(tSupplier.errValidPhone);
       return;
     }
     setErrorMsg('');
-    setStep('delivery');
+    setStep('deliveryMethod');
+  };
+
+  const handleConfirmDeliveryMethod = () => {
+    if (!deliveryMethod) {
+      setErrorMsg(tSupplier.errSelectDeliveryMethod);
+      return;
+    }
+    setErrorMsg('');
+    setStep('confirm');
   };
 
   const handleContinueOrSubmit = async () => {
@@ -232,14 +257,16 @@ export default function CartCheckoutModal({
       };
 
       const res = await paymentApi.initiate({
-        amount: totalAmount,
+        amount: totalPayable,
+        platformFee,
+        deliveryFee,
         userId: user?._id ?? null,
         redirectUrl: PAYMENT_RETURN_SENTINEL,
         cartItems: allCartItems,
         contactEmail: form.contactEmail || user?.email || '',
         shippingAddress: addressData,
         billingAddress: addressData,
-        deliveryMethod: 'delivery',
+        deliveryMethod: deliveryMethod,
         paymentMethod: 'razorpay',
       });
 
@@ -251,7 +278,7 @@ export default function CartCheckoutModal({
           razorpayOrderId: data.razorpayOrderId,
           keyId: data.keyId,
           amount: data.amount,
-          amountPaise: data.amountPaise || Math.round(totalAmount * 100),
+          amountPaise: data.amountPaise || Math.round(totalPayable * 100),
           currency: data.currency || 'INR',
           name: data.name || 'Remise Wholesale',
           description: data.description || `Wholesale Order #${data.orderId}`,
@@ -304,7 +331,7 @@ export default function CartCheckoutModal({
           err.message ||
           'Payment initiation failed. Please try again.',
       );
-      setStep('delivery');
+      setStep('confirm');
     }
   };
 
@@ -343,13 +370,17 @@ export default function CartCheckoutModal({
                 ]}
               >
                 {step === 'contact'
-                  ? 'Delivery Details'
+                  ? tSupplier.stepDeliveryDetails
+                  : step === 'deliveryMethod'
+                  ? tSupplier.stepDeliveryMethod
                   : groups.length > 1
-                  ? `Order ${groupIndex + 1} of ${groups.length}`
-                  : 'Confirm Your Order'}
+                  ? tSupplier.stepOrderCount.replace('{{current}}', String(groupIndex + 1)).replace('{{total}}', String(groups.length))
+                  : tSupplier.stepConfirmOrder}
               </Text>
               {step !== 'contact' && (
-                <Text style={styles.subtitle}>{chosen.storeName}</Text>
+                <Text style={[styles.subtitle, isDark && { color: '#9CA3AF' }]}>
+                  {chosen.storeName}
+                </Text>
               )}
             </View>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
@@ -361,72 +392,37 @@ export default function CartCheckoutModal({
           </View>
 
           <ScrollView
-            style={{ maxHeight: 480 }}
-            contentContainerStyle={{ padding: Spacing.md }}
+            style={{ maxHeight: maxScrollHeight }}
+            contentContainerStyle={{ padding: Spacing.md, paddingBottom: 45 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
             bounces={false}
           >
             {!!errorMsg && (
-              <View style={styles.errorBox}>
+              <View style={[styles.errorBox, isDark && { backgroundColor: '#3b1212', borderColor: '#7f1d1d' }]}>
                 <AlertCircle size={15} color={CustomerColors.danger} />
                 <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             )}
 
+            {/* STEP 1: Contact Details & Address */}
             {step === 'contact' && (
               <View style={{ gap: Spacing.xs }}>
-                <View
-                  style={[
-                    styles.cartSummary,
-                    isDark && {
-                      backgroundColor: '#1F2937',
-                      borderColor: '#374151',
-                    },
-                  ]}
-                >
-                  {groups.map(g => (
-                    <View key={g.storeId} style={{ marginBottom: Spacing.xs }}>
-                      <View style={styles.summaryRow}>
-                        <Text
-                          style={[
-                            styles.summaryStore,
-                            isDark && { color: '#FFFFFF' },
-                          ]}
-                        >
-                          {g.storeName}
-                        </Text>
-                        <Text style={styles.summaryAmount}>
-                          ₹{g.totalAmount.toFixed(0)}
-                        </Text>
-                      </View>
-                      {g.items.map(i => (
-                        <Text
-                          key={i.productId}
-                          style={[
-                            styles.summaryItem,
-                            isDark && { color: '#9CA3AF' },
-                          ]}
-                        >
-                          {i.qty} × {i.title} — ₹{i.price}
-                        </Text>
-                      ))}
-                    </View>
-                  ))}
-                </View>
 
                 <Field
-                  label="First Name *"
+                  label={tSupplier.firstName}
                   value={form.firstName}
                   onChangeText={(v: string) => setField('firstName', v)}
                   isDark={isDark}
                 />
                 <Field
-                  label="Last Name"
+                  label={tSupplier.lastName}
                   value={form.lastName}
                   onChangeText={(v: string) => setField('lastName', v)}
                   isDark={isDark}
                 />
                 <Field
-                  label="Phone *"
+                  label={tSupplier.phone}
                   value={form.phone}
                   onChangeText={(v: string) =>
                     setField('phone', v.replace(/\D/g, '').slice(0, 10))
@@ -436,14 +432,14 @@ export default function CartCheckoutModal({
                   isDark={isDark}
                 />
                 <Field
-                  label="Email"
+                  label={tSupplier.email}
                   value={form.contactEmail}
                   onChangeText={(v: string) => setField('contactEmail', v)}
                   keyboardType="email-address"
                   isDark={isDark}
                 />
                 <Field
-                  label="Address *"
+                  label={tSupplier.address}
                   value={form.address}
                   onChangeText={(v: string) => setField('address', v)}
                   multiline
@@ -456,7 +452,7 @@ export default function CartCheckoutModal({
                   <Text
                     style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}
                   >
-                    State *
+                    {tSupplier.state}
                   </Text>
                   <TouchableOpacity
                     style={[
@@ -484,7 +480,7 @@ export default function CartCheckoutModal({
                       ]}
                       numberOfLines={1}
                     >
-                      {form.state || 'Select State'}
+                      {form.state ? translateState(form.state, language) : tSupplier.selectState}
                     </Text>
                     <ChevronDown
                       size={16}
@@ -498,7 +494,7 @@ export default function CartCheckoutModal({
                   <Text
                     style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}
                   >
-                    City *
+                    {tSupplier.city}
                   </Text>
                   <TouchableOpacity
                     style={[
@@ -511,7 +507,7 @@ export default function CartCheckoutModal({
                     ]}
                     onPress={() => {
                       if (!form.state) {
-                        setErrorMsg('Please select a state first.');
+                        setErrorMsg(tSupplier.errSelectStateFirst);
                         return;
                       }
                       setCityModalOpen(true);
@@ -533,8 +529,9 @@ export default function CartCheckoutModal({
                       ]}
                       numberOfLines={1}
                     >
-                      {form.city ||
-                        (form.state ? 'Select City' : 'Select state first')}
+                      {form.city
+                        ? translateCity(form.city, language)
+                        : (form.state ? tSupplier.selectCity : tSupplier.selectStateFirst)}
                     </Text>
                     <ChevronDown
                       size={16}
@@ -558,7 +555,7 @@ export default function CartCheckoutModal({
                         isDark && { color: '#9CA3AF' },
                       ]}
                     >
-                      Pin Code *
+                      {tSupplier.pinCode}
                     </Text>
                     {isFetchingPin && (
                       <View
@@ -578,7 +575,7 @@ export default function CartCheckoutModal({
                             color: CustomerColors.teal600,
                           }}
                         >
-                          Auto-filling…
+                          {tSupplier.autoFilling}
                         </Text>
                       </View>
                     )}
@@ -607,19 +604,290 @@ export default function CartCheckoutModal({
                   onPress={handleConfirmContact}
                 >
                   <ShoppingBag size={16} color="#fff" />
-                  <Text style={styles.primaryBtnText}>Continue to Payment</Text>
+                  <Text style={styles.primaryBtnText}>{tSupplier.continueToDeliveryMethod}</Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            {step === 'delivery' && (
+            {/* STEP 2: Delivery Method Selection (Before Confirming Order!) */}
+            {step === 'deliveryMethod' && (
+              <View style={{ gap: Spacing.md }}>
+                <View>
+                  <Text style={[styles.sectionTitle, isDark && { color: '#FFFFFF' }]}>
+                    {tSupplier.deliveryMethod}
+                  </Text>
+                  <Text style={[styles.helperText, { marginTop: 2 }, isDark && { color: '#9CA3AF' }]}>
+                    {tSupplier.deliveryMethodSubtitle}
+                  </Text>
+                </View>
+
+                {/* Option 1: Home / Store Delivery */}
+                <TouchableOpacity
+                  style={[
+                    styles.methodOptionCard,
+                    isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                    deliveryMethod === 'delivery' && [
+                      styles.methodOptionCardActive,
+                      isDark && { backgroundColor: '#0f2f2c', borderColor: CustomerColors.teal600 },
+                    ],
+                  ]}
+                  onPress={() => setDeliveryMethod('delivery')}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.methodOptionHeader}>
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        deliveryMethod === 'delivery' && styles.radioCircleActive,
+                        isDark && { borderColor: deliveryMethod === 'delivery' ? CustomerColors.teal600 : '#4B5563' },
+                      ]}
+                    >
+                      {deliveryMethod === 'delivery' && <View style={styles.radioDot} />}
+                    </View>
+
+                    <View
+                      style={[
+                        styles.methodIconBox,
+                        isDark && { backgroundColor: '#111827' },
+                        deliveryMethod === 'delivery' && { backgroundColor: CustomerColors.teal600 },
+                      ]}
+                    >
+                      <Truck
+                        size={20}
+                        color={deliveryMethod === 'delivery' ? '#fff' : (isDark ? '#2DD4BF' : CustomerColors.teal700)}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={styles.methodTitleRow}>
+                        <Text
+                          style={[
+                            styles.methodOptionTitle,
+                            isDark && { color: '#FFFFFF' },
+                            deliveryMethod === 'delivery' && { color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {tSupplier.homeDelivery}
+                        </Text>
+                        {deliveryMethod === 'delivery' && (
+                          <View style={styles.selectedBadge}>
+                            <Text style={styles.selectedBadgeText}>{tSupplier.selected}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.methodOptionDesc, isDark && { color: '#9CA3AF' }]}>
+                        {tSupplier.homeDeliveryDesc}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {deliveryMethod === 'delivery' && (
+                    <View
+                      style={[
+                        styles.addressPreviewBox,
+                        isDark && { backgroundColor: '#111827', borderColor: '#374151' },
+                      ]}
+                    >
+                      <Text style={[styles.addressPreviewLabel, isDark && { color: '#2DD4BF' }]}>
+                        {tSupplier.deliveringTo}
+                      </Text>
+                      <Text style={[styles.addressPreviewText, isDark && { color: '#D1D5DB' }]}>
+                        {form.firstName} {form.lastName} ({form.phone}) · {form.address}, {form.city}, {form.state} - {form.pinCode}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* Option 2: Store / Self Pickup */}
+                <TouchableOpacity
+                  style={[
+                    styles.methodOptionCard,
+                    isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                    deliveryMethod === 'pickup' && [
+                      styles.methodOptionCardActive,
+                      isDark && { backgroundColor: '#0f2f2c', borderColor: CustomerColors.teal600 },
+                    ],
+                  ]}
+                  onPress={() => setDeliveryMethod('pickup')}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.methodOptionHeader}>
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        deliveryMethod === 'pickup' && styles.radioCircleActive,
+                        isDark && { borderColor: deliveryMethod === 'pickup' ? CustomerColors.teal600 : '#4B5563' },
+                      ]}
+                    >
+                      {deliveryMethod === 'pickup' && <View style={styles.radioDot} />}
+                    </View>
+
+                    <View
+                      style={[
+                        styles.methodIconBox,
+                        isDark && { backgroundColor: '#111827' },
+                        deliveryMethod === 'pickup' && { backgroundColor: CustomerColors.teal600 },
+                      ]}
+                    >
+                      <Store
+                        size={20}
+                        color={deliveryMethod === 'pickup' ? '#fff' : (isDark ? '#2DD4BF' : CustomerColors.teal700)}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={styles.methodTitleRow}>
+                        <Text
+                          style={[
+                            styles.methodOptionTitle,
+                            isDark && { color: '#FFFFFF' },
+                            deliveryMethod === 'pickup' && { color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {tSupplier.selfPickup}
+                        </Text>
+                        {deliveryMethod === 'pickup' && (
+                          <View style={styles.selectedBadge}>
+                            <Text style={styles.selectedBadgeText}>{tSupplier.selected}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.methodOptionDesc, isDark && { color: '#9CA3AF' }]}>
+                        {tSupplier.selfPickupDesc}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {deliveryMethod === 'pickup' && (
+                    <View
+                      style={[
+                        styles.addressPreviewBox,
+                        isDark && { backgroundColor: '#111827', borderColor: '#374151' },
+                      ]}
+                    >
+                      <Text style={[styles.addressPreviewLabel, isDark && { color: '#2DD4BF' }]}>
+                        {tSupplier.pickupFrom}
+                      </Text>
+                      <Text style={[styles.addressPreviewText, isDark && { color: '#D1D5DB' }]}>
+                        {chosen.storeName}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* Step Action Buttons */}
+                <View style={{ gap: Spacing.sm, marginTop: Spacing.xs }}>
+                  <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={handleConfirmDeliveryMethod}
+                  >
+                    <Text style={styles.primaryBtnText}>{tSupplier.continueToPayment}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => setStep('contact')}>
+                    <Text
+                      style={[styles.backLink, isDark && { color: '#2DD4BF' }]}
+                    >
+                      {tSupplier.backToDeliveryDetails}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* STEP 3: Confirm Your Order & Razorpay Payment */}
+            {step === 'confirm' && (
               <View style={{ gap: Spacing.md }}>
                 <Text
                   style={[styles.helperText, isDark && { color: '#9CA3AF' }]}
                 >
-                  Your wholesale order of ₹{totalAmount.toLocaleString('en-IN')}{' '}
-                  will be processed via Razorpay.
+                  {tSupplier.orderProcessedVia.replace(
+                    '{{amount}}',
+                    totalPayable.toLocaleString('en-IN'),
+                  )}
                 </Text>
+
+                {/* Price Breakdown Card */}
+                <View
+                  style={{
+                    padding: Spacing.sm,
+                    borderRadius: BorderRadius.md,
+                    borderWidth: 1,
+                    borderColor: isDark ? '#374151' : '#E5E7EB',
+                    backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+                    gap: 6,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#4B5563' }}>
+                      {tSupplier.subtotal || 'Products Total'}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? '#FFFFFF' : '#111827' }}>
+                      ₹{totalAmount.toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#4B5563' }}>
+                      {(tSupplier as any).platformFee || 'Platform Fee'}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? '#FFFFFF' : '#111827' }}>
+                      {platformFee === 0 ? 'FREE' : `₹${platformFee.toLocaleString('en-IN')}`}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#4B5563' }}>
+                      {(tSupplier as any).deliveryFee || 'Delivery Fee'}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: deliveryFee === 0 ? '#15803D' : (isDark ? '#FFFFFF' : '#111827') }}>
+                      {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toLocaleString('en-IN')}`}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      borderTopWidth: 1,
+                      borderTopColor: isDark ? '#374151' : '#E5E7EB',
+                      paddingTop: 6,
+                      marginTop: 2,
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: isDark ? '#FFFFFF' : '#111827' }}>
+                      {tSupplier.totalAmount}
+                    </Text>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: isDark ? '#2DD4BF' : CustomerColors.teal700 }}>
+                      ₹{totalPayable.toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Delivery Method Summary Pill */}
+                <View
+                  style={[
+                    styles.methodSummaryBadge,
+                    isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {deliveryMethod === 'delivery' ? (
+                      <Truck size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    ) : (
+                      <Store size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    )}
+                    <Text style={[styles.methodSummaryTitle, isDark && { color: '#FFFFFF' }]}>
+                      {deliveryMethod === 'delivery' ? tSupplier.homeDelivery : tSupplier.selfPickup}
+                    </Text>
+                  </View>
+                  <Text style={[styles.methodSummarySub, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>
+                    {deliveryMethod === 'delivery'
+                      ? `${form.city}, ${form.pinCode}`
+                      : chosen.storeName}
+                  </Text>
+                </View>
+
+                {/* Pay with Razorpay Trigger */}
                 <TouchableOpacity
                   style={[
                     styles.deliveryCard,
@@ -641,7 +909,7 @@ export default function CartCheckoutModal({
                         isDark && { color: '#FFFFFF' },
                       ]}
                     >
-                      Pay with Razorpay
+                      {tSupplier.payWithRazorpay}
                     </Text>
                     <Text
                       style={[
@@ -649,20 +917,22 @@ export default function CartCheckoutModal({
                         isDark && { color: '#9CA3AF' },
                       ]}
                     >
-                      UPI, NetBanking, Debit/Credit Card & Wallets
+                      {tSupplier.paymentSubtext}
                     </Text>
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setStep('contact')}>
+
+                <TouchableOpacity onPress={() => setStep('deliveryMethod')}>
                   <Text
                     style={[styles.backLink, isDark && { color: '#2DD4BF' }]}
                   >
-                    ← Back to Delivery Details
+                    {tSupplier.backToDeliveryMethod}
                   </Text>
                 </TouchableOpacity>
               </View>
             )}
 
+            {/* STEP 4: Placing Order / Connecting to Gateway */}
             {step === 'placing' && (
               <View
                 style={{
@@ -675,11 +945,12 @@ export default function CartCheckoutModal({
                 <Text
                   style={[styles.helperText, isDark && { color: '#9CA3AF' }]}
                 >
-                  Connecting to Razorpay gateway…
+                  {tSupplier.connectingRazorpay}
                 </Text>
               </View>
             )}
 
+            {/* STEP 5: Order Placed Success */}
             {step === 'success' && (
               <View
                 style={{
@@ -692,7 +963,7 @@ export default function CartCheckoutModal({
                 <Text
                   style={[styles.successTitle, isDark && { color: '#FFFFFF' }]}
                 >
-                  Order Placed!
+                  {tSupplier.orderPlacedTitle}
                 </Text>
                 <Text
                   style={[
@@ -701,8 +972,9 @@ export default function CartCheckoutModal({
                     isDark && { color: '#9CA3AF' },
                   ]}
                 >
-                  Your wholesale order{groups.length > 1 ? 's are' : ' is'}{' '}
-                  confirmed.
+                  {groups.length > 1
+                    ? tSupplier.ordersConfirmedDesc
+                    : tSupplier.orderConfirmedDesc}
                 </Text>
                 <TouchableOpacity
                   style={[styles.primaryBtn, { marginTop: Spacing.sm }]}
@@ -711,7 +983,7 @@ export default function CartCheckoutModal({
                     onClose();
                   }}
                 >
-                  <Text style={styles.primaryBtnText}>Done</Text>
+                  <Text style={styles.primaryBtnText}>{tSupplier.done}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -733,28 +1005,29 @@ export default function CartCheckoutModal({
               isDark && { backgroundColor: '#1F2937' },
             ]}
           >
-            <View style={styles.dropdownModalHeader}>
+            <View style={[styles.dropdownModalHeader, isDark && { borderBottomColor: '#374151' }]}>
               <Text
                 style={[
                   styles.dropdownModalTitle,
                   isDark && { color: '#FFFFFF' },
                 ]}
               >
-                Select State
+                {tSupplier.selectState}
               </Text>
               <TouchableOpacity
                 onPress={() => setStateModalOpen(false)}
                 style={{ padding: 4 }}
               >
                 <X
-                  size={20}
+                  size={18}
                   color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
+
             <View
               style={[
-                styles.searchBox,
+                styles.dropdownSearchRow,
                 isDark && {
                   backgroundColor: '#111827',
                   borderColor: '#374151',
@@ -762,27 +1035,35 @@ export default function CartCheckoutModal({
               ]}
             >
               <Search
-                size={16}
+                size={14}
                 color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
               />
               <TextInput
-                style={[styles.searchInput, isDark && { color: '#FFFFFF' }]}
-                placeholder="Search state…"
+                style={[
+                  styles.dropdownSearchInput,
+                  isDark && { color: '#FFFFFF' },
+                ]}
+                placeholder={tSupplier.searchState}
                 placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
                 value={stateSearch}
                 onChangeText={setStateSearch}
+                autoFocus
               />
             </View>
+
             <FlatList
               data={filteredStates}
               keyExtractor={item => item.isoCode}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 const isSelected = form.state === item.name;
+                const translatedName = translateState(item.name, language);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.dropdownItem,
                       isSelected && styles.dropdownItemActive,
+                      isDark && isSelected && { backgroundColor: '#111827' },
                       isDark && { borderBottomColor: '#374151' },
                     ]}
                     onPress={() => onSelectState(item)}
@@ -791,10 +1072,10 @@ export default function CartCheckoutModal({
                       style={[
                         styles.dropdownItemText,
                         isSelected && styles.dropdownItemTextActive,
-                        isDark && { color: '#FFFFFF' },
+                        isDark && { color: isSelected ? '#2DD4BF' : '#FFFFFF' },
                       ]}
                     >
-                      {item.name}
+                      {translatedName}
                     </Text>
                     {isSelected && (
                       <Check size={16} color={CustomerColors.teal600} />
@@ -802,7 +1083,6 @@ export default function CartCheckoutModal({
                   </TouchableOpacity>
                 );
               }}
-              style={{ maxHeight: 320 }}
             />
           </View>
         </View>
@@ -822,28 +1102,29 @@ export default function CartCheckoutModal({
               isDark && { backgroundColor: '#1F2937' },
             ]}
           >
-            <View style={styles.dropdownModalHeader}>
+            <View style={[styles.dropdownModalHeader, isDark && { borderBottomColor: '#374151' }]}>
               <Text
                 style={[
                   styles.dropdownModalTitle,
                   isDark && { color: '#FFFFFF' },
                 ]}
               >
-                Select City
+                {tSupplier.selectCity}
               </Text>
               <TouchableOpacity
                 onPress={() => setCityModalOpen(false)}
                 style={{ padding: 4 }}
               >
                 <X
-                  size={20}
+                  size={18}
                   color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
+
             <View
               style={[
-                styles.searchBox,
+                styles.dropdownSearchRow,
                 isDark && {
                   backgroundColor: '#111827',
                   borderColor: '#374151',
@@ -851,38 +1132,35 @@ export default function CartCheckoutModal({
               ]}
             >
               <Search
-                size={16}
+                size={14}
                 color={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
               />
               <TextInput
-                style={[styles.searchInput, isDark && { color: '#FFFFFF' }]}
-                placeholder="Search city…"
+                style={[
+                  styles.dropdownSearchInput,
+                  isDark && { color: '#FFFFFF' },
+                ]}
+                placeholder={tSupplier.searchCity}
                 placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
                 value={citySearch}
                 onChangeText={setCitySearch}
+                autoFocus
               />
             </View>
+
             <FlatList
               data={filteredCities}
-              keyExtractor={item => item.name}
-              ListEmptyComponent={
-                <Text
-                  style={{
-                    textAlign: 'center',
-                    padding: Spacing.md,
-                    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
-                  }}
-                >
-                  No cities found
-                </Text>
-              }
+              keyExtractor={(item, idx) => `${item.name}-${idx}`}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 const isSelected = form.city === item.name;
+                const translatedName = translateCity(item.name, language);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.dropdownItem,
                       isSelected && styles.dropdownItemActive,
+                      isDark && isSelected && { backgroundColor: '#111827' },
                       isDark && { borderBottomColor: '#374151' },
                     ]}
                     onPress={() => onSelectCity(item.name)}
@@ -891,10 +1169,10 @@ export default function CartCheckoutModal({
                       style={[
                         styles.dropdownItemText,
                         isSelected && styles.dropdownItemTextActive,
-                        isDark && { color: '#FFFFFF' },
+                        isDark && { color: isSelected ? '#2DD4BF' : '#FFFFFF' },
                       ]}
                     >
-                      {item.name}
+                      {translatedName}
                     </Text>
                     {isSelected && (
                       <Check size={16} color={CustomerColors.teal600} />
@@ -902,7 +1180,6 @@ export default function CartCheckoutModal({
                   </TouchableOpacity>
                 );
               }}
-              style={{ maxHeight: 320 }}
             />
           </View>
         </View>
@@ -912,8 +1189,9 @@ export default function CartCheckoutModal({
         visible={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         title="Login Required"
-        subtitle="Please sign in or register to place this order."
+        subtitle="Please sign in to place your wholesale order."
         onLogin={() => {
+          setShowAuthModal(false);
           onClose();
           navigateToAuthFlow(navigation);
         }}
@@ -922,26 +1200,38 @@ export default function CartCheckoutModal({
   );
 }
 
-function Field(props: any) {
+function Field({
+  label,
+  value,
+  onChangeText,
+  keyboardType,
+  maxLength,
+  multiline,
+  numberOfLines,
+  isDark,
+}: any) {
   return (
     <View style={{ marginTop: 4 }}>
-      <Text style={[styles.fieldLabel, props.isDark && { color: '#9CA3AF' }]}>
-        {props.label}
+      <Text style={[styles.fieldLabel, isDark && { color: '#9CA3AF' }]}>
+        {label}
       </Text>
       <TextInput
-        {...props}
         style={[
           styles.input,
-          props.multiline && { height: 60, textAlignVertical: 'top' },
-          props.isDark && {
+          multiline && { height: 60, textAlignVertical: 'top' },
+          isDark && {
             backgroundColor: '#1F2937',
             borderColor: '#374151',
             color: '#FFFFFF',
           },
         ]}
-        placeholderTextColor={
-          props.isDark ? '#94A3B8' : CustomerColors.textSecondary
-        }
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        maxLength={maxLength}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
       />
     </View>
   );
@@ -957,7 +1247,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 440,
+    maxHeight: '88%',
     backgroundColor: CustomerColors.white,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
@@ -980,7 +1271,7 @@ const styles = StyleSheet.create({
     borderBottomColor: CustomerColors.steelBorder,
   },
   title: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.base,
     fontWeight: '800',
     color: CustomerColors.black,
   },
@@ -989,163 +1280,318 @@ const styles = StyleSheet.create({
     color: CustomerColors.textSecondary,
     marginTop: 2,
   },
-  errorBox: {
-    flexDirection: 'row',
-    gap: 6,
-    backgroundColor: CustomerColors.dangerBg,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  errorText: { color: CustomerColors.danger, fontSize: FontSizes.sm, flex: 1 },
-  cartSummary: {
-    backgroundColor: CustomerColors.bg,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-  },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  summaryStore: {
-    fontWeight: '700',
+  sectionTitle: {
     fontSize: FontSizes.sm,
+    fontWeight: '800',
     color: CustomerColors.black,
   },
-  summaryAmount: { fontWeight: '800', color: CustomerColors.teal700 },
-  summaryItem: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary },
-  fieldLabel: {
+  cartSummary: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: Spacing.xs,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  summaryStore: {
+    fontWeight: '700',
     fontSize: FontSizes.xs,
+    color: CustomerColors.black,
+  },
+  summaryAmount: {
+    fontWeight: '800',
+    fontSize: FontSizes.xs,
+    color: CustomerColors.teal700,
+  },
+  summaryItem: {
+    fontSize: 11,
+    color: CustomerColors.textSecondary,
+  },
+  fieldLabel: {
+    fontSize: 11,
     fontWeight: '700',
     color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   input: {
     borderWidth: 1,
     borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    fontSize: FontSizes.sm,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+    fontSize: FontSizes.xs,
     color: CustomerColors.black,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CustomerColors.white,
   },
   dropdownTrigger: {
     borderWidth: 1,
     borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
+    backgroundColor: CustomerColors.white,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
   dropdownValue: {
-    fontSize: FontSizes.sm,
-    flex: 1,
-  },
-  dropdownModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  dropdownModalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    maxHeight: '75%',
-  },
-  dropdownModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  dropdownModalTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: '800',
+    fontSize: FontSizes.xs,
     color: CustomerColors.black,
   },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    marginBottom: Spacing.sm,
-    backgroundColor: '#F9FAFB',
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color: CustomerColors.black,
-    padding: 0,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  dropdownItemActive: {
-    backgroundColor: 'rgba(13, 148, 136, 0.08)',
-  },
-  dropdownItemText: {
-    fontSize: FontSizes.sm,
-    color: CustomerColors.black,
-  },
-  dropdownItemTextActive: {
-    fontWeight: '700',
-    color: CustomerColors.teal700,
-  },
-  helperText: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary },
   primaryBtn: {
-    flexDirection: 'row',
-    gap: 8,
+    marginTop: Spacing.sm,
+    backgroundColor: CustomerColors.primary,
+    borderRadius: BorderRadius.md,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: CustomerColors.teal600,
-    paddingVertical: 14,
-    borderRadius: BorderRadius.md,
-    marginTop: Spacing.md,
+    flexDirection: 'row',
+    gap: 6,
   },
   primaryBtnText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.sm,
   },
   deliveryCard: {
     flexDirection: 'row',
-    gap: Spacing.md,
     alignItems: 'center',
-    borderWidth: 1,
+    gap: Spacing.sm,
+    borderWidth: 1.5,
     borderColor: CustomerColors.teal600,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#F0FDFA',
+    borderRadius: BorderRadius.md,
     padding: Spacing.md,
-    backgroundColor: 'rgba(13, 148, 136, 0.05)',
   },
   deliveryTitle: {
     fontWeight: '700',
-    color: CustomerColors.black,
     fontSize: FontSizes.sm,
+    color: CustomerColors.teal700,
+  },
+  helperText: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
   },
   backLink: {
-    fontSize: FontSizes.xs,
     color: CustomerColors.teal700,
-    fontWeight: '600',
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingVertical: 6,
   },
   successTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '800',
     color: CustomerColors.black,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: CustomerColors.dangerBg,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  errorText: {
+    color: CustomerColors.danger,
+    fontSize: FontSizes.xs,
+    flex: 1,
+  },
+
+  // Delivery Method Step Styles
+  methodOptionCard: {
+    borderWidth: 1.5,
+    borderColor: CustomerColors.steelBorder,
+    backgroundColor: CustomerColors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    gap: Spacing.xs,
+    overflow: 'hidden',
+  },
+  methodOptionCardActive: {
+    borderColor: CustomerColors.teal600,
+    backgroundColor: '#F0FDFA',
+  },
+  methodOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: CustomerColors.steelBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  radioCircleActive: {
+    borderColor: CustomerColors.teal600,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: CustomerColors.teal600,
+  },
+  methodIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: CustomerColors.mint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  methodTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  methodOptionTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: CustomerColors.black,
+    flex: 1,
+  },
+  methodOptionDesc: {
+    fontSize: 11,
+    color: CustomerColors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  selectedBadge: {
+    backgroundColor: CustomerColors.teal700,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexShrink: 0,
+    alignSelf: 'center',
+  },
+  selectedBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  addressPreviewBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 4,
+  },
+  addressPreviewLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: CustomerColors.teal700,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  addressPreviewText: {
+    fontSize: 11,
+    color: CustomerColors.black,
+    lineHeight: 16,
+  },
+  methodSummaryBadge: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: CustomerColors.teal600,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+  },
+  methodSummaryTitle: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.black,
+  },
+  methodSummarySub: {
+    fontSize: 11,
+    color: CustomerColors.textSecondary,
+    maxWidth: 160,
+  },
+
+  // Dropdown Selector Modal Styles
+  dropdownModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.md,
+  },
+  dropdownModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '75%',
+    backgroundColor: CustomerColors.white,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+  },
+  dropdownModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  dropdownModalTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: CustomerColors.black,
+  },
+  dropdownSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: Spacing.sm,
+    marginVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: CustomerColors.steelBorder,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: '#F8FAFC',
+  },
+  dropdownSearchInput: {
+    flex: 1,
+    fontSize: FontSizes.xs,
+    color: CustomerColors.black,
+    paddingVertical: 2,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  dropdownItemActive: {
+    backgroundColor: '#F0FDFA',
+  },
+  dropdownItemText: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.black,
+  },
+  dropdownItemTextActive: {
+    fontWeight: '700',
+    color: CustomerColors.teal700,
   },
 });

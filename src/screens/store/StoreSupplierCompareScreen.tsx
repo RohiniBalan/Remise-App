@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GroupedSupplier, ProductGroup, tierFor } from '../../utils/supplierTypes';
 import { useSupplierCart } from '../../context/SupplierCartContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage, translateProductName } from '../../i18n';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 
 export default function StoreSupplierCompareScreen() {
@@ -13,6 +14,7 @@ export default function StoreSupplierCompareScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDark } = useTheme();
+  const { language } = useLanguage();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const group: ProductGroup = route.params.group;
   const { addToCart } = useSupplierCart();
@@ -55,7 +57,7 @@ export default function StoreSupplierCompareScreen() {
           <ArrowLeft size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{group.title}</Text>
+        <Text style={styles.headerTitle}>{translateProductName(group.title, language)}</Text>
         <Text style={styles.headerSub}>
           {selected ? `Ordering from ${selected.storeName}` : `${group.supplierCount} suppliers available`}
         </Text>
@@ -72,7 +74,7 @@ export default function StoreSupplierCompareScreen() {
               <View style={[styles.card, carouselIndex === 0 && styles.cardBest]}>
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.productTitle}>{group.title}</Text>
+                    <Text style={styles.productTitle}>{translateProductName(group.title, language)}</Text>
                     <Text style={styles.storeName}>{s.storeName}</Text>
                     {carouselIndex === 0 && (
                       <View style={styles.bestBadge}><Text style={styles.bestBadgeText}>Best price</Text></View>
@@ -221,7 +223,7 @@ export default function StoreSupplierCompareScreen() {
             </View>
             <Text style={styles.addedText}>Added to Supplier Cart</Text>
             <Text style={styles.addedSubText}>
-              {group.title} from {selected?.storeName || 'Supplier'} has been added to your order requisition.
+              {translateProductName(group.title, language)} from {selected?.storeName || 'Supplier'} has been added to your order requisition.
             </Text>
             <Text style={styles.addedRedirectText}>Redirecting to Cart...</Text>
           </View>

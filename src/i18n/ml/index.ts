@@ -11,6 +11,8 @@ import { offers } from './offers';
 import { settings } from './settings';
 import { admin } from './admin';
 import { profile } from './profile';
+import { wishlist } from './wishlist';
+import { notifications } from './notifications';
 
 export const ml: TranslationSchema = {
   common,
@@ -25,4 +27,6 @@ export const ml: TranslationSchema = {
   settings,
   admin,
   profile,
+  wishlist,
+  notifications,
 };

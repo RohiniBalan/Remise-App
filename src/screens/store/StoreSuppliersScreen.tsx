@@ -45,7 +45,7 @@ import { groupByTitle, TitleGroup } from '../../utils/supplierTypes';
 import { mergeCategories } from '../../utils/storeCategories';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { isValidPlacedOrder } from '../../utils/orderValidation';
-import { useTranslation, translateProductName, translateCategory } from '../../i18n';
+import { useTranslation, translateProductName, translateCategory, registerProducts } from '../../i18n';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Processing: { bg: '#FEF3C7', text: '#92400E' },
@@ -133,6 +133,7 @@ export default function StoreSuppliersScreen() {
           })),
         })),
       );
+      registerProducts(data);
     } catch (err) {
       console.error('loadGroups failed:', err);
       setError('Could not load suppliers right now. Try again shortly.');
@@ -222,12 +223,14 @@ export default function StoreSuppliersScreen() {
             view === 'browse' && styles.toggleBtnActive,
           ]}
           onPress={() => setView('browse')}
+          activeOpacity={0.8}
         >
           <Text
             style={[
               styles.toggleText,
               view === 'browse' && styles.toggleTextActive,
             ]}
+            numberOfLines={1}
           >
             {t.store.browseSuppliersTab}
           </Text>
@@ -238,12 +241,14 @@ export default function StoreSuppliersScreen() {
             view === 'orders' && styles.toggleBtnActive,
           ]}
           onPress={() => setView('orders')}
+          activeOpacity={0.8}
         >
           <Text
             style={[
               styles.toggleText,
               view === 'orders' && styles.toggleTextActive,
             ]}
+            numberOfLines={1}
           >
             {t.store.myOrdersTab}
           </Text>
@@ -299,7 +304,7 @@ export default function StoreSuppliersScreen() {
             style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}
           >
             <SelectField
-              label="Category"
+              label={t.store.categoryLabel || 'Category'}
               value={categoryFilter}
               placeholder={t.store.selectCategoryOption}
               options={categoryOptions}
@@ -352,16 +357,16 @@ export default function StoreSuppliersScreen() {
                   <View style={styles.card}>
                     <View style={styles.imageWrap}>
                       {img ? (
-                        <Image source={{ uri: img }} style={styles.image} />
+                        <Image source={{ uri: img }} style={styles.image} resizeMode="cover" />
                       ) : (
                         <Package size={24} color={isDark ? '#4B5563' : '#E5E7EB'} />
                       )}
                     </View>
-                    <View style={{ padding: Spacing.sm }}>
-                      <Text style={styles.title} numberOfLines={1}>
-                        {translateProductName(tg.title, language)}
+                    <View style={styles.cardBody}>
+                      <Text style={styles.title} numberOfLines={2}>
+                        {translateProductName(tg.title, language, tg.brands?.[0])}
                       </Text>
-                      <Text style={styles.subText}>
+                      <Text style={styles.subText} numberOfLines={1}>
                         {t.store.availableBrandsLabel} ({tg.brandCount})
                       </Text>
                       <Text style={styles.startingFrom}>{t.store.startingFromLabel}</Text>
@@ -373,8 +378,9 @@ export default function StoreSuppliersScreen() {
                             titleGroup: tg,
                           })
                         }
+                        activeOpacity={0.8}
                       >
-                        <Text style={styles.viewBrandsBtnText}>
+                        <Text style={styles.viewBrandsBtnText} numberOfLines={1}>
                           {t.store.viewBrandsBtn}
                         </Text>
                       </TouchableOpacity>
@@ -572,6 +578,8 @@ function SelectField({
   styles: any;
 }) {
   const [open, setOpen] = useState(false);
+  const selectedOption = options.find(o => o.key === value);
+  const displayLabel = selectedOption ? selectedOption.label : value;
 
   return (
     <View>
@@ -583,10 +591,10 @@ function SelectField({
         onPress={() => setOpen(true)}
       >
         <Text
-          style={value ? styles.selectValue : styles.selectPlaceholder}
+          style={displayLabel ? styles.selectValue : styles.selectPlaceholder}
           numberOfLines={1}
         >
-          {value || placeholder}
+          {displayLabel || placeholder}
         </Text>
 
         <ChevronDown size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
@@ -654,14 +662,23 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderRadius: BorderRadius.md,
     fontSize: FontSizes.sm,
   },
-  viewToggle: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.md },
-  toggleBtn: {
+  viewToggle: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  toggleBtn: {
+    flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 6,
     borderRadius: BorderRadius.md,
     backgroundColor: isDark ? '#111827' : CustomerColors.white,
     borderWidth: 1,
     borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleBtnActive: {
     backgroundColor: CustomerColors.primary,
@@ -671,6 +688,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '700',
     color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    textAlign: 'center',
   },
   toggleTextActive: { color: '#fff' },
   filterRow: {
@@ -681,7 +699,9 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   typeBtn: {
     flex: 1,
-    height: 44,
+    minHeight: 46,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
@@ -694,9 +714,10 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     borderColor: isDark ? '#0f766e' : CustomerColors.teal600,
   },
   typeBtnText: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs,
     fontWeight: '700',
     color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    textAlign: 'center',
   },
   typeBtnTextActive: { color: '#fff' },
   chipScroll: { marginBottom: Spacing.sm },
@@ -729,15 +750,30 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.md,
+    minHeight: 46,
   },
-  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
+  searchInput: {
+    flex: 1,
+    minHeight: 42,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    fontSize: FontSizes.sm,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
+  },
   list: { paddingHorizontal: Spacing.md, paddingBottom: 90 },
   empty: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
   },
-  emptyText: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
+  emptyText: {
+    fontSize: FontSizes.sm,
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   card: {
     flex: 1,
     backgroundColor: isDark ? '#111827' : CustomerColors.white,
@@ -755,10 +791,17 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
   },
   image: { width: '100%', height: '100%' },
+  cardBody: {
+    padding: Spacing.sm,
+    flex: 1,
+    justifyContent: 'space-between',
+  },
   title: {
     fontSize: FontSizes.sm,
     fontWeight: '700',
     color: isDark ? '#FFFFFF' : CustomerColors.black,
+    lineHeight: 18,
+    minHeight: 36,
   },
   subText: {
     fontSize: FontSizes.xs,
@@ -774,14 +817,19 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   viewBrandsBtn: {
     marginTop: Spacing.sm,
     backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
-    paddingVertical: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 6,
     borderRadius: BorderRadius.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   viewBrandsBtnText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: FontSizes.xs,
+    textAlign: 'center',
+    width: '100%',
   },
   orderCard: {
     backgroundColor: isDark ? '#111827' : CustomerColors.white,

@@ -25,6 +25,20 @@ import {
 import { adminStatsApi, adminOrderApi, adminStoreApi, adminProductApi } from '../../api/adminApi';
 import { AdminColors, getAdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateCategory, translateProductName } from '../../i18n';
+
+const DAY_ABBR: Record<string, Record<string, string>> = {
+  en: { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun' },
+  ta: { Mon: 'திங்', Tue: 'செவ்', Wed: 'புதன்', Thu: 'வியா', Fri: 'வெள்', Sat: 'சனி', Sun: 'ஞாயி' },
+  hi: { Mon: 'सोम', Tue: 'मंगल', Wed: 'बुध', Thu: 'गुरु', Fri: 'शुक्र', Sat: 'शनि', Sun: 'रवि' },
+  te: { Mon: 'సోమ', Tue: 'మంగళ', Wed: 'బుధ', Thu: 'గురు', Fri: 'శుక్ర', Sat: 'శని', Sun: 'ఆది' },
+  kn: { Mon: 'ಸೋಮ', Tue: 'ಮಂಗಳ', Wed: 'ಬುಧ', Thu: 'ಗುರು', Fri: 'ಶುಕ್ರ', Sat: 'ಶನಿ', Sun: 'ಭಾನು' },
+  ml: { Mon: 'തിങ്ക', Tue: 'ചൊവ്വ', Wed: 'ബുധൻ', Thu: 'വ്യാഴം', Fri: 'വെള്ളി', Sat: 'ശനി', Sun: 'ഞായർ' },
+};
+
+const getLocalizedDay = (label: string, lang: string) => {
+  return DAY_ABBR[lang]?.[label] || label;
+};
 
 const formatCompactINR = (val: number = 0) => {
   if (!val || isNaN(val)) return '₹0';
@@ -45,6 +59,10 @@ export default function AdminDashboardScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const themeColors = getAdminColors(isDark);
+  const { t, language } = useTranslation();
+  const ta = useCallback((key: string, params?: Record<string, string | number>) => {
+    return t(`admin.${key}` as any, params);
+  }, [t]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
@@ -266,110 +284,110 @@ export default function AdminDashboardScreen() {
 
   const statCards = [
     {
-      label: 'Total Revenue',
+      label: ta('totalRevenue'),
       value: `₹${(stats.totalRevenue || 0).toLocaleString('en-IN')}`,
-      tag: 'Live Sales',
+      tag: ta('liveSalesTag'),
       icon: IndianRupee,
       color: '#16A34A',
       bg: '#F0FDF4',
     },
     {
-      label: 'Total Orders',
+      label: ta('totalOrders'),
       value: (stats.totalOrders || 0).toLocaleString('en-IN'),
-      tag: 'All Time',
+      tag: ta('allTimeTag'),
       icon: Package,
       color: '#2563EB',
       bg: '#EFF6FF',
     },
     {
-      label: 'Active Customers',
+      label: ta('activeCustomers'),
       value: (stats.activeCustomers || 0).toLocaleString('en-IN'),
-      tag: 'Retail Buyers',
+      tag: ta('retailBuyersTag'),
       icon: Users,
       color: '#9333EA',
       bg: '#FAF5FF',
     },
     {
-      label: 'Products in Catalog',
+      label: ta('productsInCatalog'),
       value: (stats.totalProducts || 0).toLocaleString('en-IN'),
-      tag: 'Active Catalog',
+      tag: ta('activeCatalogTag'),
       icon: Gamepad2,
       color: '#CA8A04',
       bg: '#FEFCE8',
     },
     {
-      label: 'Total Store Owners',
+      label: ta('totalStoreOwners'),
       value: (stats.totalStoreOwners || 0).toLocaleString('en-IN'),
-      tag: 'Retailers',
+      tag: ta('retailersTag'),
       icon: Store,
       color: '#4F46E5',
       bg: '#EEF2FF',
     },
     {
-      label: 'Total Wholesalers',
+      label: ta('totalWholesalers'),
       value: (stats.totalWholesalers || 0).toLocaleString('en-IN'),
-      tag: 'B2B Suppliers',
+      tag: ta('b2bSuppliersTag'),
       icon: Truck,
       color: '#D97706',
       bg: '#FFFBEB',
     },
     {
-      label: 'Home Businesses',
+      label: ta('homeBusinesses'),
       value: (stats.totalHomeBusinesses || 0).toLocaleString('en-IN'),
-      tag: 'Local Producers',
+      tag: ta('localProducersTag'),
       icon: Home,
       color: '#0D9488',
       bg: '#F0FDFA',
     },
     {
-      label: 'Total Users',
+      label: ta('totalUsers'),
       value: (stats.totalUsers || 0).toLocaleString('en-IN'),
-      tag: 'Registered',
+      tag: ta('registeredTag'),
       icon: UserCheck,
       color: '#0284C7',
       bg: '#F0F9FF',
     },
     {
-      label: 'Gemini Total Tokens',
+      label: ta('geminiTotalTokens'),
       value: (stats.tokensUsed || 0).toLocaleString('en-IN'),
-      tag: 'Google Gemini AI',
-      subStats: `${(stats.geminiCallCount || 0).toLocaleString('en-IN')} Total Calls`,
+      tag: ta('googleGeminiAiTag'),
+      subStats: `${(stats.geminiCallCount || 0).toLocaleString('en-IN')} ${ta('totalCalls')}`,
       icon: Key,
       color: '#7C3AED',
       bg: '#F5F3FF',
     },
     {
-      label: 'Gemini Prompt Tokens',
+      label: ta('geminiPromptTokens'),
       value: (stats.geminiPromptTokens || 0).toLocaleString('en-IN'),
-      tag: 'Input Context',
-      subStats: 'OCR & Multimodal Input',
+      tag: ta('inputContextTag'),
+      subStats: ta('ocrMultimodalInput'),
       icon: Sparkles,
       color: '#4F46E5',
       bg: '#EEF2FF',
     },
     {
-      label: 'Gemini Output Tokens',
+      label: ta('geminiOutputTokens'),
       value: (stats.geminiCandidatesTokens || 0).toLocaleString('en-IN'),
-      tag: 'Generated Output',
-      subStats: 'JSON & Descriptions',
+      tag: ta('generatedOutputTag'),
+      subStats: ta('jsonDescriptions'),
       icon: Cpu,
       color: '#0891B2',
       bg: '#ECFEFF',
     },
     {
-      label: 'Gemini API Calls',
+      label: ta('geminiApiCalls'),
       value: (stats.geminiCallCount || 0).toLocaleString('en-IN'),
-      tag: 'Invocations',
-      subStats: 'Barcode & Scanner Calls',
+      tag: ta('invocationsTag'),
+      subStats: ta('barcodeScannerCalls'),
       icon: Zap,
       color: '#E11D48',
       bg: '#FFF1F2',
     },
     {
-      label: 'Pollinations AI',
-      value: 'Token-Free (0)',
+      label: ta('pollinationsAi'),
+      value: ta('tokenFree'),
       tag: 'FLUX.1 & Turbo',
-      subStats: 'Open Inference Photos',
+      subStats: ta('openInferencePhotos'),
       icon: ImageIcon,
       color: '#059669',
       bg: '#ECFDF5',
@@ -381,8 +399,10 @@ export default function AdminDashboardScreen() {
   const filteredTopProducts = (stats.topProducts || []).filter((p: any) => {
     if (!query) return true;
     const name = (p.name || '').toLowerCase();
+    const translatedName = translateProductName(p.name, language).toLowerCase();
     const cat = (p.category || '').toLowerCase();
-    return name.includes(query) || cat.includes(query);
+    const translatedCat = translateCategory(p.category, language).toLowerCase();
+    return name.includes(query) || translatedName.includes(query) || cat.includes(query) || translatedCat.includes(query);
   });
 
   if (loading && !refreshing) {
@@ -404,7 +424,7 @@ export default function AdminDashboardScreen() {
         <Search size={18} color={themeColors.textMuted} style={{ marginRight: 8 }} />
         <TextInput
           style={[styles.searchInput, { color: themeColors.textPrimary }]}
-          placeholder="Search products, categories..."
+          placeholder={ta('searchDashboardPlaceholder')}
           placeholderTextColor={themeColors.textMuted}
           selectionColor={AdminColors.primary}
           value={searchQuery}
@@ -427,10 +447,10 @@ export default function AdminDashboardScreen() {
       {searchQuery.length > 0 && (
         <View style={styles.searchFilterRow}>
           <Text style={[styles.searchFilterText, { color: themeColors.textSecondary }]}>
-            Matching: {filteredTopProducts.length} product{filteredTopProducts.length === 1 ? '' : 's'}
+            {ta('matchingProducts')}: {filteredTopProducts.length}
           </Text>
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Text style={styles.clearFilterBtnText}>Reset</Text>
+            <Text style={styles.clearFilterBtnText}>{ta('resetFilter')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -444,13 +464,19 @@ export default function AdminDashboardScreen() {
                 <s.icon size={18} color={s.color} />
               </View>
               <View style={[styles.tagBadge, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
-                <Text style={[styles.tagText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>{s.tag}</Text>
+                <Text 
+                  style={[styles.tagText, { color: isDark ? '#D1D5DB' : '#4B5563' }]} 
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {s.tag}
+                </Text>
               </View>
             </View>
-            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{s.label}</Text>
-            <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>{s.value}</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textSecondary }]} numberOfLines={2}>{s.label}</Text>
+            <Text style={[styles.statValue, { color: themeColors.textPrimary }]} numberOfLines={1}>{s.value}</Text>
             {'subStats' in s && s.subStats ? (
-              <Text style={styles.statSubStats}>{s.subStats}</Text>
+              <Text style={styles.statSubStats} numberOfLines={2}>{s.subStats}</Text>
             ) : null}
           </View>
         ))}
@@ -459,12 +485,18 @@ export default function AdminDashboardScreen() {
       {/* Weekly Revenue Bar Chart */}
       <View style={[styles.section, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
         <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Weekly Revenue Trend</Text>
-            <Text style={[styles.sectionSub, { color: themeColors.textMuted }]}>Performance over the last 7 days</Text>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
+              {ta('weeklyRevenueTrend')}
+            </Text>
+            <Text style={[styles.sectionSub, { color: themeColors.textMuted }]} numberOfLines={1} ellipsizeMode="tail">
+              {ta('performanceLast7Days')}
+            </Text>
           </View>
-          <View style={[styles.tagBadge, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
-            <Text style={[styles.tagText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>Last 7 Days</Text>
+          <View style={[styles.tagBadge, { backgroundColor: isDark ? '#374151' : '#F3F4F6', flexShrink: 0 }]}>
+            <Text style={[styles.tagText, { color: isDark ? '#D1D5DB' : '#4B5563' }]} numberOfLines={1}>
+              {ta('last7Days')}
+            </Text>
           </View>
         </View>
         <View style={styles.barChart}>
@@ -479,7 +511,7 @@ export default function AdminDashboardScreen() {
                     <Text style={styles.barValue}>{formatCompactINR(d.value)}</Text>
                   ) : null}
                   <View style={[styles.bar, { height, backgroundColor: d.value > 0 ? AdminColors.primary : isDark ? '#374151' : '#E5E7EB' }]} />
-                  <Text style={[styles.barLabel, { color: themeColors.textMuted }]}>{d.label}</Text>
+                  <Text style={[styles.barLabel, { color: themeColors.textMuted }]}>{getLocalizedDay(d.label, language)}</Text>
                 </View>
               );
             });
@@ -490,12 +522,19 @@ export default function AdminDashboardScreen() {
       {/* Top Selling Products */}
       <View style={[styles.section, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Top Selling Products</Text>
+          <Text 
+            style={[styles.sectionTitle, { color: themeColors.textPrimary, flex: 1, marginRight: 8 }]} 
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {ta('topSellingProducts')}
+          </Text>
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => navigation.navigate('AdminStores')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.linkText}>View Stores</Text>
+            <Text style={styles.linkText} numberOfLines={1}>{ta('viewStores')}</Text>
             <ExternalLink size={12} color={AdminColors.primary} />
           </TouchableOpacity>
         </View>
@@ -506,8 +545,12 @@ export default function AdminDashboardScreen() {
                 <Text style={styles.rankBadgeText}>#{i + 1}</Text>
               </View>
               <View style={{ flex: 1, marginHorizontal: 8 }}>
-                <Text style={[styles.rowTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{p.name}</Text>
-                <Text style={[styles.rowSub, { color: themeColors.textSecondary }]}>{p.category} · {p.sales} sold</Text>
+                <Text style={[styles.rowTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
+                  {translateProductName(p.name, language)}
+                </Text>
+                <Text style={[styles.rowSub, { color: themeColors.textSecondary }]}>
+                  {translateCategory(p.category, language)} · {p.sales} {ta('soldCount')}
+                </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={[styles.rowAmount, { color: themeColors.textPrimary }]}>{formatCompactINR(p.revenue)}</Text>
@@ -520,7 +563,7 @@ export default function AdminDashboardScreen() {
         ) : (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
             <Text style={[styles.emptyRecentText, { color: themeColors.textMuted }]}>
-              {searchQuery ? `No products matching "${searchQuery}"` : 'No product sales recorded yet'}
+              {searchQuery ? `${ta('noProductsMatching')} "${searchQuery}"` : ta('noProductSalesYet')}
             </Text>
           </View>
         )}
@@ -570,19 +613,49 @@ const styles = StyleSheet.create({
     color: AdminColors.primary,
   },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
-  statCard: { width: '48%', backgroundColor: '#fff', borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: '#F3F4F6', padding: Spacing.md, ...Shadows.card },
-  statHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  statIcon: { width: 36, height: 36, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  tagBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
-  tagText: { fontSize: 9, color: '#4B5563', fontWeight: '700' },
+  statCard: { 
+    width: '48%', 
+    backgroundColor: '#fff', 
+    borderRadius: BorderRadius.lg, 
+    borderWidth: 1, 
+    borderColor: '#F3F4F6', 
+    padding: Spacing.md, 
+    overflow: 'hidden',
+    ...Shadows.card 
+  },
+  statHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: Spacing.sm,
+    gap: 6,
+  },
+  statIcon: { width: 36, height: 36, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  tagBadge: { 
+    backgroundColor: '#F3F4F6', 
+    paddingHorizontal: 6, 
+    paddingVertical: 2, 
+    borderRadius: BorderRadius.pill,
+    flexShrink: 1,
+    maxWidth: '65%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagText: { fontSize: 8.5, color: '#4B5563', fontWeight: '700', textAlign: 'center' },
   statLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
   statValue: { fontSize: FontSizes.base, fontWeight: '800', color: '#111827', marginTop: 2 },
   statSubStats: { fontSize: 9, color: '#9CA3AF', marginTop: 3, lineHeight: 13 },
   section: { backgroundColor: '#fff', borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: '#F3F4F6', padding: Spacing.md, marginBottom: Spacing.md },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  sectionHeaderRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: Spacing.md,
+    gap: 8,
+  },
   sectionTitle: { fontSize: FontSizes.sm, fontWeight: '800', color: '#111827' },
   sectionSub: { fontSize: 10, color: '#9CA3AF', marginTop: 1 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   linkText: { fontSize: 11, fontWeight: '700', color: AdminColors.primary },
   barChart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 110, marginTop: Spacing.sm },
   barCol: { alignItems: 'center', gap: 4, flex: 1 },

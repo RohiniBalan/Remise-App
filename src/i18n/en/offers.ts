@@ -21,4 +21,5 @@ export const offers: TranslationSchema['offers'] = {
   orderNowBtn: 'Order Now',
   signInForPrivateOffers: 'Sign in to view your offers',
   signInForPrivateOffersDesc: 'Exclusive deals sent to your account will appear here once you log in.',
+  privateOffers: 'Private Deals',
 };

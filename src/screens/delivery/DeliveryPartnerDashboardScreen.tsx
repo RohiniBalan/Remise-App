@@ -42,25 +42,15 @@ import {
   ExternalLink,
   Map,
   Bell,
+  AlertCircle,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
+import RemiseLoading from '../../components/common/RemiseLoading';
 import { CustomerColors, Spacing, BorderRadius, FontSizes } from '../../styles/theme';
-
-const vehicleOptions = ['Bike', 'Scooter', 'Bicycle', 'Car', 'Auto', 'Van'];
-
-const nextActions: Record<string, { status: string; label: string }> = {
-  Accepted: { status: 'Going to Store', label: 'Start Navigation to Store' },
-  'Going to Store': {
-    status: 'Arrived at Store',
-    label: "I've Arrived at Store",
-  },
-  'Arrived at Store': { status: 'Picked Up', label: 'Confirm Pickup' },
-  'Picked Up': { status: 'Out for Delivery', label: 'Start Delivery' },
-  'Out for Delivery': { status: 'Delivered', label: 'Mark as Delivered' },
-};
+import { useDeliveryPartnerTranslations, useDeliveryTranslations } from '../../i18n';
 
 type Dashboard = {
   requests: any[];
@@ -73,12 +63,65 @@ type ActiveTab = 'live' | 'earnings' | 'profile';
 export default function DeliveryPartnerDashboardScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const { unreadCount } = useUnreadNotifications();
   const { isDark, toggleTheme } = useTheme();
   const styles = getStyles(isDark);
+  const tPartner = useDeliveryPartnerTranslations();
+  const tDeliv = useDeliveryTranslations();
   const [profile, setProfile] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('live');
+
+  const getNextAction = (status: string) => {
+    switch (status) {
+      case 'Accepted':
+        return { status: 'Going to Store', label: tPartner.actionStartNavStore };
+      case 'Going to Store':
+        return { status: 'Arrived at Store', label: tPartner.actionArrivedStore };
+      case 'Arrived at Store':
+        return { status: 'Picked Up', label: tPartner.actionConfirmPickup };
+      case 'Picked Up':
+        return { status: 'Out for Delivery', label: tPartner.actionStartDelivery };
+      case 'Out for Delivery':
+        return { status: 'Delivered', label: tPartner.actionMarkDelivered };
+      default:
+        return null;
+    }
+  };
+
+  const translateMilestone = (status: string) => {
+    switch (status) {
+      case 'Accepted': return tDeliv.statusAccepted;
+      case 'Going to Store': return tDeliv.statusGoingToStore;
+      case 'Arrived at Store': return tDeliv.statusArrivedAtStore;
+      case 'Ready': return tDeliv.statusReady;
+      case 'Picked Up': return tDeliv.statusPickedUp;
+      case 'Out for Delivery': return tDeliv.statusOutForDelivery;
+      case 'Delivered': return tDeliv.statusDelivered;
+      default: return status;
+    }
+  };
+
+  const translateVehicle = (v?: string) => {
+    switch (v?.toLowerCase()) {
+      case 'bike': return tPartner.vehicleBike;
+      case 'scooter': return tPartner.vehicleScooter;
+      case 'bicycle': return tPartner.vehicleBicycle;
+      case 'car': return tPartner.vehicleCar;
+      case 'auto': return tPartner.vehicleAuto;
+      case 'van': return tPartner.vehicleVan;
+      default: return v || tPartner.vehicleFallback;
+    }
+  };
+
+  const vehicleOptions = [
+    { key: 'Bike', label: tPartner.vehicleBike },
+    { key: 'Scooter', label: tPartner.vehicleScooter },
+    { key: 'Bicycle', label: tPartner.vehicleBicycle },
+    { key: 'Car', label: tPartner.vehicleCar },
+    { key: 'Auto', label: tPartner.vehicleAuto },
+    { key: 'Van', label: tPartner.vehicleVan },
+  ];
   const [dashboard, setDashboard] = useState<Dashboard>({
     requests: [],
     activeDelivery: null,
@@ -114,7 +157,33 @@ export default function DeliveryPartnerDashboardScreen() {
     address: '',
   });
 
+  // Alert Modal State
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type?: 'error' | 'success' | 'info';
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error',
+  });
+
+  const showAlert = (title: string, message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setAlertModal({
+      visible: true,
+      title,
+      message,
+      type,
+    });
+  };
+
+  // Logout Confirmation Modal State
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
   const load = useCallback(async () => {
+    if (!token) return;
     try {
       const [profileResponse, dashboardResponse] = await Promise.all([
         smartOrderApi.getDeliveryPartnerProfile(),
@@ -143,13 +212,10 @@ export default function DeliveryPartnerDashboardScreen() {
         const newReqs = currentReqs.filter((r: any) => !prevRequestIdsRef.current.has(String(r.orderId || r.deliveryRequestId)));
         if (newReqs.length > 0) {
           const firstReq = newReqs[0];
-          Alert.alert(
-            '🚨 New Delivery Request!',
-            `New delivery request available!\nStore: ${firstReq.storeName || 'Store'}\nEarnings: Rs ${firstReq.earnings || 0}\nDistance: ${firstReq.distanceKm || 3.5} km`,
-            [
-              { text: 'View Requests', onPress: () => setActiveTab('live') },
-              { text: 'Dismiss', style: 'cancel' },
-            ]
+          showAlert(
+            tPartner.newRequestAlertTitle,
+            `${tPartner.newRequestAlertMsg}\n${tPartner.storePickup}: ${firstReq.storeName || tPartner.storeFallback}\n${tPartner.earningsTab}: ${tPartner.currencyPrefix} ${firstReq.earnings || 0}\nDistance: ${firstReq.distanceKm || 3.5} ${tPartner.kmUnit}`,
+            'info',
           );
         }
       } else {
@@ -158,18 +224,24 @@ export default function DeliveryPartnerDashboardScreen() {
       prevRequestIdsRef.current = currentIds;
       setDashboard(nextDash);
     } catch (error: any) {
-      Alert.alert(
-        'Delivery dashboard',
-        error?.response?.data?.message || 'Unable to load delivery data.',
-      );
+      if (error?.response?.status === 401) {
+        // Unauthenticated or token cleared, ignore gracefully
+        return;
+      }
+      console.warn('Delivery dashboard load error:', error?.message);
     }
-  }, []);
+  }, [token, tPartner.newRequestAlertTitle, tPartner.newRequestAlertMsg, tPartner.storePickup, tPartner.storeFallback, tPartner.earningsTab, tPartner.currencyPrefix, tPartner.kmUnit]);
 
   useEffect(() => {
+    if (!token) return;
     load();
-    const timer = setInterval(load, 8000);
+    const timer = setInterval(() => {
+      if (token) {
+        load();
+      }
+    }, 8000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, token]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -191,9 +263,10 @@ export default function DeliveryPartnerDashboardScreen() {
       setProfile(response.data?.data);
       await load();
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
         'Availability',
         error?.response?.data?.message || 'Could not update availability.',
+        'error',
       );
     } finally {
       setWorking(false);
@@ -206,10 +279,12 @@ export default function DeliveryPartnerDashboardScreen() {
       await smartOrderApi.acceptDeliveryPartnerRequest(orderId);
       await load();
     } catch (error: any) {
-      Alert.alert(
-        'Delivery unavailable',
+      showAlert(
+        tPartner.deliveryUnavailableTitle || 'Delivery Unavailable',
         error?.response?.data?.message ||
-          'Another partner may have accepted this request.',
+          tPartner.deliveryUnavailableMsg ||
+          'This delivery request is no longer available.',
+        'error',
       );
       await load();
     } finally {
@@ -223,9 +298,10 @@ export default function DeliveryPartnerDashboardScreen() {
       await smartOrderApi.declineDeliveryPartnerRequest(orderId);
       await load();
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
         'Decline failed',
         error?.response?.data?.message || 'Could not decline this request.',
+        'error',
       );
     } finally {
       setWorking(false);
@@ -250,13 +326,13 @@ export default function DeliveryPartnerDashboardScreen() {
   const openGoogleMapsApp = (address: string) => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
     Linking.openURL(url).catch(() => {
-      Alert.alert('Maps Navigation', 'Could not open external maps application.');
+      showAlert('Maps Navigation', 'Could not open external maps application.', 'error');
     });
   };
 
   const advance = async () => {
     const active = dashboard.activeDelivery;
-    const action = active && nextActions[active.deliveryStatus];
+    const action = active && getNextAction(active.deliveryStatus);
     if (!active || !action) return;
     setWorking(true);
     try {
@@ -275,9 +351,10 @@ export default function DeliveryPartnerDashboardScreen() {
       }
       await load();
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
         'Status update failed',
         error?.response?.data?.message || 'Invalid delivery transition.',
+        'error',
       );
     } finally {
       setWorking(false);
@@ -314,11 +391,11 @@ export default function DeliveryPartnerDashboardScreen() {
 
   const handleSaveProfile = async () => {
     if (!editForm.fullname.trim()) {
-      Alert.alert('Validation Error', 'Full name is required.');
+      showAlert('Validation Error', 'Full name is required.', 'error');
       return;
     }
     if (!editForm.mobilenumber.trim()) {
-      Alert.alert('Validation Error', 'Mobile number is required.');
+      showAlert('Validation Error', 'Mobile number is required.', 'error');
       return;
     }
     setSavingProfile(true);
@@ -333,28 +410,70 @@ export default function DeliveryPartnerDashboardScreen() {
       if (response.data?.data) {
         setProfile(response.data.data);
         setIsEditingProfile(false);
-        Alert.alert('Success', 'Profile updated successfully!');
+        showAlert('Success', 'Profile updated successfully!', 'success');
       }
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
         'Update Failed',
         error?.response?.data?.message || 'Could not update profile. Please try again.',
+        'error',
       );
     } finally {
       setSavingProfile(false);
     }
   };
 
-  if (!profile)
+  const handleConfirmLogout = async () => {
+    setShowLogoutModal(false);
+    try {
+      await logout();
+    } catch (e) {
+      console.warn('Logout error:', e);
+    }
+
+    // Reset root navigation to RoleGate (identical to standard app signout process)
+    try {
+      let rootNav: any = navigation;
+      while (rootNav?.getParent && rootNav.getParent()) {
+        rootNav = rootNav.getParent();
+      }
+      rootNav?.reset?.({
+        index: 0,
+        routes: [{ name: 'RoleGate' }],
+      });
+      return;
+    } catch {}
+
+    try {
+      navigation.navigate('CustomerHome');
+      return;
+    } catch {}
+
+    try {
+      navigation.navigate('Home');
+      return;
+    } catch {}
+  };
+
+  // If logged out / no auth token, do NOT show dashboard loading screen
+  if (!token) {
+    return null;
+  }
+
+  if (!profile) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.muted}>Loading delivery partner dashboard...</Text>
-      </View>
+      <RemiseLoading
+        fullscreen
+        size="lg"
+        message={tPartner.loadingDashboard}
+        subMessage={tPartner.loadingDashboardSub}
+      />
     );
+  }
 
   const available = profile.deliveryPartner?.availability === 'AVAILABLE';
   const active = dashboard.activeDelivery;
-  const action = active && nextActions[active.deliveryStatus];
+  const action = active && getNextAction(active.deliveryStatus);
   const totalEarned = (dashboard.completedDeliveries || 0) * 120;
 
   return (
@@ -403,7 +522,7 @@ export default function DeliveryPartnerDashboardScreen() {
           >
             <Power size={13} color="#fff" />
             <Text style={styles.availabilityText}>
-              {available ? 'Go Offline' : 'Go Available'}
+              {available ? tPartner.goOffline : tPartner.goAvailable}
             </Text>
           </Pressable>
         </View>
@@ -422,17 +541,17 @@ export default function DeliveryPartnerDashboardScreen() {
               </Text>
               <View style={styles.verifiedBadge}>
                 <ShieldCheck size={11} color="#10B981" />
-                <Text style={styles.verifiedText}>Verified</Text>
+                <Text style={styles.verifiedText}>{tPartner.verified}</Text>
               </View>
             </View>
             <Text style={styles.vehicleSubtitle} numberOfLines={1}>
-              {profile.deliveryPartner?.vehicleType || 'Vehicle'} · {profile.deliveryPartner?.vehicleNumber || 'Registered'}
+              {translateVehicle(profile.deliveryPartner?.vehicleType)} · {profile.deliveryPartner?.vehicleNumber || tPartner.registeredFallback}
             </Text>
           </View>
           <View style={[styles.statusIndicator, available ? styles.statusOnline : styles.statusOffline]}>
             <View style={[styles.statusIndicatorDot, available ? styles.dotOnline : styles.dotOffline]} />
             <Text style={[styles.statusIndicatorText, available ? styles.textOnline : styles.textOffline]}>
-              {available ? 'ONLINE' : 'OFFLINE'}
+              {available ? tPartner.online : tPartner.offline}
             </Text>
           </View>
         </View>
@@ -445,8 +564,8 @@ export default function DeliveryPartnerDashboardScreen() {
           onPress={() => setActiveTab('live')}
         >
           <Truck size={14} color={activeTab === 'live' ? CustomerColors.primary : isDark ? '#94A3B8' : '#64748B'} />
-          <Text style={[styles.tabText, activeTab === 'live' && styles.tabTextActive]}>
-            Live Trips
+          <Text style={[styles.tabText, activeTab === 'live' && styles.tabTextActive]} numberOfLines={1}>
+            {tPartner.liveTripsTab}
           </Text>
           {dashboard.requests.length > 0 && (
             <View style={styles.badgeCount}>
@@ -460,8 +579,8 @@ export default function DeliveryPartnerDashboardScreen() {
           onPress={() => setActiveTab('earnings')}
         >
           <Wallet size={14} color={activeTab === 'earnings' ? CustomerColors.primary : isDark ? '#94A3B8' : '#64748B'} />
-          <Text style={[styles.tabText, activeTab === 'earnings' && styles.tabTextActive]}>
-            Earnings
+          <Text style={[styles.tabText, activeTab === 'earnings' && styles.tabTextActive]} numberOfLines={1}>
+            {tPartner.earningsTab}
           </Text>
         </TouchableOpacity>
 
@@ -470,8 +589,8 @@ export default function DeliveryPartnerDashboardScreen() {
           onPress={() => setActiveTab('profile')}
         >
           <User size={14} color={activeTab === 'profile' ? CustomerColors.primary : isDark ? '#94A3B8' : '#64748B'} />
-          <Text style={[styles.tabText, activeTab === 'profile' && styles.tabTextActive]}>
-            Profile
+          <Text style={[styles.tabText, activeTab === 'profile' && styles.tabTextActive]} numberOfLines={1}>
+            {tPartner.profileTab}
           </Text>
         </TouchableOpacity>
       </View>
@@ -486,11 +605,11 @@ export default function DeliveryPartnerDashboardScreen() {
         <View style={styles.gpsBar}>
           <View style={styles.gpsLeft}>
             <View style={[styles.gpsDot, available && styles.gpsDotActive]} />
-            <Text style={styles.gpsText}>
-              {available ? 'GPS Active · Available in Your Zone' : 'Offline · Go available to receive trips'}
+            <Text style={styles.gpsText} numberOfLines={1} ellipsizeMode="tail">
+              {available ? tPartner.gpsActiveZone : tPartner.gpsOfflinePrompt}
             </Text>
           </View>
-          <Compass size={13} color={isDark ? '#94A3B8' : '#64748B'} />
+          <Compass size={14} color={isDark ? '#94A3B8' : '#64748B'} />
         </View>
 
         {/* ══════════════ TAB 1: LIVE TRIPS ══════════════ */}
@@ -499,22 +618,22 @@ export default function DeliveryPartnerDashboardScreen() {
             {/* Quick Metrics */}
             <View style={styles.stats}>
               <Stat
-                label="Status"
-                value={available ? 'Available' : 'Offline'}
-                sub={available ? 'Receiving trips' : 'Standby'}
+                label={tPartner.statusLabel}
+                value={available ? tPartner.availableStatus : tPartner.offlineStatus}
+                sub={available ? tPartner.receivingTripsSub : tPartner.standbySub}
                 styles={styles}
                 highlight={available}
               />
               <Stat
-                label="New Trips"
+                label={tPartner.newTripsLabel}
                 value={String(dashboard.requests.length)}
-                sub="waiting"
+                sub={tPartner.waitingSub}
                 styles={styles}
               />
               <Stat
-                label="Completed"
+                label={tPartner.completedLabel}
                 value={String(dashboard.completedDeliveries)}
-                sub="trips"
+                sub={tPartner.tripsSub}
                 styles={styles}
               />
             </View>
@@ -528,22 +647,22 @@ export default function DeliveryPartnerDashboardScreen() {
                       <Truck size={17} color="#FFFFFF" />
                     </View>
                     <View>
-                      <Text style={styles.activeEyebrow}>Active Order in Progress</Text>
-                      <Text style={styles.activeOrderId}>Order #{active.orderId}</Text>
+                      <Text style={styles.activeEyebrow}>{tPartner.activeOrderInProgress}</Text>
+                      <Text style={styles.activeOrderId}>{tPartner.orderPrefix}{active.orderId}</Text>
                     </View>
                   </View>
-                  <Text style={styles.statusBadgeText}>{active.deliveryStatus}</Text>
+                  <Text style={styles.statusBadgeText}>{translateMilestone(active.deliveryStatus)}</Text>
                 </View>
 
                 <View style={styles.infoGroup}>
                   <Info
-                    label="Store Pickup"
-                    value={active.deliveryRequest?.pickupAddress || active.storeName || 'Store Partner'}
+                    label={tPartner.storePickup}
+                    value={active.deliveryRequest?.pickupAddress || active.storeName || tPartner.storeFallback}
                     styles={styles}
                   />
                   <Info
-                    label="Drop-off Address"
-                    value={active.deliveryRequest?.dropAddress || 'Customer destination'}
+                    label={tPartner.dropoffAddress}
+                    value={active.deliveryRequest?.dropAddress || tPartner.customerDropoffDestination}
                     styles={styles}
                   />
                 </View>
@@ -564,7 +683,7 @@ export default function DeliveryPartnerDashboardScreen() {
                     style={styles.mapBtn}
                   >
                     <Navigation size={14} color="#FF0000" />
-                    <Text style={styles.mapBtnText}>Map</Text>
+                    <Text style={styles.mapBtnText}>{tPartner.mapBtn}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -572,15 +691,15 @@ export default function DeliveryPartnerDashboardScreen() {
 
 
             {/* Requests Section */}
-            <Text style={styles.sectionTitle}>Available Delivery Requests</Text>
+            <Text style={styles.sectionTitle}>{tPartner.availableRequestsTitle}</Text>
             {dashboard.requests.length === 0 ? (
               <View style={styles.empty}>
                 <Package size={28} color={isDark ? '#64748B' : '#94A3B8'} />
-                <Text style={styles.emptyTitle}>No pending requests</Text>
+                <Text style={styles.emptyTitle}>{tPartner.noPendingRequestsTitle}</Text>
                 <Text style={styles.muted}>
                   {available
-                    ? 'Nearby store requests will appear here in realtime.'
-                    : 'Go available above to start receiving delivery requests.'}
+                    ? tPartner.nearbyStoreRequestsDesc
+                    : tPartner.goAvailableToReceiveDesc}
                 </Text>
               </View>
             ) : (
@@ -589,22 +708,22 @@ export default function DeliveryPartnerDashboardScreen() {
                   <View style={styles.rowBetween}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.cardTitle}>
-                        {request.storeName || 'Store pickup'}
+                        {request.storeName || tPartner.storeFallback}
                       </Text>
                       <Info
-                        label="Pickup"
-                        value={request.pickupAddress || 'Store'}
+                        label={tPartner.pickupLabel}
+                        value={request.pickupAddress || tPartner.storePickup}
                         styles={styles}
                       />
                       <Info
-                        label="Drop-off"
-                        value={request.dropAddress || 'Customer destination'}
+                        label={tPartner.dropoffLabel}
+                        value={request.dropAddress || tPartner.customerDropoffDestination}
                         styles={styles}
                       />
                     </View>
                     <View style={styles.earningsBox}>
                       <Text style={styles.earnings}>Rs {request.earnings || 120}</Text>
-                      <Text style={styles.distanceKm}>{request.distanceKm || 2.4} km</Text>
+                      <Text style={styles.distanceKm}>{request.distanceKm || 2.4} {tPartner.kmUnit}</Text>
                     </View>
                   </View>
                   <View style={styles.actions}>
@@ -614,7 +733,7 @@ export default function DeliveryPartnerDashboardScreen() {
                       style={[styles.primary, { flex: 1 }]}
                     >
                       <CheckCircle2 size={15} color="#fff" />
-                      <Text style={styles.primaryText}>Accept Request</Text>
+                      <Text style={styles.primaryText}>{tPartner.acceptRequestBtn}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => decline(request.orderId)}
@@ -622,7 +741,7 @@ export default function DeliveryPartnerDashboardScreen() {
                       style={styles.secondary}
                     >
                       <XCircle size={15} color={isDark ? '#94A3B8' : '#64748B'} />
-                      <Text style={styles.secondaryText}>Decline</Text>
+                      <Text style={styles.secondaryText}>{tPartner.declineBtn}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -635,31 +754,31 @@ export default function DeliveryPartnerDashboardScreen() {
         {activeTab === 'earnings' && (
           <View style={styles.tabContent}>
             <View style={styles.earningsSummaryCard}>
-              <Text style={styles.earningsLabel}>Estimated Total Earnings</Text>
+              <Text style={styles.earningsLabel}>{tPartner.estimatedTotalEarnings}</Text>
               <Text style={styles.earningsBigValue}>Rs {totalEarned.toLocaleString()}</Text>
               <View style={styles.earningsRateRow}>
                 <TrendingUp size={13} color="#10B981" />
-                <Text style={styles.earningsRateText}>Rs 120 avg per verified delivery</Text>
+                <Text style={styles.earningsRateText}>{tPartner.avgPerVerifiedDelivery}</Text>
               </View>
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Payout Summary</Text>
+              <Text style={styles.cardTitle}>{tPartner.payoutSummaryTitle}</Text>
               <View style={styles.tableRow}>
-                <Text style={styles.tableLabel}>Completed Trips</Text>
+                <Text style={styles.tableLabel}>{tPartner.completedTripsLabel}</Text>
                 <Text style={styles.tableValue}>{dashboard.completedDeliveries}</Text>
               </View>
               <View style={styles.tableRow}>
-                <Text style={styles.tableLabel}>Base Fare</Text>
-                <Text style={styles.tableValue}>Rs 80.00 / trip</Text>
+                <Text style={styles.tableLabel}>{tPartner.baseFareLabel}</Text>
+                <Text style={styles.tableValue}>{tPartner.baseFareValue}</Text>
               </View>
               <View style={styles.tableRow}>
-                <Text style={styles.tableLabel}>Distance Incentive</Text>
-                <Text style={styles.tableValue}>Rs 40.00 avg</Text>
+                <Text style={styles.tableLabel}>{tPartner.distanceIncentiveLabel}</Text>
+                <Text style={styles.tableValue}>{tPartner.distanceIncentiveValue}</Text>
               </View>
               <View style={styles.tableRow}>
-                <Text style={styles.tableLabel}>Payout Frequency</Text>
-                <Text style={styles.tableHighlight}>Weekly Direct Transfer</Text>
+                <Text style={styles.tableLabel}>{tPartner.payoutFrequencyLabel}</Text>
+                <Text style={styles.tableHighlight}>{tPartner.weeklyDirectTransfer}</Text>
               </View>
             </View>
           </View>
@@ -684,32 +803,32 @@ export default function DeliveryPartnerDashboardScreen() {
                     onPress={handleStartEditProfile}
                   >
                     <Edit3 size={14} color="#FF0000" />
-                    <Text style={styles.editBtnText}>Edit</Text>
+                    <Text style={styles.editBtnText}>{tPartner.editBtn}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.tableRow}>
-                  <Text style={styles.tableLabel}>Vehicle Type</Text>
-                  <Text style={styles.tableValue}>{profile.deliveryPartner?.vehicleType || 'Bike'}</Text>
+                  <Text style={styles.tableLabel}>{tPartner.vehicleTypeLabel}</Text>
+                  <Text style={styles.tableValue}>{translateVehicle(profile.deliveryPartner?.vehicleType || 'Bike')}</Text>
                 </View>
                 <View style={styles.tableRow}>
-                  <Text style={styles.tableLabel}>Vehicle Number</Text>
+                  <Text style={styles.tableLabel}>{tPartner.vehicleNumberLabel}</Text>
                   <Text style={styles.tableValue}>{profile.deliveryPartner?.vehicleNumber || 'N/A'}</Text>
                 </View>
                 <View style={styles.tableRow}>
-                  <Text style={styles.tableLabel}>Partner Rating</Text>
-                  <Text style={styles.tableValue}>4.9 ★ (Top Rated)</Text>
+                  <Text style={styles.tableLabel}>{tPartner.partnerRatingLabel}</Text>
+                  <Text style={styles.tableValue}>4.9 ★ ({tPartner.topRated})</Text>
                 </View>
                 <View style={styles.tableRow}>
-                  <Text style={styles.tableLabel}>Service Area</Text>
-                  <Text style={styles.tableValue}>{profile.deliveryPartner?.address || 'Not specified'}</Text>
+                  <Text style={styles.tableLabel}>{tPartner.serviceAreaLabel}</Text>
+                  <Text style={styles.tableValue}>{profile.deliveryPartner?.address || tPartner.notSpecified}</Text>
                 </View>
               </View>
             ) : (
               /* Profile Edit Form */
               <View style={styles.card}>
                 <View style={styles.editHeaderRow}>
-                  <Text style={styles.cardTitle}>Edit Partner Profile</Text>
+                  <Text style={styles.cardTitle}>{tPartner.editPartnerProfileTitle}</Text>
                   <TouchableOpacity
                     onPress={() => setIsEditingProfile(false)}
                     style={styles.cancelSmallBtn}
@@ -719,41 +838,41 @@ export default function DeliveryPartnerDashboardScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.inputLabel}>Full Name</Text>
+                  <Text style={styles.inputLabel}>{tPartner.fullNameLabel}</Text>
                   <TextInput
                     style={styles.input}
                     value={editForm.fullname}
                     onChangeText={txt => setEditForm(prev => ({ ...prev, fullname: txt }))}
-                    placeholder="Your Full Name"
+                    placeholder={tPartner.fullNamePlaceholder}
                     placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                   />
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.inputLabel}>Mobile Number</Text>
+                  <Text style={styles.inputLabel}>{tPartner.mobileNumberLabel}</Text>
                   <TextInput
                     style={styles.input}
                     value={editForm.mobilenumber}
                     onChangeText={txt => setEditForm(prev => ({ ...prev, mobilenumber: txt }))}
-                    placeholder="10-digit mobile number"
+                    placeholder={tPartner.mobileNumberPlaceholder}
                     placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     keyboardType="phone-pad"
                   />
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.inputLabel}>Vehicle Type</Text>
+                  <Text style={styles.inputLabel}>{tPartner.vehicleTypeLabel}</Text>
                   <View style={styles.vehicleTypePills}>
-                    {vehicleOptions.map(vType => {
-                      const isSelected = editForm.vehicleType.toLowerCase() === vType.toLowerCase();
+                    {vehicleOptions.map(vOpt => {
+                      const isSelected = editForm.vehicleType.toLowerCase() === vOpt.key.toLowerCase();
                       return (
                         <TouchableOpacity
-                          key={vType}
+                          key={vOpt.key}
                           style={[styles.vehiclePill, isSelected && styles.vehiclePillActive]}
-                          onPress={() => setEditForm(prev => ({ ...prev, vehicleType: vType }))}
+                          onPress={() => setEditForm(prev => ({ ...prev, vehicleType: vOpt.key }))}
                         >
                           <Text style={[styles.vehiclePillText, isSelected && styles.vehiclePillTextActive]}>
-                            {vType}
+                            {vOpt.label}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -762,24 +881,24 @@ export default function DeliveryPartnerDashboardScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.inputLabel}>Vehicle License Plate Number</Text>
+                  <Text style={styles.inputLabel}>{tPartner.licensePlateLabel}</Text>
                   <TextInput
                     style={styles.input}
                     value={editForm.vehicleNumber}
                     onChangeText={txt => setEditForm(prev => ({ ...prev, vehicleNumber: txt }))}
-                    placeholder="e.g. TN 20 AQ 2004"
+                    placeholder={tPartner.vehicleNumberPlaceholder}
                     placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                     autoCapitalize="characters"
                   />
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.inputLabel}>Service Area / Address</Text>
+                  <Text style={styles.inputLabel}>{tPartner.serviceAreaLabel}</Text>
                   <TextInput
                     style={styles.input}
                     value={editForm.address}
                     onChangeText={txt => setEditForm(prev => ({ ...prev, address: txt }))}
-                    placeholder="e.g. RS Puram, Coimbatore"
+                    placeholder={tPartner.serviceAreaPlaceholder}
                     placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
                   />
                 </View>
@@ -792,7 +911,7 @@ export default function DeliveryPartnerDashboardScreen() {
                   >
                     <Save size={15} color="#fff" />
                     <Text style={styles.primaryText}>
-                      {savingProfile ? 'Saving...' : 'Save Profile Changes'}
+                      {savingProfile ? tPartner.savingProfileBtn : tPartner.saveProfileBtn}
                     </Text>
                   </TouchableOpacity>
 
@@ -801,7 +920,7 @@ export default function DeliveryPartnerDashboardScreen() {
                     onPress={() => setIsEditingProfile(false)}
                     disabled={savingProfile}
                   >
-                    <Text style={styles.secondaryText}>Cancel</Text>
+                    <Text style={styles.secondaryText}>{tPartner.cancelBtn}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -810,26 +929,15 @@ export default function DeliveryPartnerDashboardScreen() {
             {/* Quick Actions / Home Option */}
             <TouchableOpacity style={styles.homeActionBtn} onPress={handleReturnHome}>
               <Home size={16} color="#FF0000" />
-              <Text style={styles.homeActionText}>Return to Store / Home Page</Text>
+              <Text style={styles.homeActionText}>{tPartner.returnToStoreHomeBtn}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.logoutBtn}
-              onPress={async () => {
-                await logout();
-                try {
-                  navigation.getParent()?.reset({ index: 0, routes: [{ name: 'RoleGate' }] });
-                } catch {
-                  try {
-                    navigation.reset({ index: 0, routes: [{ name: 'RoleGate' }] });
-                  } catch {
-                    // AuthContext RoleGate listener will auto-mount Customer home
-                  }
-                }
-              }}
+              onPress={() => setShowLogoutModal(true)}
             >
               <LogOut size={15} color="#EF4444" />
-              <Text style={styles.logoutText}>Sign Out Partner Account</Text>
+              <Text style={styles.logoutText}>{tPartner.signOutPartnerAccountBtn}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -850,7 +958,7 @@ export default function DeliveryPartnerDashboardScreen() {
                   <Navigation size={18} color="#FF0000" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalEyebrow}>LIVE GPS NAVIGATION</Text>
+                  <Text style={styles.modalEyebrow}>{tPartner.liveGpsNavTitle}</Text>
                   <Text style={styles.modalTitle} numberOfLines={1}>{navTarget.title}</Text>
                 </View>
               </View>
@@ -867,7 +975,7 @@ export default function DeliveryPartnerDashboardScreen() {
                 <MapPin size={16} color="#FF0000" />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.navTargetLabel}>
-                    {navTarget.type === 'store' ? 'STORE PICKUP LOCATION' : 'CUSTOMER DROP-OFF DESTINATION'}
+                    {navTarget.type === 'store' ? tPartner.storePickupLocation : tPartner.customerDropoffDestination}
                   </Text>
                   <Text style={styles.navTargetAddress}>{navTarget.address}</Text>
                 </View>
@@ -875,7 +983,7 @@ export default function DeliveryPartnerDashboardScreen() {
 
               <View style={styles.navModeBadge}>
                 <Compass size={13} color="#10B981" />
-                <Text style={styles.navModeText}>Directions from your current GPS location</Text>
+                <Text style={styles.navModeText}>{tPartner.directionsFromCurrentGps}</Text>
               </View>
             </View>
 
@@ -885,18 +993,105 @@ export default function DeliveryPartnerDashboardScreen() {
                 onPress={() => openGoogleMapsApp(navTarget.address)}
               >
                 <ExternalLink size={16} color="#fff" />
-                <Text style={styles.primaryNavBtnText}>Open Turn-by-Turn in Google Maps</Text>
+                <Text style={styles.primaryNavBtnText}>{tPartner.openTurnByTurnMaps}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.secondaryNavBtn}
                 onPress={() => setShowNavModal(false)}
               >
-                <Text style={styles.secondaryNavBtnText}>Close Navigation</Text>
+                <Text style={styles.secondaryNavBtnText}>{tPartner.closeNavBtn}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* ══════════════ CUSTOM THEMED ALERT MODAL ══════════════ */}
+      <Modal
+        visible={alertModal.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+      >
+        <Pressable
+          style={styles.alertOverlay}
+          onPress={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+        >
+          <Pressable style={styles.alertCard} onPress={e => e.stopPropagation?.()}>
+            <View
+              style={[
+                styles.alertIconWrap,
+                alertModal.type === 'info'
+                  ? styles.alertInfoWrap
+                  : alertModal.type === 'success'
+                  ? styles.alertSuccessWrap
+                  : styles.alertErrorWrap,
+              ]}
+            >
+              {alertModal.type === 'info' ? (
+                <Bell size={26} color="#3B82F6" />
+              ) : alertModal.type === 'success' ? (
+                <CheckCircle2 size={26} color="#10B981" />
+              ) : (
+                <AlertCircle size={26} color="#EF4444" />
+              )}
+            </View>
+
+            <Text style={styles.alertTitle}>{alertModal.title}</Text>
+            <Text style={styles.alertMessage}>{alertModal.message}</Text>
+
+            <TouchableOpacity
+              style={styles.alertBtn}
+              onPress={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.alertBtnText}>{tPartner.okBtn || 'OK'}</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ══════════════ CUSTOM THEMED LOGOUT MODAL ══════════════ */}
+      <Modal
+        visible={showLogoutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <Pressable
+          style={styles.alertOverlay}
+          onPress={() => setShowLogoutModal(false)}
+        >
+          <Pressable style={styles.alertCard} onPress={e => e.stopPropagation?.()}>
+            <View style={[styles.alertIconWrap, styles.alertErrorWrap]}>
+              <LogOut size={26} color="#EF4444" />
+            </View>
+
+            <Text style={styles.alertTitle}>{tPartner.signOutPartnerAccountBtn}</Text>
+            <Text style={styles.alertMessage}>
+              Are you sure you want to log out of your delivery partner account?
+            </Text>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={[styles.alertBtn, { flex: 1 }]}
+                onPress={handleConfirmLogout}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.alertBtnText}>{tPartner.signOutPartnerAccountBtn}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.alertCancelBtn, { flex: 1 }]}
+                onPress={() => setShowLogoutModal(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.alertCancelBtnText}>{tPartner.cancelBtn || 'Cancel'}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -905,9 +1100,16 @@ export default function DeliveryPartnerDashboardScreen() {
 function Stat({ label, value, sub, styles, highlight = false }: any) {
   return (
     <View style={[styles.stat, highlight && styles.statHighlight]}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, highlight && styles.statValueHighlight]}>{value}</Text>
-      {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
+      <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
+      <Text
+        style={[styles.statValue, highlight && styles.statValueHighlight]}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+      >
+        {value}
+      </Text>
+      {sub ? <Text style={styles.statSub} numberOfLines={2}>{sub}</Text> : null}
     </View>
   );
 }
@@ -1032,11 +1234,11 @@ const getStyles = (isDark: boolean) =>
     partnerNameRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 5,
     },
     partnerName: {
       color: isDark ? '#FFFFFF' : '#0F172A',
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '800',
       flexShrink: 1,
     },
@@ -1045,13 +1247,14 @@ const getStyles = (isDark: boolean) =>
       alignItems: 'center',
       gap: 2,
       backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
-      paddingHorizontal: 5,
+      paddingHorizontal: 4,
       paddingVertical: 1,
       borderRadius: 4,
+      flexShrink: 0,
     },
     verifiedText: {
       color: '#10B981',
-      fontSize: 9,
+      fontSize: 8.5,
       fontWeight: '700',
     },
     vehicleSubtitle: {
@@ -1062,10 +1265,11 @@ const getStyles = (isDark: boolean) =>
     statusIndicator: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      gap: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
       borderRadius: 12,
+      flexShrink: 0,
     },
     statusOnline: {
       backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
@@ -1085,7 +1289,7 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#64748B' : '#94A3B8',
     },
     statusIndicatorText: {
-      fontSize: 10,
+      fontSize: 9.5,
       fontWeight: '800',
     },
     textOnline: {
@@ -1119,25 +1323,33 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#0E0E0E' : '#FFFFFF',
       borderBottomWidth: 1,
       borderBottomColor: isDark ? '#1F1F1F' : '#E2E8F0',
-      paddingHorizontal: 12,
+      paddingHorizontal: 4,
     },
     tabItem: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      justifyContent: 'center',
+      gap: 4,
       paddingVertical: 11,
-      paddingHorizontal: 12,
+      paddingHorizontal: 2,
       borderBottomWidth: 2,
       borderBottomColor: 'transparent',
     },
     tabItemActive: { borderBottomColor: CustomerColors.primary },
-    tabText: { color: isDark ? '#94A3B8' : '#64748B', fontSize: 12, fontWeight: '700' },
+    tabText: {
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontSize: 11,
+      fontWeight: '700',
+      flexShrink: 1,
+    },
     tabTextActive: { color: CustomerColors.primary },
     badgeCount: {
       backgroundColor: CustomerColors.primary,
       borderRadius: 8,
-      paddingHorizontal: 5,
+      paddingHorizontal: 4,
       paddingVertical: 1,
+      marginLeft: 2,
     },
     badgeCountText: { color: '#fff', fontSize: 9, fontWeight: '800' },
 
@@ -1151,18 +1363,33 @@ const getStyles = (isDark: boolean) =>
       paddingVertical: 8,
       borderWidth: 1,
       borderColor: isDark ? '#242424' : '#E2E8F0',
+      gap: 8,
     },
-    gpsLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    gpsLeft: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      minWidth: 0,
+      marginRight: 6,
+    },
     gpsDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: isDark ? '#64748B' : '#94A3B8' },
     gpsDotActive: { backgroundColor: '#10B981' },
-    gpsText: { color: isDark ? '#94A3B8' : '#64748B', fontSize: 11, fontWeight: '600' },
+    gpsText: {
+      flex: 1,
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontSize: 11,
+      fontWeight: '600',
+    },
 
     stats: { flexDirection: 'row', gap: 8 },
     stat: {
       flex: 1,
       backgroundColor: isDark ? '#121212' : '#FFFFFF',
       borderRadius: 12,
-      padding: 10,
+      padding: 9,
+      minHeight: 96,
+      justifyContent: 'space-between',
       borderWidth: 1,
       borderColor: isDark ? '#222222' : '#E2E8F0',
     },
@@ -1171,9 +1398,9 @@ const getStyles = (isDark: boolean) =>
       borderColor: isDark ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 0, 0, 0.2)',
     },
     statLabel: { color: isDark ? '#94A3B8' : '#64748B', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-    statValue: { color: isDark ? '#F9FAFB' : '#0F172A', fontSize: 16, fontWeight: '800', marginTop: 3 },
+    statValue: { color: isDark ? '#F9FAFB' : '#0F172A', fontSize: 14, fontWeight: '800', marginTop: 2, lineHeight: 18 },
     statValueHighlight: { color: CustomerColors.primary },
-    statSub: { color: isDark ? '#64748B' : '#94A3B8', fontSize: 9, marginTop: 1 },
+    statSub: { color: isDark ? '#64748B' : '#94A3B8', fontSize: 9, marginTop: 1, lineHeight: 12 },
 
     activeCard: {
       backgroundColor: isDark ? '#160B0B' : '#FFF5F5',
@@ -1258,7 +1485,7 @@ const getStyles = (isDark: boolean) =>
       gap: 6,
       paddingHorizontal: 12,
     },
-    primaryText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    primaryText: { color: '#fff', fontWeight: '800', fontSize: 12, textAlign: 'center', flexShrink: 1 },
     secondary: {
       minHeight: 40,
       borderRadius: 10,
@@ -1271,7 +1498,7 @@ const getStyles = (isDark: boolean) =>
       gap: 5,
       paddingHorizontal: 12,
     },
-    secondaryText: { color: isDark ? '#94A3B8' : '#475569', fontWeight: '700', fontSize: 12 },
+    secondaryText: { color: isDark ? '#94A3B8' : '#475569', fontWeight: '700', fontSize: 12, textAlign: 'center', flexShrink: 1 },
 
     tabContent: { gap: 12 },
     earningsSummaryCard: {
@@ -1289,13 +1516,33 @@ const getStyles = (isDark: boolean) =>
     tableRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingVertical: 8,
+      alignItems: 'center',
+      paddingVertical: 9,
       borderBottomWidth: 1,
       borderBottomColor: isDark ? '#1E1E1E' : '#F1F5F9',
+      gap: 10,
     },
-    tableLabel: { color: isDark ? '#94A3B8' : '#64748B', fontSize: 12 },
-    tableValue: { color: isDark ? '#FFFFFF' : '#0F172A', fontSize: 12, fontWeight: '700' },
-    tableHighlight: { color: '#10B981', fontSize: 12, fontWeight: '700' },
+    tableLabel: {
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontSize: 12,
+      flex: 1,
+    },
+    tableValue: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontSize: 12,
+      fontWeight: '700',
+      textAlign: 'right',
+      flexShrink: 1,
+      maxWidth: '60%',
+    },
+    tableHighlight: {
+      color: '#10B981',
+      fontSize: 12,
+      fontWeight: '700',
+      textAlign: 'right',
+      flexShrink: 1,
+      maxWidth: '60%',
+    },
 
     profileHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F1F1F' : '#F1F5F9' },
     profileAvatar: {
@@ -1474,6 +1721,98 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#18181B' : '#F1F5F9',
     },
     secondaryNavBtnText: { color: isDark ? '#94A3B8' : '#64748B', fontSize: 13, fontWeight: '700' },
+    alertOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+    },
+    alertCard: {
+      width: '100%',
+      maxWidth: 340,
+      backgroundColor: isDark ? '#161616' : '#FFFFFF',
+      borderRadius: 20,
+      paddingVertical: 22,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#27272A' : '#E2E8F0',
+      elevation: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.35,
+      shadowRadius: 10,
+    },
+    alertIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    alertErrorWrap: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+    },
+    alertSuccessWrap: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+    },
+    alertInfoWrap: {
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
+    },
+    alertTitle: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      textAlign: 'center',
+      marginBottom: 6,
+    },
+    alertMessage: {
+      fontSize: 13,
+      color: isDark ? '#94A3B8' : '#64748B',
+      textAlign: 'center',
+      lineHeight: 19,
+      marginBottom: 20,
+      paddingHorizontal: 6,
+    },
+    alertBtn: {
+      backgroundColor: CustomerColors.primary,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    alertBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    alertCancelBtn: {
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#27272A' : '#CBD5E1',
+      backgroundColor: isDark ? '#1E1E20' : '#F1F5F9',
+    },
+    alertCancelBtnText: {
+      color: isDark ? '#CBD5E1' : '#475569',
+      fontSize: 14,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    modalActionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+    },
   });
 
 

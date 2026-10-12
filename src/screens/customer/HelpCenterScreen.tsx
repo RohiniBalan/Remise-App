@@ -90,7 +90,7 @@ type FAQSection = {
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<any>> = {
     "getting-started": Rocket,
-    "finding-products": Search,
+    "finding-products": ShoppingBag,
     "comparing-stores": Store,
     "orders": Package,
     "delivery": Truck,
@@ -102,7 +102,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<any>> = {
 
 const FAQ_ICONS: Record<string, React.ComponentType<any>> = {
     "getting-started": Rocket,
-    "finding-products": Search,
+    "finding-products": ShoppingBag,
     "comparing-stores": Store,
     "orders": Package,
     "account-security": ShieldCheck,
@@ -382,6 +382,7 @@ export default function HelpCenterScreen() {
     const [query, setQuery] = useState("");
     const [openId, setOpenId] = useState<string | null>("getting-started-0");
 
+    const searchInputRef = useRef<TextInput>(null);
     const scrollViewRef = useRef<ScrollView>(null);
     const sectionOffsets = useRef<Record<string, number>>({});
 
@@ -520,13 +521,25 @@ export default function HelpCenterScreen() {
                 <Text style={[styles.headerTitle, { color: isLight ? "#111827" : "#ffffff" }]}>
                     {helpData.heroTitle}
                 </Text>
-                <TouchableOpacity
-                    onPress={toggleTheme}
-                    style={styles.headerIconBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                    {isLight ? <Moon size={19} color="#111827" /> : <Sun size={19} color="#ffffff" />}
-                </TouchableOpacity>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <TouchableOpacity
+                        onPress={() => {
+                            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                            setTimeout(() => searchInputRef.current?.focus(), 250);
+                        }}
+                        style={styles.headerIconBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        <Search size={19} color={isLight ? "#111827" : "#ffffff"} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={toggleTheme}
+                        style={styles.headerIconBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        {isLight ? <Moon size={19} color="#111827" /> : <Sun size={19} color="#ffffff" />}
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* ── Category chips (persistent, tap to jump) ──────────────── */}
@@ -577,17 +590,21 @@ export default function HelpCenterScreen() {
                     </Text>
 
                     <View style={styles.searchBar}>
+                        <View style={{ paddingLeft: 12 }}>
+                            <Search size={18} color="#94a3b8" />
+                        </View>
                         <TextInput
+                            ref={searchInputRef}
                             value={query}
                             onChangeText={setQuery}
                             placeholder={helpData.searchPlaceholder}
-                            placeholderTextColor="#6b7280"
+                            placeholderTextColor="rgba(255,255,255,0.65)"
                             returnKeyType="search"
                             onSubmitEditing={handleSearch}
                             style={styles.searchInput}
                         />
                         {query.length > 0 && (
-                            <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn}>
+                            <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                 <Text style={styles.clearBtnText}>{helpData.clearBtn}</Text>
                             </TouchableOpacity>
                         )}
@@ -627,22 +644,42 @@ export default function HelpCenterScreen() {
                         >
                             {!normalizedQuery && (
                                 <View style={styles.accountTypeGrid}>
-                                    {[
-                                        { label: helpData.accountTypes.customer, icon: ShoppingBag },
-                                        { label: helpData.accountTypes.storeOwner, icon: Store },
-                                        { label: helpData.accountTypes.wholesaler, icon: Landmark },
-                                        { label: helpData.accountTypes.homeBusiness, icon: HomeIcon },
-                                    ].map((t) => (
+                                    <View style={styles.accountTypeRow}>
                                         <View
-                                            key={t.label}
                                             style={[styles.accountTypeTile, { borderColor: cardBorder, backgroundColor: tileBg }]}
                                         >
-                                            <t.icon size={18} color={COLORS.red} />
+                                            <ShoppingBag size={20} color={COLORS.red} />
                                             <Text style={[styles.accountTypeLabel, { color: isLight ? "#374151" : "#d1d5db" }]}>
-                                                {t.label}
+                                                {helpData.accountTypes.customer}
                                             </Text>
                                         </View>
-                                    ))}
+                                        <View
+                                            style={[styles.accountTypeTile, { borderColor: cardBorder, backgroundColor: tileBg }]}
+                                        >
+                                            <Store size={20} color={COLORS.red} />
+                                            <Text style={[styles.accountTypeLabel, { color: isLight ? "#374151" : "#d1d5db" }]}>
+                                                {helpData.accountTypes.storeOwner}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.accountTypeRow}>
+                                        <View
+                                            style={[styles.accountTypeTile, { borderColor: cardBorder, backgroundColor: tileBg }]}
+                                        >
+                                            <Landmark size={20} color={COLORS.red} />
+                                            <Text style={[styles.accountTypeLabel, { color: isLight ? "#374151" : "#d1d5db" }]}>
+                                                {helpData.accountTypes.wholesaler}
+                                            </Text>
+                                        </View>
+                                        <View
+                                            style={[styles.accountTypeTile, { borderColor: cardBorder, backgroundColor: tileBg }]}
+                                        >
+                                            <HomeIcon size={20} color={COLORS.red} />
+                                            <Text style={[styles.accountTypeLabel, { color: isLight ? "#374151" : "#d1d5db" }]}>
+                                                {helpData.accountTypes.homeBusiness}
+                                            </Text>
+                                        </View>
+                                    </View>
                                 </View>
                             )}
                             <View style={[styles.accordionCard, { borderColor: cardBorder, backgroundColor: cardBg }]}>
@@ -967,6 +1004,7 @@ const styles = StyleSheet.create({
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 8,
+        flexShrink: 0,
     },
     chipLabel: { fontSize: 12, fontWeight: "600" },
 
@@ -1013,25 +1051,29 @@ const styles = StyleSheet.create({
     searchBar: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(255,255,255,0.05)",
-        borderWidth: 2,
-        borderColor: "rgba(255,255,255,0.1)",
+        backgroundColor: "rgba(255,255,255,0.08)",
+        borderWidth: 1.5,
+        borderColor: "rgba(255,255,255,0.2)",
         borderRadius: 12,
-        overflow: "hidden",
+        minHeight: 52,
     },
     searchInput: {
         flex: 1,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
+        minHeight: 48,
+        paddingHorizontal: 12,
+        paddingVertical: Platform.OS === "android" ? 6 : 10,
         fontSize: 14,
         color: "#ffffff",
+        textAlignVertical: "center",
     },
-    clearBtn: { paddingHorizontal: 10 },
-    clearBtnText: { fontSize: 12, color: "#9ca3af", fontWeight: "600" },
+    clearBtn: { paddingHorizontal: 10, paddingVertical: 8 },
+    clearBtnText: { fontSize: 12, color: "#cbd5e1", fontWeight: "600" },
     searchBtn: {
         backgroundColor: COLORS.red,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
+        minHeight: 48,
+        paddingHorizontal: 16,
+        borderTopRightRadius: 10,
+        borderBottomRightRadius: 10,
         justifyContent: "center",
         alignItems: "center",
     },
@@ -1108,21 +1150,30 @@ const styles = StyleSheet.create({
     },
 
     accountTypeGrid: {
+        gap: 10,
+        marginBottom: 8,
+    },
+    accountTypeRow: {
         flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
+        gap: 10,
     },
     accountTypeTile: {
         flex: 1,
-        minWidth: "47%",
+        minHeight: 78,
         borderWidth: 1,
         borderRadius: 12,
-        paddingVertical: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
         alignItems: "center",
         justifyContent: "center",
         gap: 6,
     },
-    accountTypeLabel: { fontSize: 12, fontWeight: "700" },
+    accountTypeLabel: {
+        fontSize: 12,
+        fontWeight: "700",
+        textAlign: "center",
+        lineHeight: 16,
+    },
 
     tipRow: { gap: 8 },
     tipTile: {

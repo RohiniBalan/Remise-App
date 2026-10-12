@@ -1,34 +1,22 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { 
   View, Text, TextInput, FlatList, StyleSheet, ActivityIndicator, 
-  TouchableOpacity, Alert, Modal, ScrollView 
+  TouchableOpacity, Alert, Modal, ScrollView, Platform, KeyboardAvoidingView 
 } from 'react-native';
-import { Search, Shield, Users, Trash2, UserPlus, X, ShieldCheck, Check, RotateCcw, Eye, EyeOff } from 'lucide-react-native';
+import { 
+  Search, Shield, Users, Trash2, UserPlus, X, ShieldCheck, Check, 
+  RotateCcw, Eye, EyeOff, AlertTriangle 
+} from 'lucide-react-native';
 import { adminUserApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius, getAdminColors } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
 import { useTheme } from '../../context/ThemeContext';
-
-const ROLE_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'admin', label: 'Admins' },
-  { value: 'store_owner', label: 'Store Owners' },
-  { value: 'wholesaler', label: 'Wholesalers' },
-  { value: 'home_business', label: 'Home Business' },
-  { value: 'user', label: 'Users' },
-];
-
-const AVAILABLE_ROLES = [
-  { value: 'admin', label: 'Admin (Full Access)' },
-  { value: 'user', label: 'User' },
-  { value: 'store_owner', label: 'Store Owner' },
-  { value: 'wholesaler', label: 'Wholesaler' },
-  { value: 'home_business', label: 'Home Business' },
-];
+import { useTranslation, translateDate } from '../../i18n';
 
 export default function AdminUsersScreen() {
   const { isDark } = useTheme();
   const themeColors = getAdminColors(isDark);
+  const { t, language } = useTranslation();
 
   // Core list state
   const [users, setUsers] = useState<any[]>([]);
@@ -53,7 +41,28 @@ export default function AdminUsersScreen() {
   const [roleChangeTarget, setRoleChangeTarget] = useState<any | null>(null);
   const [updatingRole, setUpdatingRole] = useState(false);
 
+  // Custom Delete Modal state
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
+
   const ITEMS_PER_PAGE = 30;
+
+  const roleFilters = useMemo(() => [
+    { value: 'all', label: t('admin.allFilter') },
+    { value: 'admin', label: t('admin.adminsFilter') },
+    { value: 'store_owner', label: t('admin.storeOwnersFilter') },
+    { value: 'wholesaler', label: t('admin.wholesalersFilter') },
+    { value: 'home_business', label: t('admin.homeBusinessFilter') },
+    { value: 'user', label: t('admin.usersFilter') },
+  ], [t, language]);
+
+  const availableRoles = useMemo(() => [
+    { value: 'admin', label: t('admin.roleAdminFull') },
+    { value: 'user', label: t('admin.roleUser') },
+    { value: 'store_owner', label: t('admin.roleStoreOwner') },
+    { value: 'wholesaler', label: t('admin.roleWholesaler') },
+    { value: 'home_business', label: t('admin.roleHomeBusiness') },
+  ], [t, language]);
 
   const loadUsers = useCallback(async (isPull = false) => {
     if (isPull) setRefreshing(true);
@@ -79,49 +88,59 @@ export default function AdminUsersScreen() {
     setCurrentPage(1);
   }, [search, selectedRoleFilter]);
 
-  // ── Handle Delete User ──
+  // ── Format Role Display Text ──
+  const formatRoleText = useCallback((role: string) => {
+    const r = (role || 'user').toLowerCase();
+    if (r === 'user') return t('admin.roleUser');
+    if (r === 'admin') return t('admin.roleAdmin');
+    if (r === 'store_owner') return t('admin.roleStoreOwner');
+    if (r === 'wholesaler' || r === 'whole_saler') return t('admin.roleWholesaler');
+    if (r === 'home_business') return t('admin.roleHomeBusiness');
+    if (r === 'delivery_partner' || r === 'delivery_person') return t('admin.roleDeliveryPartner');
+    return role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }, [t]);
+
+  // ── Handle Delete User Trigger ──
   const handleDeletePress = (user: any) => {
-    Alert.alert(
-      'Delete User',
-      `Are you sure you want to delete "${user.fullname || user.email}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await adminUserApi.delete(user._id);
-              if (res.data?.success !== false) {
-                setUsers(prev => prev.filter(u => u._id !== user._id));
-                Alert.alert('Deleted', `User ${user.fullname || user.email} deleted successfully.`);
-              } else {
-                Alert.alert('Error', res.data?.message || 'Failed to delete user.');
-              }
-            } catch (err: any) {
-              Alert.alert('Error', err.response?.data?.message || 'Failed to delete user.');
-            }
-          }
-        }
-      ]
-    );
+    setUserToDelete(user);
+  };
+
+  // ── Handle Confirmed Delete User ──
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setDeletingUser(true);
+    const targetName = userToDelete.fullname || userToDelete.email || 'User';
+    try {
+      const res = await adminUserApi.delete(userToDelete._id);
+      if (res.data?.success !== false) {
+        setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
+        setUserToDelete(null);
+      } else {
+        Alert.alert(t('common.error'), res.data?.message || t('admin.failedDeleteUser'));
+      }
+    } catch (err: any) {
+      Alert.alert(t('common.error'), err.response?.data?.message || t('admin.failedDeleteUser'));
+    } finally {
+      setDeletingUser(false);
+    }
   };
 
   // ── Handle Update Role (Make Admin / Change Role) ──
   const handleRoleSelect = async (newRole: string) => {
     if (!roleChangeTarget) return;
     setUpdatingRole(true);
+    const targetName = roleChangeTarget.fullname || roleChangeTarget.email || 'User';
     try {
       const res = await adminUserApi.updateRole(roleChangeTarget._id, newRole);
       if (res.data?.success !== false) {
         setUsers(prev => prev.map(u => u._id === roleChangeTarget._id ? { ...u, role: newRole } : u));
-        Alert.alert('Success', `Role updated to ${newRole} for ${roleChangeTarget.fullname || roleChangeTarget.email}`);
+        Alert.alert(t('common.success'), t('admin.roleUpdatedSuccess', { role: formatRoleText(newRole), name: targetName }));
         setRoleChangeTarget(null);
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to update user role.');
+        Alert.alert(t('common.error'), res.data?.message || t('admin.failedUpdateRole'));
       }
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to update user role.');
+      Alert.alert(t('common.error'), err.response?.data?.message || t('admin.failedUpdateRole'));
     } finally {
       setUpdatingRole(false);
     }
@@ -130,22 +149,22 @@ export default function AdminUsersScreen() {
   // ── Handle Create Admin User ──
   const handleCreateAdmin = async () => {
     if (!adminForm.fullname || !adminForm.email || !adminForm.password || !adminForm.mobilenumber?.trim()) {
-      Alert.alert('Validation Error', 'Full Name, Email, Password, and Mobile Number are required.');
+      Alert.alert(t('admin.validationError'), t('admin.allFieldsRequired'));
       return;
     }
     setCreatingAdmin(true);
     try {
       const res = await adminUserApi.createAdmin(adminForm);
       if (res.data?.success !== false) {
-        Alert.alert('Success', `Account created for ${adminForm.fullname}!`);
+        Alert.alert(t('common.success'), t('admin.accountCreatedSuccess', { name: adminForm.fullname }));
         setShowAddAdminModal(false);
         setAdminForm({ fullname: '', email: '', password: '', mobilenumber: '', role: 'admin' });
         loadUsers();
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to create account.');
+        Alert.alert(t('common.error'), res.data?.message || t('admin.failedCreateAccount'));
       }
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to create account.');
+      Alert.alert(t('common.error'), err.response?.data?.message || t('admin.failedCreateAccount'));
     } finally {
       setCreatingAdmin(false);
     }
@@ -203,16 +222,8 @@ export default function AdminUsersScreen() {
     if (r === 'store_owner') return { bg: isDark ? '#064E3B' : '#ECFDF5', text: isDark ? '#6EE7B7' : '#059669', border: isDark ? '#047857' : '#A7F3D0' };
     if (r === 'wholesaler' || r === 'whole_saler') return { bg: isDark ? '#1E3A8A' : '#EFF6FF', text: isDark ? '#93C5FD' : '#2563EB', border: isDark ? '#1D4ED8' : '#BFDBFE' };
     if (r === 'home_business') return { bg: isDark ? '#78350F' : '#FFFBEB', text: isDark ? '#FCD34D' : '#D97706', border: isDark ? '#B45309' : '#FDE68A' };
+    if (r === 'delivery_partner' || r === 'delivery_person') return { bg: isDark ? '#1E293B' : '#F1F5F9', text: isDark ? '#38BDF8' : '#0284C7', border: isDark ? '#0369A1' : '#BAE6FD' };
     return { bg: isDark ? '#1F2937' : '#F3F4F6', text: isDark ? '#9CA3AF' : '#4B5563', border: isDark ? '#374151' : '#E5E7EB' };
-  };
-
-  const formatRoleText = (role: string) => {
-    if (!role || role === 'user') return 'User';
-    if (role === 'admin') return 'Admin';
-    if (role === 'store_owner') return 'Store Owner';
-    if (role === 'wholesaler' || role === 'whole_saler') return 'Wholesaler';
-    if (role === 'home_business') return 'Home Business';
-    return role.charAt(0).toUpperCase() + role.slice(1);
   };
 
   if (loading) return <View style={[styles.center, { backgroundColor: themeColors.bg }]}><ActivityIndicator size="large" color={AdminColors.primary} /></View>;
@@ -222,14 +233,19 @@ export default function AdminUsersScreen() {
       {/* Top Action Bar */}
       <View style={styles.headerRow}>
         <View style={styles.headerTitleGroup}>
-          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>User Management</Text>
-          <Text style={[styles.headerSub, { color: themeColors.textSecondary }]}>{users.length} registered accounts</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
+            {t('admin.userManagement')}
+          </Text>
+          <Text style={[styles.headerSub, { color: themeColors.textSecondary }]} numberOfLines={1}>
+            {users.length === 1 ? t('admin.registeredAccountsSingle') : t('admin.registeredAccounts', { count: users.length })}
+          </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={styles.headerActionsGroup}>
           <TouchableOpacity 
             style={[styles.refreshIconButton, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]} 
             onPress={() => loadUsers(true)}
+            accessibilityLabel={t('common.refresh')}
           >
             <RotateCcw size={15} color={themeColors.textPrimary} />
           </TouchableOpacity>
@@ -239,7 +255,7 @@ export default function AdminUsersScreen() {
             onPress={() => setShowAddAdminModal(true)}
           >
             <UserPlus size={14} color="#fff" />
-            <Text style={styles.addAdminBtnText}>+ Add Admin</Text>
+            <Text style={styles.addAdminBtnText}>{t('admin.addAdmin')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -251,7 +267,7 @@ export default function AdminUsersScreen() {
           style={[styles.searchInput, { color: themeColors.textPrimary }]} 
           value={search} 
           onChangeText={setSearch} 
-          placeholder="Search name, email, phone, role…" 
+          placeholder={t('admin.searchUsersPlaceholder')} 
           placeholderTextColor={themeColors.textMuted}
         />
         {search ? (
@@ -264,7 +280,7 @@ export default function AdminUsersScreen() {
       {/* Role Filter Chips */}
       <View style={styles.filterScrollWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {ROLE_FILTERS.map((rf) => {
+          {roleFilters.map((rf) => {
             const count = roleCounts[rf.value] ?? 0;
             const active = selectedRoleFilter === rf.value;
             return (
@@ -296,7 +312,7 @@ export default function AdminUsersScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Users size={36} color={themeColors.textMuted} />
-            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>No users found</Text>
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>{t('admin.noUsersFound')}</Text>
           </View>
         }
         ListFooterComponent={
@@ -313,9 +329,7 @@ export default function AdminUsersScreen() {
           const initials = (u.fullname || u.email || 'U').split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2);
           const isAdmin = u.role === 'admin';
           const badgeTheme = getRoleBadgeStyle(u.role);
-          const joinedDate = u.createdAt 
-            ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-            : null;
+          const formattedDate = u.createdAt ? translateDate(u.createdAt, language) : null;
 
           return (
             <View style={[styles.row, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
@@ -325,9 +339,11 @@ export default function AdminUsersScreen() {
               </View>
 
               {/* User Details */}
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.name, { color: themeColors.textPrimary }]} numberOfLines={1}>{u.fullname || u.email}</Text>
+              <View style={styles.userDetails}>
+                <View style={styles.nameRow}>
+                  <Text style={[styles.name, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
+                    {u.fullname || u.email}
+                  </Text>
                   {u.googleId && (
                     <View style={styles.googleBadge}>
                       <Text style={styles.googleBadgeText}>Google</Text>
@@ -335,13 +351,13 @@ export default function AdminUsersScreen() {
                   )}
                 </View>
 
-                <Text style={[styles.email, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                <Text style={[styles.email, { color: themeColors.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">
                   {u.email}{u.mobilenumber ? ` · ${u.mobilenumber}` : ''}
                 </Text>
 
-                {joinedDate && (
-                  <Text style={[styles.joinedText, { color: themeColors.textMuted }]}>
-                    Joined {joinedDate}
+                {formattedDate && (
+                  <Text style={[styles.joinedText, { color: themeColors.textMuted }]} numberOfLines={1}>
+                    {t('admin.joinedOn', { date: formattedDate })}
                   </Text>
                 )}
                 
@@ -355,10 +371,12 @@ export default function AdminUsersScreen() {
                   activeOpacity={0.7}
                 >
                   {isAdmin ? <Shield size={10} color={badgeTheme.text} /> : <ShieldCheck size={10} color={badgeTheme.text} />}
-                  <Text style={[styles.roleBadgeText, { color: badgeTheme.text }]}>
+                  <Text style={[styles.roleBadgeText, { color: badgeTheme.text }]} numberOfLines={1}>
                     {formatRoleText(u.role)}
                   </Text>
-                  <Text style={[styles.roleChangeHint, { color: themeColors.textMuted }]}>· change</Text>
+                  <Text style={[styles.roleChangeHint, { color: themeColors.textMuted }]}>
+                    {' · '}{t('admin.changeRoleHint')}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -371,7 +389,7 @@ export default function AdminUsersScreen() {
                     isAdmin && (isDark ? { backgroundColor: '#3B0764' } : styles.roleToggleBtnActive)
                   ]}
                   onPress={() => setRoleChangeTarget(u)}
-                  accessibilityLabel="Change Role"
+                  accessibilityLabel={t('admin.changeRole')}
                 >
                   <ShieldCheck size={14} color={isAdmin ? (isDark ? "#C084FC" : "#7C3AED") : (isDark ? "#9CA3AF" : AdminColors.textSecondary)} />
                 </TouchableOpacity>
@@ -379,7 +397,7 @@ export default function AdminUsersScreen() {
                 <TouchableOpacity 
                   style={[styles.deleteBtn, isDark && { backgroundColor: '#450A0A' }]}
                   onPress={() => handleDeletePress(u)}
-                  accessibilityLabel="Delete User"
+                  accessibilityLabel={t('admin.deleteUser')}
                 >
                   <Trash2 size={15} color={isDark ? "#F87171" : "#EF4444"} />
                 </TouchableOpacity>
@@ -391,29 +409,42 @@ export default function AdminUsersScreen() {
 
       {/* ─── MODAL 1: ADD ADMIN / USER ──────────────────────────────────────── */}
       <Modal visible={showAddAdminModal} transparent animationType="slide" onRequestClose={() => setShowAddAdminModal(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
           <View style={[styles.modalCard, isDark && styles.modalCardDark]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalHeaderTitle, isDark && styles.textWhite]}>Add Admin / User</Text>
+              <Text style={[styles.modalHeaderTitle, isDark && styles.textWhite]}>
+                {t('admin.addAdminModalTitle')}
+              </Text>
               <TouchableOpacity onPress={() => setShowAddAdminModal(false)}>
                 <X size={18} color={isDark ? '#9CA3AF' : '#64748b'} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 400 }}>
-              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Full Name *</Text>
+            <ScrollView 
+              style={styles.modalScrollView} 
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>
+                {t('admin.fullName')} *
+              </Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
-                placeholder="e.g. Administrator"
+                placeholder={t('admin.fullNamePlaceholder')}
                 placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 value={adminForm.fullname}
                 onChangeText={v => setAdminForm(f => ({ ...f, fullname: v }))}
               />
 
-              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Email Address *</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>
+                {t('admin.emailAddress')} *
+              </Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
-                placeholder="admin@example.com"
+                placeholder={t('admin.emailPlaceholder')}
                 placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 autoCapitalize="none"
                 keyboardType="email-address"
@@ -421,11 +452,13 @@ export default function AdminUsersScreen() {
                 onChangeText={v => setAdminForm(f => ({ ...f, email: v }))}
               />
 
-              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Password *</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>
+                {t('admin.passwordLabel')} *
+              </Text>
               <View style={[styles.passwordInputContainer, isDark && styles.passwordInputContainerDark]}>
                 <TextInput
                   style={[styles.passwordInput, isDark && styles.textWhite]}
-                  placeholder="Min 6 characters"
+                  placeholder={t('admin.passwordMinCharacters')}
                   placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                   secureTextEntry={!showPassword}
                   value={adminForm.password}
@@ -440,19 +473,23 @@ export default function AdminUsersScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Mobile Number *</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>
+                {t('admin.mobileNumberLabel')} *
+              </Text>
               <TextInput
                 style={[styles.formInput, isDark && styles.formInputDark]}
-                placeholder="+91 9876543210"
+                placeholder={t('admin.mobilePlaceholder')}
                 placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 keyboardType="phone-pad"
                 value={adminForm.mobilenumber}
                 onChangeText={v => setAdminForm(f => ({ ...f, mobilenumber: v }))}
               />
 
-              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>Assign Role</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textMutedDark]}>
+                {t('admin.assignRole')}
+              </Text>
               <View style={styles.roleOptionsContainer}>
-                {AVAILABLE_ROLES.map(r => (
+                {availableRoles.map(r => (
                   <TouchableOpacity
                     key={r.value}
                     onPress={() => setAdminForm(f => ({ ...f, role: r.value }))}
@@ -468,14 +505,18 @@ export default function AdminUsersScreen() {
 
             <View style={styles.modalFooter}>
               <TouchableOpacity style={[styles.cancelBtn, isDark && styles.cancelBtnDark]} onPress={() => setShowAddAdminModal(false)}>
-                <Text style={[styles.cancelBtnText, isDark && styles.textWhite]}>Cancel</Text>
+                <Text style={[styles.cancelBtnText, isDark && styles.textWhite]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.submitBtn} onPress={handleCreateAdmin} disabled={creatingAdmin}>
-                {creatingAdmin ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.submitBtnText}>Create Account</Text>}
+                {creatingAdmin ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitBtnText}>{t('admin.createAccount')}</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ─── MODAL 2: CHANGE ROLE / MAKE ADMIN ───────────────────────────────── */}
@@ -483,18 +524,20 @@ export default function AdminUsersScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, isDark && styles.modalCardDark]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalHeaderTitle, isDark && styles.textWhite]}>Change User Role</Text>
+              <Text style={[styles.modalHeaderTitle, isDark && styles.textWhite]}>
+                {t('admin.changeUserRoleTitle')}
+              </Text>
               <TouchableOpacity onPress={() => setRoleChangeTarget(null)}>
                 <X size={18} color={isDark ? '#9CA3AF' : '#64748b'} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.modalSub, isDark && styles.textMutedDark]}>
-              Select role for: <Text style={[{ fontWeight: '700' }, isDark && styles.textWhite]}>{roleChangeTarget?.fullname || roleChangeTarget?.email}</Text>
+            <Text style={[styles.modalSub, isDark && styles.textMutedDark]} numberOfLines={2}>
+              {t('admin.selectRoleFor', { name: roleChangeTarget?.fullname || roleChangeTarget?.email || '' })}
             </Text>
 
-            <View style={{ gap: 8, marginVertical: 12 }}>
-              {AVAILABLE_ROLES.map(r => {
+            <ScrollView style={styles.roleOptionsScrollView} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+              {availableRoles.map(r => {
                 const isSelected = roleChangeTarget?.role === r.value;
                 return (
                   <TouchableOpacity
@@ -503,7 +546,7 @@ export default function AdminUsersScreen() {
                     onPress={() => handleRoleSelect(r.value)}
                     style={[styles.roleOptionRow, isDark && styles.roleOptionRowDark, isSelected && styles.roleOptionRowSelected]}
                   >
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={[styles.roleOptionText, isDark && styles.textWhite, isSelected && styles.roleOptionTextSelected]}>
                         {r.label}
                       </Text>
@@ -512,11 +555,102 @@ export default function AdminUsersScreen() {
                   </TouchableOpacity>
                 );
               })}
+            </ScrollView>
+
+            <TouchableOpacity style={[styles.cancelBtn, isDark && styles.cancelBtnDark, { marginTop: Spacing.md }]} onPress={() => setRoleChangeTarget(null)}>
+              <Text style={[styles.cancelBtnText, isDark && styles.textWhite]}>{t('common.close')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── MODAL 3: CUSTOM DELETE USER MODAL ──────────────────────────────── */}
+      <Modal 
+        visible={!!userToDelete} 
+        transparent 
+        animationType="fade" 
+        onRequestClose={() => {
+          if (!deletingUser) setUserToDelete(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, styles.deleteModalCard, isDark && styles.modalCardDark]}>
+            {/* Top Warning Icon Badge */}
+            <View style={[styles.deleteIconBadge, isDark ? { backgroundColor: 'rgba(239, 68, 68, 0.18)' } : { backgroundColor: '#FEE2E2' }]}>
+              <Trash2 size={26} color="#EF4444" />
             </View>
 
-            <TouchableOpacity style={[styles.cancelBtn, isDark && styles.cancelBtnDark]} onPress={() => setRoleChangeTarget(null)}>
-              <Text style={[styles.cancelBtnText, isDark && styles.textWhite]}>Close</Text>
-            </TouchableOpacity>
+            {/* Modal Title */}
+            <Text style={[styles.deleteModalTitle, isDark && styles.textWhite]}>
+              {t('admin.deleteUserModalTitle')}
+            </Text>
+
+            {/* Confirm Question */}
+            <Text style={[styles.deleteModalDesc, { color: themeColors.textSecondary }]}>
+              {t('admin.deleteUserConfirmQuestion', { name: userToDelete?.fullname || userToDelete?.email || 'User' })}
+            </Text>
+
+            {/* Target Item Details Card */}
+            {userToDelete && (
+              <View style={[styles.deleteTargetBox, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: themeColors.border }]}>
+                <View style={[styles.avatarSmall, isDark && { backgroundColor: '#450A0A' }]}>
+                  <Text style={styles.avatarSmallText}>
+                    {(userToDelete.fullname || userToDelete.email || 'U').split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.deleteTargetName, { color: themeColors.textPrimary }]} numberOfLines={1}>
+                    {userToDelete.fullname || userToDelete.email}
+                  </Text>
+                  <Text style={[styles.deleteTargetEmail, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                    {userToDelete.email}
+                  </Text>
+                </View>
+                <View style={[styles.roleBadgeSmall, { backgroundColor: getRoleBadgeStyle(userToDelete.role).bg, borderColor: getRoleBadgeStyle(userToDelete.role).border }]}>
+                  <Text style={[styles.roleBadgeSmallText, { color: getRoleBadgeStyle(userToDelete.role).text }]}>
+                    {formatRoleText(userToDelete.role)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Permanent Warning Row */}
+            <View style={[styles.deleteWarningBox, isDark ? { backgroundColor: 'rgba(239, 68, 68, 0.1)' } : { backgroundColor: '#FEF2F2' }]}>
+              <AlertTriangle size={15} color="#EF4444" style={{ marginTop: 1, flexShrink: 0 }} />
+              <Text style={[styles.deleteWarningText, { color: isDark ? '#FCA5A5' : '#B91C1C' }]}>
+                {t('admin.deleteUserPermanentWarning')}
+              </Text>
+            </View>
+
+            {/* Modal Action Buttons */}
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteCancelBtn, isDark && styles.cancelBtnDark]}
+                onPress={() => setUserToDelete(null)}
+                disabled={deletingUser}
+              >
+                <Text style={[styles.cancelBtnText, isDark && styles.textWhite]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, deletingUser && { opacity: 0.7 }]}
+                onPress={handleConfirmDelete}
+                disabled={deletingUser}
+              >
+                {deletingUser ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Trash2 size={15} color="#fff" />
+                    <Text style={styles.deleteConfirmBtnText}>
+                      {t('admin.deleteConfirmBtn')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -526,49 +660,90 @@ export default function AdminUsersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AdminColors.bg },
-  containerDark: { backgroundColor: '#0B0F19' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: AdminColors.bg },
   
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
-  headerTitleGroup: { flex: 1 },
+  headerRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: Spacing.md, 
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  headerTitleGroup: { flex: 1, minWidth: 150 },
   headerTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: AdminColors.textPrimary },
   headerSub: { fontSize: FontSizes.xs, color: AdminColors.textSecondary, marginTop: 2 },
+  headerActionsGroup: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   refreshIconButton: { width: 34, height: 34, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   addAdminBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: AdminColors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: BorderRadius.md },
   addAdminBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
 
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: '#fff', marginHorizontal: Spacing.md, marginTop: Spacing.sm, marginBottom: 8, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: AdminColors.border },
-  searchRowDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
+  searchRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: Spacing.sm, 
+    backgroundColor: '#fff', 
+    marginHorizontal: Spacing.md, 
+    marginTop: Spacing.sm, 
+    marginBottom: 8, 
+    paddingHorizontal: Spacing.md, 
+    borderRadius: BorderRadius.md, 
+    borderWidth: 1, 
+    borderColor: AdminColors.border 
+  },
   searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: '#111827' },
   
   filterScrollWrapper: { marginBottom: 8 },
-  filterScroll: { paddingHorizontal: Spacing.md, gap: 6 },
+  filterScroll: { paddingHorizontal: Spacing.md, paddingRight: Spacing.xl, gap: 6 },
   filterChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.pill, backgroundColor: '#fff', borderWidth: 1, borderColor: AdminColors.border },
-  filterChipDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
   filterChipActive: { backgroundColor: AdminColors.primary, borderColor: AdminColors.primary },
   filterChipText: { fontSize: 11, fontWeight: '600', color: AdminColors.textSecondary },
   filterChipTextActive: { color: '#fff', fontWeight: '700' },
 
-  list: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xl },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: '#fff', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: AdminColors.border, padding: Spacing.md, marginBottom: Spacing.xs },
-  rowDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: AdminColors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  list: { paddingHorizontal: Spacing.md, paddingBottom: 50 },
+  row: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: Spacing.md, 
+    backgroundColor: '#fff', 
+    borderRadius: BorderRadius.md, 
+    borderWidth: 1, 
+    borderColor: AdminColors.border, 
+    padding: Spacing.md, 
+    marginBottom: Spacing.xs 
+  },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: AdminColors.primaryLight, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   avatarText: { fontWeight: '800', color: AdminColors.primary },
-  name: { fontSize: FontSizes.sm, fontWeight: '700', color: AdminColors.textPrimary },
-  email: { fontSize: FontSizes.xs, color: AdminColors.textSecondary },
+  
+  userDetails: { flex: 1, minWidth: 0, justifyContent: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  name: { fontSize: FontSizes.sm, fontWeight: '700', color: AdminColors.textPrimary, flexShrink: 1 },
+  email: { fontSize: FontSizes.xs, color: AdminColors.textSecondary, marginTop: 1 },
   joinedText: { fontSize: 10, marginTop: 2 },
   googleBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: '#BFDBFE' },
   googleBadgeText: { fontSize: 9, fontWeight: '700', color: '#2563EB' },
   textWhite: { color: '#F9FAFB' },
   textMutedDark: { color: '#9CA3AF' },
   
-  roleBadge: { flexDirection: 'row', gap: 3, alignItems: 'center', paddingHorizontal: 7, paddingVertical: 2, borderRadius: BorderRadius.pill, alignSelf: 'flex-start', marginTop: 4, borderWidth: 1 },
-  roleBadgeAdmin: { backgroundColor: '#F5F3FF' },
-  roleBadgeText: { fontSize: 10, fontWeight: '700', textTransform: 'capitalize' },
-  roleBadgeTextAdmin: { color: '#7C3AED' },
+  roleBadge: { 
+    flexDirection: 'row', 
+    gap: 3, 
+    alignItems: 'center', 
+    paddingHorizontal: 8, 
+    paddingVertical: 3, 
+    borderRadius: BorderRadius.pill, 
+    alignSelf: 'flex-start', 
+    marginTop: 4, 
+    borderWidth: 1,
+    maxWidth: '100%',
+    flexWrap: 'wrap'
+  },
+  roleBadgeText: { fontSize: 10, fontWeight: '700' },
   roleChangeHint: { fontSize: 9 },
 
-  actionGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
   roleToggleBtn: { padding: 6, borderRadius: 8, backgroundColor: '#F3F4F6' },
   roleToggleBtnActive: { backgroundColor: '#F5F3FF' },
   deleteBtn: { padding: 6, borderRadius: 8, backgroundColor: '#FEE2E2' },
@@ -577,13 +752,35 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: FontSizes.sm, color: AdminColors.textSecondary, fontWeight: '600' },
 
   // Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.md },
-  modalCard: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: BorderRadius.lg, padding: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.65)', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: Spacing.md 
+  },
+  modalCard: { 
+    width: '100%', 
+    maxWidth: 420, 
+    maxHeight: '90%',
+    backgroundColor: '#fff', 
+    borderRadius: BorderRadius.lg, 
+    padding: Spacing.lg, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.2, 
+    shadowRadius: 10, 
+    elevation: 5 
+  },
   modalCardDark: { backgroundColor: '#111827', borderWidth: 1, borderColor: '#374151' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   modalHeaderTitle: { fontSize: FontSizes.md, fontWeight: '800', color: AdminColors.textPrimary },
   modalSub: { fontSize: FontSizes.xs, color: AdminColors.textSecondary, marginBottom: 8 },
-  inputLabel: { fontSize: 11, fontWeight: '700', color: AdminColors.textSecondary, textTransform: 'uppercase', marginTop: 8, marginBottom: 4 },
+  modalScrollView: { maxHeight: 360, flexShrink: 1 },
+  modalScrollContent: { paddingBottom: Spacing.sm },
+  roleOptionsScrollView: { maxHeight: 280, flexShrink: 1 },
+
+  inputLabel: { fontSize: 11, fontWeight: '700', color: AdminColors.textSecondary, marginTop: 8, marginBottom: 4 },
   formInput: { borderWidth: 1, borderColor: AdminColors.border, borderRadius: BorderRadius.md, paddingHorizontal: 10, paddingVertical: 8, fontSize: FontSizes.sm, color: '#111827', backgroundColor: '#F9FAFB' },
   formInputDark: { backgroundColor: '#1F2937', borderColor: '#374151', color: '#fff' },
   passwordInputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: AdminColors.border, borderRadius: BorderRadius.md, backgroundColor: '#F9FAFB', paddingHorizontal: 10 },
@@ -604,10 +801,55 @@ const styles = StyleSheet.create({
   roleOptionText: { fontSize: FontSizes.sm, fontWeight: '600', color: AdminColors.textPrimary },
   roleOptionTextSelected: { color: '#7C3AED', fontWeight: '700' },
 
-  modalFooter: { flexDirection: 'row', gap: 10, marginTop: Spacing.lg },
-  cancelBtn: { flex: 1, paddingVertical: 10, borderRadius: BorderRadius.md, backgroundColor: '#F3F4F6', alignItems: 'center' },
+  modalFooter: { flexDirection: 'row', gap: 10, marginTop: Spacing.md },
+  cancelBtn: { flex: 1, paddingVertical: 10, borderRadius: BorderRadius.md, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   cancelBtnDark: { backgroundColor: '#374151' },
   cancelBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: AdminColors.textSecondary },
-  submitBtn: { flex: 1, paddingVertical: 10, borderRadius: BorderRadius.md, backgroundColor: AdminColors.primary, alignItems: 'center' },
+  submitBtn: { flex: 1, paddingVertical: 10, borderRadius: BorderRadius.md, backgroundColor: AdminColors.primary, alignItems: 'center', justifyContent: 'center' },
   submitBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: '#fff' },
+
+  // Custom Delete Modal Specific Styles
+  deleteModalCard: { alignItems: 'center', paddingVertical: Spacing.xl },
+  deleteIconBadge: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
+  deleteModalTitle: { fontSize: FontSizes.lg, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  deleteModalDesc: { fontSize: FontSizes.sm, textAlign: 'center', marginBottom: Spacing.md, paddingHorizontal: Spacing.sm },
+  deleteTargetBox: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 10, 
+    width: '100%', 
+    padding: 10, 
+    borderRadius: BorderRadius.md, 
+    borderWidth: 1, 
+    marginBottom: Spacing.md 
+  },
+  avatarSmall: { width: 34, height: 34, borderRadius: 17, backgroundColor: AdminColors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  avatarSmallText: { fontSize: 12, fontWeight: '800', color: AdminColors.primary },
+  deleteTargetName: { fontSize: FontSizes.sm, fontWeight: '700' },
+  deleteTargetEmail: { fontSize: 11 },
+  roleBadgeSmall: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1 },
+  roleBadgeSmallText: { fontSize: 9, fontWeight: '700' },
+  deleteWarningBox: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-start', 
+    gap: 8, 
+    width: '100%', 
+    padding: 10, 
+    borderRadius: BorderRadius.md, 
+    marginBottom: Spacing.lg 
+  },
+  deleteWarningText: { flex: 1, fontSize: 11, fontWeight: '600', lineHeight: 16 },
+  deleteModalButtons: { flexDirection: 'row', gap: 10, width: '100%' },
+  deleteCancelBtn: { flex: 1, paddingVertical: 11, borderRadius: BorderRadius.md, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  deleteConfirmBtn: { 
+    flex: 1.3, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 6, 
+    paddingVertical: 11, 
+    borderRadius: BorderRadius.md, 
+    backgroundColor: '#DC2626' 
+  },
+  deleteConfirmBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
 });

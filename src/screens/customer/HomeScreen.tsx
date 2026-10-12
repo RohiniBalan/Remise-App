@@ -57,6 +57,7 @@ import {
   Store,
   LayoutGrid,
   ShoppingBag,
+  LayoutDashboard,
 } from 'lucide-react-native';
 import HeroCarousel from '../../components/home/HeroCarousel';
 import HomeFooter from '../../components/home/HomeFooter';
@@ -88,6 +89,9 @@ import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius, Shadows }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import { useDeliveryPartnerTranslations } from '../../i18n/deliveryPartnerTranslations';
+import { isDeliveryPartnerUser, navigateToDeliveryDashboard } from '../../utils/deliveryPartnerHelper';
+import { isAdminUser, navigateToAdminDashboard } from '../../utils/adminHelper';
 
 // The actual Home screen — previously this file was an accidental duplicate
 // of components/home/HeroCarousel.tsx (the carousel only). Rebuilt to match
@@ -124,7 +128,6 @@ interface DealStripItem {
 const DEAL_STRIP: DealStripItem[] = [
   { icon: Percent, title: 'Up to 50% Off', subtitle: 'On select products', color: '#FF0000', route: 'Categories' },
   { icon: MapPin, title: 'Nearby Offers', subtitle: 'Deals around you', color: '#0FA3B1', route: 'Nearby' },
-  { icon: Tag, title: 'My Offers', subtitle: 'Private deals for you', color: '#EA580C', route: 'MyOffers' },
   { icon: ShoppingBasket, title: 'Monthly / Bulk', subtitle: 'Smart grocery list', color: '#0d9488', route: 'BulkPurchase' },
   { icon: Store, title: 'Home Supplier', subtitle: 'Buy from home sellers', color: '#8B5CF6', route: 'Suppliers' },
 ];
@@ -158,6 +161,9 @@ export default function HomeScreen() {
   const { unreadCount } = useUnreadNotifications();
   const { theme, toggleTheme, isDark, colors } = useTheme();
   const { t, language } = useTranslation();
+  const tPartner = useDeliveryPartnerTranslations();
+  const isPartner = isDeliveryPartnerUser(user);
+  const isAdmin = isAdminUser(user);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -182,18 +188,23 @@ export default function HomeScreen() {
   );
 
   const dynamicDealStrip: DealStripItem[] = useMemo(() => [
-    { icon: Percent, title: t('common.lifestyleStoreBadge'), subtitle: '50% Off', color: '#FF0000', route: 'Categories' },
+    { icon: Percent, title: t('common.upTo50Off'), subtitle: t('common.onSelectProducts'), color: '#FF0000', route: 'Categories' },
     { icon: MapPin, title: t('common.nearbyOffers'), subtitle: t('common.nearYou'), color: '#0FA3B1', route: 'Nearby' },
-    { icon: Tag, title: t('offers.myOffers'), subtitle: t('offers.activeOffers'), color: '#EA580C', route: 'MyOffers' },
     { icon: ShoppingBasket, title: t('common.bulkPurchase'), subtitle: t('products.grocery'), color: '#0d9488', route: 'BulkPurchase' },
-    { icon: Store, title: t('store.homeSuppliers'), subtitle: t('store.verifiedStore'), color: '#8B5CF6', route: 'Suppliers' },
-  ], [t]);
+    {
+      icon: Store,
+      title: language === 'ta' ? 'வீட்டு வணிகம்' : (t('common.roleHomeBusiness') || 'Home Sellers'),
+      subtitle: language === 'ta' ? 'நேரடி தயாரிப்புகள்' : 'Direct products',
+      color: '#8B5CF6',
+      route: 'Suppliers',
+    },
+  ], [t, language]);
 
   const dynamicInfoStrip = useMemo(() => [
-    { icon: Truck, title: t('common.freeDelivery'), subtitle: t('common.freeDeliveryDesc') },
-    { icon: ShieldCheck, title: t('common.securePayments'), subtitle: t('common.securePaymentsDesc') },
-    { icon: RefreshCw, title: t('common.easyReturns'), subtitle: t('common.easyReturnsDesc') },
-    { icon: Tag, title: t('common.bestPrices'), subtitle: t('common.bestPricesDesc') },
+    { icon: Truck, title: t('common.freeDeliveryTitle') || t('common.freeDelivery'), subtitle: t('common.freeDeliverySub') || t('common.freeDeliveryDesc') },
+    { icon: ShieldCheck, title: t('common.securePaymentsTitle') || t('common.securePayments'), subtitle: t('common.securePaymentsSub') || t('common.securePaymentsDesc') },
+    { icon: RefreshCw, title: t('common.easyReturnsTitle') || t('common.easyReturns'), subtitle: t('common.easyReturnsSub') || t('common.easyReturnsDesc') },
+    { icon: Tag, title: t('common.bestPricesTitle') || t('common.bestPrices'), subtitle: t('common.bestPricesSub') || t('common.bestPricesDesc') },
   ], [t]);
 
   const visibleDealStrip = isMerchantOrAdmin
@@ -337,17 +348,113 @@ export default function HomeScreen() {
               <LogIn size={18} color={CustomerColors.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.guestLoginTitle, isDark && { color: '#FFFFFF' }]}>Welcome to REmise</Text>
-              <Text style={[styles.guestLoginSubtitle, isDark && { color: '#9CA3AF' }]}>Sign in for offers, wishlist & faster checkout</Text>
+              <Text style={[styles.guestLoginTitle, isDark && { color: '#FFFFFF' }]}>
+                {t('common.welcomeTitle') || 'Welcome to REmise'}
+              </Text>
+              <Text style={[styles.guestLoginSubtitle, isDark && { color: '#9CA3AF' }]}>
+                {t('common.welcomeSubtitle') || 'Sign in for offers, wishlist & faster checkout'}
+              </Text>
             </View>
             <TouchableOpacity
               style={styles.guestLoginBtn}
               onPress={() => navigation.navigate('LoginRegister')}
               activeOpacity={0.85}
             >
-              <Text style={styles.guestLoginBtnText}>Login</Text>
+              <Text style={styles.guestLoginBtnText}>
+                {t('common.loginRegister') || 'Login'}
+              </Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* ── Admin Dashboard Quick Return Banner ── */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={[styles.adminBanner, isDark && styles.adminBannerDark]}
+            onPress={() => navigateToAdminDashboard(navigation)}
+            activeOpacity={0.85}
+            accessibilityLabel="Return to Admin Dashboard"
+          >
+            <View style={styles.adminBannerIconBg}>
+              <LayoutDashboard size={19} color="#FFFFFF" />
+            </View>
+            <View style={styles.adminBannerContent}>
+              <View style={styles.adminBannerTitleRow}>
+                <Text
+                  style={[styles.adminBannerTitle, isDark && { color: '#FFFFFF' }]}
+                  numberOfLines={1}
+                >
+                  {t('common.adminDashboard') || 'Admin Dashboard'}
+                </Text>
+                <View style={styles.adminLiveBadge}>
+                  <View style={styles.adminLiveDot} />
+                  <Text style={styles.adminLiveText}>ADMIN</Text>
+                </View>
+              </View>
+              <Text
+                style={[styles.adminBannerSubtitle, isDark && { color: '#94A3B8' }]}
+                numberOfLines={1}
+              >
+                {language === 'ta'
+                  ? 'நிர்வாக கட்டுப்பாட்டு பலகை'
+                  : language === 'hi'
+                  ? 'एडमिन कंसोल पर वापस जाएं'
+                  : language === 'te'
+                  ? 'అడ్మిన్ కన్సోల్‌కు తిరిగి వెళ్లండి'
+                  : language === 'kn'
+                  ? 'ನಿರ್ವಾಹಕ ಕನ್ಸೋಲ್‌ಗೆ ಹಿಂತಿರುಗಿ'
+                  : language === 'ml'
+                  ? 'അഡ്മിൻ കൺസോളിലേക്ക് മടങ്ങുക'
+                  : 'Return to Admin Console'}
+              </Text>
+            </View>
+            <View style={styles.adminBannerActionBtn}>
+              <Text style={styles.adminBannerActionText} numberOfLines={1}>
+                {t('admin.dashboard') || 'Dashboard'}
+              </Text>
+              <ChevronRight size={13} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* ── Delivery Partner Dashboard Quick Access Banner ── */}
+        {isPartner && (
+          <TouchableOpacity
+            style={[styles.partnerBanner, isDark && styles.partnerBannerDark]}
+            onPress={() => navigateToDeliveryDashboard(navigation)}
+            activeOpacity={0.85}
+            accessibilityLabel="Go to Delivery Partner Dashboard"
+          >
+            <View style={styles.partnerBannerIconBg}>
+              <Truck size={19} color="#FFFFFF" />
+            </View>
+            <View style={styles.partnerBannerContent}>
+              <View style={styles.partnerBannerTitleRow}>
+                <Text
+                  style={[styles.partnerBannerTitle, isDark && { color: '#FFFFFF' }]}
+                  numberOfLines={1}
+                >
+                  {tPartner.deliveryPartnerMode}
+                </Text>
+                <View style={styles.partnerLiveBadge}>
+                  <View style={styles.partnerLiveDot} />
+                  <Text style={styles.partnerLiveText}>{tPartner.online}</Text>
+                </View>
+              </View>
+              <Text
+                style={[styles.partnerBannerSubtitle, isDark && { color: '#94A3B8' }]}
+                numberOfLines={1}
+              >
+                {tPartner.deliveryPartnerBannerDesc}
+              </Text>
+            </View>
+            <View style={styles.partnerBannerActionBtn}>
+              <Text style={styles.partnerBannerActionText} numberOfLines={1}>
+                {tPartner.dashboardBtn}
+              </Text>
+              <ChevronRight size={13} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
         )}
 
         <HeroCarousel onShopNow={handleShopNow} />
@@ -371,7 +478,7 @@ export default function HomeScreen() {
                     </View>
                   )}
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={[styles.dealTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{deal.title}</Text>
                     {hasUnread && <View style={styles.dealDot} />}
@@ -380,7 +487,7 @@ export default function HomeScreen() {
                     {deal.isNotification && unreadCount > 0 ? `${unreadCount} unread update${unreadCount > 1 ? 's' : ''}` : deal.subtitle}
                   </Text>
                 </View>
-                <ChevronRight size={13} color="#9CA3AF" />
+                <ChevronRight size={13} color="#9CA3AF" style={{ flexShrink: 0 }} />
               </TouchableOpacity>
             );
           })}
@@ -537,9 +644,13 @@ export default function HomeScreen() {
                     <Text style={[styles.categoryTitle, isDark && { color: '#FFFFFF' }]} numberOfLines={1}>{translateCategory(cat.title, language)}</Text>
                     <Text style={[styles.categoryDesc, isDark && { color: '#9CA3AF' }]} numberOfLines={1}>{cat.description}</Text>
                     <View style={styles.categoryFooterRow}>
-                      <Text style={styles.categoryCount}>{cat.count} {t('cart.itemCount', { count: cat.count })}</Text>
+                      <Text style={styles.categoryCount} numberOfLines={1}>
+                        {t('cart.itemCount', { count: cat.count })}
+                      </Text>
                       <View style={styles.exploreRow}>
-                        <Text style={styles.exploreText}>{t('common.viewDetails')}</Text>
+                        <Text style={styles.exploreText} numberOfLines={1}>
+                          {t('common.more')}
+                        </Text>
                         <ChevronRight size={10} color={CustomerColors.teal600} />
                       </View>
                     </View>
@@ -554,7 +665,7 @@ export default function HomeScreen() {
         <Section
           title={t('products.bestSellers')}
           onViewAll={() => navigation.navigate('BestSellers')}
-          showViewAll={bestSellers.filter(p => (p.totalStock ?? 1) > 0).length > 3}
+          showViewAll={bestSellers.length > 0}
         >
           <FlatList
             data={bestSellers.filter(p => (p.totalStock ?? 1) > 0)}
@@ -760,11 +871,22 @@ function Section({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, isDark && { color: '#F1F5F9' }]}>{title}</Text>
+        <Text
+          style={[styles.sectionTitle, isDark && { color: '#F1F5F9' }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {title}
+        </Text>
         {showViewAll && onViewAll && (
-          <TouchableOpacity style={styles.viewAllBtn} onPress={onViewAll}>
+          <TouchableOpacity
+            style={styles.viewAllBtn}
+            onPress={onViewAll}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={styles.viewAllText}>{t('common.viewAll')}</Text>
-            <ChevronRight size={14} color={CustomerColors.teal600} />
+            <ChevronRight size={14} color={CustomerColors.teal600} style={{ flexShrink: 0 }} />
           </TouchableOpacity>
         )}
       </View>
@@ -889,10 +1011,33 @@ const styles = StyleSheet.create({
   infoSubtitle: { fontSize: 10, color: CustomerColors.textSecondary },
 
   section: { marginTop: Spacing.lg },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
-  sectionTitle: { fontSize: FontSizes.base, fontWeight: '800', color: CustomerColors.black },
-  viewAllBtn: { flexDirection: 'row', alignItems: 'center' },
-  viewAllText: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.teal600 },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  sectionTitle: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: FontSizes.base,
+    fontWeight: '800',
+    color: CustomerColors.black,
+    marginRight: Spacing.xs,
+  },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+    gap: 2,
+  },
+  viewAllText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.teal600,
+  },
 
   // Shop by Offers Nearby states
   locationPrompt: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.lg, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: BorderRadius.md, padding: Spacing.md },
@@ -949,8 +1094,8 @@ const styles = StyleSheet.create({
   categoryTitle: { fontSize: 11, fontWeight: '800', color: CustomerColors.black, marginTop: 5 },
   categoryDesc: { fontSize: 9, color: CustomerColors.textSecondary, marginTop: 1 },
   categoryFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 },
-  categoryCount: { fontSize: 9, color: CustomerColors.teal600, fontWeight: '600' },
-  exploreRow: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  categoryCount: { flex: 1, fontSize: 9, color: CustomerColors.teal600, fontWeight: '600' },
+  exploreRow: { flexDirection: 'row', alignItems: 'center', gap: 1, flexShrink: 0 },
   exploreText: { fontSize: 9, color: CustomerColors.teal600, fontWeight: '700' },
 
   bestSellerList: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
@@ -992,6 +1137,190 @@ const styles = StyleSheet.create({
   newArrivalOriginal: { fontSize: 9, color: CustomerColors.textSecondary, textDecorationLine: 'line-through' },
   newArrivalCartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: CustomerColors.mint, borderWidth: 1, borderColor: CustomerColors.border, borderRadius: BorderRadius.sm, paddingVertical: 6, marginTop: Spacing.xs },
   newArrivalCartText: { fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 },
+  adminBanner: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#0F172A',
+    borderRadius: BorderRadius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  adminBannerDark: {
+    backgroundColor: '#1E293B',
+    borderColor: '#EF4444',
+  },
+  adminBannerIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  adminBannerContent: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    marginRight: 4,
+    overflow: 'hidden',
+  },
+  adminBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  adminBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    flexShrink: 1,
+  },
+  adminLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    flexShrink: 0,
+  },
+  adminLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  adminLiveText: {
+    color: '#EF4444',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  adminBannerSubtitle: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  adminBannerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    flexShrink: 0,
+  },
+  adminBannerActionText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  partnerBanner: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#0F172A',
+    borderRadius: BorderRadius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  partnerBannerDark: {
+    backgroundColor: '#1E293B',
+    borderColor: '#475569',
+  },
+  partnerBannerIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FF0000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  partnerBannerContent: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    marginRight: 4,
+    overflow: 'hidden',
+  },
+  partnerBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  partnerBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    flexShrink: 1,
+  },
+  partnerLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    flexShrink: 0,
+  },
+  partnerLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  partnerLiveText: {
+    color: '#10B981',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  partnerBannerSubtitle: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  partnerBannerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    backgroundColor: '#FF0000',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.pill,
+    flexShrink: 0,
+  },
+  partnerBannerActionText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   guestLoginCard: {
     marginHorizontal: Spacing.md,
     marginTop: Spacing.xs,

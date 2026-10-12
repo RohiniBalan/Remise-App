@@ -91,7 +91,7 @@ export default function SellerManageBrandsScreen() {
                 onPress={() => navigation.navigate('ProductDetail', { productId: p._id })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.brandName} numberOfLines={1}>{p.brand || 'Unbranded'}</Text>
+                <Text style={styles.brandName} numberOfLines={1}>{p.brand === 'Unbranded' ? (t('store.unbranded') || 'Unbranded') : (p.brand || 'Unbranded')}</Text>
                 <View style={styles.priceRow}>
                   <Text style={styles.price}>₹{p.discountedPrice || p.price}</Text>
                   {p.discountedPrice && Number(p.discountedPrice) !== Number(p.price) ? (
@@ -103,10 +103,12 @@ export default function SellerManageBrandsScreen() {
                 )}
                 <View style={styles.badgeRow}>
                   <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-                    <Text style={[styles.badgeText, { color: badgeFg }]}>{p.availability}</Text>
+                    <Text style={[styles.badgeText, { color: badgeFg }]}>
+                      {p.availability === 'In Stock' ? (t('store.inStock') || 'In Stock') : p.availability === 'Out of Stock' ? (t('store.outOfStock') || 'Out of Stock') : p.availability}
+                    </Text>
                   </View>
                   <Text style={[styles.stockText, p.totalStock < 5 && { color: '#D97706', fontWeight: '700' }]}>
-                    {t('store.stock') || 'Stock'} {p.totalStock} {p.stockUnit || p.unit || 'Count'}
+                    {t('store.stock') || 'Stock'} {p.totalStock} {(((p.stockUnit || p.unit) === 'Count' || !(p.stockUnit || p.unit)) && language === 'ta') ? 'எண்ணிக்கை' : (p.stockUnit || p.unit || 'Count')}
                   </Text>
                 </View>
               </TouchableOpacity>

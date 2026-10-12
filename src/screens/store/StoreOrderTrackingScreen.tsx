@@ -10,6 +10,8 @@ import {
   Linking,
   Share,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -35,13 +37,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { GATEWAY_URL } from '../../api/endpoints';
 import LiveDeliveryTrackingMap from '../../components/common/LiveDeliveryTrackingMap';
-import { useTranslation, translateProductName } from '../../i18n';
+import { useTranslation, translateProductName, useDeliveryTranslations } from '../../i18n';
 
 export default function StoreOrderTrackingScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { language } = useTranslation();
+  const tDeliv = useDeliveryTranslations();
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
@@ -52,6 +55,48 @@ export default function StoreOrderTrackingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
+
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [deliveryOtp, setDeliveryOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  const translateMilestone = (status: string) => {
+    if (!status) return '';
+    const norm = status.toLowerCase().replace(/[\s_-]+/g, '');
+    switch (norm) {
+      case 'pending':
+        return tDeliv.statusPending;
+      case 'searching':
+        return tDeliv.statusSearching;
+      case 'assigned':
+        return tDeliv.statusAssigned;
+      case 'accepted':
+        return tDeliv.statusAccepted;
+      case 'goingtostore':
+      case 'headingtostore':
+        return tDeliv.statusGoingToStore;
+      case 'arrivedatstore':
+        return tDeliv.statusArrivedAtStore;
+      case 'ready':
+        return tDeliv.statusReady;
+      case 'pickedup':
+        return tDeliv.statusPickedUp;
+      case 'outfordelivery':
+        return tDeliv.statusOutForDelivery;
+      case 'delivered':
+        return tDeliv.statusDelivered;
+      case 'cancelled':
+      case 'canceled':
+        return tDeliv.statusCancelled;
+      case 'unavailable':
+        return tDeliv.statusUnavailable;
+      case 'rejected':
+        return tDeliv.statusRejected;
+      default:
+        return status;
+    }
+  };
 
   const fetchTracking = useCallback(
     async (isBackground = false) => {
@@ -121,6 +166,12 @@ export default function StoreOrderTrackingScreen() {
   };
 
   const handleDirectStatusUpdate = async (status: string) => {
+    if (status === 'Delivered') {
+      setDeliveryOtp('');
+      setOtpError('');
+      setOtpModalVisible(true);
+      return;
+    }
     try {
       setUpdating(true);
       await smartOrderApi.updateDeliveryStatusDirect(orderId, { status });
@@ -129,6 +180,30 @@ export default function StoreOrderTrackingScreen() {
       Alert.alert('Error', err?.response?.data?.message || 'Failed to update milestone');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleVerifyDeliveryOtp = async () => {
+    if (!deliveryOtp || deliveryOtp.trim().length !== 6) {
+      setOtpError(tDeliv.enterValid6DigitOtp);
+      return;
+    }
+    try {
+      setVerifyingOtp(true);
+      setOtpError('');
+      const res = await smartOrderApi.verifyOrderOtp(orderId, deliveryOtp.trim());
+      if (res.data?.success) {
+        setOtpModalVisible(false);
+        setDeliveryOtp('');
+        await fetchTracking(true);
+        Alert.alert('Success', tDeliv.otpVerifiedSuccess);
+      } else {
+        setOtpError(res.data?.message || 'Verification failed');
+      }
+    } catch (err: any) {
+      setOtpError(err?.response?.data?.message || err?.message || 'Failed to verify OTP');
+    } finally {
+      setVerifyingOtp(false);
     }
   };
 
@@ -142,13 +217,13 @@ export default function StoreOrderTrackingScreen() {
 
         <View style={{ flex: 1, marginLeft: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.headerTitle}>Store Live Tracking</Text>
+            <Text style={styles.headerTitle}>{tDeliv.liveTrackingTitle}</Text>
             <View style={styles.liveBadge}>
               <View style={styles.liveDot} />
-              <Text style={styles.liveBadgeText}>LIVE</Text>
+              <Text style={styles.liveBadgeText}>{tDeliv.liveBadge}</Text>
             </View>
           </View>
-          <Text style={styles.headerSub}>Order #{orderId}</Text>
+          <Text style={styles.headerSub}>{tDeliv.orderPrefix}{orderId}</Text>
         </View>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={() => fetchTracking(true)}>
@@ -159,15 +234,15 @@ export default function StoreOrderTrackingScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-          <Text style={styles.loadingText}>Loading Live Tracking…</Text>
+          <Text style={styles.loadingText}>{tDeliv.loadingTracking}</Text>
         </View>
       ) : error || !order ? (
         <View style={styles.center}>
           <AlertCircle size={36} color="#DC2626" />
-          <Text style={styles.errorTitle}>Tracking Unavailable</Text>
-          <Text style={styles.errorSub}>{error || 'Could not locate this order.'}</Text>
+          <Text style={styles.errorTitle}>{tDeliv.trackingUnavailable}</Text>
+          <Text style={styles.errorSub}>{error || tDeliv.couldNotLocateOrder}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchTracking(false)}>
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={styles.retryBtnText}>{tDeliv.retry}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -190,12 +265,12 @@ export default function StoreOrderTrackingScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.statusMode}>
-                  Mode: {order.deliveryMode === 'portal_delivery' ? 'Remise Network' : 'Store Delivery'}
+                  {tDeliv.modePrefix} {order.deliveryMode === 'portal_delivery' ? tDeliv.remiseNetworkMode : tDeliv.storeDeliveryMode}
                 </Text>
-                <Text style={styles.statusText}>{currentStatus}</Text>
+                <Text style={styles.statusText}>{translateMilestone(currentStatus)}</Text>
               </View>
               <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>{currentStatus}</Text>
+                <Text style={styles.statusBadgeText}>{translateMilestone(currentStatus)}</Text>
               </View>
             </View>
           </View>
@@ -240,28 +315,28 @@ export default function StoreOrderTrackingScreen() {
                     onPress={() => handleCall(driver.phone)}
                   >
                     <Phone size={13} color="#FFFFFF" />
-                    <Text style={styles.callBtnText}>Call</Text>
+                    <Text style={styles.callBtnText}>{tDeliv.call}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
 
               <View style={styles.driverFooter}>
-                <Text style={styles.driverEtaText}>Pickup ETA: {driver.eta || '10-15 mins'}</Text>
+                <Text style={styles.driverEtaText}>{tDeliv.eta}: {driver.eta || '10-15 mins'}</Text>
                 {deliveryUrl ? (
                   <TouchableOpacity style={styles.shareDriverLinkBtn} onPress={handleShare}>
                     <Share2 size={12} color="#FFFFFF" />
-                    <Text style={styles.shareDriverLinkBtnText}>Share Link</Text>
+                    <Text style={styles.shareDriverLinkBtnText}>{tDeliv.shareLink}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
             </View>
           ) : (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Delivery Partner Status</Text>
+              <Text style={styles.cardTitle}>{tDeliv.partnerStatusTitle}</Text>
               <View style={styles.unassignedRow}>
-                <Text style={styles.unassignedText}>No driver assigned yet</Text>
+                <Text style={styles.unassignedText}>{tDeliv.noDriverAssigned}</Text>
                 <Text style={styles.unassignedSub}>
-                  {order.deliveryStatus === 'Searching' ? 'Broadcasting to drivers…' : 'Pending Action'}
+                  {order.deliveryStatus === 'Searching' ? tDeliv.broadcastingToDrivers : tDeliv.pendingAction}
                 </Text>
               </View>
             </View>
@@ -271,12 +346,12 @@ export default function StoreOrderTrackingScreen() {
           <View style={styles.card}>
             <View style={styles.addressHeader}>
               <User size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-              <Text style={styles.cardTitle}>Customer Drop-off Location</Text>
+              <Text style={styles.cardTitle}>{tDeliv.customerDropoffLocation}</Text>
             </View>
 
             <Text style={styles.customerName}>{order.customerName}</Text>
             <Text style={styles.addressText}>
-              {order.deliveryAddress?.fullAddress || 'No address specified'}
+              {order.deliveryAddress?.fullAddress || tDeliv.noAddressSpecified}
             </Text>
 
             <View style={styles.customerActionsRow}>
@@ -286,7 +361,7 @@ export default function StoreOrderTrackingScreen() {
                   onPress={() => handleCall(order.customerPhone)}
                 >
                   <Phone size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                  <Text style={styles.customerCallBtnText}>Call: {order.customerPhone}</Text>
+                  <Text style={styles.customerCallBtnText}>{tDeliv.callCustomer} {order.customerPhone}</Text>
                 </TouchableOpacity>
               ) : null}
 
@@ -296,7 +371,7 @@ export default function StoreOrderTrackingScreen() {
                   onPress={() => handleOpenMap(order.deliveryAddress.fullAddress)}
                 >
                   <Navigation size={12} color="#2563EB" />
-                  <Text style={styles.customerMapBtnText}>Directions</Text>
+                  <Text style={styles.customerMapBtnText}>{tDeliv.directions}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -304,25 +379,29 @@ export default function StoreOrderTrackingScreen() {
 
           {/* Quick Milestone Override Buttons */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Quick Milestone Override</Text>
+            <Text style={styles.cardTitle}>{tDeliv.quickMilestoneOverride}</Text>
             <View style={styles.milestoneButtonsRow}>
-              {['Ready', 'Out for Delivery', 'Delivered'].map(st => (
+              {[
+                { key: 'Ready', label: tDeliv.statusReady },
+                { key: 'Out for Delivery', label: tDeliv.statusOutForDelivery },
+                { key: 'Delivered', label: tDeliv.statusDelivered },
+              ].map(item => (
                 <TouchableOpacity
-                  key={st}
+                  key={item.key}
                   style={[
                     styles.milestoneBtn,
-                    currentStatus === st && styles.milestoneBtnActive,
+                    currentStatus === item.key && styles.milestoneBtnActive,
                   ]}
-                  onPress={() => handleDirectStatusUpdate(st)}
+                  onPress={() => handleDirectStatusUpdate(item.key)}
                   disabled={updating}
                 >
                   <Text
                     style={[
                       styles.milestoneBtnText,
-                      currentStatus === st && styles.milestoneBtnTextActive,
+                      currentStatus === item.key && styles.milestoneBtnTextActive,
                     ]}
                   >
-                    {st}
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -331,10 +410,10 @@ export default function StoreOrderTrackingScreen() {
 
           {/* Milestone Timeline History */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Delivery Milestone Timeline</Text>
+            <Text style={styles.cardTitle}>{tDeliv.milestoneTimelineTitle}</Text>
             <View style={styles.timelineList}>
               {(order.deliveryTimeline || []).length === 0 ? (
-                <Text style={styles.emptyTimelineText}>No milestone events recorded yet.</Text>
+                <Text style={styles.emptyTimelineText}>{tDeliv.noMilestonesYet}</Text>
               ) : (
                 (order.deliveryTimeline || []).map((ev: any, idx: number) => (
                   <View key={idx} style={styles.timelineItem}>
@@ -343,7 +422,7 @@ export default function StoreOrderTrackingScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={styles.timelineStatus}>{ev.status}</Text>
+                        <Text style={styles.timelineStatus}>{translateMilestone(ev.status)}</Text>
                         <Text style={styles.timelineTime}>
                           {new Date(ev.timestamp).toLocaleTimeString([], {
                             hour: '2-digit',
@@ -352,7 +431,7 @@ export default function StoreOrderTrackingScreen() {
                         </Text>
                       </View>
                       <Text style={styles.timelineNote}>
-                        {ev.note || `Status updated by ${ev.updatedBy || 'System'}`}
+                        {ev.note || `${tDeliv.statusUpdatedBy} ${ev.updatedBy || 'System'}`}
                       </Text>
                     </View>
                   </View>
@@ -363,7 +442,7 @@ export default function StoreOrderTrackingScreen() {
 
           {/* Order Items Checklist */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Order Items ({order.items?.length || 0})</Text>
+            <Text style={styles.cardTitle}>{tDeliv.orderItemsTitle} ({order.items?.length || 0})</Text>
             <View style={styles.itemsList}>
               {(order.items || []).map((item: any, idx: number) => (
                 <View key={idx} style={styles.itemRow}>
@@ -382,11 +461,69 @@ export default function StoreOrderTrackingScreen() {
             <View style={styles.divider} />
 
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Revenue:</Text>
+              <Text style={styles.totalLabel}>{tDeliv.totalRevenue}</Text>
               <Text style={styles.totalValue}>₹{order.totalAmount}</Text>
             </View>
           </View>
         </ScrollView>
+      )}
+
+      {/* Verify Delivery OTP Modal */}
+      {otpModalVisible && (
+        <Modal
+          visible={otpModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => !verifyingOtp && setOtpModalVisible(false)}
+        >
+          <View style={styles.otpModalBackdrop}>
+            <View style={styles.otpModalCard}>
+              <View style={styles.otpModalIconWrap}>
+                <CheckCircle2 size={28} color="#16A34A" />
+              </View>
+              <Text style={styles.otpModalTitle}>{tDeliv.confirmDeliveryModalTitle}</Text>
+              <Text style={styles.otpModalSubtitle}>
+                {tDeliv.confirmDeliveryModalSub}
+              </Text>
+              <TextInput
+                style={styles.otpInput}
+                value={deliveryOtp}
+                onChangeText={(text) => {
+                  setDeliveryOtp(text.replace(/[^0-9]/g, ''));
+                  setOtpError('');
+                }}
+                keyboardType="number-pad"
+                maxLength={6}
+                placeholder="• • • • • •"
+                placeholderTextColor={isDark ? '#4B5563' : '#9CA3AF'}
+                autoFocus
+              />
+              {otpError ? (
+                <Text style={styles.otpErrorText}>{otpError}</Text>
+              ) : null}
+              <View style={styles.otpModalBtnRow}>
+                <TouchableOpacity
+                  style={styles.otpModalCancelBtn}
+                  disabled={verifyingOtp}
+                  onPress={() => setOtpModalVisible(false)}
+                >
+                  <Text style={styles.otpModalCancelText}>{tDeliv.cancel}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.otpModalSubmitBtn, (verifyingOtp || deliveryOtp.length !== 6) && { opacity: 0.6 }]}
+                  disabled={verifyingOtp || deliveryOtp.length !== 6}
+                  onPress={handleVerifyDeliveryOtp}
+                >
+                  {verifyingOtp ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.otpModalSubmitText}>{tDeliv.verifyCompleteBtn}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -705,7 +842,9 @@ const getStyles = (isDark: boolean) =>
     },
     milestoneBtn: {
       flex: 1,
-      paddingVertical: 10,
+      minHeight: 46,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
       borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
@@ -721,6 +860,8 @@ const getStyles = (isDark: boolean) =>
       fontSize: 11,
       fontWeight: '700',
       color: isDark ? '#9CA3AF' : '#4B5563',
+      textAlign: 'center',
+      alignSelf: 'center',
     },
     milestoneBtnTextActive: {
       color: '#FFFFFF',
@@ -814,5 +955,96 @@ const getStyles = (isDark: boolean) =>
       fontSize: FontSizes.base,
       fontWeight: '900',
       color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+    },
+    otpModalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.md,
+    },
+    otpModalCard: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: isDark ? '#111827' : '#fff',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      alignItems: 'center',
+      gap: Spacing.xs,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? '#1F2937' : 'transparent',
+    },
+    otpModalIconWrap: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: isDark ? '#14532d' : '#DCFCE7',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4,
+    },
+    otpModalTitle: {
+      fontSize: FontSizes.base,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    otpModalSubtitle: {
+      fontSize: FontSizes.xs,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textAlign: 'center',
+      marginBottom: Spacing.sm,
+    },
+    otpInput: {
+      width: '100%',
+      letterSpacing: 8,
+      textAlign: 'center',
+      fontSize: 22,
+      fontWeight: '800',
+      fontFamily: 'monospace',
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#D1D5DB',
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+      color: isDark ? '#F9FAFB' : '#111827',
+      marginVertical: 10,
+    },
+    otpErrorText: {
+      color: '#EF4444',
+      fontSize: 11,
+      fontWeight: '600',
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    otpModalBtnRow: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+      marginTop: 8,
+    },
+    otpModalCancelBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E5E7EB',
+      alignItems: 'center',
+    },
+    otpModalCancelText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#D1D5DB' : '#374151',
+    },
+    otpModalSubmitBtn: {
+      flex: 1,
+      backgroundColor: '#16A34A',
+      paddingVertical: 12,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+    },
+    otpModalSubmitText: {
+      color: '#fff',
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
     },
   });

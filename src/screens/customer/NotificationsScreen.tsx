@@ -17,6 +17,7 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
 
 interface NotificationItem {
   _id: string;
@@ -32,10 +33,17 @@ export default function NotificationsScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { isDark, colors } = useTheme();
+  const { t } = useTranslation();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { refetch, markRead: ctxMarkRead, markAllRead: ctxMarkAllRead } = useUnreadNotifications();
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: t('notifications.notificationsTitle') || 'Notifications',
+    });
+  }, [navigation, t]);
 
   const load = useCallback(async () => {
     try {
@@ -151,7 +159,9 @@ export default function NotificationsScreen() {
             activeOpacity={0.7}
           >
             <CheckCheck size={14} color={CustomerColors.primary} />
-            <Text style={styles.markAllText}>Mark all as read</Text>
+            <Text style={styles.markAllText}>
+              {t('notifications.markAllAsRead') || 'Mark all as read'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -190,7 +200,7 @@ export default function NotificationsScreen() {
                 { color: isDark ? '#FFFFFF' : CustomerColors.black },
               ]}
             >
-              No notifications yet
+              {t('notifications.noNotificationsTitle') || 'No notifications yet'}
             </Text>
             <Text
               style={[
@@ -198,7 +208,7 @@ export default function NotificationsScreen() {
                 { color: isDark ? '#94A3B8' : CustomerColors.textSecondary },
               ]}
             >
-              We'll notify you when offers, order updates, or alerts arrive.
+              {t('notifications.noNotificationsDesc') || "We'll notify you when offers, order updates, or alerts arrive."}
             </Text>
           </View>
         }
@@ -268,7 +278,7 @@ export default function NotificationsScreen() {
               style={[styles.dismissBtn, isDark && { backgroundColor: '#1e293b' }]}
               onPress={() => handleMarkRead(item._id)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Dismiss notification"
+              accessibilityLabel={t('notifications.dismissNotification') || 'Dismiss notification'}
             >
               <X size={14} color={isDark ? '#94A3B8' : '#64748B'} />
             </TouchableOpacity>

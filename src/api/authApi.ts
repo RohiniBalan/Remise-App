@@ -13,6 +13,9 @@ interface RegisterPayload {
   role: 'user' | 'store_owner' | 'wholesaler' | 'whole_saler' | 'home_business' | 'delivery_person';
   vehicleType?: string;
   vehicleNumber?: string;
+  licenseNumber?: string;
+  licenseFile?: string;
+  licenseFileName?: string;
   address?: string;
 }
 

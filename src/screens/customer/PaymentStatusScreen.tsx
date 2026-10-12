@@ -9,12 +9,16 @@ import InvoiceModal from '../../components/common/InvoiceModal';
 import { useAuth } from '../../context/AuthContext';
 import { CustomerColors, GoldColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, getSupplierTranslations } from '../../i18n';
 
 type Status = 'LOADING' | 'SUCCESS' | 'FAILED' | 'PENDING';
 
 export default function PaymentStatusScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
+  const { language } = useTranslation();
+  const tSupplier = getSupplierTranslations(language);
+
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const orderId: string | undefined = route.params?.orderId;
@@ -29,7 +33,7 @@ export default function PaymentStatusScreen() {
   const borderColor = isDark ? '#1F2937' : '#F3F4F6';
   const textPri = isDark ? '#F9FAFB' : '#111827';
   const textSec = isDark ? '#9CA3AF' : CustomerColors.textSecondary;
-  const bg = isDark ? '#0b0f19' : '#F9F9F9';
+  const bg = isDark ? '#0a0f1d' : '#F9F9F9';
   const secBtnBg = isDark ? '#1f2937' : '#F3F4F6';
   const secBtnText = isDark ? '#F9FAFB' : '#1F2937';
 
@@ -98,7 +102,7 @@ export default function PaymentStatusScreen() {
   const checkStatus = useCallback(async () => {
     if (!orderId) {
       setStatus('FAILED');
-      setErrorMessage('No Order ID provided.');
+      setErrorMessage(tSupplier.noOrderId);
       return;
     }
     setStatus('LOADING');
@@ -113,17 +117,17 @@ export default function PaymentStatusScreen() {
           setStatus('PENDING');
         } else {
           setStatus('FAILED');
-          setErrorMessage(data.message || 'Payment was declined by the bank.');
+          setErrorMessage(data.message || tSupplier.paymentDeclined);
         }
       } else {
         setStatus('FAILED');
-        setErrorMessage(data.message || 'Failed to verify payment status.');
+        setErrorMessage(data.message || tSupplier.verificationFailed);
       }
     } catch {
       setStatus('FAILED');
-      setErrorMessage('Server unreachable. Please contact support if amount was deducted.');
+      setErrorMessage(tSupplier.serverUnreachable);
     }
-  }, [orderId, setBuyNowItem]);
+  }, [orderId, setBuyNowItem, tSupplier]);
 
   useEffect(() => {
     checkStatus();
@@ -145,28 +149,43 @@ export default function PaymentStatusScreen() {
         {status === 'LOADING' && (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={CustomerColors.primary} />
-            <Text style={[styles.title, { color: textPri }]}>Verifying Payment</Text>
-            <Text style={[styles.subtitle, { color: textSec }]}>Please wait while we securely confirm your transaction.</Text>
+            <Text style={[styles.title, { color: textPri }]}>{tSupplier.verifyingPayment}</Text>
+            <Text style={[styles.subtitle, { color: textSec }]}>{tSupplier.verifyingPaymentSub}</Text>
           </View>
         )}
 
         {status === 'SUCCESS' && (
           <View style={styles.center}>
-            <View style={[styles.iconCircle, styles.iconCircleSuccess]}><CheckCircle size={40} color={CustomerColors.success} /></View>
-            <Text style={[styles.title, { color: textPri }]}>Order Placed Successfully!</Text>
-            <Text style={[styles.subtitle, { color: textSec }]}>Thank you for your purchase. Your payment was successful and your order {orderId} has been confirmed.</Text>
-            
+            <View style={[styles.iconCircle, styles.iconCircleSuccess]}>
+              <CheckCircle size={40} color={CustomerColors.success} />
+            </View>
+            <Text style={[styles.title, { color: textPri }]}>{tSupplier.orderPlacedSuccessTitle}</Text>
+            <Text style={[styles.subtitle, { color: textSec }]}>
+              {tSupplier.orderPlacedSuccessSub.replace('{{orderId}}', orderId || '')}
+            </Text>
+
             {/* Bill Actions */}
             {orderId ? (
               <View style={styles.billActions}>
                 <TouchableOpacity style={styles.downloadBillBtn} onPress={handleDownloadPdf}>
                   <Download size={16} color="#FFFFFF" />
-                  <Text style={styles.downloadBillBtnText}>Download PDF Bill</Text>
+                  <Text style={styles.downloadBillBtnText}>{tSupplier.downloadPdfBill}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.viewInvoiceBtn, { backgroundColor: isDark ? '#1f2937' : CustomerColors.mint, borderColor }]} onPress={() => setShowInvoiceModal(true)}>
-                  <FileText size={16} color={isDark ? '#38BDF8' : CustomerColors.teal700} />
-                  <Text style={[styles.viewInvoiceBtnText, isDark ? { color: '#38BDF8' } : undefined]}>View Invoice Details</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.viewInvoiceBtn,
+                    {
+                      backgroundColor: isDark ? '#1f2937' : CustomerColors.mint,
+                      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                    },
+                  ]}
+                  onPress={() => setShowInvoiceModal(true)}
+                >
+                  <FileText size={16} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                  <Text style={[styles.viewInvoiceBtnText, isDark ? { color: '#2DD4BF' } : undefined]}>
+                    {tSupplier.viewInvoiceDetails}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -184,7 +203,7 @@ export default function PaymentStatusScreen() {
                   }}
                 >
                   <ArrowLeft size={16} color="#FFFFFF" />
-                  <Text style={styles.backToBulkBtnText}>Back to Bulk Purchase</Text>
+                  <Text style={styles.backToBulkBtnText}>{tSupplier.backToBulkPurchase}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -192,30 +211,36 @@ export default function PaymentStatusScreen() {
                   onPress={goToOrders}
                 >
                   <ShoppingBag size={16} color={secBtnText} />
-                  <Text style={[styles.secondaryActionBtnText, { color: secBtnText }]}>View My Orders</Text>
+                  <Text style={[styles.secondaryActionBtnText, { color: secBtnText }]}>
+                    {tSupplier.viewMyOrders}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity style={styles.continueShoppingBtn} onPress={goToHome}>
                 <ShoppingBag size={18} color="#FFFFFF" />
-                <Text style={styles.continueShoppingBtnText}>Continue Shopping</Text>
+                <Text style={styles.continueShoppingBtnText}>{tSupplier.continueShopping}</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-
         {status === 'FAILED' && (
           <View style={styles.center}>
-            <View style={[styles.iconCircle, styles.iconCircleDanger]}><XCircle size={40} color={CustomerColors.danger} /></View>
-            <Text style={[styles.title, { color: textPri }]}>Payment Failed</Text>
+            <View style={[styles.iconCircle, styles.iconCircleDanger]}>
+              <XCircle size={40} color={CustomerColors.danger} />
+            </View>
+            <Text style={[styles.title, { color: textPri }]}>{tSupplier.paymentFailedTitle}</Text>
             <Text style={[styles.subtitle, { color: textSec }]}>{errorMessage}</Text>
             <View style={styles.row}>
-              <TouchableOpacity style={[styles.secondaryBtn, { backgroundColor: secBtnBg }]} onPress={() => navigation.navigate('Checkout')}>
-                <Text style={[styles.secondaryBtnText, { color: secBtnText }]}>Try Again</Text>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: secBtnBg }]}
+                onPress={() => navigation.navigate('Checkout')}
+              >
+                <Text style={[styles.secondaryBtnText, { color: secBtnText }]}>{tSupplier.tryAgain}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={goToHome}>
-                <Text style={styles.primaryBtnText}>Home</Text>
+                <Text style={styles.primaryBtnText}>{tSupplier.home}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -223,16 +248,21 @@ export default function PaymentStatusScreen() {
 
         {status === 'PENDING' && (
           <View style={styles.center}>
-            <View style={[styles.iconCircle, styles.iconCircleWarning]}><ActivityIndicator size="large" color={CustomerColors.warning} /></View>
-            <Text style={[styles.title, { color: textPri }]}>Payment Pending</Text>
-            <Text style={[styles.subtitle, { color: textSec }]}>Your payment is processing at the bank. Please check back in a moment.</Text>
+            <View style={[styles.iconCircle, styles.iconCircleWarning]}>
+              <ActivityIndicator size="large" color={CustomerColors.warning} />
+            </View>
+            <Text style={[styles.title, { color: textPri }]}>{tSupplier.paymentPendingTitle}</Text>
+            <Text style={[styles.subtitle, { color: textSec }]}>{tSupplier.paymentPendingSub}</Text>
             <View style={styles.row}>
-              <TouchableOpacity style={[styles.secondaryBtn, { backgroundColor: secBtnBg }]} onPress={checkStatus}>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: secBtnBg }]}
+                onPress={checkStatus}
+              >
                 <RefreshCw size={16} color={secBtnText} />
-                <Text style={[styles.secondaryBtnText, { color: secBtnText }]}>Refresh</Text>
+                <Text style={[styles.secondaryBtnText, { color: secBtnText }]}>{tSupplier.refresh}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={goToHome}>
-                <Text style={styles.primaryBtnText}>Home</Text>
+                <Text style={styles.primaryBtnText}>{tSupplier.home}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -278,4 +308,3 @@ const styles = StyleSheet.create({
   secondaryActionBtn: { width: '100%', flexDirection: 'row', gap: Spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
   secondaryActionBtnText: { color: '#1F2937', fontWeight: '800', textTransform: 'uppercase', fontSize: FontSizes.xs, letterSpacing: 0.5 },
 });
-

@@ -14,14 +14,20 @@ import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/t
 import { groupProductsByType } from '../../utils/groupProducts';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import BulkScanUploadModal from '../../components/common/BulkScanUploadModal';
-import { useLanguage, translateProductName, translateCategory } from '../../i18n';
+import { useTranslation, translateProductName, translateCategory, registerProducts } from '../../i18n';
 
 export default function StoreProductsScreen() {
   const navigation = useNavigation<any>();
   const { products, categories, loading, refresh } = useStoreDashboard();
   const { isDark } = useTheme();
-  const { language } = useLanguage();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+
+  React.useEffect(() => {
+    if (products && products.length) {
+      registerProducts(products);
+    }
+  }, [products]);
 
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
@@ -226,16 +232,16 @@ export default function StoreProductsScreen() {
               </View>
               <View style={styles.cardBody}>
                 <Text style={styles.category}>{pt.category ? translateCategory(pt.category, language) : '—'}</Text>
-                <Text style={styles.title} numberOfLines={1}>{translateProductName(pt.title, language)}</Text>
-                <Text style={styles.brandCountText}>{pt.brandCount} Brand{pt.brandCount !== 1 ? 's' : ''}</Text>
-                <Text style={styles.stock}>Total Stock: {pt.totalStock} {pt.stockUnit || 'Count'}</Text>
+                <Text style={styles.title} numberOfLines={1}>{translateProductName(pt.title, language, pt.items?.[0])}</Text>
+                <Text style={styles.brandCountText}>{pt.brandCount} {pt.brandCount !== 1 ? (t.store.availableBrandsLabel || 'Brands') : (t.store.brandLabel || 'Brand')}</Text>
+                <Text style={styles.stock}>{t.store.productStock || 'Total Stock'}: {pt.totalStock} {((pt.stockUnit === 'Count' || !pt.stockUnit) && language === 'ta') ? 'எண்ணிக்கை' : (pt.stockUnit || 'Count')}</Text>
 
                 <View style={styles.brandList}>
                   {visibleBrands.map((b: any, i: number) => (
                     <View key={i} style={styles.brandRow}>
                       <Text style={styles.brandRowName} numberOfLines={1}>{b.brand}</Text>
                       <Text style={[styles.brandRowStock, b.stock < 5 && styles.stockLow]}>
-                        {b.stock} {b.stockUnit || 'Count'}
+                        {b.stock} {((b.stockUnit === 'Count' || !b.stockUnit) && language === 'ta') ? 'எண்ணிக்கை' : (b.stockUnit || 'Count')}
                       </Text>
                     </View>
                   ))}
@@ -245,8 +251,10 @@ export default function StoreProductsScreen() {
                 <TouchableOpacity
                   style={styles.manageBtn}
                   onPress={() => navigation.navigate('ManageBrands', { typeKey: pt.typeKey, title: pt.title, category: pt.category, items: pt.items, brandCount: pt.brandCount, totalStock: pt.totalStock, stockUnit: pt.stockUnit })}
+                  activeOpacity={0.85}
                 >
-                  <Text style={styles.manageBtnText}>Manage Brands →</Text>
+                  <Text style={styles.manageBtnText} numberOfLines={1}>{t.store.manageBrands || 'Manage Brands'}</Text>
+                  <Text style={styles.manageBtnArrow}>→</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -363,8 +371,30 @@ const getStyles = (isDark: boolean) =>
     brandRowName: { fontSize: 11, color: isDark ? '#D1D5DB' : '#4B5563', flex: 1, paddingRight: 6 },
     brandRowStock: { fontSize: 11, fontWeight: '700', color: isDark ? '#E5E7EB' : '#374151' },
     moreText: { fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
-    manageBtn: { marginTop: Spacing.sm, backgroundColor: CustomerColors.teal600, paddingVertical: 8, borderRadius: BorderRadius.sm, alignItems: 'center' },
-    manageBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs },
+    manageBtn: {
+      marginTop: Spacing.sm,
+      backgroundColor: CustomerColors.teal600,
+      paddingVertical: 8,
+      paddingHorizontal: Spacing.xs,
+      borderRadius: BorderRadius.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    manageBtnText: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: FontSizes.xs,
+      textAlign: 'center',
+      flexShrink: 1,
+    },
+    manageBtnArrow: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: FontSizes.xs,
+      flexShrink: 0,
+    },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
     modalCard: { width: '100%', maxWidth: 360, backgroundColor: isDark ? '#111827' : '#fff', borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.md, borderWidth: isDark ? 1 : 0, borderColor: isDark ? '#1F2937' : 'transparent' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

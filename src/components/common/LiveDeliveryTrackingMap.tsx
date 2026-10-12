@@ -32,6 +32,7 @@ import {
   ExternalLink,
 } from 'lucide-react-native';
 import { CustomerColors, BorderRadius, FontSizes } from '../../styles/theme';
+import { useDeliveryTranslations } from '../../i18n';
 
 interface DriverInfo {
   name?: string;
@@ -66,6 +67,8 @@ export default function LiveDeliveryTrackingMap({
   isStoreOwner = false,
   isDark = false,
 }: LiveDeliveryTrackingMapProps) {
+  const tDeliv = useDeliveryTranslations();
+
   // Mode detection:
   // - If isStoreOwner or status is "Going to Store" / "Accepted" / "Assigned" -> Partner heading to Store
   // - If status is "Out for Delivery" / "Picked Up" -> Partner heading to Customer Doorstep
@@ -138,7 +141,7 @@ export default function LiveDeliveryTrackingMap({
 
   const driverPos = getDriverCoordinates();
   const driverPhone = driver?.phone || '';
-  const driverName = driver?.name || 'Delivery Partner';
+  const driverName = driver?.name || tDeliv.deliveryPartner;
   const vehicle = driver?.vehicleType || 'Bike';
   const vehicleNo = driver?.vehicleNumber || 'TN-38-AX-9921';
 
@@ -173,11 +176,11 @@ export default function LiveDeliveryTrackingMap({
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.stageTitle}>
                 {isHeadingToStore
-                  ? 'Heading to Store'
-                  : 'On the Way to Doorstep'}
+                  ? tDeliv.partnerHeadingToStore
+                  : tDeliv.partnerOnTheWayDoorstep}
               </Text>
               <View style={styles.liveBadge}>
-                <Text style={styles.liveBadgeText}>LIVE GPS</Text>
+                <Text style={styles.liveBadgeText}>{tDeliv.liveGps}</Text>
               </View>
             </View>
             <Text style={styles.telemetryText}>
@@ -193,7 +196,7 @@ export default function LiveDeliveryTrackingMap({
         <View style={styles.topHudRight}>
           <TouchableOpacity style={styles.routeBtn} onPress={handleOpenRoute}>
             <Navigation size={12} color="#E2E8F0" />
-            <Text style={styles.routeBtnText}>Route</Text>
+            <Text style={styles.routeBtnText}>{tDeliv.route}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -274,7 +277,7 @@ export default function LiveDeliveryTrackingMap({
             <G y="16">
               <Rect x="-35" y="-7" width="70" height="14" rx="7" fill="#0F172A" stroke="#3B82F6" strokeWidth="1" />
               <SvgText x="0" y="3" textAnchor="middle" fill="#93C5FD" fontSize="7" fontWeight="bold">
-                Pickup Store
+                {tDeliv.pickupStorePin}
               </SvgText>
             </G>
           </G>
@@ -295,7 +298,7 @@ export default function LiveDeliveryTrackingMap({
               <G y="16">
                 <Rect x="-36" y="-7" width="72" height="14" rx="7" fill="#0F172A" stroke="#10B981" strokeWidth="1" />
                 <SvgText x="0" y="3" textAnchor="middle" fill="#6EE7B7" fontSize="7" fontWeight="bold">
-                  Your Doorstep
+                  {tDeliv.customerDoorstepPin}
                 </SvgText>
               </G>
             </G>
@@ -346,7 +349,7 @@ export default function LiveDeliveryTrackingMap({
         {driverPhone ? (
           <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
             <Phone size={12} color="#FFFFFF" />
-            <Text style={styles.callBtnText}>Call</Text>
+            <Text style={styles.callBtnText}>{tDeliv.call}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

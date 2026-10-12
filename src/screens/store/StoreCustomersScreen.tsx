@@ -9,7 +9,7 @@ import { buildCustomerInsights } from '../../utils/customerInsights';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
 
-import { useTranslation } from '../../i18n';
+import { useTranslation, translateProductName } from '../../i18n';
 
 export default function StoreCustomersScreen() {
   const navigation = useNavigation<any>();
@@ -19,7 +19,7 @@ export default function StoreCustomersScreen() {
   const storeDash = useOptionalStoreDashboard();
   const sellerDash = useOptionalSellerDashboard();
   const dash = (storeDash && storeDash.store) ? storeDash : ((sellerDash && sellerDash.store) ? sellerDash : (storeDash || sellerDash || {}));
-  const { orders = [] } = dash as any;
+  const { orders = [], storeNameByOwnerId = {} } = dash as any;
   const [search, setSearch] = useState('');
   const [onlyRecurring, setOnlyRecurring] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -30,12 +30,19 @@ export default function StoreCustomersScreen() {
     setCurrentPage(1);
   }, [search, onlyRecurring]);
 
-  const customers = useMemo(() => buildCustomerInsights(orders), [orders]);
+  const customers = useMemo(() => buildCustomerInsights(orders, storeNameByOwnerId), [orders, storeNameByOwnerId]);
   const recurringCount = customers.filter((c: any) => c.isRecurring).length;
 
   const filtered = customers.filter((c: any) => {
     const q = search.toLowerCase();
-    const matchSearch = !search || c.name?.toLowerCase().includes(q) || c.phone?.includes(search) || c.email?.toLowerCase().includes(q);
+    const matchSearch =
+      !search ||
+      c.name?.toLowerCase().includes(q) ||
+      c.storeName?.toLowerCase().includes(q) ||
+      c.contactName?.toLowerCase().includes(q) ||
+      c.phone?.includes(search) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.customerId?.toLowerCase().includes(q);
     const matchRecurring = !onlyRecurring || c.isRecurring;
     return matchSearch && matchRecurring;
   });
@@ -63,6 +70,9 @@ export default function StoreCustomersScreen() {
             onChangeText={setSearch}
             placeholder={t('store.searchCustomersPlaceholder')}
             placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+            multiline={false}
+            numberOfLines={1}
+            returnKeyType="search"
           />
         </View>
       </View>
@@ -94,51 +104,83 @@ export default function StoreCustomersScreen() {
             onPageChange={setCurrentPage}
           />
         }
-        renderItem={({ item: c }) => (
-          <View style={styles.card}>
-            <View style={styles.cardTop}>
-              <View style={{ flex: 1 }}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name}>{c.name || c.phone || 'Customer'}</Text>
-                  {c.isRecurring && (
-                    <View style={styles.recurBadge}>
-                      <Star size={9} color={isDark ? '#FCD34D' : '#B45309'} />
-                      <Text style={styles.recurBadgeText}>{t('store.recurringBuyerBadge')}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.meta}>
-                  {[c.phone, c.email, c.customerId ? `${t('store.customerIdPrefix')} ${c.customerId}` : null].filter(Boolean).join(' · ')}
-                </Text>
-                {c.lastOrderDate ? <Text style={styles.lastOrder}>{t('store.lastOrderPrefix')} {fmtDate(c.lastOrderDate)}</Text> : null}
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.spent}>₹{c.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                <Text style={styles.orderCount}>{c.totalOrders} {c.totalOrders !== 1 ? t('store.ordersCountLabel') : t('store.orderCountLabel')}</Text>
-              </View>
-            </View>
+        renderItem={({ item: c }) => {
+          const displayName =
+            c.name ||
+            c.contactName ||
+            c.storeName ||
+            (c.phone ? `+91 ${c.phone}` : '') ||
+            (c.customerId ? `Buyer #${c.customerId.length > 8 ? c.customerId.slice(-6).toUpperCase() : c.customerId}` : t('store.customerFallback') || 'Customer');
+          const hasSeparateContact = Boolean(c.storeName && c.contactName && c.storeName !== c.contactName);
 
-            {c.isRecurring && (
-              <View style={styles.recurSection}>
-                <Text style={styles.recurLabel}>{t('store.buysRepeatedlyTitle')}</Text>
-                <View style={styles.chipRow}>
-                  {c.recurringProducts.map((p: any) => (
-                    <View key={p.title} style={styles.chip}>
-                      <Text style={styles.chipText}>{p.title} · {p.monthCount} {t('store.monthsCountLabel')}</Text>
-                    </View>
-                  ))}
+          const metaParts = [
+            c.phone ? (c.phone.startsWith('+') ? c.phone : `+91 ${c.phone}`) : null,
+            c.email,
+            c.address,
+            c.customerId ? `${t('store.customerIdPrefix')} #${c.customerId.length > 8 ? c.customerId.slice(-6).toUpperCase() : c.customerId}` : null,
+          ].filter(Boolean);
+
+          return (
+            <View style={styles.card}>
+              <View style={styles.cardTop}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
+                    {c.isRecurring && (
+                      <View style={styles.recurBadge}>
+                        <Star size={9} color={isDark ? '#FCD34D' : '#B45309'} />
+                        <Text style={styles.recurBadgeText}>{t('store.recurringBuyerBadge')}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {hasSeparateContact ? (
+                    <Text style={styles.contactSub} numberOfLines={1}>
+                      {c.contactName}
+                    </Text>
+                  ) : null}
+                  {metaParts.length > 0 ? (
+                    <Text style={styles.meta} numberOfLines={2}>
+                      {metaParts.join(' · ')}
+                    </Text>
+                  ) : null}
+                  {c.lastOrderDate ? (
+                    <Text style={styles.lastOrder}>
+                      {t('store.lastOrderPrefix')} {fmtDate(c.lastOrderDate)}
+                    </Text>
+                  ) : null}
                 </View>
-                <TouchableOpacity
-                  style={styles.offerBtn}
-                  onPress={() => navigation.navigate('NewOffer', { customerId: c.customerId || c.key, customerName: c.name })}
-                >
-                  <Tag size={13} color="#fff" />
-                  <Text style={styles.offerBtnText}>{t('store.createOfferBtn')}</Text>
-                </TouchableOpacity>
+                <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+                  <Text style={styles.spent}>
+                    ₹{c.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                  <Text style={styles.orderCount}>
+                    {c.totalOrders} {c.totalOrders === 1 ? (t('store.orderCountLabel') || 'order') : (t('store.ordersCountLabel') || 'orders')}
+                  </Text>
+                </View>
               </View>
-            )}
-          </View>
-        )}
+
+              {c.isRecurring && (
+                <View style={styles.recurSection}>
+                  <Text style={styles.recurLabel}>{t('store.buysRepeatedlyTitle')}</Text>
+                  <View style={styles.chipRow}>
+                    {c.recurringProducts.map((p: any) => (
+                      <View key={p.title} style={styles.chip}>
+                        <Text style={styles.chipText}>{translateProductName(p.title, language)} · {p.monthCount} {t('store.monthsCountLabel')}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.offerBtn}
+                    onPress={() => navigation.navigate('NewOffer', { customerId: c.customerId || c.key, customerName: c.name })}
+                  >
+                    <Tag size={13} color="#fff" />
+                    <Text style={styles.offerBtnText}>{t('store.createOfferBtn')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          );
+        }}
       />
     </View>
   );
@@ -147,8 +189,25 @@ export default function StoreCustomersScreen() {
 const getStyles = (isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
   toolbar: { padding: Spacing.md, paddingBottom: 0 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, backgroundColor: isDark ? '#1F2937' : CustomerColors.white, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md },
-  searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: isDark ? '#1F2937' : CustomerColors.white,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    minHeight: 48,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 44,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    fontSize: FontSizes.sm,
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
+  },
   recurringBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', margin: Spacing.md, marginTop: Spacing.sm, paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: BorderRadius.pill, backgroundColor: isDark ? '#111827' : CustomerColors.white, borderWidth: 1, borderColor: isDark ? '#374151' : CustomerColors.steelBorder },
   recurringBtnActive: { backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600, borderColor: isDark ? '#0f766e' : CustomerColors.teal600 },
   recurringBtnText: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary },
@@ -162,6 +221,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   name: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
   recurBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: isDark ? '#78350F' : '#FFFBEB', borderWidth: 1, borderColor: isDark ? '#92400E' : '#FDE68A', borderRadius: BorderRadius.pill, paddingHorizontal: 6, paddingVertical: 2 },
   recurBadgeText: { fontSize: 9, fontWeight: '700', color: isDark ? '#FDE68A' : '#B45309' },
+  contactSub: { fontSize: FontSizes.xs, fontWeight: '600', color: isDark ? '#E5E7EB' : '#374151', marginTop: 2 },
   meta: { fontSize: FontSizes.xs, color: isDark ? '#D1D5DB' : CustomerColors.textSecondary, marginTop: 3 },
   lastOrder: { fontSize: FontSizes.xs, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 4 },
   spent: { fontSize: FontSizes.base, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },

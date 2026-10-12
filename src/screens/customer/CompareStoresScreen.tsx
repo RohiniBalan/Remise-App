@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ import {
   X,
   FileText,
   Download,
+  Star,
 } from 'lucide-react-native';
 import {
   smartOrderApi,
@@ -49,12 +50,16 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
-import { indianStates, getCities } from '../../utils/indiaLocation';
+import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
+import { useTranslation } from '../../i18n';
 import {
   LocationSelectField,
   normalizeLoc,
   lookupPincode,
 } from '../../components/common/LocationSelectField';
+import { lookupTanglishDictionary } from '../../utils/tanglishTranslator';
+import { translateGroceryTerm } from '../../api/geminiScanApi';
+import { usePlatformFee } from '../../utils/platformFee';
 
 
 // Ported from client/app/(root)/bulk-purchase/CompareModal.tsx — same step
@@ -92,11 +97,362 @@ async function requestLocationPermission(): Promise<boolean> {
   return granted === PermissionsAndroid.RESULTS.GRANTED;
 }
 
+const COMPARE_I18N: Record<string, Record<string, string>> = {
+  en: {
+    findCheapestStore: 'Find Cheapest Store',
+    itemsOnList: '{count} item{s} on your list',
+    chooseRadius: 'Choose how far we should search for stores near you.',
+    customKm: 'Custom km',
+    searchWithin: 'Search within {radius} km',
+    searchingNearby: 'Searching nearby stores…',
+    noNearbyStores: 'No nearby stores carry all products on your list',
+    tryExpanding: 'Try expanding your search radius or modifying items.',
+    changeRadius: '← Change radius',
+    searchDifferentRadius: '← Search a different radius',
+    bestMatch: 'Best match',
+    away: 'away',
+    itemsAvailable: 'items available',
+    notAvailable: 'Not available',
+    selectStore: 'Select this store',
+    items: 'items',
+    firstName: 'First Name *',
+    lastName: 'Last Name',
+    phone: 'Phone *',
+    email: 'Email (optional)',
+    address: 'Address *',
+    state: 'State',
+    selectState: 'Select State *',
+    city: 'City',
+    selectCity: 'Select City *',
+    selectStateFirst: 'Select a state first',
+    pinCode: 'Pin Code *',
+    back: 'Back',
+    continueWithAmount: 'Continue — ₹{amount}',
+    receiveOrderFrom: 'How would you like to receive your order from',
+    selfPickup: 'Self Pickup',
+    selfPickupDesc: 'Visit the shop and collect your order yourself.',
+    homeDelivery: 'Home Delivery',
+    homeDeliveryDesc: '{store} will deliver the order to your address.',
+    completePayment: 'Complete payment to place your order:',
+    onlinePayment: 'Online Payment (Razorpay)',
+    instantSecure: 'INSTANT · SECURE',
+    paymentDesc: 'UPI (GPay, PhonePe, Paytm), Debit/Credit Cards, Net Banking & Wallets.',
+    cards: 'Cards',
+    netBanking: 'NetBanking',
+    wallets: 'Wallets',
+    payVia: 'Pay ₹{amount} via Razorpay',
+    backToDeliveryChoice: 'Back to Delivery Choice',
+    placingOrder: 'Placing your order…',
+    orderConfirmed: 'Order & Payment Confirmed!',
+    orderPlacedDesc: 'Your order from {store} has been placed via Online Payment (Razorpay - Verified) ({delivery}).',
+    verifiedBill: 'VERIFIED BILL',
+    paid: '● PAID',
+    customer: 'Customer:',
+    paymentMode: 'Payment Mode:',
+    total: 'Total: ₹{amount}',
+    viewInvoice: 'View Invoice',
+    downloadBill: 'Download Bill',
+    done: 'Done',
+  },
+  ta: {
+    findCheapestStore: 'குறைந்த விலைக் கடையைக் கண்டறி',
+    itemsOnList: 'உங்கள் பட்டியலில் {count} பொருள்{s}',
+    chooseRadius: 'அருகிலுள்ள கடைகளைத் தேட சுற்றளவைத் தேர்ந்தெடுக்கவும்.',
+    customKm: 'சுற்றளவு (கி.மீ)',
+    searchWithin: '{radius} கி.மீ-க்குள் தேடுங்கள்',
+    searchingNearby: 'அருகிலுள்ள கடைகள் தேடப்படுகின்றன…',
+    noNearbyStores: 'உங்கள் பட்டியலில் உள்ள அனைத்துப் பொருட்களும் அருகிலுள்ள கடைகளில் இல்லை',
+    tryExpanding: 'தேடல் சுற்றளவை அதிகரிக்கவும் அல்லது பொருட்களை மாற்றவும்.',
+    changeRadius: '← சுற்றளவை மாற்று',
+    searchDifferentRadius: '← வேறு சுற்றளவில் தேடுங்கள்',
+    bestMatch: 'சிறந்த தேர்வு',
+    away: 'தொலைவில்',
+    itemsAvailable: 'பொருட்கள் கிடைக்கின்றன',
+    notAvailable: 'கிடைக்கவில்லை',
+    selectStore: 'இந்தக் கடையைத் தேர்ந்தெடு',
+    items: 'பொருட்கள்',
+    firstName: 'முதல் பெயர் *',
+    lastName: 'கடைசி பெயர்',
+    phone: 'தொலைபேசி எண் *',
+    email: 'மின்னஞ்சல் (விருப்பமானது)',
+    address: 'முகவரி *',
+    state: 'மாநிலம்',
+    selectState: 'மாநிலத்தைத் தேர்ந்தெடுக்கவும் *',
+    city: 'நகரம்',
+    selectCity: 'நகரத்தைத் தேர்ந்தெடுக்கவும் *',
+    selectStateFirst: 'முதலில் மாநிலத்தைத் தேர்ந்தெடுக்கவும்',
+    pinCode: 'அஞ்சல் குறியீடு (PIN) *',
+    back: 'பின்செல்',
+    continueWithAmount: 'தொடரவும் — ₹{amount}',
+    receiveOrderFrom: 'இதிலிருந்து ஆர்டரை எவ்வாறு பெற விரும்புகிறீர்கள்:',
+    selfPickup: 'நேரில் பெறுதல்',
+    selfPickupDesc: 'கடைக்கு நேரில் சென்று ஆர்டரைப் பெற்றுக் கொள்ளுங்கள்.',
+    homeDelivery: 'வீட்டு டெலிவரி',
+    homeDeliveryDesc: '{store} உங்கள் முகவரிக்கு ஆர்டரை டெலிவரி செய்யும்.',
+    completePayment: 'ஆர்டரை முடிக்க கட்டணம் செலுத்துங்கள்:',
+    onlinePayment: 'ஆன்லைன் கட்டணம் (Razorpay)',
+    instantSecure: 'உடனடி · பாதுகாப்பானது',
+    paymentDesc: 'UPI (GPay, PhonePe, Paytm), கார்டுகள், நெட் பேங்கிங் & வாலெட்டுகள்.',
+    cards: 'கார்டுகள்',
+    netBanking: 'நெட் பேங்கிங்',
+    wallets: 'வாலெட்டுகள்',
+    payVia: 'செலுத்துங்கள் ₹{amount}',
+    backToDeliveryChoice: 'டெலிவரி தேர்வுக்குத் திரும்பு',
+    placingOrder: 'உங்கள் ஆர்டர் பதிவு செய்யப்படுகிறது…',
+    orderConfirmed: 'ஆர்டர் & கட்டணம் உறுதிசெய்யப்பட்டது!',
+    orderPlacedDesc: '{store} கடையிலிருந்து உங்கள் ஆர்டர் வெற்றிகரமாக பதிவு செய்யப்பட்டது ({delivery}).',
+    verifiedBill: 'சரிபார்க்கப்பட்ட ரசீது',
+    paid: '● செலுத்தப்பட்டது',
+    customer: 'வாடிக்கையாளர்:',
+    paymentMode: 'கட்டண முறை:',
+    total: 'மொத்தம்: ₹{amount}',
+    viewInvoice: 'ரசீதைப் பார்',
+    downloadBill: 'ரசீதைப் பதிவிறக்கு',
+    done: 'முடிந்தது',
+  },
+  te: {
+    findCheapestStore: 'చౌకైన దుకాణాన్ని కనుగొనండి',
+    itemsOnList: 'మీ జాబితాలో {count} వస్తువు{s}',
+    chooseRadius: 'సమీపంలోని దుకాణాల కోసం వ్యాసార్థాన్ని ఎంచుకోండి.',
+    customKm: 'అనుకూల కి.మీ',
+    searchWithin: '{radius} కి.మీ లోపల శోధించండి',
+    searchingNearby: 'సమీప దుకాణాల కోసం శోధిస్తోంది…',
+    noNearbyStores: 'మీ జాబితాలోని అన్ని వస్తువులు సమీప దుకాణాల్లో అందుబాటులో లేవు',
+    tryExpanding: 'శోధన వ్యాసార్థాన్ని పెంచండి లేదా వస్తువులను మార్చండి.',
+    changeRadius: '← వ్యాసార్థాన్ని మార్చండి',
+    searchDifferentRadius: '← వేరే వ్యాసార్థంలో శోధించండి',
+    bestMatch: 'ఉత్తమ సరిపోలిక',
+    away: 'దూరంలో',
+    itemsAvailable: 'వస్తువులు అందుబాటులో ఉన్నాయి',
+    notAvailable: 'అందుబాటులో లేదు',
+    selectStore: 'ఈ దుకాణాన్ని ఎంచుకోండి',
+    items: 'వస్తువులు',
+    firstName: 'మొదటి పేరు *',
+    lastName: 'చివరి పేరు',
+    phone: 'ఫోన్ నంబర్ *',
+    email: 'ఇమెయిల్ (ఐచ్ఛికం)',
+    address: 'చిరునామా *',
+    state: 'రాష్ట్రం',
+    selectState: 'రాష్ట్రాన్ని ఎంచుకోండి *',
+    city: 'నగరం',
+    selectCity: 'నగరాన్ని ఎంచుకోండి *',
+    selectStateFirst: 'ముందుగా రాష్ట్రాన్ని ఎంచుకోండి',
+    pinCode: 'పిన్ కోడ్ *',
+    back: 'వెనుకకు',
+    continueWithAmount: 'కొనసాగించండి — ₹{amount}',
+    receiveOrderFrom: 'మీరు ఆర్డర్‌ను ఎలా స్వీకరించాలనుకుంటున్నారు:',
+    selfPickup: 'స్వయంగా తీసుకోవడం',
+    selfPickupDesc: 'దుకాణాన్ని సందర్శించి మీ ఆర్డర్‌ను మీరే తీసుకోండి.',
+    homeDelivery: 'హోమ్ డెలివరీ',
+    homeDeliveryDesc: '{store} మీ చిరునామాకు ఆర్డర్‌ను డెలివరీ చేస్తుంది.',
+    completePayment: 'ఆర్డర్ ఉంచడానికి చెల్లింపును పూర్తి చేయండి:',
+    onlinePayment: 'ఆన్‌లైన్ చెల్లింపు (Razorpay)',
+    instantSecure: 'తక్షణం · సురక్షితం',
+    paymentDesc: 'UPI (GPay, PhonePe, Paytm), కార్డులు, నెట్ బ్యాంకింగ్ & వాలెట్లు.',
+    cards: 'కార్డులు',
+    netBanking: 'నెట్ బ్యాంకింగ్',
+    wallets: 'వాలెట్లు',
+    payVia: '₹{amount} చెల్లించండి',
+    backToDeliveryChoice: 'డెలివరీ ఎంపికకు తిరిగి వెళ్లండి',
+    placingOrder: 'మీ ఆర్డర్ ఉంచబడుతోంది…',
+    orderConfirmed: 'ఆర్డర్ & చెల్లింపు నిర్ధారించబడింది!',
+    orderPlacedDesc: '{store} నుండి మీ ఆర్డర్ విజయవంతంగా ఉంచబడింది ({delivery}).',
+    verifiedBill: 'ధృవీకరించబడిన బిల్లు',
+    paid: '● చెల్లించబడింది',
+    customer: 'వినియోగదారు:',
+    paymentMode: 'చెల్లింపు విధానం:',
+    total: 'మొత్తం: ₹{amount}',
+    viewInvoice: 'ఇన్‌వాయిస్ చూడండి',
+    downloadBill: 'బిల్లు డౌన్‌లోడ్ చేయండి',
+    done: 'పూర్తయింది',
+  },
+  kn: {
+    findCheapestStore: 'ಅಗ್ಗದ ಅಂಗಡಿ ಹುಡುಕಿ',
+    itemsOnList: 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ {count} ವಸ್ತು{s}',
+    chooseRadius: 'ಸಮೀಪದ ಅಂಗಡಿಗಳಿಗಾಗಿ ತ್ರಿಜ್ಯವನ್ನು ಆಯ್ಕೆಮಾಡಿ.',
+    customKm: 'ಕಸ್ಟಮ್ ಕಿ.ಮೀ',
+    searchWithin: '{radius} ಕಿ.ಮೀ ಒಳಗೆ ಹುಡುಕಿ',
+    searchingNearby: 'ಸಮೀಪದ ಅಂಗಡಿಗಳನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ…',
+    noNearbyStores: 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿರುವ ಎಲ್ಲಾ ವಸ್ತುಗಳು ಸಮೀಪದ ಅಂಗಡಿಗಳಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ',
+    tryExpanding: 'ಹುಡುಕಾಟದ ತ್ರಿಜ್ಯವನ್ನು ವಿಸ್ತರಿಸಿ ಅಥವಾ ವಸ್ತುಗಳನ್ನು ಬದಲಾಯಿಸಿ.',
+    changeRadius: '← ತ್ರಿಜ್ಯವನ್ನು ಬದಲಾಯಿಸಿ',
+    searchDifferentRadius: '← ಬೇರೆ ತ್ರಿಜ್ಯದಲ್ಲಿ ಹುಡುಕಿ',
+    bestMatch: 'ಉತ್ತಮ ಹೊಂದಾಣಿಕೆ',
+    away: 'ದೂರದಲ್ಲಿ',
+    itemsAvailable: 'ವಸ್ತುಗಳು ಲಭ್ಯವಿದೆ',
+    notAvailable: 'ಲಭ್ಯವಿಲ್ಲ',
+    selectStore: 'ಈ ಅಂಗಡಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+    items: 'ವಸ್ತುಗಳು',
+    firstName: 'ಮೊದಲ ಹೆಸರು *',
+    lastName: 'ಕೊನೆಯ ಹೆಸರು',
+    phone: 'ಫೋನ್ ಸಂಖ್ಯೆ *',
+    email: 'ಇಮೇಲ್ (ಐಚ್ಛಿಕ)',
+    address: 'ವಿಳಾಸ *',
+    state: 'ರಾಜ್ಯ',
+    selectState: 'ರಾಜ್ಯವನ್ನು ಆಯ್ಕೆಮಾಡಿ *',
+    city: 'ನಗರ',
+    selectCity: 'ನಗರವನ್ನು ಆಯ್ಕೆಮಾಡಿ *',
+    selectStateFirst: 'ಮೊದಲು ರಾಜ್ಯವನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+    pinCode: 'ಪಿನ್ ಕೋಡ್ *',
+    back: 'ಹಿಂದೆ',
+    continueWithAmount: 'ಮುಂದುವರಿಸಿ — ₹{amount}',
+    receiveOrderFrom: 'ಆದೇಶವನ್ನು ಹೇಗೆ ಪಡೆಯಲು ಬಯಸುತ್ತೀರಿ:',
+    selfPickup: 'ಸ್ವತಃ ಪಡೆಯುವುದು',
+    selfPickupDesc: 'ಅಂಗಡಿಗೆ ಭೇಟಿ ನೀಡಿ ನಿಮ್ಮ ಆದೇಶವನ್ನು ನೀವೇ ಪಡೆದುಕೊಳ್ಳಿ.',
+    homeDelivery: 'ಮನೆ ಬಾಗಿಲಿಗೆ ವಿತರಣೆ',
+    homeDeliveryDesc: '{store} ನಿಮ್ಮ ವಿಳಾಸಕ್ಕೆ ಆದೇಶವನ್ನು ತಲುಪಿಸುತ್ತದೆ.',
+    completePayment: 'ಆದೇಶ ನೀಡಲು ಪಾವತಿ ಪೂರ್ಣಗೊಳಿಸಿ:',
+    onlinePayment: 'ಆನ್‌ಲೈನ್ ಪಾವತಿ (Razorpay)',
+    instantSecure: 'ತ್ವರಿತ · ಸುರಕ್ಷಿತ',
+    paymentDesc: 'UPI (GPay, PhonePe, Paytm), ಕಾರ್ಡ್‌ಗಳು, ನೆಟ್ ಬ್ಯಾಂಕಿಂಗ್ & ವಾಲೆಟ್‌ಗಳು.',
+    cards: 'ಕಾರ್ಡ್‌ಗಳು',
+    netBanking: 'ನೆಟ್ ಬ್ಯಾಂಕಿಂಗ್',
+    wallets: 'ವಾಲೆಟ್‌ಗಳು',
+    payVia: '₹{amount} ಪಾವತಿಸಿ',
+    backToDeliveryChoice: 'ವಿತರಣಾ ಆಯ್ಕೆಗೆ ಹಿಂತಿರುಗಿ',
+    placingOrder: 'ನಿಮ್ಮ ಆದೇಶವನ್ನು ಇರಿಸಲಾಗುತ್ತಿದೆ…',
+    orderConfirmed: 'ಆದೇಶ ಮತ್ತು ಪಾವತಿ ದೃಢೀಕರಿಸಲ್ಪಟ್ಟಿದೆ!',
+    orderPlacedDesc: '{store} ನಿಂದ ನಿಮ್ಮ ಆದೇಶ ಯಶಸ್ವಿಯಾಗಿ ಇರಿಸಲಾಗಿದೆ ({delivery}).',
+    verifiedBill: 'ಪರಿಶೀಲಿಸಿದ ಬಿಲ್',
+    paid: '● ಪಾವತಿಸಲಾಗಿದೆ',
+    customer: 'ಗ್ರಾಹಕರು:',
+    paymentMode: 'ಪಾವತಿ ವಿಧಾನ:',
+    total: 'ಒಟ್ಟು: ₹{amount}',
+    viewInvoice: 'ಇನ್‌ವಾಯ್ಸ್ ವೀಕ್ಷಿಸಿ',
+    downloadBill: 'ಬಿಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
+    done: 'ಮುಗಿದಿದೆ',
+  },
+  ml: {
+    findCheapestStore: 'വിലകുറഞ്ഞ സ്റ്റോർ കണ്ടെത്തുക',
+    itemsOnList: 'ലിസ്റ്റിൽ {count} ഇനം{s}',
+    chooseRadius: 'അടുത്തുള്ള സ്റ്റോറുകൾക്കായി ദൂരം തിരഞ്ഞെടുക്കുക.',
+    customKm: 'ഇഷ്ടാനുസൃത കി.മീ',
+    searchWithin: '{radius} കി.മീറ്ററിനുള്ളിൽ തിരയുക',
+    searchingNearby: 'അടുത്തുള്ള സ്റ്റോറുകൾ തിരയുന്നു…',
+    noNearbyStores: 'നിങ്ങളുടെ ലിസ്റ്റിലെ എല്ലാ സാധനങ്ങളും അടുത്തുള്ള സ്റ്റോറുകളിൽ ലഭ്യമല്ല',
+    tryExpanding: 'തിരയൽ പരിധി വർദ്ധിപ്പിക്കുകയോ ഇനങ്ങൾ മാറ്റുകയോ ചെയ്യുക.',
+    changeRadius: '← ദൂരം മാറ്റുക',
+    searchDifferentRadius: '← മറ്റൊരു പരിധിയിൽ തിരയുക',
+    bestMatch: 'മികച്ച പൊരുത്തം',
+    away: 'അകലെ',
+    itemsAvailable: 'ഇനങ്ങൾ ലഭ്യമാണ്',
+    notAvailable: 'ലഭ്യമല്ല',
+    selectStore: 'ഈ സ്റ്റോർ തിരഞ്ഞെടുക്കുക',
+    items: 'ഇനങ്ങൾ',
+    firstName: 'ആദ്യ പേര് *',
+    lastName: 'അവസാന പേര്',
+    phone: 'ഫോൺ നമ്പർ *',
+    email: 'ഇമെയിൽ (ഓപ്ഷണൽ)',
+    address: 'വിലാസം *',
+    state: 'സംസ്ഥാനം',
+    selectState: 'സംസ്ഥാനം തിരഞ്ഞെടുക്കുക *',
+    city: 'നഗരം',
+    selectCity: 'നഗരം തിരഞ്ഞെടുക്കുക *',
+    selectStateFirst: 'ആദ്യം സംസ്ഥാനം തിരഞ്ഞെടുക്കുക',
+    pinCode: 'പിൻകോഡ് *',
+    back: 'തിരികെ',
+    continueWithAmount: 'തുടരുക — ₹{amount}',
+    receiveOrderFrom: 'ഓർഡർ എങ്ങനെ ലഭിക്കാൻ ആഗ്രഹിക്കുന്നു:',
+    selfPickup: 'നേരിട്ട് കൈപ്പറ്റൽ',
+    selfPickupDesc: 'ഷോപ്പ് സന്ദർശിച്ച് ഓർഡർ നേരിട്ട് വാങ്ങുക.',
+    homeDelivery: 'ഹോം ഡെലിവറി',
+    homeDeliveryDesc: '{store} നിങ്ങളുടെ വിലാസത്തിലേക്ക് ഓർഡർ എത്തിക്കും.',
+    completePayment: 'ഓർഡർ നൽകാൻ പേയ്‌മെന്റ് പൂർത്തിയാക്കുക:',
+    onlinePayment: 'ഓൺലൈൻ പേയ്‌മെന്റ് (Razorpay)',
+    instantSecure: 'തൽക്ഷണം · സുരക്ഷിതം',
+    paymentDesc: 'UPI (GPay, PhonePe, Paytm), കാർഡുകൾ, നെറ്റ് ബാങ്കിംഗ് & വാലറ്റുകൾ.',
+    cards: 'കാർഡുകൾ',
+    netBanking: 'നെറ്റ് ബാങ്കിംഗ്',
+    wallets: 'വാലറ്റുകൾ',
+    payVia: '₹{amount} അടയ്ക്കുക',
+    backToDeliveryChoice: 'ഡെലിവറി തിരഞ്ഞെടുപ്പിലേക്ക് മടങ്ങുക',
+    placingOrder: 'നിങ്ങളുടെ ഓർഡർ നൽകുന്നു…',
+    orderConfirmed: 'ഓർഡറും പേയ്‌മെന്റും സ്ഥിരീകരിച്ചു!',
+    orderPlacedDesc: '{store}-ൽ നിന്നുള്ള നിങ്ങളുടെ ഓർഡർ വിജയകരമായി നൽകി ({delivery}).',
+    verifiedBill: 'സ്ഥിരീകരിച്ച ബിൽ',
+    paid: '● അടച്ചു',
+    customer: 'ഉപഭോക്താവ്:',
+    paymentMode: 'പേയ്‌മെന്റ് രീതി:',
+    total: 'ആകെ: ₹{amount}',
+    viewInvoice: 'ഇൻവോയ്സ് കാണുക',
+    downloadBill: 'ബിൽ ഡൗൺലോഡ് ചെയ്യുക',
+    done: 'പൂർത്തിയായി',
+  },
+  hi: {
+    findCheapestStore: 'सबसे सस्ती दुकान खोजें',
+    itemsOnList: 'आपकी सूची में {count} सामान',
+    chooseRadius: 'नजदीकी दुकानों के लिए दूरी चुनें।',
+    customKm: 'कस्टम किमी',
+    searchWithin: '{radius} किमी के भीतर खोजें',
+    searchingNearby: 'नजदीकी दुकानें खोजी जा रही हैं…',
+    noNearbyStores: 'आपकी सूची के सभी उत्पाद नजदीकी दुकानों में उपलब्ध नहीं हैं',
+    tryExpanding: 'खोज का दायरा बढ़ाएं या सामान बदलें।',
+    changeRadius: '← दायरा बदलें',
+    searchDifferentRadius: '← दूसरे दायरे में खोजें',
+    bestMatch: 'सर्वश्रेष्ठ मिलान',
+    away: 'दूर',
+    itemsAvailable: 'सामान उपलब्ध हैं',
+    notAvailable: 'उपलब्ध नहीं है',
+    selectStore: 'यह दुकान चुनें',
+    items: 'सामान',
+    firstName: 'पहला नाम *',
+    lastName: 'अंतिम नाम',
+    phone: 'फ़ोन नंबर *',
+    email: 'ईमेल (वैकल्पिक)',
+    address: 'पता *',
+    state: 'राज्य',
+    selectState: 'राज्य चुनें *',
+    city: 'शहर',
+    selectCity: 'शहर चुनें *',
+    selectStateFirst: 'पहले राज्य चुनें',
+    pinCode: 'पिन कोड *',
+    back: 'वापस',
+    continueWithAmount: 'आगे बढ़ें — ₹{amount}',
+    receiveOrderFrom: 'अपना ऑर्डर कैसे प्राप्त करना चाहते हैं:',
+    selfPickup: 'स्वयं प्राप्त करें',
+    selfPickupDesc: 'दुकान पर जाएँ और अपना ऑर्डर स्वयं लें।',
+    homeDelivery: 'होम डिलीवरी',
+    homeDeliveryDesc: '{store} आपके पते पर ऑर्डर डिलीवर करेगा।',
+    completePayment: 'ऑर्डर देने के लिए भुगतान पूरा करें:',
+    onlinePayment: 'ऑनलाइन भुगतान (Razorpay)',
+    instantSecure: 'तत्काल · सुरक्षित',
+    paymentDesc: 'UPI (GPay, PhonePe, Paytm), कार्ड, नेट बैंकिंग और वॉलेट।',
+    cards: 'कार्ड',
+    netBanking: 'नेट बैंकिंग',
+    wallets: 'वॉलेट',
+    payVia: '₹{amount} भुगतान करें',
+    backToDeliveryChoice: 'डिलीवरी विकल्प पर वापस जाएँ',
+    placingOrder: 'आपका ऑर्डर दिया जा रहा है…',
+    orderConfirmed: 'ऑर्डर और भुगतान की पुष्टि हो गई!',
+    orderPlacedDesc: '{store} से आपका ऑर्डर सफलतापूर्वक दिया गया ({delivery}).',
+    verifiedBill: 'सत्यापित बिल',
+    paid: '● भुगतान किया गया',
+    customer: 'ग्राहक:',
+    paymentMode: 'भुगतान विधि:',
+    total: 'कुल: ₹{amount}',
+    viewInvoice: 'चालान देखें',
+    downloadBill: 'बिल डाउनलोड करें',
+    done: 'पूर्ण',
+  },
+};
+
 export default function CompareStoresScreen() {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const txt = (COMPARE_I18N as any)[language] || COMPARE_I18N.en;
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const items: SmartOrderCartItem[] = route.params.items;
+  const rawItems: SmartOrderCartItem[] = route.params?.items || [];
+  const items: SmartOrderCartItem[] = useMemo(() => {
+    return rawItems.map(it => {
+      const res = lookupTanglishDictionary(it.name);
+      return {
+        ...it,
+        name: res.matched && res.englishName ? res.englishName : it.name,
+        quantity: it.quantity || (res.quantity || ''),
+      };
+    });
+  }, [rawItems]);
   const purchaseType: 'bulk' | 'home_seller' | undefined = route.params?.purchaseType;
   const { user, token } = useAuth();
 
@@ -128,6 +484,11 @@ export default function CompareStoresScreen() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  const productSubtotal = chosen ? chosen.totalAmount : 0;
+  const platformFee = usePlatformFee(productSubtotal);
+  const deliveryFee = deliveryMethod === 'pickup' ? 0 : (productSubtotal >= 499 ? 0 : 49);
+  const totalPayable = productSubtotal + platformFee + deliveryFee;
+
 
   const [form, setForm] = useState<AddressForm>({
     firstName: user?.fullname?.split(' ')[0] || '',
@@ -143,9 +504,19 @@ export default function CompareStoresScreen() {
     setForm(f => ({ ...f, [k]: v }));
 
   // ── State → City cascade + pincode auto-fill ──────────────────────────────
-  const [cityOptions, setCityOptions] = useState<{ key: string; label: string }[]>([]);
+  const [cityOptions, setCityOptions] = useState<
+    { key: string; label: string; canonicalName?: string }[]
+  >([]);
 
-  const stateOptions = indianStates.map(s => ({ key: s.isoCode, label: s.name }));
+  const stateOptions = useMemo(
+    () =>
+      indianStates.map(s => ({
+        key: s.isoCode,
+        canonicalName: s.name,
+        label: translateState(s.name, language),
+      })),
+    [language],
+  );
 
   const findState = useCallback((value: string) => {
     const v = normalizeLoc(value);
@@ -158,13 +529,23 @@ export default function CompareStoresScreen() {
   useEffect(() => {
     if (!form.state) { setCityOptions([]); return; }
     const s = findState(form.state);
-    setCityOptions(s ? getCities(s.isoCode).map((c: any) => ({ key: c.name, label: c.name })) : []);
-  }, [form.state, findState]);
+    setCityOptions(s ? getCities(s.isoCode).map((c: any) => ({
+      key: c.name,
+      canonicalName: c.name,
+      label: translateCity(c.name, language),
+    })) : []);
+  }, [form.state, findState, language]);
 
-  const handleStateSelect = (isoCode: string, label: string) => {
-    setForm(f => ({ ...f, state: label, city: '', pinCode: '' }));
+  const handleStateSelect = (isoCode: string, _label: string) => {
+    const s = indianStates.find(item => item.isoCode === isoCode);
+    const canonicalName = s ? s.name : isoCode;
+    setForm(f => ({ ...f, state: canonicalName, city: '', pinCode: '' }));
     const cities = getCities(isoCode);
-    setCityOptions(cities.map((c: any) => ({ key: c.name, label: c.name })));
+    setCityOptions(cities.map((c: any) => ({
+      key: c.name,
+      canonicalName: c.name,
+      label: translateCity(c.name, language),
+    })));
   };
 
   const handleCitySelect = async (cityName: string) => {
@@ -237,13 +618,30 @@ export default function CompareStoresScreen() {
             return;
           }
           const storeIds = stores.map(s => s._id);
+          const normalizedForMatch = await Promise.all(
+            items.map(async it => {
+              const res = lookupTanglishDictionary(it.name);
+              if (res.matched && res.englishName) {
+                return { ...it, name: res.englishName, quantity: it.quantity || res.quantity || '' };
+              }
+              if (/[^\x00-\x7F]/.test(it.name)) {
+                try {
+                  const aiRes = await translateGroceryTerm(it.name);
+                  return { ...it, name: aiRes.englishName || it.name, quantity: it.quantity || aiRes.quantity || '' };
+                } catch {
+                  return it;
+                }
+              }
+              return it;
+            })
+          );
           console.log('[NearbySearch] requesting matchCart', {
             ...requestMeta,
             storeIds,
-            items,
+            items: normalizedForMatch,
           });
           const matchRes = await smartOrderApi.matchCart(
-            items,
+            normalizedForMatch,
             storeIds,
             undefined,
             true,
@@ -270,6 +668,8 @@ export default function CompareStoresScreen() {
               ...r,
               storeName: byId[r.storeId]?.name || 'Store',
               distanceKm: byId[r.storeId]?.distanceKm ?? 0,
+              rating: byId[r.storeId]?.rating,
+              reviewCount: byId[r.storeId]?.reviewCount,
             }));
           }
           console.log('[NearbySearch] final merged results shown to UI', {
@@ -348,7 +748,9 @@ export default function CompareStoresScreen() {
         image: m.product.image,
       }));
       const res = await smartOrderApi.placeOrder({
-        amount: chosen.totalAmount,
+        amount: totalPayable,
+        platformFee,
+        deliveryFee,
         cartItems,
         contactEmail: form.contactEmail,
         shippingAddress: form,
@@ -371,7 +773,7 @@ export default function CompareStoresScreen() {
         provider: 'razorpay',
         order_id: data.razorpayOrderId || data.orderId,
         key: data.keyId || data.key,
-        amount: data.amountPaise || Math.round(data.amount * 100),
+        amount: data.amountPaise || Math.round(totalPayable * 100),
         currency: data.currency || 'INR',
         name: data.name || chosen.storeName || 'Remise Marketplace',
         description: data.description || `Order #${data.orderId}`,
@@ -404,13 +806,19 @@ export default function CompareStoresScreen() {
     <View style={styles.overlay}>
       <View style={[styles.sheet, { backgroundColor: cardBg }]}>
         <View style={[styles.header, { backgroundColor: isDark ? '#1f2937' : CustomerColors.mint }]}>
-          <View>
-            <Text style={[styles.headerTitle, { color: textPri }]}>Find Cheapest Store</Text>
-            <Text style={[styles.headerSubtitle, { color: textSec }]}>
-              {items.length} item{items.length !== 1 ? 's' : ''} on your list
+          <View style={styles.headerTitleWrap}>
+            <Text style={[styles.headerTitle, { color: textPri }]} numberOfLines={1}>
+              {txt.findCheapestStore}
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: textSec }]} numberOfLines={1}>
+              {txt.itemsOnList.replace('{count}', String(items.length)).replace('{s}', items.length !== 1 ? 's' : '')}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <X size={22} color={textSec} />
           </TouchableOpacity>
         </View>
@@ -426,7 +834,7 @@ export default function CompareStoresScreen() {
           {(step === 'radius' || step === 'searching') && (
             <View style={{ gap: Spacing.md }}>
               <Text style={[styles.stepText, { color: textSec }]}>
-                Choose how far we should search for stores near you.
+                {txt.chooseRadius}
               </Text>
               <View style={styles.radiusRow}>
                 {RADIUS_OPTIONS.map(r => (
@@ -457,9 +865,16 @@ export default function CompareStoresScreen() {
                 ))}
               </View>
               <TextInput
-                style={[styles.input, { backgroundColor: cardBg, borderColor, color: textPri }]}
-                placeholder="Custom km"
-                placeholderTextColor={textSec}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                    color: isDark ? '#F9FAFB' : CustomerColors.black,
+                  },
+                ]}
+                placeholder={txt.customKm}
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType="numeric"
                 value={customRadius}
                 onChangeText={setCustomRadius}
@@ -476,8 +891,8 @@ export default function CompareStoresScreen() {
                 )}
                 <Text style={styles.primaryBtnText}>
                   {step === 'searching'
-                    ? 'Searching nearby stores…'
-                    : `Search within ${customRadius || radius} km`}
+                    ? txt.searchingNearby
+                    : txt.searchWithin.replace('{radius}', String(customRadius || radius))}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -488,38 +903,50 @@ export default function CompareStoresScreen() {
               {results.length === 0 && (
                 <View style={styles.center}>
                   <PackageX size={40} color={CustomerColors.steelBorder} />
-                  <Text style={styles.emptyTitle}>
-                    No nearby stores carry all products on your list
+                  <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>
+                    {txt.noNearbyStores}
                   </Text>
-                  <Text style={styles.emptySubtitle}>
-                    Try expanding your search radius or modifying items.
+                  <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>
+                    {txt.tryExpanding}
                   </Text>
                   <TouchableOpacity onPress={() => setStep('radius')}>
-                    <Text style={styles.linkText}>← Change radius</Text>
+                    <Text style={[styles.linkText, isDark && { color: '#2DD4BF' }]}>{txt.changeRadius}</Text>
                   </TouchableOpacity>
                 </View>
               )}
               {results.map((r, idx) => (
                 <View
                   key={r.storeId}
-                  style={[styles.storeCard, idx === 0 && styles.storeCardBest]}
+                  style={[
+                    styles.storeCard,
+                    isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                    idx === 0 && [styles.storeCardBest, isDark && { backgroundColor: '#0f2f2c', borderColor: CustomerColors.teal600 }],
+                  ]}
                 >
                   <View style={styles.storeCardHeader}>
                     <View style={{ flex: 1 }}>
                       <View style={styles.storeNameRow}>
-                        <Text style={styles.storeName}>{r.storeName}</Text>
+                        <Text style={[styles.storeName, isDark && { color: '#FFFFFF' }]}>{r.storeName}</Text>
+                        {r.rating ? (
+                          <View style={styles.storeRatingTag}>
+                            <Star size={10} color="#D97706" fill="#D97706" />
+                            <Text style={styles.storeRatingTagText}>
+                              {Number(r.rating).toFixed(1)}{r.reviewCount ? ` (${r.reviewCount})` : ''}
+                            </Text>
+                          </View>
+                        ) : null}
                         {idx === 0 && (
-                          <View style={styles.bestBadge}>
-                            <Text style={styles.bestBadgeText}>Best match</Text>
+                          <View style={[styles.bestBadge, isDark && { backgroundColor: '#115E59' }]}>
+                            <Text style={[styles.bestBadgeText, isDark && { color: '#5EEAD4' }]}>{txt.bestMatch}</Text>
                           </View>
                         )}
                       </View>
-                      <Text style={styles.storeMeta}>
-                        {r.distanceKm} km away · {r.matchedCount}/
-                        {r.totalRequested} items available
+                      <Text style={[styles.storeMeta, isDark && { color: '#9CA3AF' }]}>
+                        {r.distanceKm} km {txt.away} · {r.matchedCount}/
+                        {r.totalRequested} {txt.itemsAvailable}
                       </Text>
                     </View>
-                    <Text style={styles.storeAmount}>
+                    <Text style={[styles.storeAmount, isDark && { color: '#2DD4BF' }]}>
                       ₹{r.totalAmount.toFixed(0)}
                     </Text>
                   </View>
@@ -529,9 +956,9 @@ export default function CompareStoresScreen() {
                         <View key={m.requestedName} style={styles.matchedRow}>
                           <PackageCheck
                             size={11}
-                            color={CustomerColors.teal600}
+                            color={isDark ? '#2DD4BF' : CustomerColors.teal600}
                           />
-                          <Text style={styles.matchedText}>
+                          <Text style={[styles.matchedText, isDark && { color: '#D1D5DB' }]}>
                             {m.product.title} — ₹{m.product.price}
                           </Text>
                         </View>
@@ -541,7 +968,7 @@ export default function CompareStoresScreen() {
                   {(r.insufficientStock.length > 0 ||
                     r.unmatched.length > 0) && (
                     <Text style={styles.unmatchedText}>
-                      Not available:{' '}
+                      {txt.notAvailable}:{' '}
                       {[
                         ...r.insufficientStock.map(i => i.requestedName),
                         ...r.unmatched,
@@ -555,14 +982,14 @@ export default function CompareStoresScreen() {
                       setStep('confirming');
                     }}
                   >
-                    <Text style={styles.selectBtnText}>Select this store</Text>
+                    <Text style={styles.selectBtnText}>{txt.selectStore}</Text>
                   </TouchableOpacity>
                 </View>
               ))}
               {results.length > 0 && (
                 <TouchableOpacity onPress={() => setStep('radius')}>
-                  <Text style={styles.linkText}>
-                    ← Search a different radius
+                  <Text style={[styles.linkText, isDark && { color: '#2DD4BF' }]}>
+                    {txt.searchDifferentRadius}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -571,80 +998,137 @@ export default function CompareStoresScreen() {
 
           {step === 'confirming' && chosen && (
             <View style={{ gap: Spacing.md }}>
-              <View style={styles.chosenSummary}>
+              <View style={[styles.chosenSummary, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
                 <View>
-                  <Text style={styles.storeName}>{chosen.storeName}</Text>
-                  <Text style={styles.storeMeta}>
-                    {chosen.matchedCount}/{chosen.totalRequested} items ·{' '}
-                    {chosen.distanceKm} km away
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.storeName, isDark && { color: '#FFFFFF' }]}>{chosen.storeName}</Text>
+                    {chosen.rating ? (
+                      <View style={styles.storeRatingTag}>
+                        <Star size={10} color="#D97706" fill="#D97706" />
+                        <Text style={styles.storeRatingTagText}>
+                          {Number(chosen.rating).toFixed(1)}{chosen.reviewCount ? ` (${chosen.reviewCount})` : ''}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={[styles.storeMeta, isDark && { color: '#9CA3AF' }]}>
+                    {chosen.matchedCount}/{chosen.totalRequested} {txt.items} ·{' '}
+                    {chosen.distanceKm} km {txt.away}
                   </Text>
                 </View>
-                <Text style={styles.storeAmount}>
+                <Text style={[styles.storeAmount, isDark && { color: '#2DD4BF' }]}>
                   ₹{chosen.totalAmount.toFixed(0)}
                 </Text>
               </View>
 
               <View style={styles.row2}>
                 <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="First Name *"
-                  placeholderTextColor="#9CA3AF"
+                  style={[
+                    styles.input,
+                    styles.half,
+                    {
+                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                      color: isDark ? '#F9FAFB' : CustomerColors.black,
+                    },
+                  ]}
+                  placeholder={txt.firstName}
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   value={form.firstName}
                   onChangeText={v => setField('firstName', v)}
                 />
                 <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="Last Name"
-                  placeholderTextColor="#9CA3AF"
+                  style={[
+                    styles.input,
+                    styles.half,
+                    {
+                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                      color: isDark ? '#F9FAFB' : CustomerColors.black,
+                    },
+                  ]}
+                  placeholder={txt.lastName}
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   value={form.lastName}
                   onChangeText={v => setField('lastName', v)}
                 />
               </View>
               <View style={styles.row2}>
                 <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="Phone *"
-                  placeholderTextColor="#9CA3AF"
+                  style={[
+                    styles.input,
+                    styles.half,
+                    {
+                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                      color: isDark ? '#F9FAFB' : CustomerColors.black,
+                    },
+                  ]}
+                  placeholder={txt.phone}
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   keyboardType="phone-pad"
                   value={form.phone}
                   onChangeText={v => setField('phone', v)}
                 />
                 <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="Email"
-                  placeholderTextColor="#9CA3AF"
+                  style={[
+                    styles.input,
+                    styles.half,
+                    {
+                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                      color: isDark ? '#F9FAFB' : CustomerColors.black,
+                    },
+                  ]}
+                  placeholder={txt.email}
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   keyboardType="email-address"
                   value={form.contactEmail}
                   onChangeText={v => setField('contactEmail', v)}
                 />
               </View>
               <TextInput
-                style={[styles.input, { height: 70 }]}
-                placeholder="Address *"
-                placeholderTextColor="#9CA3AF"
+                style={[
+                  styles.input,
+                  {
+                    height: 70,
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                    color: isDark ? '#F9FAFB' : CustomerColors.black,
+                  },
+                ]}
+                placeholder={txt.address}
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 multiline
                 value={form.address}
                 onChangeText={v => setField('address', v)}
               />
               <LocationSelectField
-                label="State"
+                label={txt.state}
                 value={form.state}
-                placeholder="Select State *"
+                placeholder={txt.selectState}
                 options={stateOptions}
                 onSelect={handleStateSelect}
               />
               <LocationSelectField
-                label="City"
+                label={txt.city}
                 value={form.city}
-                placeholder={form.state ? 'Select City *' : 'Select a state first'}
+                placeholder={form.state ? txt.selectCity : txt.selectStateFirst}
                 options={cityOptions}
                 disabled={!form.state}
                 onSelect={handleCitySelect}
               />
               <TextInput
-                style={styles.input}
-                placeholder="Pin Code *"
-                placeholderTextColor="#9CA3AF"
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+                    color: isDark ? '#F9FAFB' : CustomerColors.black,
+                  },
+                ]}
+                placeholder={txt.pinCode}
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType="number-pad"
                 value={form.pinCode}
                 onChangeText={v => setField('pinCode', v)}
@@ -652,17 +1136,17 @@ export default function CompareStoresScreen() {
 
               <View style={styles.buttonRow}>
                 <TouchableOpacity
-                  style={styles.secondaryBtn}
+                  style={[styles.secondaryBtn, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}
                   onPress={() => setStep('results')}
                 >
-                  <Text style={styles.secondaryBtnText}>Back</Text>
+                  <Text style={[styles.secondaryBtnText, isDark && { color: '#D1D5DB' }]}>{txt.back}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.primaryBtn, { flex: 1 }]}
                   onPress={handleConfirmDetails}
                 >
-                  <Text style={styles.primaryBtnText}>
-                    Continue — ₹{chosen.totalAmount.toFixed(0)}
+                  <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                    {txt.continueWithAmount.replace('{amount}', chosen.totalAmount.toFixed(0))}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -671,55 +1155,65 @@ export default function CompareStoresScreen() {
 
           {step === 'delivery' && chosen && (
             <View style={{ gap: Spacing.sm }}>
-              <Text style={styles.stepText}>
-                How would you like to receive your order from{' '}
-                <Text style={{ fontWeight: '700' }}>{chosen.storeName}</Text>?
+              <Text style={[styles.stepText, isDark && { color: '#D1D5DB' }]}>
+                {txt.receiveOrderFrom}{' '}
+                <Text style={[{ fontWeight: '700' }, isDark && { color: '#FFFFFF' }]}>{chosen.storeName}</Text>?
               </Text>
               <TouchableOpacity
-                style={styles.optionCard}
+                style={[
+                  styles.optionCard,
+                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                ]}
                 onPress={() => {
                   setDeliveryMethod('pickup');
                   setStep('payment');
                 }}
               >
-                <Store size={20} color={CustomerColors.teal600} />
+                <Store size={20} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.optionTitle}>Self Pickup</Text>
-                  <Text style={styles.optionDesc}>
-                    Visit the shop and collect your order yourself.
+                  <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>{txt.selfPickup}</Text>
+                  <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                    {txt.selfPickupDesc}
                   </Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.optionCard}
+                style={[
+                  styles.optionCard,
+                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                ]}
                 onPress={() => {
                   setDeliveryMethod('delivery');
                   setStep('payment');
                 }}
               >
-                <Truck size={20} color={CustomerColors.teal600} />
+                <Truck size={20} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.optionTitle}>Home Delivery</Text>
-                  <Text style={styles.optionDesc}>
-                    {chosen.storeName} will deliver the order to your address.
+                  <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>{txt.homeDelivery}</Text>
+                  <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                    {txt.homeDeliveryDesc.replace('{store}', chosen.storeName)}
                   </Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setStep('confirming')}>
-                <Text style={styles.linkText}>← Back</Text>
+                <Text style={[styles.linkText, isDark && { color: '#2DD4BF' }]}>← {txt.back}</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {step === 'payment' && chosen && (
             <View style={{ gap: Spacing.sm }}>
-              <Text style={styles.stepText}>
-                Complete payment to place your order:
+              <Text style={[styles.stepText, isDark && { color: '#D1D5DB' }]}>
+                {txt.completePayment}
               </Text>
 
               {/* Razorpay Online Payment Card */}
               <TouchableOpacity
-                style={[styles.optionCard, styles.razorpayOptionCard]}
+                style={[
+                  styles.optionCard,
+                  styles.razorpayOptionCard,
+                  isDark && { backgroundColor: '#0f2f2c', borderColor: '#0D9488' },
+                ]}
                 onPress={() => handlePlaceOrder()}
               >
                 <View style={styles.razorpayIconBox}>
@@ -727,35 +1221,76 @@ export default function CompareStoresScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
-                    <Text style={styles.optionTitle}>Online Payment (Razorpay)</Text>
+                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>{txt.onlinePayment}</Text>
                     <View style={styles.instantBadge}>
-                      <Text style={styles.instantBadgeText}>INSTANT · SECURE</Text>
+                      <Text style={styles.instantBadgeText}>{txt.instantSecure}</Text>
                     </View>
                   </View>
-                  <Text style={styles.optionDesc}>
-                    UPI (GPay, PhonePe, Paytm), Debit/Credit Cards, Net Banking & Wallets.
+                  <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                    {txt.paymentDesc}
                   </Text>
                   <View style={styles.pillRow}>
-                    <View style={styles.pill}><Text style={styles.pillText}>⚡ UPI</Text></View>
-                    <View style={styles.pill}><Text style={styles.pillText}>💳 Cards</Text></View>
-                    <View style={styles.pill}><Text style={styles.pillText}>🏦 NetBanking</Text></View>
-                    <View style={styles.pill}><Text style={styles.pillText}>👛 Wallets</Text></View>
+                    <View style={[styles.pill, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}><Text style={[styles.pillText, isDark && { color: '#38BDF8' }]}>⚡ UPI</Text></View>
+                    <View style={[styles.pill, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}><Text style={[styles.pillText, isDark && { color: '#38BDF8' }]}>💳 {txt.cards}</Text></View>
+                    <View style={[styles.pill, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}><Text style={[styles.pillText, isDark && { color: '#38BDF8' }]}>🏦 {txt.netBanking}</Text></View>
+                    <View style={[styles.pill, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}><Text style={[styles.pillText, isDark && { color: '#38BDF8' }]}>👛 {txt.wallets}</Text></View>
                   </View>
                 </View>
               </TouchableOpacity>
+
+              {/* Price Breakdown Card */}
+              <View
+                style={[
+                  styles.priceSummaryBox,
+                  isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                ]}
+              >
+                <View style={styles.priceRow}>
+                  <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
+                    Product Subtotal
+                  </Text>
+                  <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>
+                    ₹{productSubtotal.toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
+                    Platform Fee
+                  </Text>
+                  <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>
+                    {platformFee === 0 ? 'FREE' : `₹${platformFee.toLocaleString()}`}
+                  </Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
+                    Delivery Fee
+                  </Text>
+                  <Text style={[styles.priceValue, deliveryFee === 0 ? { color: '#4ADE80' } : (isDark ? { color: '#FFFFFF' } : {})]}>
+                    {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toLocaleString()}`}
+                  </Text>
+                </View>
+                <View style={[styles.priceRow, styles.totalPriceRow, isDark && { borderTopColor: '#374151' }]}>
+                  <Text style={[styles.totalPriceLabel, isDark && { color: '#FFFFFF' }]}>
+                    Total Payable
+                  </Text>
+                  <Text style={[styles.totalPriceValue, isDark && { color: '#2DD4BF' }]}>
+                    ₹{totalPayable.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
 
               <TouchableOpacity
                 style={[styles.primaryBtn, { marginTop: Spacing.xs }]}
                 onPress={() => handlePlaceOrder()}
               >
                 <Lock size={16} color="#fff" />
-                <Text style={styles.primaryBtnText}>
-                  Pay ₹{chosen.totalAmount.toFixed(0)} via Razorpay
+                <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                  {txt.payVia.replace('{amount}', totalPayable.toFixed(0))}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setStep('delivery')}>
-                <Text style={styles.linkText}>← Back to Delivery Choice</Text>
+                <Text style={[styles.linkText, isDark && { color: '#2DD4BF' }]}>← {txt.backToDeliveryChoice}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -763,7 +1298,7 @@ export default function CompareStoresScreen() {
           {step === 'placing' && (
             <View style={styles.center}>
               <ActivityIndicator size="large" color={CustomerColors.teal600} />
-              <Text style={styles.stepText}>Placing your order…</Text>
+              <Text style={[styles.stepText, isDark && { color: '#9CA3AF' }]}>{txt.placingOrder}</Text>
             </View>
           )}
 
@@ -774,44 +1309,42 @@ export default function CompareStoresScreen() {
               </View>
 
               <View style={{ alignItems: 'center' }}>
-                <Text style={styles.successTitle}>Order & Payment Confirmed!</Text>
-                <Text style={styles.successText}>
-                  Your order from <Text style={{ fontWeight: '700' }}>{chosen.storeName}</Text> has been
-                  placed via Online Payment (Razorpay - Verified) (
-                  {deliveryMethod === 'pickup' ? 'Self Pickup' : 'Home Delivery'}).
+                <Text style={[styles.successTitle, isDark && { color: '#FFFFFF' }]}>{txt.orderConfirmed}</Text>
+                <Text style={[styles.successText, isDark && { color: '#9CA3AF' }]}>
+                  {txt.orderPlacedDesc.replace('{store}', chosen.storeName).replace('{delivery}', deliveryMethod === 'pickup' ? txt.selfPickup : txt.homeDelivery)}
                 </Text>
               </View>
 
               {/* Verified Bill Card */}
-              <View style={styles.billCard}>
-                <View style={styles.billHeader}>
+              <View style={[styles.billCard, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
+                <View style={[styles.billHeader, isDark && { borderBottomColor: '#374151' }]}>
                   <View>
-                    <Text style={styles.billBadge}>VERIFIED BILL</Text>
-                    <Text style={styles.billStoreName}>{chosen.storeName}</Text>
+                    <Text style={styles.billBadge}>{txt.verifiedBill}</Text>
+                    <Text style={[styles.billStoreName, isDark && { color: '#FFFFFF' }]}>{chosen.storeName}</Text>
                   </View>
                   <View style={styles.paidBadge}>
-                    <Text style={styles.paidBadgeText}>● PAID</Text>
-                    {orderId ? <Text style={styles.billOrderId}>#{orderId}</Text> : null}
+                    <Text style={styles.paidBadgeText}>{txt.paid}</Text>
+                    {orderId ? <Text style={[styles.billOrderId, isDark && { color: '#9CA3AF' }]}>#{orderId}</Text> : null}
                   </View>
                 </View>
 
                 <View style={styles.billRow}>
-                  <Text style={styles.billLabel}>Customer:</Text>
-                  <Text style={styles.billValue}>
+                  <Text style={[styles.billLabel, isDark && { color: '#9CA3AF' }]}>{txt.customer}</Text>
+                  <Text style={[styles.billValue, isDark && { color: '#F9FAFB' }]}>
                     {[form.firstName, form.lastName].filter(Boolean).join(' ') || 'Customer'}
                   </Text>
                 </View>
 
                 <View style={styles.billRow}>
-                  <Text style={styles.billLabel}>Payment Mode:</Text>
-                  <Text style={[styles.billValue, { color: CustomerColors.teal700 }]}>
-                    {'Online Payment (Razorpay)'}
+                  <Text style={[styles.billLabel, isDark && { color: '#9CA3AF' }]}>{txt.paymentMode}</Text>
+                  <Text style={[styles.billValue, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}>
+                    {txt.onlinePayment}
                   </Text>
                 </View>
 
-                <View style={[styles.billRow, { borderTopWidth: 1, borderTopColor: CustomerColors.steelBorder, paddingTop: 6, marginTop: 4 }]}>
-                  <Text style={styles.billLabel}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
-                  <Text style={styles.billTotal}>Total: ₹{chosen.totalAmount.toFixed(0)}</Text>
+                <View style={[styles.billRow, { borderTopWidth: 1, borderTopColor: isDark ? '#374151' : CustomerColors.steelBorder, paddingTop: 6, marginTop: 4 }]}>
+                  <Text style={[styles.billLabel, isDark && { color: '#9CA3AF' }]}>{items.length} {items.length !== 1 ? 'items' : 'item'}</Text>
+                  <Text style={[styles.billTotal, isDark && { color: '#2DD4BF' }]}>{txt.total.replace('{amount}', chosen.totalAmount.toFixed(0))}</Text>
                 </View>
               </View>
 
@@ -820,11 +1353,11 @@ export default function CompareStoresScreen() {
                 {orderId ? (
                   <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                     <TouchableOpacity
-                      style={[styles.actionBtn, styles.viewInvoiceBtn]}
+                      style={[styles.actionBtn, styles.viewInvoiceBtn, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)', borderColor: '#0f766e' }]}
                       onPress={() => setShowInvoiceModal(true)}
                     >
-                      <FileText size={15} color={CustomerColors.teal700} />
-                      <Text style={styles.viewInvoiceBtnText}>View Invoice</Text>
+                      <FileText size={15} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
+                      <Text style={[styles.viewInvoiceBtnText, isDark && { color: '#5EEAD4' }]}>{txt.viewInvoice}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -839,16 +1372,16 @@ export default function CompareStoresScreen() {
                       }}
                     >
                       <Download size={15} color="#FFFFFF" />
-                      <Text style={styles.downloadBillBtnText}>Download PDF Bill</Text>
+                      <Text style={styles.downloadBillBtnText}>{txt.downloadBill}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : null}
 
                 <TouchableOpacity
-                  style={styles.doneBtn}
+                  style={[styles.doneBtn, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', borderWidth: 1 }]}
                   onPress={() => navigation.goBack()}
                 >
-                  <Text style={styles.doneBtnText}>Back to Bulk Purchase</Text>
+                  <Text style={[styles.doneBtnText, isDark && { color: '#FFFFFF' }]}>{txt.done}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -892,20 +1425,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     backgroundColor: CustomerColors.mint,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  headerTitleWrap: {
+    flex: 1,
+    paddingRight: Spacing.sm,
+  },
+  closeBtn: {
+    flexShrink: 0,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: FontSizes.base,
     fontWeight: '800',
     color: CustomerColors.black,
+    flexShrink: 1,
   },
   headerSubtitle: {
     fontSize: FontSizes.xs,
     color: CustomerColors.textSecondary,
     marginTop: 2,
+    flexShrink: 1,
   },
   body: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
   errorBanner: {
@@ -1003,6 +1549,20 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     fontWeight: '700',
     color: CustomerColors.black,
+  },
+  storeRatingTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.pill,
+  },
+  storeRatingTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#D97706',
   },
   bestBadge: {
     backgroundColor: '#CCFBF1',
@@ -1369,6 +1929,44 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
     flex: 1,
+  },
+  priceSummaryBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    gap: 6,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
+  },
+  priceValue: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.black,
+  },
+  totalPriceRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 6,
+    marginTop: 2,
+  },
+  totalPriceLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  totalPriceValue: {
+    fontSize: FontSizes.md,
+    fontWeight: '900',
+    color: CustomerColors.teal700,
   },
 });
 

@@ -31,6 +31,7 @@ import {
   DateRangeKey,
 } from './analytics';
 import { mergeCategories } from '../../utils/storeCategories';
+import { useTranslation, translateProductName, translateCategory } from '../../i18n';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const OUTER_PADDING = Spacing.md * 2 + Spacing.md * 2;
@@ -138,6 +139,7 @@ function SelectField({
 export default function StoreAnalyticsScreen() {
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+  const { t, language } = useTranslation();
   const {
     orders,
     products,
@@ -160,17 +162,37 @@ export default function StoreAnalyticsScreen() {
   const mergedCategories = useMemo(() => mergeCategories(categories || []), [categories]);
   const categoryOptions = useMemo(
     () => [
-      { key: '', label: 'All' },
-      ...mergedCategories.map((c: any) => ({ key: c.name, label: c.name })),
+      { key: '', label: t('store.allCategories') || 'All' },
+      ...mergedCategories.map((c: any) => ({ key: c.name, label: translateCategory(c.name, language) })),
     ],
-    [mergedCategories],
+    [mergedCategories, language, t],
   );
   const productOptions = useMemo(
     () => [
-      { key: '', label: 'All' },
-      ...products.map((p: any) => ({ key: p.title, label: p.title })),
+      { key: '', label: t('store.allProducts') || 'All' },
+      ...products.map((p: any) => ({ key: p.title, label: translateProductName(p.title, language) })),
     ],
-    [products],
+    [products, language, t],
+  );
+
+  const rangeOptions = useMemo(
+    () => [
+      { key: 'today' as const, label: t('store.today') || 'Today' },
+      { key: 'week' as const, label: t('store.thisWeek') || 'This Week' },
+      { key: 'month' as const, label: t('store.thisMonth') || 'This Month' },
+      { key: 'lastMonth' as const, label: t('store.lastMonth') || 'Last Month' },
+      { key: 'custom' as const, label: t('store.custom') || t('store.customRange') || 'Custom' },
+    ],
+    [t],
+  );
+
+  const granularityOptions = useMemo(
+    () => [
+      { key: 'daily' as const, label: t('store.daily') || 'Daily' },
+      { key: 'weekly' as const, label: t('store.weekly') || 'Weekly' },
+      { key: 'monthly' as const, label: t('store.monthly') || 'Monthly' },
+    ],
+    [t],
   );
 
   const analytics = useMemo(() => {
@@ -209,9 +231,9 @@ export default function StoreAnalyticsScreen() {
     () =>
       (analytics?.brandWise || []).map(b => ({
         value: b.revenue,
-        label: b.brand,
+        label: b.brand === 'Unknown' ? (t('store.unknown') || 'Unknown') : b.brand,
       })),
-    [analytics],
+    [analytics, t],
   );
 
   const monthBarData = useMemo(
@@ -228,9 +250,9 @@ export default function StoreAnalyticsScreen() {
       (analytics?.categoryWise || []).map((c, i) => ({
         value: c.revenue,
         color: PIE_COLORS[i % PIE_COLORS.length],
-        text: c.name,
+        text: translateCategory(c.name, language),
       })),
-    [analytics],
+    [analytics, language],
   );
 
   if (loading) {
@@ -252,9 +274,9 @@ export default function StoreAnalyticsScreen() {
     >
       {/* ── Filter bar ── */}
       <View style={styles.filterCard}>
-        <Text style={styles.filterLabel}>Date Range</Text>
+        <Text style={styles.filterLabel}>{t('store.dateRange') || 'Date Range'}</Text>
         <View style={styles.pillRow}>
-          {RANGE_OPTIONS.map(opt => (
+          {rangeOptions.map(opt => (
             <TouchableOpacity
               key={opt.key}
               onPress={() => setRange(opt.key)}
@@ -294,18 +316,18 @@ export default function StoreAnalyticsScreen() {
         {/* Category / Product — dropdowns instead of pill rows */}
         <View style={styles.dropdownRow}>
           <SelectField
-            label="Category"
+            label={t('store.category') || 'Category'}
             value={category}
-            placeholder="All"
+            placeholder={t('store.allCategories') || 'All'}
             options={categoryOptions}
             onSelect={key => setCategory(key)}
             isDark={isDark}
             styles={styles}
           />
           <SelectField
-            label="Product"
+            label={t('store.productHeader') || 'Product'}
             value={productFilter}
-            placeholder="All"
+            placeholder={t('store.allProducts') || 'All'}
             options={productOptions}
             onSelect={key => setProductFilter(key)}
             isDark={isDark}
@@ -326,15 +348,15 @@ export default function StoreAnalyticsScreen() {
           <View style={styles.statCard}>
             <TrendingUp size={20} color={isDark ? '#A78BFA' : '#7C3AED'} />
             <Text style={styles.statValue}>{analytics.totalProductsSold}</Text>
-            <Text style={styles.statLabel}>Total Products Sold</Text>
+            <Text style={styles.statLabel}>{t('store.totalProductsSold') || 'Total Products Sold'}</Text>
           </View>
 
           {/* ── Sales trend ── */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Sales Trend</Text>
+              <Text style={styles.sectionHeaderTitle}>{t('store.salesTrend') || 'Sales Trend'}</Text>
               <View style={styles.pillRowTight}>
-                {GRANULARITY_OPTIONS.map(g => (
+                {granularityOptions.map(g => (
                   <TouchableOpacity
                     key={g.key}
                     onPress={() => setGranularity(g.key)}
@@ -344,6 +366,7 @@ export default function StoreAnalyticsScreen() {
                     ]}
                   >
                     <Text
+                      numberOfLines={1}
                       style={[
                         styles.smallPillText,
                         granularity === g.key && styles.pillTextActive,
@@ -356,7 +379,7 @@ export default function StoreAnalyticsScreen() {
               </View>
             </View>
             {lineData.length === 0 ? (
-              <Text style={styles.emptyText}>No data for this range.</Text>
+              <Text style={styles.emptyText}>{t('store.noData') || 'No data for this range.'}</Text>
             ) : (
               <LineChart
                 data={lineData}
@@ -385,23 +408,27 @@ export default function StoreAnalyticsScreen() {
 
           {/* ── Top / Least selling products ── */}
           {[
-            { title: 'Top Selling Products', rows: analytics.topProducts },
-            { title: 'Least Selling Products', rows: analytics.leastProducts },
+            { title: t('store.topSellingProducts') || 'Top Selling Products', rows: analytics.topProducts },
+            { title: t('store.leastSellingProducts') || 'Least Selling Products', rows: analytics.leastProducts },
           ].map(({ title, rows }) => (
             <View key={title} style={styles.section}>
               <Text style={styles.sectionTitle}>{title}</Text>
               {rows.length === 0 ? (
-                <Text style={styles.emptyText}>No data</Text>
+                <Text style={styles.emptyText}>{t('store.noData') || 'No data'}</Text>
               ) : (
                 rows.map((r: any) => (
                   <View key={`${r.title}-${r.brand}`} style={styles.productRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.productRowTitle} numberOfLines={1}>
-                        {r.title}
+                        {translateProductName(r.title, language)}
                       </Text>
-                      <Text style={styles.productRowSub}>{r.brand}</Text>
+                      <Text style={styles.productRowSub}>
+                        {r.brand === 'Unknown' ? (t('store.unknown') || 'Unknown') : r.brand}
+                      </Text>
                     </View>
-                    <Text style={styles.productRowQty}>Qty {r.qty}</Text>
+                    <Text style={styles.productRowQty}>
+                      {t('store.qtyHeader') || 'Qty'} {r.qty}
+                    </Text>
                     <Text style={styles.productRowRevenue}>
                       ₹{r.revenue.toLocaleString('en-IN')}
                     </Text>
@@ -413,9 +440,9 @@ export default function StoreAnalyticsScreen() {
 
           {/* ── Brand-wise revenue (horizontal bar) ── */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Brand-wise Revenue</Text>
+            <Text style={styles.sectionTitle}>{t('store.brandWiseRevenue') || 'Brand-wise Revenue'}</Text>
             {brandBarData.length === 0 ? (
-              <Text style={styles.emptyText}>No data</Text>
+              <Text style={styles.emptyText}>{t('store.noData') || 'No data'}</Text>
             ) : (
               <BarChart
                 data={brandBarData}
@@ -437,9 +464,9 @@ export default function StoreAnalyticsScreen() {
 
           {/* ── Category-wise pie ── */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Category-wise Sales</Text>
+            <Text style={styles.sectionTitle}>{t('store.categoryWiseSales') || 'Category-wise Sales'}</Text>
             {pieData.length === 0 ? (
-              <Text style={styles.emptyText}>No data</Text>
+              <Text style={styles.emptyText}>{t('store.noData') || 'No data'}</Text>
             ) : (
               <View style={{ alignItems: 'center' }}>
                 <PieChart
@@ -465,9 +492,9 @@ export default function StoreAnalyticsScreen() {
 
           {/* ── Revenue by month ── */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Revenue by Month</Text>
+            <Text style={styles.sectionTitle}>{t('store.revenueByMonth') || 'Revenue by Month'}</Text>
             {monthBarData.length === 0 ? (
-              <Text style={styles.emptyText}>No data</Text>
+              <Text style={styles.emptyText}>{t('store.noData') || 'No data'}</Text>
             ) : (
               <BarChart
                 data={monthBarData}
@@ -488,7 +515,7 @@ export default function StoreAnalyticsScreen() {
           {/* ── Best sales day ── */}
           {analytics.bestDay && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Best Sales Day</Text>
+              <Text style={styles.sectionTitle}>{t('store.bestSalesDay') || 'Best Sales Day'}</Text>
               <Text style={styles.bestDayDate}>
                 {new Date(analytics.bestDay.date).toLocaleDateString('en-IN', {
                   day: 'numeric',
@@ -497,8 +524,8 @@ export default function StoreAnalyticsScreen() {
                 })}
               </Text>
               <Text style={styles.bestDaySub}>
-                Revenue: ₹{analytics.bestDay.revenue.toLocaleString('en-IN')} ·
-                Orders: {analytics.bestDay.orders}
+                {(t('store.revenueHeader') || 'Revenue')}: ₹{analytics.bestDay.revenue.toLocaleString('en-IN')} ·
+                {(t('store.orders') || 'Orders')}: {analytics.bestDay.orders}
               </Text>
             </View>
           )}
@@ -533,7 +560,12 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  pillRowTight: { flexDirection: 'row', gap: 4 },
+  pillRowTight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
   pill: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 6,
@@ -553,13 +585,13 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   pillTextActive: { color: CustomerColors.white },
   smallPill: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: BorderRadius.pill,
     backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
   },
   smallPillText: {
-    fontSize: 10,
+    fontSize: 11,
     color: isDark ? '#FFFFFF' : CustomerColors.black,
     fontWeight: '700',
   },
@@ -659,7 +691,15 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    rowGap: Spacing.xs,
+    columnGap: Spacing.xs,
     marginBottom: Spacing.sm,
+  },
+  sectionHeaderTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: isDark ? '#FFFFFF' : CustomerColors.black,
   },
   sectionTitle: {
     fontSize: FontSizes.sm,

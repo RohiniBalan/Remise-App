@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Platform,
 } from 'react-native';
 import {
   Bike,
@@ -32,6 +33,7 @@ import {
 import { adminDeliveryPartnerApi } from '../../api/adminApi';
 import { useTheme } from '../../context/ThemeContext';
 import { getAdminColors, AdminColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
+import { useTranslation } from '../../i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,18 +58,11 @@ type DeliveryPartner = {
   };
 };
 
-const FILTER_TABS = [
-  { value: '', label: 'All' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'REJECTED', label: 'Rejected' },
-  { value: 'SUSPENDED', label: 'Suspended' },
-];
-
 export default function AdminDeliveryPartnersScreen() {
   const { isDark } = useTheme();
   const themeColors = getAdminColors(isDark);
   const styles = useMemo(() => getStyles(themeColors, isDark), [themeColors, isDark]);
+  const { t, language } = useTranslation();
 
   const [partners, setPartners] = useState<DeliveryPartner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +70,14 @@ export default function AdminDeliveryPartnersScreen() {
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const filterTabs = useMemo(() => [
+    { value: '', label: t('admin.all') },
+    { value: 'PENDING', label: t('admin.pendingFilter') },
+    { value: 'APPROVED', label: t('admin.approvedFilter') },
+    { value: 'REJECTED', label: t('admin.rejectedFilter') },
+    { value: 'SUSPENDED', label: t('admin.suspendedFilter') },
+  ], [t]);
 
   const fetchPartners = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -85,24 +88,25 @@ export default function AdminDeliveryPartnersScreen() {
       setPartners(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.warn('Failed to load delivery partners:', err);
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to load delivery partners.');
+      Alert.alert(t('common.error'), err?.response?.data?.message || t('admin.failedToLoadDeliveryPartners'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter]);
+  }, [filter, t]);
 
   useEffect(() => {
     fetchPartners();
   }, [fetchPartners]);
 
   const handleAction = (id: string, name: string, action: 'APPROVE' | 'REJECT' | 'SUSPEND') => {
-    const actionLabel = action === 'APPROVE' ? 'Approve' : action === 'REJECT' ? 'Reject' : 'Suspend';
+    const actionLabel = action === 'APPROVE' ? t('admin.approvePartnerBtn') : action === 'REJECT' ? t('admin.rejectPartnerBtn') : t('admin.suspendPartnerBtn');
+    const partnerName = name || t('admin.unnamedPartner');
     Alert.alert(
-      `${actionLabel} Delivery Partner`,
-      `Are you sure you want to ${actionLabel.toLowerCase()} "${name}"?`,
+      t('admin.confirmActionTitle', { action: actionLabel }),
+      t('admin.confirmActionMessage', { actionLower: actionLabel.toLowerCase(), name: partnerName }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
           text: actionLabel,
           style: action === 'APPROVE' ? 'default' : 'destructive',
@@ -111,13 +115,13 @@ export default function AdminDeliveryPartnersScreen() {
             try {
               const res = await adminDeliveryPartnerApi.performAction(id, action);
               if (res.data?.success !== false) {
-                Alert.alert('Success', res.data?.message || `Partner ${actionLabel.toLowerCase()}d successfully.`);
+                Alert.alert(t('common.success'), res.data?.message || t('admin.partnerActionSuccess', { actionLower: actionLabel }));
                 fetchPartners();
               } else {
-                Alert.alert('Error', res.data?.message || `Failed to ${actionLabel.toLowerCase()} partner.`);
+                Alert.alert(t('common.error'), res.data?.message || t('admin.partnerActionFailed', { actionLower: actionLabel }));
               }
             } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.message || `Failed to ${actionLabel.toLowerCase()} partner.`);
+              Alert.alert(t('common.error'), err?.response?.data?.message || t('admin.partnerActionFailed', { actionLower: actionLabel }));
             } finally {
               setActionLoading(null);
             }
@@ -159,7 +163,7 @@ export default function AdminDeliveryPartnersScreen() {
           bg: isDark ? 'rgba(16, 185, 129, 0.2)' : '#DCFCE7',
           text: isDark ? '#34D399' : '#15803D',
           border: isDark ? 'rgba(52, 211, 153, 0.4)' : '#BBF7D0',
-          label: 'Approved',
+          label: t('admin.approvedFilter'),
           icon: CheckCircle2,
         };
       case 'REJECTED':
@@ -167,7 +171,7 @@ export default function AdminDeliveryPartnersScreen() {
           bg: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
           text: isDark ? '#F87171' : '#B91C1C',
           border: isDark ? 'rgba(248, 113, 113, 0.4)' : '#FECACA',
-          label: 'Rejected',
+          label: t('admin.rejectedFilter'),
           icon: XCircle,
         };
       case 'SUSPENDED':
@@ -175,7 +179,7 @@ export default function AdminDeliveryPartnersScreen() {
           bg: isDark ? 'rgba(107, 114, 128, 0.2)' : '#F3F4F6',
           text: isDark ? '#9CA3AF' : '#4B5563',
           border: isDark ? 'rgba(156, 163, 175, 0.4)' : '#E5E7EB',
-          label: 'Suspended',
+          label: t('admin.suspendedFilter'),
           icon: PauseCircle,
         };
       case 'PENDING':
@@ -184,10 +188,22 @@ export default function AdminDeliveryPartnersScreen() {
           bg: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
           text: isDark ? '#FBBF24' : '#B45309',
           border: isDark ? 'rgba(251, 191, 36, 0.4)' : '#FDE68A',
-          label: 'Pending',
+          label: t('admin.pendingFilter'),
           icon: Clock,
         };
     }
+  };
+
+  const translateVehicle = (type?: string) => {
+    if (!type) return t('admin.vehicleBike');
+    const lower = type.toLowerCase();
+    if (lower.includes('scooter')) return t('admin.vehicleScooter');
+    if (lower.includes('bicycle') || lower.includes('cycle')) return t('admin.vehicleBicycle');
+    if (lower.includes('car')) return t('admin.vehicleCar');
+    if (lower.includes('van')) return t('admin.vehicleVan');
+    if (lower.includes('auto')) return t('admin.vehicleAuto');
+    if (lower.includes('bike')) return t('admin.vehicleBike');
+    return type;
   };
 
   const getInitials = (name?: string, email?: string) => {
@@ -202,6 +218,20 @@ export default function AdminDeliveryPartnersScreen() {
     return 'DP';
   };
 
+  const formatShortDate = (dateStr?: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = d.getDate();
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
       {/* ── Top Bar: Search & Refresh ── */}
@@ -210,8 +240,8 @@ export default function AdminDeliveryPartnersScreen() {
           <Search size={18} color={themeColors.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: themeColors.textPrimary }]}
-            placeholder="Search by name, email, phone, vehicle..."
-            placeholderTextColor={themeColors.placeholder}
+            placeholder={t('admin.searchDeliveryPartnersPlaceholder')}
+            placeholderTextColor={isDark ? '#94A3B8' : '#64748B'}
             value={search}
             onChangeText={setSearch}
           />
@@ -233,7 +263,7 @@ export default function AdminDeliveryPartnersScreen() {
       {/* ── Status Filter Chips ── */}
       <View style={styles.filterScrollContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {FILTER_TABS.map(tab => {
+          {filterTabs.map(tab => {
             const isSelected = filter === tab.value;
             const count =
               tab.value === ''
@@ -304,7 +334,9 @@ export default function AdminDeliveryPartnersScreen() {
             <Clock size={16} color="#F59E0B" />
           </View>
           <Text style={[styles.statValue, { color: '#F59E0B' }]}>{counts.PENDING}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Pending</Text>
+          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit>
+            {t('admin.pendingFilter')}
+          </Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
@@ -312,7 +344,9 @@ export default function AdminDeliveryPartnersScreen() {
             <CheckCircle2 size={16} color="#10B981" />
           </View>
           <Text style={[styles.statValue, { color: '#10B981' }]}>{counts.APPROVED}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Approved</Text>
+          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit>
+            {t('admin.approvedFilter')}
+          </Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
@@ -320,7 +354,9 @@ export default function AdminDeliveryPartnersScreen() {
             <Bike size={16} color="#3B82F6" />
           </View>
           <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>{counts.TOTAL}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Total</Text>
+          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit>
+            {t('admin.totalPartners')}
+          </Text>
         </View>
       </View>
 
@@ -329,7 +365,7 @@ export default function AdminDeliveryPartnersScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={AdminColors.primary} />
           <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
-            Loading delivery partners...
+            {t('admin.loadingDeliveryPartners')}
           </Text>
         </View>
       ) : filteredPartners.length === 0 ? (
@@ -338,9 +374,9 @@ export default function AdminDeliveryPartnersScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchPartners(true)} tintColor={AdminColors.primary} />}
         >
           <Bike size={48} color={themeColors.textMuted} />
-          <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>No Delivery Partners Found</Text>
+          <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>{t('admin.noDeliveryPartnersFound')}</Text>
           <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
-            {search ? 'Try adjusting your search criteria.' : 'No partner applications match the selected status filter.'}
+            {search ? t('admin.adjustSearchCriteria') : t('admin.noPartnersMatchFilter')}
           </Text>
         </ScrollView>
       ) : (
@@ -380,11 +416,11 @@ export default function AdminDeliveryPartnersScreen() {
                     </View>
                     <View style={styles.partnerInfo}>
                       <Text style={[styles.partnerName, { color: themeColors.textPrimary }]} numberOfLines={1}>
-                        {partner.fullname || 'Unnamed Partner'}
+                        {partner.fullname || t('admin.unnamedPartner')}
                       </Text>
                       <View style={styles.roleTagRow}>
                         <Text style={[styles.partnerRoleText, { color: themeColors.textSecondary }]}>
-                          Delivery Partner
+                          {t('admin.deliveryPartnerRole')}
                         </Text>
                         {isApproved && (
                           <View
@@ -407,7 +443,7 @@ export default function AdminDeliveryPartnersScreen() {
                                 { color: isAvailable ? '#10B981' : '#6B7280' },
                               ]}
                             >
-                              {isAvailable ? 'Online' : 'Offline'}
+                              {isAvailable ? t('admin.onlineStatus') : t('admin.offlineStatus')}
                             </Text>
                           </View>
                         )}
@@ -436,13 +472,13 @@ export default function AdminDeliveryPartnersScreen() {
                   <View style={styles.detailRow}>
                     <Mail size={14} color={themeColors.textSecondary} />
                     <Text style={[styles.detailText, { color: themeColors.textPrimary }]} numberOfLines={1}>
-                      {partner.email || 'No email provided'}
+                      {partner.email || t('admin.noEmailProvided')}
                     </Text>
                   </View>
                   <View style={styles.detailRow}>
                     <Phone size={14} color={themeColors.textSecondary} />
                     <Text style={[styles.detailText, { color: themeColors.textPrimary }]}>
-                      {partner.mobilenumber || 'No phone provided'}
+                      {partner.mobilenumber || t('admin.noPhoneProvided')}
                     </Text>
                   </View>
                   {dp.address ? (
@@ -459,24 +495,24 @@ export default function AdminDeliveryPartnersScreen() {
                 <View style={styles.statsGrid}>
                   <View style={[styles.statBox, { backgroundColor: isDark ? '#111827' : '#f8fafc', borderColor: themeColors.border }]}>
                     <Bike size={14} color={AdminColors.primary} />
-                    <Text style={[styles.statBoxLabel, { color: themeColors.textSecondary }]}>Vehicle</Text>
-                    <Text style={[styles.statBoxValue, { color: themeColors.textPrimary }]} numberOfLines={1}>
-                      {dp.vehicleType || 'Bike'} · {dp.vehicleNumber || 'N/A'}
+                    <Text style={[styles.statBoxLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>{t('admin.vehicleLabel')}</Text>
+                    <Text style={[styles.statBoxValue, { color: themeColors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+                      {translateVehicle(dp.vehicleType)} · {dp.vehicleNumber || 'N/A'}
                     </Text>
                   </View>
 
                   <View style={[styles.statBox, { backgroundColor: isDark ? '#111827' : '#f8fafc', borderColor: themeColors.border }]}>
                     <Package size={14} color="#10B981" />
-                    <Text style={[styles.statBoxLabel, { color: themeColors.textSecondary }]}>Deliveries</Text>
-                    <Text style={[styles.statBoxValue, { color: themeColors.textPrimary }]}>
-                      {dp.completedDeliveries || 0} completed
+                    <Text style={[styles.statBoxLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>{t('admin.deliveriesLabel')}</Text>
+                    <Text style={[styles.statBoxValue, { color: themeColors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('admin.deliveriesCompletedCount', { count: dp.completedDeliveries || 0 })}
                     </Text>
                   </View>
 
                   <View style={[styles.statBox, { backgroundColor: isDark ? '#111827' : '#f8fafc', borderColor: themeColors.border }]}>
                     <DollarSign size={14} color="#F59E0B" />
-                    <Text style={[styles.statBoxLabel, { color: themeColors.textSecondary }]}>Earnings</Text>
-                    <Text style={[styles.statBoxValue, { color: themeColors.textPrimary }]}>
+                    <Text style={[styles.statBoxLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>{t('admin.earningsLabel')}</Text>
+                    <Text style={[styles.statBoxValue, { color: themeColors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
                       ₹{(dp.earnings || 0).toLocaleString('en-IN')}
                     </Text>
                   </View>
@@ -484,14 +520,14 @@ export default function AdminDeliveryPartnersScreen() {
 
                 {/* ── Dates ── */}
                 <View style={styles.metaRow}>
-                  <Text style={[styles.metaText, { color: themeColors.textMuted }]}>
-                    Applied: {dp.appliedAt ? new Date(dp.appliedAt).toLocaleDateString() : 'N/A'}
+                  <Text style={[styles.metaText, { color: themeColors.textMuted }]} numberOfLines={1}>
+                    {t('admin.appliedDate', { date: formatShortDate(dp.appliedAt) })}
                   </Text>
-                  {dp.approvedAt && (
-                    <Text style={[styles.metaText, { color: themeColors.textMuted }]}>
-                      Approved: {new Date(dp.approvedAt).toLocaleDateString()}
+                  {dp.approvedAt ? (
+                    <Text style={[styles.metaText, { color: themeColors.textMuted }]} numberOfLines={1}>
+                      {t('admin.approvedDate', { date: formatShortDate(dp.approvedAt) })}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
 
                 {/* ── Action Buttons ── */}
@@ -509,7 +545,7 @@ export default function AdminDeliveryPartnersScreen() {
                         ) : (
                           <>
                             <CheckCircle2 size={16} color="#ffffff" />
-                            <Text style={styles.approveBtnText}>Approve</Text>
+                            <Text style={styles.approveBtnText}>{t('admin.approvePartnerBtn')}</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -525,7 +561,7 @@ export default function AdminDeliveryPartnersScreen() {
                         ) : (
                           <>
                             <XCircle size={16} color="#EF4444" />
-                            <Text style={[styles.rejectBtnText, { color: '#EF4444' }]}>Reject</Text>
+                            <Text style={[styles.rejectBtnText, { color: '#EF4444' }]}>{t('admin.rejectPartnerBtn')}</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -544,7 +580,7 @@ export default function AdminDeliveryPartnersScreen() {
                       ) : (
                         <>
                           <PauseCircle size={16} color="#F59E0B" />
-                          <Text style={[styles.suspendBtnText, { color: '#F59E0B' }]}>Suspend Partner</Text>
+                          <Text style={[styles.suspendBtnText, { color: '#F59E0B' }]}>{t('admin.suspendPartnerBtn')}</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -562,7 +598,7 @@ export default function AdminDeliveryPartnersScreen() {
                       ) : (
                         <>
                           <CheckCircle2 size={16} color="#ffffff" />
-                          <Text style={styles.approveBtnText}>Re-activate Partner</Text>
+                          <Text style={styles.approveBtnText}>{t('admin.reactivatePartnerBtn')}</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -580,7 +616,7 @@ export default function AdminDeliveryPartnersScreen() {
                       ) : (
                         <>
                           <CheckCircle2 size={16} color="#ffffff" />
-                          <Text style={styles.approveBtnText}>Approve Application</Text>
+                          <Text style={styles.approveBtnText}>{t('admin.approveApplicationBtn')}</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -614,18 +650,21 @@ function getStyles(themeColors: any, isDark: boolean) {
       alignItems: 'center',
       borderWidth: 1,
       borderRadius: BorderRadius.md,
-      paddingHorizontal: Spacing.sm,
-      height: 40,
+      paddingHorizontal: 12,
+      height: 44,
       gap: 8,
     },
     searchInput: {
       flex: 1,
-      fontSize: FontSizes.sm,
-      paddingVertical: 0,
+      fontSize: 13,
+      height: '100%',
+      paddingVertical: Platform.OS === 'android' ? 2 : 6,
+      textAlignVertical: 'center',
+      includeFontPadding: false,
     },
     refreshButton: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
       alignItems: 'center',
@@ -667,10 +706,12 @@ function getStyles(themeColors: any, isDark: boolean) {
     },
     statCard: {
       flex: 1,
-      padding: Spacing.sm,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: 4,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 2,
     },
     statIconBox: {
@@ -685,7 +726,7 @@ function getStyles(themeColors: any, isDark: boolean) {
     statLabel: {
       fontSize: 10,
       fontWeight: '600',
-      textTransform: 'uppercase',
+      textAlign: 'center',
     },
     listScroll: {
       flex: 1,
@@ -704,14 +745,16 @@ function getStyles(themeColors: any, isDark: boolean) {
     cardHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      alignItems: 'center',
+      gap: 8,
     },
     cardHeaderLeft: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
       flex: 1,
-      marginRight: 8,
+      minWidth: 0,
+      marginRight: 6,
     },
     avatarBox: {
       width: 42,
@@ -719,6 +762,7 @@ function getStyles(themeColors: any, isDark: boolean) {
       borderRadius: BorderRadius.pill,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
     avatarText: {
       fontSize: FontSizes.md,
@@ -726,6 +770,7 @@ function getStyles(themeColors: any, isDark: boolean) {
     },
     partnerInfo: {
       flex: 1,
+      minWidth: 0,
     },
     partnerName: {
       fontSize: FontSizes.md,
@@ -734,6 +779,7 @@ function getStyles(themeColors: any, isDark: boolean) {
     roleTagRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexWrap: 'wrap',
       gap: 6,
       marginTop: 2,
     },
@@ -761,13 +807,14 @@ function getStyles(themeColors: any, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingVertical: 3,
       borderRadius: BorderRadius.pill,
       borderWidth: 1,
       gap: 4,
+      flexShrink: 0,
     },
     statusBadgeText: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '700',
     },
     detailsSection: {
@@ -809,17 +856,23 @@ function getStyles(themeColors: any, isDark: boolean) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 4,
     },
     metaText: {
-      fontSize: 10,
+      fontSize: 10.5,
+      flexShrink: 1,
     },
     actionRow: {
       flexDirection: 'row',
       gap: 8,
-      marginTop: 4,
+      marginTop: 6,
+      flexWrap: 'wrap',
     },
     actionBtn: {
       flex: 1,
+      minWidth: 120,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',

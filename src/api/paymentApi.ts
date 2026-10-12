@@ -27,6 +27,8 @@ export interface CheckoutCartItem {
 
 export interface InitiatePaymentPayload {
   amount: number;
+  platformFee?: number;
+  deliveryFee?: number;
   userId?: string | null;
   redirectUrl: string;
   cartItems: CheckoutCartItem[];
@@ -34,7 +36,9 @@ export interface InitiatePaymentPayload {
   shippingAddress: AddressData;
   billingAddress: AddressData;
   deliveryMethod: 'delivery' | 'pickup';
-  paymentMethod: 'razorpay' | 'cod' | 'phonepe' | 'qr';
+  paymentMethod: 'razorpay' | 'cod' | 'phonepe' | 'qr' | 'credit';
+  storeId?: string | null;
+  storeName?: string;
 }
 
 export interface VerifyPaymentPayload {
@@ -45,6 +49,9 @@ export interface VerifyPaymentPayload {
 }
 
 export const paymentApi = {
+  getPlatformFee: (subtotal: number = 0) =>
+    gatewayClient.get('/api/payment/platform-fee', { params: { subtotal } }),
+
   createOrder: (payload: InitiatePaymentPayload) =>
     gatewayClient.post('/api/payment/create-order', payload),
 

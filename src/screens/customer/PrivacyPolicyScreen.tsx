@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -120,6 +120,10 @@ export default function PrivacyPolicyScreen() {
     const navigation = useNavigation<any>();
     const scrollRef = useRef<ScrollView>(null);
     const offsets = useRef<Record<string, number>>({});
+
+    useEffect(() => {
+        navigation.setOptions({ title: policy.title });
+    }, [navigation, policy.title]);
 
     const cardBg = isDark ? '#111827' : '#ffffff';
     const borderColor = isDark ? '#1F2937' : '#e2e8f0';
@@ -333,13 +337,27 @@ export default function PrivacyPolicyScreen() {
                     <View style={styles.rightsGrid}>
                         {policy.rights.map((r, idx) => {
                             const Icon = RIGHTS_ICONS[idx] || Eye;
+                            const isLast = idx === policy.rights.length - 1;
                             return (
-                                <View key={r.title} style={[styles.rightCard, { backgroundColor: cardBg, borderColor }]}>
-                                    <View style={[styles.infoCardIcon, { backgroundColor: iconBg }]}>
+                                <View
+                                    key={r.title}
+                                    style={[
+                                        styles.rightCard,
+                                        isLast ? styles.rightCardFull : styles.rightCardHalf,
+                                        { backgroundColor: cardBg, borderColor },
+                                    ]}
+                                >
+                                    <View style={[styles.infoCardIcon, { backgroundColor: iconBg }, isLast && { marginBottom: 0 }]}>
                                         <Icon size={16} color={BRAND_RED} />
                                     </View>
-                                    <Text style={[styles.rightTitle, { color: textPri }]}>{r.title}</Text>
-                                    <Text style={[styles.rightDesc, { color: textSec }]}>{r.desc}</Text>
+                                    <View style={isLast ? styles.rightContentFull : styles.rightContentHalf}>
+                                        <Text style={[styles.rightTitle, isLast && styles.rightTitleFull, { color: textPri }]}>
+                                            {r.title}
+                                        </Text>
+                                        <Text style={[styles.rightDesc, isLast && styles.rightDescFull, { color: textSec }]}>
+                                            {r.desc}
+                                        </Text>
+                                    </View>
                                 </View>
                             );
                         })}
@@ -407,10 +425,11 @@ const styles = StyleSheet.create({
     hero: { padding: Spacing.lg, paddingTop: Spacing.xl },
     badge: {
         flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+        maxWidth: '100%',
         borderWidth: 1, borderColor: 'rgba(255,0,0,0.35)', borderRadius: BorderRadius.pill,
         paddingHorizontal: Spacing.md, paddingVertical: 6, marginBottom: Spacing.md,
     },
-    badgeText: { fontSize: 11, fontWeight: '700', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5 },
+    badgeText: { fontSize: 11, fontWeight: '700', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 1 },
     heroTitle: { fontSize: FontSizes.xl ?? 28, fontWeight: '900', color: '#FFFFFF', marginBottom: Spacing.sm },
     heroSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 20 },
 
@@ -418,7 +437,7 @@ const styles = StyleSheet.create({
 
     sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
     headingIcon: { width: 40, height: 40, borderRadius: BorderRadius.md, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 1, borderColor: 'rgba(255,0,0,0.2)', alignItems: 'center', justifyContent: 'center' },
-    sectionHeadingText: { fontSize: FontSizes.lg, fontWeight: '800', color: '#FFFFFF' },
+    sectionHeadingText: { flex: 1, fontSize: FontSizes.lg, fontWeight: '800', color: '#FFFFFF' },
 
     prose: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 20, marginBottom: Spacing.sm },
     smallNote: { fontSize: FontSizes.xs, color: '#6B7280', marginTop: Spacing.xs },
@@ -445,15 +464,21 @@ const styles = StyleSheet.create({
     retentionText: { fontSize: FontSizes.sm, fontWeight: '600', color: '#D1D5DB' },
 
     rightsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'space-between' },
-    rightCard: { width: '31%', backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: BorderRadius.md, padding: Spacing.sm, alignItems: 'center', marginBottom: Spacing.sm },
+    rightCard: { backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.sm },
+    rightCardHalf: { width: '48.5%', alignItems: 'center' },
+    rightCardFull: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+    rightContentHalf: { alignItems: 'center' },
+    rightContentFull: { flex: 1 },
     rightTitle: { fontSize: FontSizes.xs, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', marginTop: 4 },
-    rightDesc: { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginTop: 2, lineHeight: 13 },
+    rightTitleFull: { textAlign: 'left', marginTop: 0, fontSize: FontSizes.sm },
+    rightDesc: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginTop: 3, lineHeight: 15 },
+    rightDescFull: { textAlign: 'left', marginTop: 2 },
 
-    ctaCard: { backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,0,0,0.4)', borderRadius: BorderRadius.lg, padding: Spacing.lg },
-    ctaBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: BRAND_RED, alignSelf: 'flex-start', borderRadius: BorderRadius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 4, marginBottom: Spacing.md },
-    ctaBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
-    ctaTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', marginBottom: Spacing.xs, lineHeight: 22 },
-    ctaSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', marginBottom: Spacing.lg, lineHeight: 19 },
-    ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: BRAND_RED, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignSelf: 'flex-start', paddingHorizontal: Spacing.lg },
-    ctaButtonText: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF' },
+    ctaCard: { backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,0,0,0.4)', borderRadius: BorderRadius.lg, padding: Spacing.lg, alignItems: 'center' },
+    ctaBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: BRAND_RED, alignSelf: 'center', maxWidth: '100%', borderRadius: BorderRadius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 4, marginBottom: Spacing.md },
+    ctaBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF', flexShrink: 1, textAlign: 'center' },
+    ctaTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', marginBottom: Spacing.xs, lineHeight: 22, textAlign: 'center' },
+    ctaSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', marginBottom: Spacing.lg, lineHeight: 19, textAlign: 'center' },
+    ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: BRAND_RED, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignSelf: 'center', paddingHorizontal: Spacing.lg },
+    ctaButtonText: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' },
 });

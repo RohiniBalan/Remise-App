@@ -35,6 +35,7 @@ import {
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { offersApi } from '../../api/offersApi';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, useDeliveryTranslations } from '../../i18n';
 import {
   CustomerColors,
   Spacing,
@@ -59,6 +60,27 @@ export default function DeliveryFlowModal({
 }: DeliveryFlowModalProps) {
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+  const { language } = useTranslation();
+  const tDeliv = useDeliveryTranslations();
+
+  const translateMilestone = (status: string) => {
+    switch (status) {
+      case 'Pending': return tDeliv.statusPending;
+      case 'Searching': return tDeliv.statusSearching;
+      case 'Assigned': return tDeliv.statusAssigned;
+      case 'Accepted': return tDeliv.statusAccepted;
+      case 'Going to Store': return tDeliv.statusGoingToStore;
+      case 'Arrived at Store': return tDeliv.statusArrivedAtStore;
+      case 'Ready': return tDeliv.statusReady;
+      case 'Picked Up': return tDeliv.statusPickedUp;
+      case 'Out for Delivery': return tDeliv.statusOutForDelivery;
+      case 'Delivered': return tDeliv.statusDelivered;
+      case 'Cancelled': return tDeliv.statusCancelled;
+      case 'Unavailable': return tDeliv.statusUnavailable;
+      case 'Rejected': return tDeliv.statusRejected;
+      default: return status;
+    }
+  };
 
   const [stage, setStage] = useState<
     | 'initial'
@@ -349,8 +371,10 @@ export default function DeliveryFlowModal({
     if (!deliveryUrl) return;
     try {
       await Share.share({
-        title: `Delivery for Order #${displayOrderId}`,
-        message: `Hello, here is your delivery link for Order #${displayOrderId}:\n${deliveryUrl}\n\nPlease tap to view customer details and update delivery milestones.`,
+        title: `${tDeliv.manageDeliveryTitle} - ${tDeliv.orderPrefix}${displayOrderId}`,
+        message: tDeliv.shareMessage
+          .replace('{{orderId}}', displayOrderId)
+          .replace('{{url}}', deliveryUrl),
       });
     } catch (e) {
       console.error('Share error:', e);
@@ -376,8 +400,8 @@ export default function DeliveryFlowModal({
                 />
               </View>
               <View>
-                <Text style={styles.headerTitle}>Manage Delivery</Text>
-                <Text style={styles.headerSub}>Order #{displayOrderId}</Text>
+                <Text style={styles.headerTitle}>{tDeliv.manageDeliveryTitle}</Text>
+                <Text style={styles.headerSub}>{tDeliv.orderPrefix}{displayOrderId}</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
@@ -399,13 +423,13 @@ export default function DeliveryFlowModal({
             {stage === 'initial' && (
               <View style={styles.stageWrap}>
                 <View style={styles.badgeWrap}>
-                  <Text style={styles.badgeText}>Delivery Flow Setup</Text>
+                  <Text style={styles.badgeText}>{tDeliv.setupBadge}</Text>
                 </View>
                 <Text style={styles.promptTitle}>
-                  Do you have your own delivery person?
+                  {tDeliv.promptTitle}
                 </Text>
                 <Text style={styles.promptSub}>
-                  Select how this order will be delivered to the customer.
+                  {tDeliv.promptSub}
                 </Text>
 
                 <View style={styles.optionsList}>
@@ -418,10 +442,10 @@ export default function DeliveryFlowModal({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.optionTitlePrimary}>
-                        YES, I have a delivery person
+                        {tDeliv.yesHavePersonTitle}
                       </Text>
                       <Text style={styles.optionSubPrimary}>
-                        Assign to your staff and generate a delivery link.
+                        {tDeliv.yesHavePersonSub}
                       </Text>
                     </View>
                     <ArrowRight
@@ -439,10 +463,10 @@ export default function DeliveryFlowModal({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.optionTitleSecondary}>
-                        NO, I don't have one
+                        {tDeliv.noHavePersonTitle}
                       </Text>
                       <Text style={styles.optionSubSecondary}>
-                        Request on-demand Remise Delivery Network partner.
+                        {tDeliv.noHavePersonSub}
                       </Text>
                     </View>
                     <ArrowRight
@@ -465,46 +489,46 @@ export default function DeliveryFlowModal({
                     size={14}
                     color={isDark ? '#9CA3AF' : '#6B7280'}
                   />
-                  <Text style={styles.backBtnText}>Back</Text>
+                  <Text style={styles.backBtnText}>{tDeliv.back}</Text>
                 </TouchableOpacity>
 
                 <Text style={styles.sectionTitle}>
-                  Assign Store Delivery Person
+                  {tDeliv.assignPersonTitle}
                 </Text>
                 <Text style={styles.sectionSub}>
-                  Enter contact details to create a trackable delivery link.
+                  {tDeliv.assignPersonSub}
                 </Text>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Delivery Person Name *</Text>
+                  <Text style={styles.inputLabel}>{tDeliv.nameLabel}</Text>
                   <TextInput
                     style={styles.textInput}
                     value={deliveryPersonName}
                     onChangeText={setDeliveryPersonName}
-                    placeholder="e.g. Ramesh"
+                    placeholder={tDeliv.namePlaceholder}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Mobile Number *</Text>
+                  <Text style={styles.inputLabel}>{tDeliv.phoneLabel}</Text>
                   <TextInput
                     style={styles.textInput}
                     value={deliveryPersonPhone}
                     onChangeText={setDeliveryPersonPhone}
-                    placeholder="e.g. 9876543210"
+                    placeholder={tDeliv.phonePlaceholder}
                     keyboardType="phone-pad"
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Special Instructions</Text>
+                  <Text style={styles.inputLabel}>{tDeliv.instructionsLabel}</Text>
                   <TextInput
                     style={[styles.textInput, { height: 56 }]}
                     value={notes}
                     onChangeText={setNotes}
-                    placeholder="e.g. Collect cash, call upon arrival"
+                    placeholder={tDeliv.instructionsPlaceholder}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     multiline
                   />
@@ -519,7 +543,7 @@ export default function DeliveryFlowModal({
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <Text style={styles.primaryActionBtnText}>
-                      Assign & Generate Delivery Link
+                      {tDeliv.assignBtn}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -537,16 +561,15 @@ export default function DeliveryFlowModal({
                     size={14}
                     color={isDark ? '#9CA3AF' : '#6B7280'}
                   />
-                  <Text style={styles.backBtnText}>Back</Text>
+                  <Text style={styles.backBtnText}>{tDeliv.back}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.centerIconWrap}>
                   <Sparkles size={28} color={isDark ? '#818CF8' : '#4F46E5'} />
                 </View>
-                <Text style={styles.promptTitle}>Choose a Delivery Option</Text>
+                <Text style={styles.promptTitle}>{tDeliv.chooseOptionTitle}</Text>
                 <Text style={styles.promptSub}>
-                  Request an on-demand verified partner or manage fulfillment
-                  yourself.
+                  {tDeliv.chooseOptionSub}
                 </Text>
 
                 {/* Option 1: Request Remise Delivery Partner */}
@@ -571,7 +594,7 @@ export default function DeliveryFlowModal({
                       }}
                     >
                       <Text style={styles.optionTitlePrimary}>
-                        Request Remise Partner
+                        {tDeliv.requestRemisePartnerTitle}
                       </Text>
                       <Text
                         style={{
@@ -584,7 +607,7 @@ export default function DeliveryFlowModal({
                       </Text>
                     </View>
                     <Text style={styles.optionSubPrimary}>
-                      Nearby verified driver will arrive in ~15 mins.
+                      {tDeliv.requestRemisePartnerSub}
                     </Text>
                   </View>
                   <ArrowRight size={16} color="#4F46E5" />
@@ -604,10 +627,10 @@ export default function DeliveryFlowModal({
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.optionTitleSecondary}>
-                      Enable Network for Store
+                      {tDeliv.enableNetworkTitle}
                     </Text>
                     <Text style={styles.optionSubSecondary}>
-                      One-time store enrollment for on-demand dispatch.
+                      {tDeliv.enableNetworkSub}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -619,7 +642,7 @@ export default function DeliveryFlowModal({
                   disabled={loading}
                 >
                   <Text style={styles.selfArrangeBtnText}>
-                    I will arrange delivery myself
+                    {tDeliv.selfArrangeBtn}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -635,11 +658,10 @@ export default function DeliveryFlowModal({
                   />
                 </View>
                 <Text style={styles.promptTitle}>
-                  Remise Delivery Network Enabled
+                  {tDeliv.networkEnabledTitle}
                 </Text>
                 <Text style={styles.promptSub}>
-                  Your store is now enabled for on-demand delivery partner
-                  dispatch.
+                  {tDeliv.networkEnabledSub}
                 </Text>
 
                 <View
@@ -647,13 +669,23 @@ export default function DeliveryFlowModal({
                     flexDirection: 'row',
                     gap: Spacing.sm,
                     marginTop: Spacing.sm,
+                    alignItems: 'stretch',
                   }}
                 >
                   <TouchableOpacity
-                    style={[styles.doneBtn, { flex: 1 }]}
+                    style={[
+                      styles.doneBtn,
+                      {
+                        flex: 1,
+                        marginTop: 0,
+                        minHeight: 48,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      },
+                    ]}
                     onPress={onClose}
                   >
-                    <Text style={styles.doneBtnText}>Done</Text>
+                    <Text style={styles.doneBtnText}>{tDeliv.doneBtn}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
@@ -661,13 +693,16 @@ export default function DeliveryFlowModal({
                       {
                         flex: 1,
                         backgroundColor: '#4F46E5',
-                        marginTop: Spacing.sm,
+                        marginTop: 0,
+                        minHeight: 48,
+                        justifyContent: 'center',
+                        alignItems: 'center',
                       },
                     ]}
                     onPress={() => setStage('confirm_remise_request')}
                   >
                     <Text style={styles.primaryActionBtnText}>
-                      Request for Order
+                      {tDeliv.requestForOrderBtn}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -685,23 +720,23 @@ export default function DeliveryFlowModal({
                     size={14}
                     color={isDark ? '#9CA3AF' : '#6B7280'}
                   />
-                  <Text style={styles.backBtnText}>Back</Text>
+                  <Text style={styles.backBtnText}>{tDeliv.back}</Text>
                 </TouchableOpacity>
 
                 <Text style={styles.sectionTitle}>
-                  Confirm Remise Delivery Request
+                  {tDeliv.confirmRequestTitle}
                 </Text>
                 <Text style={styles.sectionSub}>
-                  A nearby delivery partner will be dispatched to your store.
+                  {tDeliv.confirmRequestSub}
                 </Text>
 
                 <View style={styles.summaryCard}>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Order ID:</Text>
+                    <Text style={styles.summaryLabel}>{tDeliv.orderIdLabel}</Text>
                     <Text style={styles.summaryValue}>#{displayOrderId}</Text>
                   </View>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Drop Address:</Text>
+                    <Text style={styles.summaryLabel}>{tDeliv.dropAddressLabel}</Text>
                     <Text
                       style={[
                         styles.summaryValue,
@@ -713,7 +748,7 @@ export default function DeliveryFlowModal({
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Est. Distance:</Text>
+                    <Text style={styles.summaryLabel}>{tDeliv.estDistanceLabel}</Text>
                     <Text style={styles.summaryValue}>3.5 km</Text>
                   </View>
                   <View
@@ -727,7 +762,7 @@ export default function DeliveryFlowModal({
                     ]}
                   >
                     <Text style={[styles.summaryLabel, { fontWeight: '700' }]}>
-                      Estimated Delivery Fee:
+                      {tDeliv.estFeeLabel}
                     </Text>
                     <Text
                       style={[
@@ -752,7 +787,7 @@ export default function DeliveryFlowModal({
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <Text style={styles.primaryActionBtnText}>
-                      Confirm & Find Delivery Partner
+                      {tDeliv.confirmFindPartnerBtn}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -766,23 +801,23 @@ export default function DeliveryFlowModal({
                   <Truck size={28} color="#4F46E5" />
                 </View>
                 <Text style={styles.promptTitle}>
-                  Searching for a delivery partner...
+                  {tDeliv.searchingTitle}
                 </Text>
                 <Text style={styles.promptSub}>
-                  We're notifying nearby available Remise delivery partners.
+                  {tDeliv.searchingSub}
                 </Text>
 
                 <View style={styles.summaryCard}>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Status:</Text>
+                    <Text style={styles.summaryLabel}>{tDeliv.statusLabel}</Text>
                     <Text style={[styles.summaryValue, { color: '#4F46E5' }]}>
-                      Searching for delivery partner
+                      {tDeliv.searchingStatus}
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Est. Fare:</Text>
+                    <Text style={styles.summaryLabel}>{tDeliv.estFareLabel}</Text>
                     <Text style={styles.summaryValue}>
-                      Fare and distance from dispatch
+                      {tDeliv.fareFromDispatch}
                     </Text>
                   </View>
                 </View>
@@ -801,14 +836,14 @@ export default function DeliveryFlowModal({
                     }}
                   >
                     <Text style={styles.selfArrangeBtnText}>
-                      Refresh Status
+                      {tDeliv.refreshStatus}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.doneBtn, { flex: 1, marginTop: 0 }]}
                     onPress={onClose}
                   >
-                    <Text style={styles.doneBtnText}>Close</Text>
+                    <Text style={styles.doneBtnText}>{tDeliv.close}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -829,7 +864,7 @@ export default function DeliveryFlowModal({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.driverName}>
-                        {driver.name || 'Delivery Partner'}
+                        {driver.name || tDeliv.deliveryPartner}
                       </Text>
                       <Text style={styles.driverVehicle}>
                         {driver.vehicleType || 'Bike'}{' '}
@@ -844,17 +879,17 @@ export default function DeliveryFlowModal({
                         onPress={() => Linking.openURL(`tel:${driver.phone}`)}
                       >
                         <Phone size={14} color="#FFFFFF" />
-                        <Text style={styles.callBtnText}>Call</Text>
+                        <Text style={styles.callBtnText}>{tDeliv.call}</Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
 
                   <View style={styles.driverFooter}>
                     <Text style={styles.driverMilestoneText}>
-                      Milestone: {currentStatus}
+                      {tDeliv.milestone} {translateMilestone(currentStatus)}
                     </Text>
                     <Text style={styles.driverEtaText}>
-                      ETA: {driver.eta || '15 mins'}
+                      {tDeliv.eta} {driver.eta || '15 mins'}
                     </Text>
                   </View>
                 </View>
@@ -866,7 +901,7 @@ export default function DeliveryFlowModal({
                     { fontSize: FontSizes.xs + 1, marginTop: 4 },
                   ]}
                 >
-                  Milestone Progress
+                  {tDeliv.milestoneProgress}
                 </Text>
                 <View style={styles.milestoneList}>
                   {[
@@ -911,7 +946,7 @@ export default function DeliveryFlowModal({
                             isCurrent && styles.milestoneItemTextCurrent,
                           ]}
                         >
-                          {st}
+                          {translateMilestone(st)}
                         </Text>
                       </View>
                     );
@@ -929,7 +964,7 @@ export default function DeliveryFlowModal({
                         color={isDark ? '#E5E7EB' : '#374151'}
                       />
                       <Text style={styles.openPortalBtnText}>
-                        Delivery Portal
+                        {tDeliv.deliveryPortal}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -937,7 +972,7 @@ export default function DeliveryFlowModal({
                       onPress={handleShare}
                     >
                       <Share2 size={14} color="#FFFFFF" />
-                      <Text style={styles.shareBtnText}>Share</Text>
+                      <Text style={styles.shareBtnText}>{tDeliv.share}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : null}
@@ -951,12 +986,10 @@ export default function DeliveryFlowModal({
                   <AlertCircle size={30} color="#D97706" />
                 </View>
                 <Text style={styles.promptTitle}>
-                  Delivery Partner Unavailable
+                  {tDeliv.unavailableTitle}
                 </Text>
                 <Text style={styles.promptSub}>
-                  No nearby Remise delivery partner accepted the request. You
-                  can retry finding a partner or assign your store delivery
-                  staff.
+                  {tDeliv.unavailableSub}
                 </Text>
 
                 <TouchableOpacity
@@ -968,7 +1001,7 @@ export default function DeliveryFlowModal({
                   disabled={loading}
                 >
                   <Text style={styles.primaryActionBtnText}>
-                    Re-request Remise Delivery
+                    {tDeliv.rerequestBtn}
                   </Text>
                 </TouchableOpacity>
 
@@ -978,7 +1011,7 @@ export default function DeliveryFlowModal({
                   disabled={loading}
                 >
                   <Text style={styles.primaryActionBtnText}>
-                    Assign Store Delivery Person
+                    {tDeliv.assignPersonTitle}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -991,11 +1024,10 @@ export default function DeliveryFlowModal({
                   <CheckCircle2 size={18} color="#15803D" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.successBannerTitle}>
-                      Store Delivery Link Active
+                      {tDeliv.linkActiveTitle}
                     </Text>
                     <Text style={styles.successBannerSub}>
-                      Share this link with your delivery person to view location
-                      and update milestones.
+                      {tDeliv.linkActiveSub}
                     </Text>
                   </View>
                 </View>
@@ -1012,7 +1044,7 @@ export default function DeliveryFlowModal({
                     onPress={handleShare}
                   >
                     <Share2 size={16} color="#FFFFFF" />
-                    <Text style={styles.shareBtnText}>Share Link</Text>
+                    <Text style={styles.shareBtnText}>{tDeliv.shareLink}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1023,15 +1055,15 @@ export default function DeliveryFlowModal({
                       size={16}
                       color={isDark ? '#E5E7EB' : '#374151'}
                     />
-                    <Text style={styles.openPortalBtnText}>Open Portal</Text>
+                    <Text style={styles.openPortalBtnText}>{tDeliv.openPortal}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.statusRow}>
-                  <Text style={styles.statusLabel}>Current Milestone:</Text>
+                  <Text style={styles.statusLabel}>{tDeliv.currentMilestone}</Text>
                   <View style={styles.statusBadge}>
                     <Text style={styles.statusBadgeText}>
-                      {order.deliveryStatus || 'Assigned'}
+                      {translateMilestone(order.deliveryStatus || 'Assigned')}
                     </Text>
                   </View>
                 </View>
@@ -1041,9 +1073,9 @@ export default function DeliveryFlowModal({
             {/* ── STAGE 10: Self Arranged Controls ── */}
             {stage === 'self_arranged' && (
               <View style={styles.stageWrap}>
-                <Text style={styles.sectionTitle}>Self-Arranged Delivery</Text>
+                <Text style={styles.sectionTitle}>{tDeliv.selfArrangedTitle}</Text>
                 <Text style={styles.sectionSub}>
-                  Update the delivery milestone directly below:
+                  {tDeliv.selfArrangedSub}
                 </Text>
 
                 <View style={styles.milestoneRow}>
@@ -1065,14 +1097,14 @@ export default function DeliveryFlowModal({
                             styles.milestoneBtnTextActive,
                         ]}
                       >
-                        {st}
+                        {translateMilestone(st)}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
                 <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-                  <Text style={styles.doneBtnText}>Done</Text>
+                  <Text style={styles.doneBtnText}>{tDeliv.doneBtn}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1287,6 +1319,7 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: CustomerColors.teal600,
       borderRadius: BorderRadius.md,
       paddingVertical: 13,
+      paddingHorizontal: Spacing.md,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: Spacing.xs,
@@ -1295,6 +1328,8 @@ const getStyles = (isDark: boolean) =>
       color: '#FFFFFF',
       fontSize: FontSizes.sm,
       fontWeight: '700',
+      textAlign: 'center',
+      alignSelf: 'center',
     },
     successBanner: {
       flexDirection: 'row',
@@ -1345,6 +1380,7 @@ const getStyles = (isDark: boolean) =>
       color: '#FFFFFF',
       fontSize: FontSizes.xs,
       fontWeight: '700',
+      textAlign: 'center',
     },
     openPortalBtn: {
       flex: 1,
@@ -1362,6 +1398,7 @@ const getStyles = (isDark: boolean) =>
       color: isDark ? '#F9FAFB' : '#374151',
       fontSize: FontSizes.xs,
       fontWeight: '700',
+      textAlign: 'center',
     },
     statusRow: {
       flexDirection: 'row',
@@ -1400,6 +1437,7 @@ const getStyles = (isDark: boolean) =>
     selfArrangeBtn: {
       backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
       paddingVertical: 12,
+      paddingHorizontal: Spacing.sm,
       borderRadius: BorderRadius.md,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1408,10 +1446,13 @@ const getStyles = (isDark: boolean) =>
       color: isDark ? '#E5E7EB' : '#374151',
       fontSize: FontSizes.xs,
       fontWeight: '600',
+      textAlign: 'center',
+      alignSelf: 'center',
     },
     doneBtn: {
       backgroundColor: isDark ? '#0f766e' : '#111827',
       paddingVertical: 12,
+      paddingHorizontal: Spacing.sm,
       borderRadius: BorderRadius.md,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1421,15 +1462,20 @@ const getStyles = (isDark: boolean) =>
       color: '#FFFFFF',
       fontSize: FontSizes.xs,
       fontWeight: '700',
+      textAlign: 'center',
+      alignSelf: 'center',
     },
     milestoneRow: {
       flexDirection: 'row',
       gap: Spacing.xs,
       marginTop: Spacing.xs,
+      alignItems: 'stretch',
     },
     milestoneBtn: {
       flex: 1,
-      paddingVertical: 10,
+      minHeight: 56,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
       borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
@@ -1445,6 +1491,8 @@ const getStyles = (isDark: boolean) =>
       fontSize: 11,
       fontWeight: '700',
       color: isDark ? '#9CA3AF' : '#4B5563',
+      textAlign: 'center',
+      alignSelf: 'center',
     },
     milestoneBtnTextActive: {
       color: '#FFFFFF',
@@ -1455,21 +1503,28 @@ const getStyles = (isDark: boolean) =>
       borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
       borderRadius: BorderRadius.lg,
       padding: Spacing.md,
-      gap: 6,
+      gap: 8,
+      overflow: 'hidden',
     },
     summaryRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
+      gap: 10,
     },
     summaryLabel: {
       fontSize: FontSizes.xs,
       color: isDark ? '#9CA3AF' : '#6B7280',
+      flexShrink: 0,
+      maxWidth: '45%',
     },
     summaryValue: {
       fontSize: FontSizes.xs,
       fontWeight: '700',
       color: isDark ? '#F9FAFB' : CustomerColors.black,
+      flex: 1,
+      textAlign: 'right',
+      flexWrap: 'wrap',
     },
     driverCard: {
       backgroundColor: isDark ? '#134e4a' : '#F0FDFA',

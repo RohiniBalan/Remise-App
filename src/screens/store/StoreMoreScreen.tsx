@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Layers, Truck, Users, Settings as SettingsIcon, ChevronRight, LucideIcon, Tag } from 'lucide-react-native';
+import { Layers, Truck, Users, Settings as SettingsIcon, ChevronRight, LucideIcon, Tag, Star, CreditCard } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../i18n';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
 type MoreItem = {
@@ -14,29 +15,83 @@ type MoreItem = {
   route: string;
 };
 
-const ITEMS: MoreItem[] = [
-  { key: 'offers', label: 'My Offers', subtitle: 'View private offers & special discounts for your store', icon: Tag, route: 'MyOffers' },
-  { key: 'deliveries', label: 'Deliveries Log', subtitle: 'See who delivered products to whom', icon: Truck, route: 'StoreDeliveries' },
-  { key: 'categories', label: 'Categories', subtitle: 'Manage product categories', icon: Layers, route: 'StoreOwnerCategories' },
-  { key: 'suppliers', label: 'Order Stock', subtitle: 'Browse suppliers & place stock orders', icon: Truck, route: 'Suppliers' },
-  { key: 'customers', label: 'Customers', subtitle: 'View your customer list', icon: Users, route: 'StoreOwnerCustomers' },
-  { key: 'settings', label: 'Settings', subtitle: 'Store details, target revenue & more', icon: SettingsIcon, route: 'StoreSettings' },
-];
-
 export default function StoreMoreScreen() {
   const navigation = useNavigation<any>();
   const { store } = useStoreDashboard();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+
+  const items: MoreItem[] = useMemo(
+    () => [
+      {
+        key: 'reviews',
+        label: 'Reviews & Ratings',
+        subtitle: 'Customer reviews & 10 criteria breakdown',
+        icon: Star,
+        route: 'StoreReviews',
+      },
+      {
+        key: 'credit',
+        label: 'Credit (Kadan) Management',
+        subtitle: 'In-person approval, limits, repayments & ledger',
+        icon: CreditCard,
+        route: 'StoreCredit',
+      },
+      {
+        key: 'offers',
+        label: t('store.moreOffersTitle'),
+        subtitle: t('store.moreOffersSubtitle'),
+        icon: Tag,
+        route: 'MyOffers',
+      },
+      {
+        key: 'deliveries',
+        label: t('store.deliveriesLogTitle'),
+        subtitle: t('store.deliveriesLogSubtitle'),
+        icon: Truck,
+        route: 'StoreDeliveries',
+      },
+      {
+        key: 'categories',
+        label: t('store.categoriesTitle'),
+        subtitle: t('store.categoriesSubtitle'),
+        icon: Layers,
+        route: 'StoreOwnerCategories',
+      },
+      {
+        key: 'suppliers',
+        label: t('store.orderStockTitle'),
+        subtitle: t('store.orderStockSubtitle'),
+        icon: Truck,
+        route: 'Suppliers',
+      },
+      {
+        key: 'customers',
+        label: t('store.customersTitle'),
+        subtitle: t('store.customersSubtitle'),
+        icon: Users,
+        route: 'StoreOwnerCustomers',
+      },
+      {
+        key: 'settings',
+        label: t('store.settingsTitle'),
+        subtitle: t('store.settingsSubtitle'),
+        icon: SettingsIcon,
+        route: 'StoreSettings',
+      },
+    ],
+    [t]
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.md }}>
-      <Text style={styles.header}>{store?.name || 'My Store'}</Text>
+      <Text style={styles.header}>{store?.name || t('store.myStore') || 'My Store'}</Text>
       <View style={styles.card}>
-        {ITEMS.map((item, idx) => (
+        {items.map((item, idx) => (
           <TouchableOpacity
             key={item.key}
-            style={[styles.row, idx === ITEMS.length - 1 && { borderBottomWidth: 0 }]}
+            style={[styles.row, idx === items.length - 1 && { borderBottomWidth: 0 }]}
             onPress={() => navigation.navigate(item.route)}
             activeOpacity={0.6}
           >

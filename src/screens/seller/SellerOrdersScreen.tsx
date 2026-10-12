@@ -203,14 +203,14 @@ export default function SellerOrdersScreen() {
                           ]}
                         >
                           {o.paymentStatus === 'REFUNDED' || (o as any).refundStatus === 'refunded'
-                            ? `Refunded: ₹${(o as any).totalRefundedAmount || o.totalAmount}`
+                            ? `${t('store.paymentRefunded') || 'Refunded'}: ₹${(o as any).totalRefundedAmount || o.totalAmount}`
                             : (o as any).refundStatus === 'partially_refunded'
-                              ? `Partially Refunded: ₹${(o as any).totalRefundedAmount}`
+                              ? `${t('store.partiallyRefundedAmount') || 'Partially Refunded'}: ₹${(o as any).totalRefundedAmount}`
                               : (o as any).refundStatus === 'requested'
-                                ? 'Refund Requested'
+                                ? (t('store.refundRequested') || 'Refund Requested')
                                 : (o as any).refundStatus === 'processing'
-                                  ? 'Refund Processing'
-                                  : `Refund: ${(o as any).refundStatus}`}
+                                  ? (t('store.refundProcessing') || 'Refund Processing')
+                                  : `${t('store.refundStatusPrefix') || 'Refund'}: ${(o as any).refundStatus}`}
                         </Text>
                       </View>
                     ) : null}
@@ -341,7 +341,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   filterChipText: { fontSize: 11, fontWeight: '700', color: isDark ? '#9CA3AF' : '#4B5563' },
   filterChipTextActive: { color: '#fff' },
   emptyBox: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: 6 },
-  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#FFFFFF' : '#374151' },
+  emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#FFFFFF' : '#374151', textAlign: 'center' },
   emptySub: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : '#9CA3AF', textAlign: 'center' },
   card: {
     backgroundColor: isDark ? '#111827' : '#fff',

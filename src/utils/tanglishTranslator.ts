@@ -450,6 +450,197 @@ const TANGLISH_GROCERY_MAP: Record<string, string> = {
   'toothbrush': 'Toothbrush',
 };
 
+// ── Indic Unicode Grocery Map (Tamil, Telugu, Kannada, Malayalam, Hindi) ──
+const INDIC_GROCERY_MAP: Record<string, string> = {
+  // Tamil Unicode
+  'அரிசி': 'Rice',
+  'பொன்னி அரிசி': 'Ponni Rice',
+  'பாசுமதி அரிசி': 'Basmati Rice',
+  'சீரக சம்பா': 'Seeraga Samba Rice',
+  'இட்லி அரிசி': 'Idli Rice',
+  'பால்': 'Fresh Milk',
+  'தயிர்': 'Curd',
+  'மோர்': 'Butter Milk',
+  'நெய்': 'Pure Ghee',
+  'வெண்ணெய்': 'Butter',
+  'பன்னீர்': 'Paneer',
+  'சீஸ்': 'Cheese',
+  'எண்ணெய்': 'Cooking Oil',
+  'தேங்காய் எண்ணெய்': 'Coconut Oil',
+  'நல்லெண்ணெய்': 'Sesame Oil (Gingelly Oil)',
+  'கடலை எண்ணெய்': 'Groundnut Oil',
+  'சூரியகாந்தி எண்ணெய்': 'Sunflower Oil',
+  'கடுகு எண்ணெய்': 'Mustard Oil',
+  'விளக்கெண்ணெய்': 'Castor Oil',
+  'பருப்பு': 'Toor Dal',
+  'துவரம் பருப்பு': 'Toor Dal',
+  'துவரம்பருப்பு': 'Toor Dal',
+  'பாசிப்பருப்பு': 'Moong Dal',
+  'பாசி பருப்பு': 'Moong Dal',
+  'உளுத்தம் பருப்பு': 'Urad Dal',
+  'உளுந்து': 'Urad Dal',
+  'கடலை பருப்பு': 'Chana Dal',
+  'பொட்டுக்கடலை': 'Fried Gram (Pottukadalai)',
+  'கொண்டைக்கடலை': 'Black Chickpeas (Kala Chana)',
+  'வெள்ளை கொண்டைக்கடலை': 'White Chickpeas (Kabuli Chana)',
+  'பச்சை பயறு': 'Green Moong Whole',
+  'ராஜ்மா': 'Rajma (Kidney Beans)',
+  'தக்காளி': 'Fresh Tomatoes',
+  'வெங்காயம்': 'Fresh Onions',
+  'சின்ன வெங்காயம்': 'Shallots (Small Onions)',
+  'பெரிய வெங்காயம்': 'Big Onions',
+  'உருளைக்கிழங்கு': 'Fresh Potatoes',
+  'பூண்டு': 'Garlic',
+  'இஞ்சி': 'Fresh Ginger',
+  'பச்சை மிளகாய்': 'Green Chillies',
+  'மிளகாய்': 'Dry Red Chillies',
+  'வரமிளகாய்': 'Dry Red Chillies',
+  'கொத்தமல்லி': 'Fresh Coriander Leaves',
+  'புதினா': 'Fresh Mint Leaves',
+  'கருவேப்பிலை': 'Fresh Curry Leaves',
+  'கேரட்': 'Fresh Carrots',
+  'பீன்ஸ்': 'Fresh Beans',
+  'முட்டைக்கோஸ்': 'Fresh Cabbage',
+  'காலிஃபிளவர்': 'Fresh Cauliflower',
+  'கத்தரிக்காய்': 'Fresh Brinjal (Eggplant)',
+  'வெண்டைக்காய்': 'Fresh Okra (Ladies Finger)',
+  'சுரைக்காய்': 'Bottle Gourd',
+  'முருங்கைக்காய்': 'Fresh Drumstick',
+  'வாழைக்காய்': 'Raw Banana',
+  'வாழைப்பழம்': 'Fresh Bananas',
+  'ஆப்பிள்': 'Fresh Apples',
+  'எலுமிச்சை': 'Fresh Lemons',
+  'தேங்காய்': 'Fresh Coconut',
+  'கடுகு': 'Mustard Seeds',
+  'சீரகம்': 'Cumin Seeds (Jeera)',
+  'சோம்பு': 'Fennel Seeds (Saunf)',
+  'வெந்தயம்': 'Fenugreek Seeds',
+  'மிளகு': 'Black Pepper',
+  'மஞ்சள்': 'Turmeric Powder',
+  'மஞ்சள் தூள்': 'Turmeric Powder',
+  'மிளகாய் தூள்': 'Chilli Powder',
+  'மல்லி தூள்': 'Coriander Powder',
+  'சாம்பார் தூள்': 'Sambar Powder',
+  'ரசம் தூள்': 'Rasam Powder',
+  'கரம் மசாலா': 'Garam Masala',
+  'பெருங்காயம்': 'Asafoetida (Hing)',
+  'பட்டை': 'Cinnamon Stick',
+  'கிராம்பு': 'Cloves',
+  'ஏலக்காய்': 'Cardamom (Elaichi)',
+  'சர்க்கரை': 'Sugar',
+  'சீனி': 'Sugar',
+  'நாட்டு சர்க்கரை': 'Country Sugar (Nattu Sakkarai)',
+  'வெல்லம்': 'Jaggery',
+  'உப்பு': 'Salt',
+  'கல் உப்பு': 'Rock Salt',
+  'தூள் உப்பு': 'Table Salt',
+  'தேநீர்': 'Tea Dust',
+  'டீ தூள்': 'Tea Dust',
+  'காபி தூள்': 'Coffee Powder',
+  'கோதுமை மாவு': 'Wheat Flour (Atta)',
+  'ஆட்டா': 'Wheat Flour (Atta)',
+  'மைதா': 'Maida Flour',
+  'ரவா': 'Rava (Sooji)',
+  'சேமியா': 'Vermicelli (Semiya)',
+  'அவல்': 'Poha (Aval)',
+  'அப்பளம்': 'Pappad (Appalam)',
+  'முட்டை': 'Fresh Eggs',
+  'ரொட்டி': 'Bread',
+  'சோப்பு': 'Bathing Soap',
+  'துணி சோப்பு': 'Washing Soap',
+  'சலவை தூள்': 'Detergent Powder',
+  'ஷாம்பு': 'Shampoo',
+  'பற்பசை': 'Toothpaste',
+  'பிரஷ்': 'Toothbrush',
+
+  // Telugu Unicode
+  'బియ్యం': 'Rice',
+  'పాలు': 'Fresh Milk',
+  'పెరుగు': 'Curd',
+  'నెయ్యి': 'Pure Ghee',
+  'నూనె': 'Cooking Oil',
+  'కందిపప్పు': 'Toor Dal',
+  'పెసరపప్పు': 'Moong Dal',
+  'మినపప్పు': 'Urad Dal',
+  'శనగపప్పు': 'Chana Dal',
+  'టమోటా': 'Fresh Tomatoes',
+  'ఉల్లిపాయ': 'Fresh Onions',
+  'బంగాళాదుంప': 'Fresh Potatoes',
+  'వెల్లుల్లి': 'Garlic',
+  'అల్లం': 'Fresh Ginger',
+  'మిరపకాయలు': 'Green Chillies',
+  'చక్కెర': 'Sugar',
+  'ఉప్పు': 'Salt',
+  'టీ పొడి': 'Tea Dust',
+  'కాఫీ పొడి': 'Coffee Powder',
+  'గుడ్లు': 'Fresh Eggs',
+  'గోధుమ పిండి': 'Wheat Flour (Atta)',
+
+  // Kannada Unicode
+  'ಅಕ್ಕಿ': 'Rice',
+  'ಹಾಲು': 'Fresh Milk',
+  'ಮೊಸರು': 'Curd',
+  'ತುಪ್ಪ': 'Pure Ghee',
+  'ಎಣ್ಣೆ': 'Cooking Oil',
+  'ತೊಗರಿ ಬೇಳೆ': 'Toor Dal',
+  'ಹೆಸರು ಬೇಳೆ': 'Moong Dal',
+  'ಉದ್ದಿನ ಬೇಳೆ': 'Urad Dal',
+  'ಕಡಲೆ ಬೇಳೆ': 'Chana Dal',
+  'ಟೊಮೆಟೊ': 'Fresh Tomatoes',
+  'ಈರುಳ್ಳಿ': 'Fresh Onions',
+  'ಆಲೂಗಡ್ಡೆ': 'Fresh Potatoes',
+  'ಬೆಳ್ಳುಳ್ಳಿ': 'Garlic',
+  'ಶುಂಠಿ': 'Fresh Ginger',
+  'ಸಕ್ಕರೆ': 'Sugar',
+  'ಉಪ್ಪು': 'Salt',
+  'ಮೊಟ್ಟೆ': 'Fresh Eggs',
+
+  // Malayalam Unicode
+  'അരി': 'Rice',
+  'പാൽ': 'Fresh Milk',
+  'തൈര്': 'Curd',
+  'നെയ്യ്': 'Pure Ghee',
+  'എണ്ണ': 'Cooking Oil',
+  'വെളിച്ചെണ്ണ': 'Coconut Oil',
+  'പരിപ്പ്': 'Toor Dal',
+  'തക്കാളി': 'Fresh Tomatoes',
+  'സവാള': 'Fresh Onions',
+  'ഉരുളക്കിഴങ്ങ്': 'Fresh Potatoes',
+  'വെളുത്തുള്ളി': 'Garlic',
+  'ഇഞ്ചി': 'Fresh Ginger',
+  'പഞ്ചസാര': 'Sugar',
+  'ഉപ്പ്': 'Salt',
+  'മുട്ട': 'Fresh Eggs',
+
+  // Hindi Unicode
+  'चावल': 'Rice',
+  'दूध': 'Fresh Milk',
+  'दही': 'Curd',
+  'घी': 'Pure Ghee',
+  'मक्खन': 'Butter',
+  'तेल': 'Cooking Oil',
+  'सरसों का तेल': 'Mustard Oil',
+  'दाल': 'Toor Dal',
+  'अरहर दाल': 'Toor Dal',
+  'मूंग दाल': 'Moong Dal',
+  'उड़द दाल': 'Urad Dal',
+  'चना दाल': 'Chana Dal',
+  'टमाटर': 'Fresh Tomatoes',
+  'प्याज': 'Fresh Onions',
+  'आलू': 'Fresh Potatoes',
+  'लहसुन': 'Garlic',
+  'अदरक': 'Fresh Ginger',
+  'हरी मिर्च': 'Green Chillies',
+  'चीनी': 'Sugar',
+  'नमक': 'Salt',
+  'चाय पत्ती': 'Tea Dust',
+  'कॉफी': 'Coffee Powder',
+  'आटा': 'Wheat Flour (Atta)',
+  'मैदा': 'Maida Flour',
+  'सूजी': 'Rava (Sooji)',
+  'अंडे': 'Fresh Eggs',
+};
+
 // ── Smart Quantity Extraction Helper ──
 const QUANTITY_REGEX = /^(\d+(?:\.\d+)?\s*(?:kg|kilo|g|gram|grams|gm|l|litre|litres|liter|ltr|ml|packet|packets|pkt|pkts|bundle|bundles|piece|pieces|pcs|dozen|nos)?)\s+(.+)$/i;
 const TRAILING_QUANTITY_REGEX = /^(.+?)\s+(\d+(?:\.\d+)?\s*(?:kg|kilo|g|gram|grams|gm|l|litre|litres|liter|ltr|ml|packet|packets|pkt|pkts|bundle|bundles|piece|pieces|pcs|dozen|nos)?)$/i;
@@ -457,14 +648,15 @@ const TRAILING_QUANTITY_REGEX = /^(.+?)\s+(\d+(?:\.\d+)?\s*(?:kg|kilo|g|gram|gra
 function cleanString(str: string): string {
   return str
     .toLowerCase()
-    .replace(/[^\w\s]/gi, ' ')
+    .replace(/[^\w\s\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F\u0900-\u097F]/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 /**
  * Fast offline dictionary lookup.
- * Automatically handles prefixes/suffixes, common misspellings, and quantity notation.
+ * Automatically handles Tanglish, Tamil Unicode, Telugu, Kannada, Malayalam, Hindi,
+ * prefixes/suffixes, common misspellings, and quantity notation.
  */
 export function lookupTanglishDictionary(input: string): { englishName: string; matched: boolean; quantity?: string } {
   if (!input || !input.trim()) {
@@ -472,35 +664,55 @@ export function lookupTanglishDictionary(input: string): { englishName: string; 
   }
 
   const raw = input.trim();
-  let normalized = cleanString(raw);
-  let extractedQty: string | undefined;
+  const normalized = cleanString(raw);
 
-  // 1. Direct match
+  // 1. Check Indic Unicode dictionary direct match
+  if (INDIC_GROCERY_MAP[normalized]) {
+    return { englishName: INDIC_GROCERY_MAP[normalized], matched: true };
+  }
+  if (INDIC_GROCERY_MAP[raw]) {
+    return { englishName: INDIC_GROCERY_MAP[raw], matched: true };
+  }
+
+  // 2. Direct Tanglish match
   if (TANGLISH_GROCERY_MAP[normalized]) {
     return { englishName: TANGLISH_GROCERY_MAP[normalized], matched: true };
   }
 
-  // 2. Check for leading quantity: "1kg arisi" -> qty: "1kg", term: "arisi"
+  // 3. Check for leading quantity: "1kg arisi" or "1kg அரிசி"
   const leadingMatch = raw.match(QUANTITY_REGEX);
   if (leadingMatch) {
     const qty = leadingMatch[1].trim();
     const term = cleanString(leadingMatch[2]);
+    if (INDIC_GROCERY_MAP[term]) {
+      return { englishName: INDIC_GROCERY_MAP[term], matched: true, quantity: qty };
+    }
     if (TANGLISH_GROCERY_MAP[term]) {
       return { englishName: TANGLISH_GROCERY_MAP[term], matched: true, quantity: qty };
     }
   }
 
-  // 3. Check for trailing quantity: "arisi 2kg" -> term: "arisi", qty: "2kg"
+  // 4. Check for trailing quantity: "arisi 2kg" or "அரிசி 2kg"
   const trailingMatch = raw.match(TRAILING_QUANTITY_REGEX);
   if (trailingMatch) {
     const term = cleanString(trailingMatch[1]);
     const qty = trailingMatch[2].trim();
+    if (INDIC_GROCERY_MAP[term]) {
+      return { englishName: INDIC_GROCERY_MAP[term], matched: true, quantity: qty };
+    }
     if (TANGLISH_GROCERY_MAP[term]) {
       return { englishName: TANGLISH_GROCERY_MAP[term], matched: true, quantity: qty };
     }
   }
 
-  // 4. Plural / Suffix handling ("arisigal" -> "arisi", "vengayams" -> "vengayam")
+  // 5. Partial/substring matching in Indic map
+  for (const [indicTerm, engName] of Object.entries(INDIC_GROCERY_MAP)) {
+    if (normalized.includes(indicTerm)) {
+      return { englishName: engName, matched: true };
+    }
+  }
+
+  // 6. Plural / Suffix handling ("arisigal" -> "arisi", "vengayams" -> "vengayam")
   if (normalized.endsWith('s') && TANGLISH_GROCERY_MAP[normalized.slice(0, -1)]) {
     return { englishName: TANGLISH_GROCERY_MAP[normalized.slice(0, -1)], matched: true };
   }
@@ -508,7 +720,7 @@ export function lookupTanglishDictionary(input: string): { englishName: string; 
     return { englishName: TANGLISH_GROCERY_MAP[normalized.slice(0, -3)], matched: true };
   }
 
-  // 5. Common variation swaps
+  // 7. Common variation swaps
   const variation = normalized
     .replace(/\byennai\b/g, 'ennai')
     .replace(/\byelakkai\b/g, 'elakkai')
@@ -525,3 +737,4 @@ export function lookupTanglishDictionary(input: string): { englishName: string; 
 
   return { englishName: raw, matched: false };
 }
+

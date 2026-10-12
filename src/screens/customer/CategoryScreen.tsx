@@ -76,6 +76,14 @@ export default function CategoryScreen() {
   >([]);
   const [pricePreset, setPricePreset] = useState(PRICE_PRESETS[0]);
 
+  useEffect(() => {
+    navigation.setOptions({
+      title: activeCategory
+        ? translateCategory(activeCategory, language)
+        : (t('common.categories') || 'Products'),
+    });
+  }, [navigation, activeCategory, language, t]);
+
   // Fetch category list for chip selection
   useEffect(() => {
     productApi
@@ -338,7 +346,13 @@ export default function CategoryScreen() {
       <View style={[styles.searchBarContainer, { backgroundColor: isDark ? '#0f172a' : '#FFFFFF', borderBottomColor: isDark ? '#1e293b' : '#F1F5F9' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('CustomerTabs', { screen: 'Categories' });
+              }
+            }}
             style={styles.backHomeBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
@@ -387,7 +401,9 @@ export default function CategoryScreen() {
           </Text>
         </TouchableOpacity>
         <Text style={[styles.count, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
-          {filtered.length} {t('products.resultsCount')}
+          {filtered.length === 1
+            ? t('common.productCount', { count: filtered.length })
+            : t('common.productsCount', { count: filtered.length })}
         </Text>
       </View>
 

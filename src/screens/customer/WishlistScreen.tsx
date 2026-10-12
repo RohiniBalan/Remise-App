@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
@@ -19,10 +20,17 @@ import { useTranslation, translateProductName } from '../../i18n';
 
 export default function WishlistScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
+  const { user } = useAuth();
   const { wishlist, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
   const { isDark } = useTheme();
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: t('common.myWishlist') || 'My Wishlist',
+    });
+  }, [navigation, language, t]);
 
   const handleAddToCart = (item: any) => {
     addToCart({
@@ -33,6 +41,20 @@ export default function WishlistScreen({ navigation }: any) {
       image: item.image,
       totalStock: item.totalStock,
     });
+  };
+
+  const handleBrowseProducts = () => {
+    if (user?.role === 'store_owner') {
+      navigation.navigate('StoreOwnerTabs', { screen: 'Overview' });
+    } else if (user?.role === 'wholesaler' || user?.role === 'whole_saler') {
+      navigation.navigate('WholesalerTabs', { screen: 'Overview' });
+    } else if (user?.role === 'home_business') {
+      navigation.navigate('HomeBusinessTabs', { screen: 'Overview' });
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('CustomerTabs', { screen: 'Home' });
+    }
   };
 
   const renderItem = ({ item }: { item: any }) => (
@@ -60,7 +82,7 @@ export default function WishlistScreen({ navigation }: any) {
       <View style={styles.info}>
         {item.brand ? <Text style={styles.brand}>{item.brand}</Text> : null}
         <Text style={[styles.title, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
-          {translateProductName(item.title, language)}
+          {translateProductName(item.title || item.name, language, item)}
         </Text>
         <Text style={[styles.price, isDark && { color: '#FFFFFF' }]}>₹{item.price}</Text>
 
@@ -71,7 +93,7 @@ export default function WishlistScreen({ navigation }: any) {
             activeOpacity={0.8}
           >
             <ShoppingBag size={14} color="#FFFFFF" />
-            <Text style={styles.addToCartText}>Add to Cart</Text>
+            <Text style={styles.addToCartText}>{t('products.addToCart')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -94,16 +116,16 @@ export default function WishlistScreen({ navigation }: any) {
           <View style={styles.emptyIconCircle}>
             <Heart size={36} color={CustomerColors.primary} />
           </View>
-          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>Your Wishlist is Empty</Text>
+          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>{t('wishlist.emptyTitle')}</Text>
           <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>
-            Save items you love by tapping the heart icon on any product card.
+            {t('wishlist.emptySubtitle')}
           </Text>
           <TouchableOpacity
             style={styles.exploreBtn}
-            onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
+            onPress={handleBrowseProducts}
             activeOpacity={0.85}
           >
-            <Text style={styles.exploreBtnText}>Browse Products</Text>
+            <Text style={styles.exploreBtnText}>{t('wishlist.browseProducts')}</Text>
             <ArrowRight size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -115,9 +137,9 @@ export default function WishlistScreen({ navigation }: any) {
     <View style={[styles.container, { backgroundColor: isDark ? '#0b0f19' : '#F8FAFC' }]}>
       <BrandHeader />
       <View style={[styles.header, { backgroundColor: isDark ? '#111827' : '#FFFFFF', borderBottomColor: isDark ? '#1F2937' : '#F1F5F9' }]}>
-        <Text style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}>My Wishlist</Text>
+        <Text style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}>{t('common.myWishlist')}</Text>
         <Text style={[styles.headerSubtitle, isDark && { color: '#9CA3AF' }]}>
-          {wishlist.length} {wishlist.length === 1 ? 'item' : 'items'} saved
+          {wishlist.length} {wishlist.length === 1 ? t('wishlist.itemSaved') : t('wishlist.itemsSaved')}
         </Text>
       </View>
       <FlatList

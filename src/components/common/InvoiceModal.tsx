@@ -67,6 +67,7 @@ export interface MobileInvoiceData {
   summary: {
     itemCount: number;
     subtotal: number;
+    platformFee?: number;
     discount?: number;
     tax?: number;
     shipping?: number;
@@ -332,6 +333,14 @@ export default function InvoiceModal({ orderId, visible, onClose }: Props) {
                     <Text style={styles.summaryLabel}>Taxes (GST)</Text>
                     <Text style={styles.summaryValue}>Included</Text>
                   </View>
+                  {Boolean(invoice.summary?.platformFee) && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Platform Fee</Text>
+                      <Text style={styles.summaryValue}>
+                        ₹{(invoice.summary?.platformFee || 0).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  )}
                   <View style={[styles.summaryRow, styles.grandTotalRow]}>
                     <Text style={styles.grandTotalLabel}>Total Paid</Text>
                     <Text style={styles.grandTotalValue}>

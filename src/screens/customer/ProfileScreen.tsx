@@ -39,6 +39,7 @@ import {
   Tag,
   Package,
   Settings as SettingsIcon,
+  Truck,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
@@ -61,7 +62,7 @@ import {
 import { mergeCategories } from '../../utils/storeCategories';
 import { storeProductApi } from '../../api/storeProductApi';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation, translateCategory } from '../../i18n';
+import { useTranslation, translateCategory, translateState, translateCity } from '../../i18n';
 
 type TabKey = 'overview' | 'addresses' | 'security' | 'store';
 
@@ -247,6 +248,12 @@ export default function ProfileScreen() {
   }, [user, initialForm]);
 
   useEffect(() => {
+    navigation.setOptions({
+      title: t('common.myProfile') || 'Profile',
+    });
+  }, [navigation, language, t]);
+
+  useEffect(() => {
   const loadCategories = async () => {
     try {
       const res = await storeProductApi.getCategories();
@@ -312,17 +319,29 @@ export default function ProfileScreen() {
     setDraftCities(state ? getCities(state.isoCode) : []);
   }, [addressDraft.state, findState]);
 
-  const stateOptions = indianStates.map(s => ({
-    key: s.isoCode,
-    label: s.name,
-  }));
-  const draftCityOptions = draftCities.map((c: any) => ({
-    key: c.name,
-    label: c.name,
-  }));
+  const stateOptions = useMemo(
+    () =>
+      indianStates.map(s => ({
+        key: s.isoCode,
+        canonicalName: s.name,
+        label: translateState(s.name, language),
+      })),
+    [language],
+  );
+  const draftCityOptions = useMemo(
+    () =>
+      draftCities.map((c: any) => ({
+        key: c.name,
+        canonicalName: c.name,
+        label: translateCity(c.name, language),
+      })),
+    [draftCities, language],
+  );
 
-  const handleDraftStateSelect = (isoCode: string, label: string) => {
-    setAddressDraft(prev => ({ ...prev, state: label, city: '', pinCode: '' }));
+  const handleDraftStateSelect = (isoCode: string, _label: string) => {
+    const matched = indianStates.find(s => s.isoCode === isoCode);
+    const canonicalName = matched ? matched.name : isoCode;
+    setAddressDraft(prev => ({ ...prev, state: canonicalName, city: '', pinCode: '' }));
     setDraftCities(getCities(isoCode));
   };
 
@@ -339,7 +358,7 @@ export default function ProfileScreen() {
       { id: 'addresses', label: t('profile.addressesTab') },
       { id: 'security', label: t('profile.securityTab') },
     ];
-    if (['store_owner', 'whole_saler', 'home_business'].includes(user?.role || '')) {
+    if (['store_owner', 'whole_saler', 'wholesaler', 'home_business', 'home_seller'].includes(user?.role || '')) {
       base.push({ id: 'store', label: t('profile.storeTab') });
     }
     return base;
@@ -704,6 +723,23 @@ export default function ProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.quickMenuTitle}>{t('profile.quickOrdersTitle')}</Text>
               <Text style={styles.quickMenuSub}>{t('profile.quickOrdersSub')}</Text>
+            </View>
+            <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={styles.quickMenuDivider} />
+
+          <TouchableOpacity
+            style={styles.quickMenuItem}
+            onPress={() => navigation.navigate('MyCredit')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#3B0764' : '#F5F3FF' }]}>
+              <CreditCard size={18} color="#7C3AED" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.quickMenuTitle}>My Store Credit (Kadan)</Text>
+              <Text style={styles.quickMenuSub}>View store credit lines, due dates, & ledger</Text>
             </View>
             <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           </TouchableOpacity>
@@ -1105,7 +1141,7 @@ export default function ProfileScreen() {
                     {item.fullName} · {item.phone}
                   </Text>
                   <Text style={styles.addressText}>
-                    {item.street}, {item.city}, {item.state} - {item.pinCode}
+                    {item.street}, {translateCity(item.city, language)}, {translateState(item.state, language)} - {item.pinCode}
                   </Text>
                 </View>
                 <View style={styles.inlineRow}>
@@ -1273,11 +1309,11 @@ export default function ProfileScreen() {
             />
 
             {/* Category — dropdown */}
-<LocationSelectField
-  label={t('common.categories') || 'Category'}
-  value={form.profileData.storeProfile?.category || ''}
-  placeholder="Select Category"
-  options={categoryOptions}
+            <LocationSelectField
+              label={t('common.categories') || 'Category'}
+              value={form.profileData.storeProfile?.category || ''}
+              placeholder={t('store.selectCategoryPlaceholder') || 'Select Category'}
+              options={categoryOptions}
   onSelect={key =>
     setForm(prev => ({
       ...prev,
@@ -1483,7 +1519,7 @@ export default function ProfileScreen() {
                 saveProfile({ ...form, profileData: form.profileData })
               }
             >
-              <Text style={styles.saveBtnText}>Save store info</Text>
+              <Text style={styles.saveBtnText}>{t('profile.saveChangesBtn') || t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1526,11 +1562,21 @@ export default function ProfileScreen() {
                   // non-fatal
                 }
                 await logout();
-                // Navigate to Home tab after logout
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'CustomerTabs' }],
-                });
+                // Reset root navigation to RoleGate (identical to other roles signout process)
+                try {
+                  let rootNav: any = navigation;
+                  while (rootNav?.getParent && rootNav.getParent()) {
+                    rootNav = rootNav.getParent();
+                  }
+                  rootNav?.reset?.({
+                    index: 0,
+                    routes: [{ name: 'RoleGate' }],
+                  });
+                } catch {
+                  try {
+                    navigation.navigate('Home');
+                  } catch {}
+                }
               }}
             >
               <LogOut size={16} color="#FFFFFF" />

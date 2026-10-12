@@ -10,6 +10,10 @@ import { hi } from './hi';
 
 export * from './types';
 export * from './contentTranslator';
+export * from '../utils/indiaLocation';
+export * from './supplierTranslations';
+export * from './deliveryTranslations';
+export * from './deliveryPartnerTranslations';
 
 export const translations: Record<LanguageCode, TranslationSchema> = {
   en,

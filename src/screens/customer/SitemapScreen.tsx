@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import {
     Map,
@@ -15,7 +15,7 @@ import {
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../i18n';
-import { getSitemapData } from '../../i18n/sitemapTranslations';
+import { getSitemapData, SitemapData } from '../../i18n/sitemapTranslations';
 
 // Ported from client/app/sitemap/page.tsx — uses website brand red (#FF0000).
 
@@ -40,127 +40,138 @@ type QuickNavGroup = {
     links: SitemapLink[];
 };
 
-const SITEMAP_SECTIONS: SitemapSection[] = [
-    {
-        icon: ShoppingBag,
-        title: 'Shop',
-        desc: 'Discover and shop products on Remise.',
-        links: [
-            { label: 'Home', route: 'Home' },
-            { label: 'All Products', route: 'Categories' },
-            { label: 'Categories', route: 'Categories' },
-            { label: 'New Arrivals', route: 'NewArrivals' },
-            { label: 'Best Sellers', route: 'BestSellers' },
-            { label: 'Offers', route: 'Nearby' },
-            { label: 'Search Products', route: 'Home' },
-        ],
-    },
-    {
-        icon: Building2,
-        title: 'For Businesses',
-        desc: 'Grow your business with Remise.',
-        isStatic: true,
-        links: [
-            { label: 'Store Owner' },
-            { label: 'Wholesaler' },
-            { label: 'Home Business' },
-            { label: 'Business Registration' },
-            { label: 'Business Login' },
-            { label: 'Store Dashboard' },
-        ],
-    },
-    {
-        icon: Info,
-        title: 'Company',
-        desc: 'Learn more about Remise and our journey.',
-        links: [
-            { label: 'About Us', route: 'About' },
-            { label: 'Careers', route: 'Careers' },
-            { label: 'Blogs & News', route: 'Blog' },
-            { label: 'Press', route: 'Press' },
-            { label: 'Contact Us', route: 'Services' },
-        ],
-    },
-    {
-        icon: LifeBuoy,
-        title: 'Support',
-        desc: 'Need help? Find answers and useful resources.',
-        links: [
-            { label: 'Help Center', route: 'HelpCenter' },
-            { label: 'Frequently Asked Questions', route: 'HelpCenter' },
-            { label: 'Returns & Refunds', route: 'Returns' },
-            { label: 'Order Support', route: 'Services' },
-            { label: 'Payment Support', route: 'Services' },
-            { label: 'Contact Support', route: 'Services' },
-        ],
-    },
-    {
-        icon: UserCircle,
-        title: 'Account',
-        desc: 'Manage your Remise account.',
-        links: [
-            { label: 'Login', route: 'LoginRegister' },
-            { label: 'Register', route: 'LoginRegister' },
-            { label: 'My Account', route: 'Profile' },
-            { label: 'My Orders', route: 'Orders' },
-            { label: 'Saved Addresses', route: 'Profile' },
-            { label: 'Wishlist', route: 'Wishlist' },
-            { label: 'Cart', route: 'Cart' },
-        ],
-    },
-    {
-        icon: Scale,
-        title: 'Legal & Policies',
-        desc: 'Review our policies and legal terms.',
-        links: [
-            { label: 'Privacy Policy', route: 'Privacy' },
-            { label: 'Terms of Service', route: 'Terms' },
-            { label: 'Returns & Refund Policy', route: 'Returns' },
-        ],
-    },
-];
+function getSitemapSections(data: SitemapData): SitemapSection[] {
+    return [
+        {
+            icon: ShoppingBag,
+            title: data.shopTitle,
+            desc: data.shopDesc,
+            links: [
+                { label: data.linkLabels.home, route: 'Home' },
+                { label: data.linkLabels.allProducts, route: 'Categories' },
+                { label: data.linkLabels.categories, route: 'Categories' },
+                { label: data.linkLabels.newArrivals, route: 'NewArrivals' },
+                { label: data.linkLabels.bestSellers, route: 'BestSellers' },
+                { label: data.linkLabels.offers, route: 'Nearby' },
+                { label: data.linkLabels.searchProducts, route: 'Home' },
+            ],
+        },
+        {
+            icon: Building2,
+            title: data.businessTitle,
+            desc: data.businessDesc,
+            isStatic: true,
+            links: [
+                { label: data.linkLabels.storeOwner },
+                { label: data.linkLabels.wholesaler },
+                { label: data.linkLabels.homeBusiness },
+                { label: data.linkLabels.businessRegistration },
+                { label: data.linkLabels.businessLogin },
+                { label: data.linkLabels.storeDashboard },
+            ],
+        },
+        {
+            icon: Info,
+            title: data.companyTitle,
+            desc: data.companyDesc,
+            links: [
+                { label: data.linkLabels.aboutUs, route: 'About' },
+                { label: data.linkLabels.careers, route: 'Careers' },
+                { label: data.linkLabels.blogsNews, route: 'Blog' },
+                { label: data.linkLabels.press, route: 'Press' },
+                { label: data.linkLabels.contactUs, route: 'Services' },
+            ],
+        },
+        {
+            icon: LifeBuoy,
+            title: data.supportTitle,
+            desc: data.supportDesc,
+            links: [
+                { label: data.linkLabels.helpCenter, route: 'HelpCenter' },
+                { label: data.linkLabels.faq, route: 'HelpCenter' },
+                { label: data.linkLabels.returnsRefunds, route: 'Returns' },
+                { label: data.linkLabels.orderSupport, route: 'Services' },
+                { label: data.linkLabels.paymentSupport, route: 'Services' },
+                { label: data.linkLabels.contactSupport, route: 'Services' },
+            ],
+        },
+        {
+            icon: UserCircle,
+            title: data.accountTitle,
+            desc: data.accountDesc,
+            links: [
+                { label: data.linkLabels.login, route: 'LoginRegister' },
+                { label: data.linkLabels.register, route: 'LoginRegister' },
+                { label: data.linkLabels.myAccount, route: 'Profile' },
+                { label: data.linkLabels.myOrders, route: 'Orders' },
+                { label: data.linkLabels.savedAddresses, route: 'Profile' },
+                { label: data.linkLabels.wishlist, route: 'Wishlist' },
+                { label: data.linkLabels.cart, route: 'Cart' },
+            ],
+        },
+        {
+            icon: Scale,
+            title: data.legalTitle,
+            desc: data.legalDesc,
+            links: [
+                { label: data.linkLabels.privacyPolicy, route: 'PrivacyPolicy' },
+                { label: data.linkLabels.termsOfService, route: 'TermsOfUse' },
+                { label: data.linkLabels.returnsPolicy, route: 'Returns' },
+            ],
+        },
+    ];
+}
 
-const QUICK_NAV: QuickNavGroup[] = [
-    {
-        title: 'Main',
-        links: [
-            { label: 'Home', route: 'Home' },
-            { label: 'Categories', route: 'Categories' },
-            { label: 'Bulk Purchase', route: 'BulkPurchase' },
-            { label: 'Offers', route: 'Nearby' },
-        ],
-    },
-    {
-        title: 'Discover',
-        links: [
-            { label: 'New Arrivals', route: 'NewArrivals' },
-            { label: 'Best Sellers', route: 'BestSellers' },
-            { label: 'Blogs & News', route: 'Blog' },
-        ],
-    },
-    {
-        title: 'Business',
-        isStatic: true,
-        links: [
-            { label: 'Become a Seller' },
-            { label: 'Business Login' },
-            { label: 'Store Management' },
-        ],
-    },
-    {
-        title: 'Help',
-        links: [
-            { label: 'Help Center', route: 'HelpCenter' },
-            { label: 'Returns & Refunds', route: 'Returns' },
-            { label: 'Contact Us', route: 'Services' },
-        ],
-    },
-];
+function getQuickNav(data: SitemapData): QuickNavGroup[] {
+    return [
+        {
+            title: data.quickNavGroups.main,
+            links: [
+                { label: data.linkLabels.home, route: 'Home' },
+                { label: data.linkLabels.categories, route: 'Categories' },
+                { label: data.linkLabels.bulkPurchase, route: 'BulkPurchase' },
+                { label: data.linkLabels.offers, route: 'Nearby' },
+            ],
+        },
+        {
+            title: data.quickNavGroups.discover,
+            links: [
+                { label: data.linkLabels.newArrivals, route: 'NewArrivals' },
+                { label: data.linkLabels.bestSellers, route: 'BestSellers' },
+                { label: data.linkLabels.blogsNews, route: 'Blog' },
+            ],
+        },
+        {
+            title: data.quickNavGroups.business,
+            isStatic: true,
+            links: [
+                { label: data.linkLabels.becomeSeller },
+                { label: data.linkLabels.businessLogin },
+                { label: data.linkLabels.storeManagement },
+            ],
+        },
+        {
+            title: data.quickNavGroups.help,
+            links: [
+                { label: data.linkLabels.helpCenter, route: 'HelpCenter' },
+                { label: data.linkLabels.returnsRefunds, route: 'Returns' },
+                { label: data.linkLabels.contactUs, route: 'Services' },
+            ],
+        },
+    ];
+}
 
 export default function SitemapScreen({ navigation }: any) {
     const { isDark } = useTheme();
     const { language } = useTranslation();
-    const data = getSitemapData(language as any);
+    const data = useMemo(() => getSitemapData(language as any), [language]);
+
+    useEffect(() => {
+        navigation.setOptions({ title: data.heroTitle });
+    }, [navigation, data.heroTitle]);
+
+    const sections = useMemo(() => getSitemapSections(data), [data]);
+    const quickNav = useMemo(() => getQuickNav(data), [data]);
 
     const cardBg = isDark ? '#111827' : '#ffffff';
     const borderColor = isDark ? '#1F2937' : '#e2e8f0';
@@ -191,20 +202,20 @@ export default function SitemapScreen({ navigation }: any) {
                     <View style={styles.eyebrowIcon}>
                         <Map size={15} color="#FFFFFF" />
                     </View>
-                    <Text style={styles.eyebrowText}>Sitemap</Text>
+                    <Text style={styles.eyebrowText}>{data.eyebrow}</Text>
                 </View>
                 <Text style={[styles.headerTitle, { color: textPri }]}>
-                    Everything on Remise, <Text style={styles.headerTitleAccent}>all in one place</Text>
+                    {data.heroTitleLead}
+                    <Text style={styles.headerTitleAccent}>{data.heroTitleAccent}</Text>
                 </Text>
                 <Text style={[styles.headerSubtitle, { color: textSec }]}>
-                    Explore the main sections, shopping features, business services, support resources, and
-                    company information available on Remise.
+                    {data.heroSubtitle}
                 </Text>
             </View>
 
             {/* DIRECTORY GRID */}
             <View style={styles.section}>
-                {SITEMAP_SECTIONS.map((section) => {
+                {sections.map((section) => {
                     const Icon = section.icon;
                     return (
                         <View key={section.title} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
@@ -244,11 +255,11 @@ export default function SitemapScreen({ navigation }: any) {
             {/* QUICK NAVIGATION */}
             <View style={styles.section}>
                 <View style={styles.quickNavHeader}>
-                    <Text style={[styles.quickNavTitle, { color: textPri }]}>Looking for something specific?</Text>
-                    <Text style={[styles.quickNavSubtitle, { color: textSec }]}>A quick shortcut to the most-used pages.</Text>
+                    <Text style={[styles.quickNavTitle, { color: textPri }]}>{data.quickNavTitle}</Text>
+                    <Text style={[styles.quickNavSubtitle, { color: textSec }]}>{data.quickNavSubtitle}</Text>
                 </View>
                 <View style={[styles.quickNavCard, { backgroundColor: cardBg, borderColor }]}>
-                    {QUICK_NAV.map((col) => (
+                    {quickNav.map((col) => (
                         <View key={col.title} style={styles.quickNavCol}>
                             <Text style={styles.quickNavColTitle}>{col.title}</Text>
                             {col.links.map((link) => {
@@ -274,17 +285,16 @@ export default function SitemapScreen({ navigation }: any) {
             <View style={styles.section}>
                 <View style={[styles.ctaCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#fee2e2' }]}>
                     <HelpCircle size={28} color={BRAND_RED} style={{ alignSelf: 'center', marginBottom: Spacing.sm }} />
-                    <Text style={[styles.ctaTitle, { color: textPri }]}>Can't find what you're looking for?</Text>
+                    <Text style={[styles.ctaTitle, { color: textPri }]}>{data.ctaTitle}</Text>
                     <Text style={[styles.ctaSubtitle, { color: textSec }]}>
-                        Our Help Center has answers to common questions about shopping, orders, payments,
-                        returns, and using Remise.
+                        {data.ctaSubtitle}
                     </Text>
                     <TouchableOpacity style={styles.ctaButtonFilled} onPress={() => goTo('HelpCenter')} activeOpacity={0.85}>
-                        <Text style={styles.ctaButtonFilledText}>Visit Help Center</Text>
+                        <Text style={styles.ctaButtonFilledText}>{data.ctaVisitHelp}</Text>
                         <ArrowRight size={16} color="#FFFFFF" />
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.ctaButtonOutline, { backgroundColor: cardBg }]} onPress={() => goTo('Services')} activeOpacity={0.85}>
-                        <Text style={styles.ctaButtonOutlineText}>Contact Us</Text>
+                        <Text style={styles.ctaButtonOutlineText}>{data.ctaContactUs}</Text>
                         <ArrowRight size={16} color={BRAND_RED} />
                     </TouchableOpacity>
                 </View>
@@ -330,7 +340,7 @@ const styles = StyleSheet.create({
     ctaTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.sm },
     ctaSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, marginBottom: Spacing.lg },
     ctaButtonFilled: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: BRAND_RED, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, width: '100%', marginBottom: Spacing.sm },
-    ctaButtonFilledText: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+    ctaButtonFilledText: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center', flexShrink: 1 },
     ctaButtonOutline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, borderWidth: 1, borderColor: BRAND_RED, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, width: '100%' },
-    ctaButtonOutlineText: { fontSize: FontSizes.sm, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5 },
+    ctaButtonOutlineText: { fontSize: FontSizes.sm, fontWeight: '800', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center', flexShrink: 1 },
 });

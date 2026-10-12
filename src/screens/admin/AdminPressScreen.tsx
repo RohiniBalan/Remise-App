@@ -69,6 +69,11 @@ export default function AdminPressScreen() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editorTab, setEditorTab] = useState<'write' | 'preview'>('write');
 
+  // Delete Confirmation Modal State
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<PressReleaseItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Form Fields
   const [formTitle, setFormTitle] = useState('');
   const [formSlug, setFormSlug] = useState('');
@@ -77,7 +82,7 @@ export default function AdminPressScreen() {
   const [formCategory, setFormCategory] = useState(CATEGORIES[0]);
   const [formExcerpt, setFormExcerpt] = useState('');
   const [formBody, setFormBody] = useState('');
-  const [formContactName, setFormContactName] = useState('Remise Press Team');
+  const [formContactName, setFormContactName] = useState(t('admin.contactNamePlaceholder'));
   const [formContactEmail, setFormContactEmail] = useState('porulontechnologies@gmail.com');
   const [formFeatured, setFormFeatured] = useState(false);
   const [formPublished, setFormPublished] = useState(true);
@@ -117,7 +122,7 @@ export default function AdminPressScreen() {
     setFormCategory(CATEGORIES[0]);
     setFormExcerpt('');
     setFormBody('');
-    setFormContactName('Remise Press Team');
+    setFormContactName(t('admin.contactNamePlaceholder'));
     setFormContactEmail('porulontechnologies@gmail.com');
     setFormFeatured(false);
     setFormPublished(true);
@@ -159,11 +164,11 @@ export default function AdminPressScreen() {
 
   const handleSave = async (publishNow = formPublished) => {
     if (!formTitle.trim()) {
-      Alert.alert('Missing Title', 'Please enter a title for the press release.');
+      Alert.alert(t('admin.missingTitle'), t('admin.missingTitleDesc'));
       return;
     }
     if (!formExcerpt.trim()) {
-      Alert.alert('Missing Summary', 'Please enter a short excerpt / summary.');
+      Alert.alert(t('admin.missingSummary'), t('admin.missingSummaryDesc'));
       return;
     }
 
@@ -210,11 +215,14 @@ export default function AdminPressScreen() {
         await saveToStorage(updatedList);
       }
       setModalVisible(false);
-      Alert.alert('Success', publishNow ? 'Press Release published to DB!' : 'Press Release saved as draft in DB!');
+      Alert.alert(
+        publishNow ? t('admin.published') : t('admin.drafts'),
+        publishNow ? t('admin.pressSaveSuccess') : t('admin.pressDraftSuccess')
+      );
       loadReleases();
     } catch (err: any) {
       console.error('Backend press save error:', err?.message);
-      Alert.alert('Database Error', 'Failed to save press release to database. ' + (err?.message || 'Please check your connection.'));
+      Alert.alert(t('admin.failedSavePress'), err?.message || '');
     }
   };
 
@@ -253,26 +261,26 @@ export default function AdminPressScreen() {
   };
 
   const confirmDelete = (item: PressReleaseItem) => {
-    Alert.alert(
-      'Delete Press Release',
-      `Are you sure you want to delete "${item.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const updated = releases.filter(r => r.id !== item.id);
-            saveToStorage(updated);
-            try {
-              await pressApi.delete(item.id);
-            } catch (e) {
-              console.warn('Backend delete failed:', e);
-            }
-          },
-        },
-      ]
-    );
+    setItemToDelete(item);
+    setDeleteModalVisible(true);
+  };
+
+  const handleExecuteDelete = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    const targetId = itemToDelete.id;
+    const updated = releases.filter(r => r.id !== targetId);
+    setReleases(updated);
+    saveToStorage(updated);
+    try {
+      await pressApi.delete(targetId);
+    } catch (e) {
+      console.warn('Backend delete failed:', e);
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalVisible(false);
+      setItemToDelete(null);
+    }
   };
 
   const filteredReleases = useMemo(() => {
@@ -303,15 +311,15 @@ export default function AdminPressScreen() {
   return (
     <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
       {/* Header bar */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
+      <View style={[styles.header, { backgroundColor: themeColors.cardBg, borderBottomColor: themeColors.border }]}>
+        <View style={styles.headerTop}>
           <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>{t('admin.pressNewsroom')}</Text>
-          <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>{t('admin.pressSubtitle')}</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={openCreateModal} activeOpacity={0.85}>
+            <Plus size={15} color="#fff" />
+            <Text style={styles.addBtnText}>{t('admin.newRelease')}</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={openCreateModal}>
-          <Plus size={16} color="#fff" />
-          <Text style={styles.addBtnText}>{t('admin.newRelease')}</Text>
-        </TouchableOpacity>
+        <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>{t('admin.pressSubtitle')}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -339,7 +347,7 @@ export default function AdminPressScreen() {
         <View style={[styles.searchBar, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
           <Search size={16} color={themeColors.textMuted} />
           <TextInput
-            style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+            style={[styles.searchInput, { color: themeColors.textPrimary }]}
             placeholder={t('admin.searchPressPlaceholder')}
             placeholderTextColor={themeColors.textMuted}
             value={searchQuery}
@@ -354,21 +362,23 @@ export default function AdminPressScreen() {
         </View>
 
         {/* Status Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingRight: 10 }}>
           {(['all', 'published', 'draft', 'featured'] as const).map(s => (
             <TouchableOpacity
               key={s}
               style={[
                 styles.statusChip,
-                { backgroundColor: themeColors.cardBg, borderColor: themeColors.border },
-                statusFilter === s && styles.statusChipActive,
+                {
+                  backgroundColor: statusFilter === s ? AdminColors.primary : themeColors.cardBg,
+                  borderColor: statusFilter === s ? AdminColors.primary : themeColors.border,
+                },
               ]}
               onPress={() => setStatusFilter(s)}
             >
               <Text
                 style={[
                   styles.statusChipText,
-                  { color: isDark ? '#CBD5E1' : themeColors.textSecondary },
+                  { color: statusFilter === s ? '#fff' : (isDark ? '#CBD5E1' : themeColors.textSecondary) },
                   statusFilter === s && styles.statusChipTextActive,
                 ]}
               >
@@ -379,21 +389,25 @@ export default function AdminPressScreen() {
         </ScrollView>
 
         {/* Categories */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow} contentContainerStyle={{ paddingRight: 10 }}>
           {['All', ...CATEGORIES].map(cat => (
             <TouchableOpacity
               key={cat}
               style={[
                 styles.catChip,
-                { backgroundColor: themeColors.cardBg, borderColor: themeColors.border },
-                activeCategory === cat && styles.catChipActive,
+                {
+                  backgroundColor: activeCategory === cat
+                    ? (isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2')
+                    : (isDark ? '#1F2937' : '#F3F4F6'),
+                  borderColor: activeCategory === cat ? AdminColors.primary : (isDark ? '#374151' : '#E5E7EB'),
+                },
               ]}
               onPress={() => setActiveCategory(cat)}
             >
               <Text
                 style={[
                   styles.catChipText,
-                  { color: isDark ? '#CBD5E1' : themeColors.textSecondary },
+                  { color: activeCategory === cat ? AdminColors.primary : (isDark ? '#CBD5E1' : themeColors.textSecondary) },
                   activeCategory === cat && styles.catChipTextActive,
                 ]}
               >
@@ -407,73 +421,95 @@ export default function AdminPressScreen() {
         {loading ? (
           <ActivityIndicator size="large" color={AdminColors.primary} style={{ marginTop: 40 }} />
         ) : filteredReleases.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Megaphone size={36} color={AdminColors.textMuted} />
-            <Text style={styles.emptyTitle}>No Press Releases Found</Text>
-            <Text style={styles.emptySub}>
-              Create your first official announcement to get started.
+          <View style={[styles.emptyCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
+            <Megaphone size={36} color={themeColors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>{t('admin.noPressFound')}</Text>
+            <Text style={[styles.emptySub, { color: themeColors.textSecondary }]}>
+              {t('admin.noPressFoundSub')}
             </Text>
             <TouchableOpacity style={[styles.addBtn, { marginTop: 16 }]} onPress={openCreateModal}>
               <Plus size={16} color="#fff" />
-              <Text style={styles.addBtnText}>Create Press Release</Text>
+              <Text style={styles.addBtnText}>{t('admin.createPressRelease')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           filteredReleases.map(item => (
-            <View key={item.id} style={[styles.itemCard, item.featured && styles.itemCardFeatured]}>
+            <View
+              key={item.id}
+              style={[
+                styles.itemCard,
+                {
+                  backgroundColor: item.featured
+                    ? (isDark ? 'rgba(239, 68, 68, 0.12)' : '#FFFDFD')
+                    : themeColors.cardBg,
+                  borderColor: item.featured
+                    ? (isDark ? '#EF4444' : '#FCA5A5')
+                    : themeColors.border,
+                }
+              ]}
+            >
               {/* Badges */}
               <View style={styles.badgeRow}>
                 {item.featured && (
-                  <View style={styles.featuredBadge}>
+                  <View style={[styles.featuredBadge, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2' }]}>
                     <Star size={11} color="#DC2626" fill="#DC2626" />
-                    <Text style={styles.featuredBadgeText}>Featured</Text>
+                    <Text style={styles.featuredBadgeText}>{t('admin.featured')}</Text>
                   </View>
                 )}
-                <View style={[styles.pubBadge, { backgroundColor: item.published ? '#ECFDF5' : '#FFFBEB' }]}>
+                <View style={[styles.pubBadge, { backgroundColor: item.published ? (isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5') : (isDark ? 'rgba(217, 119, 6, 0.2)' : '#FFFBEB') }]}>
                   <Text style={[styles.pubBadgeText, { color: item.published ? '#059669' : '#D97706' }]}>
                     {item.published ? t('admin.published') : t('admin.draftBadge')}
                   </Text>
                 </View>
-                <Text style={styles.catBadge}>{translateCategory(item.category || 'General', language)}</Text>
-                <Text style={styles.dateText}>{translateDate(item.date, language)}</Text>
+                <Text style={[styles.catBadge, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6', color: isDark ? '#CBD5E1' : '#6B7280' }]}>
+                  {translateCategory(item.category || 'General', language)}
+                </Text>
+                <Text style={[styles.dateText, { color: themeColors.textMuted }]}>{translateDate(item.date, language)}</Text>
               </View>
 
               {/* Title & Excerpt */}
-              <Text style={styles.itemTitle}>{translatePressContent(item.title, language)}</Text>
-              <Text style={styles.itemExcerpt} numberOfLines={2}>
+              <Text style={[styles.itemTitle, { color: themeColors.textPrimary }]}>{translatePressContent(item.title, language)}</Text>
+              <Text style={[styles.itemExcerpt, { color: themeColors.textSecondary }]} numberOfLines={2}>
                 {translatePressContent(item.excerpt, language)}
               </Text>
 
               {/* Footer / Meta */}
               <View style={styles.itemMeta}>
-                <Text style={styles.contactText}>
+                <Text style={[styles.contactText, { color: themeColors.textMuted }]}>
                   {item.contactName || 'Remise Press'} ({item.contactEmail || 'porulontechnologies@gmail.com'})
                 </Text>
-                {item.location ? <Text style={styles.locationText}>• {item.location}</Text> : null}
+                {item.location ? <Text style={[styles.locationText, { color: themeColors.textMuted }]}>• {item.location}</Text> : null}
               </View>
 
               {/* Action Buttons */}
-              <View style={styles.actionRow}>
+              <View style={[styles.actionRow, { borderTopColor: themeColors.border }]}>
                 <TouchableOpacity
-                  style={[styles.iconBtn, item.featured && styles.iconBtnActive]}
+                  style={[styles.iconBtn, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }, item.featured && styles.iconBtnActive]}
                   onPress={() => toggleFeaturedStatus(item.id)}
                 >
                   <Star size={15} color={item.featured ? AdminColors.primary : AdminColors.textMuted} fill={item.featured ? AdminColors.primary : 'none'} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.iconBtn, item.published && { backgroundColor: '#ECFDF5' }]}
+                  style={[
+                    styles.iconBtn,
+                    {
+                      backgroundColor: item.published
+                        ? (isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5')
+                        : (isDark ? '#1F2937' : '#F3F4F6')
+                    }
+                  ]}
                   onPress={() => togglePublishStatus(item.id)}
                 >
                   {item.published ? <Eye size={15} color="#059669" /> : <EyeOff size={15} color={AdminColors.textMuted} />}
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionPill} onPress={() => openEditModal(item)}>
-                  <Edit3 size={13} color={AdminColors.textPrimary} />
-                  <Text style={styles.actionPillText}>{t('admin.edit')}</Text>
+                <TouchableOpacity style={[styles.actionPill, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]} onPress={() => openEditModal(item)}>
+                  <Edit3 size={13} color={themeColors.textPrimary} />
+                  <Text style={[styles.actionPillText, { color: themeColors.textPrimary }]}>{t('admin.edit')}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.actionPill, styles.deletePill]} onPress={() => confirmDelete(item)}>
+                <TouchableOpacity style={[styles.actionPill, styles.deletePill, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2' }]} onPress={() => confirmDelete(item)}>
                   <Trash2 size={13} color="#DC2626" />
                   <Text style={[styles.actionPillText, { color: '#DC2626' }]}>{t('admin.delete')}</Text>
                 </TouchableOpacity>
@@ -492,24 +528,28 @@ export default function AdminPressScreen() {
             <View style={[styles.modalHeader, isDark && { borderBottomColor: themeColors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, isDark && { color: themeColors.textPrimary }]}>
-                  {isEditing ? 'Edit Press Release' : 'New Press Release'}
+                  {isEditing ? t('admin.editPressRelease') : t('admin.newPressRelease')}
                 </Text>
                 <Text style={[styles.modalSub, { color: isDark ? '#CBD5E1' : AdminColors.textMuted }]}>
-                  Remise Newsroom announcement
+                  {t('admin.newsroomAnnouncement')}
                 </Text>
               </View>
-              <View style={styles.tabToggle}>
+              <View style={[styles.tabToggle, isDark && { backgroundColor: themeColors.bg }]}>
                 <TouchableOpacity
-                  style={[styles.tabBtn, editorTab === 'write' && styles.tabBtnActive]}
+                  style={[styles.tabBtn, editorTab === 'write' && (isDark ? { backgroundColor: themeColors.cardBg } : styles.tabBtnActive)]}
                   onPress={() => setEditorTab('write')}
                 >
-                  <Text style={[styles.tabBtnText, editorTab === 'write' && styles.tabBtnTextActive]}>Write</Text>
+                  <Text style={[styles.tabBtnText, editorTab === 'write' && (isDark ? { color: '#FFFFFF' } : styles.tabBtnTextActive)]}>
+                    {t('admin.tabWrite')}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.tabBtn, editorTab === 'preview' && styles.tabBtnActive]}
+                  style={[styles.tabBtn, editorTab === 'preview' && (isDark ? { backgroundColor: themeColors.cardBg } : styles.tabBtnActive)]}
                   onPress={() => setEditorTab('preview')}
                 >
-                  <Text style={[styles.tabBtnText, editorTab === 'preview' && styles.tabBtnTextActive]}>Preview</Text>
+                  <Text style={[styles.tabBtnText, editorTab === 'preview' && (isDark ? { color: '#FFFFFF' } : styles.tabBtnTextActive)]}>
+                    {t('admin.tabPreview')}
+                  </Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
@@ -520,19 +560,28 @@ export default function AdminPressScreen() {
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {editorTab === 'write' ? (
                 <>
-                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Headline Title *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                    {t('admin.headlineTitle')}
+                  </Text>
                   <TextInput
-                    style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
-                    placeholder="e.g. Remise introduces new smart shopping features..."
+                    style={[
+                      styles.input,
+                      styles.titleInput,
+                      isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }
+                    ]}
+                    placeholder={t('admin.headlinePlaceholder')}
                     placeholderTextColor={AdminColors.textMuted}
                     value={formTitle}
                     onChangeText={handleTitleChange}
+                    multiline
                   />
 
-                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>URL Slug *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                    {t('admin.urlSlug')}
+                  </Text>
                   <TextInput
                     style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
-                    placeholder="smarter-local-discovery"
+                    placeholder={t('admin.slugPlaceholder')}
                     placeholderTextColor={AdminColors.textMuted}
                     value={formSlug}
                     onChangeText={setFormSlug}
@@ -541,20 +590,24 @@ export default function AdminPressScreen() {
 
                   <View style={styles.formRow}>
                     <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Date</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                        {t('admin.dateLabel')}
+                      </Text>
                       <TextInput
                         style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
-                        placeholder="September 2026"
+                        placeholder={t('admin.datePlaceholder')}
                         placeholderTextColor={AdminColors.textMuted}
                         value={formDate}
                         onChangeText={setFormDate}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Location / Dateline</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                        {t('admin.locationDateline')}
+                      </Text>
                       <TextInput
                         style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
-                        placeholder="San Francisco, CA"
+                        placeholder={t('admin.locationPlaceholder')}
                         placeholderTextColor={AdminColors.textMuted}
                         value={formLocation}
                         onChangeText={setFormLocation}
@@ -562,7 +615,9 @@ export default function AdminPressScreen() {
                     </View>
                   </View>
 
-                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Category</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                    {t('admin.categoryFieldLabel')}
+                  </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                     {CATEGORIES.map(c => (
                       <TouchableOpacity
@@ -570,25 +625,31 @@ export default function AdminPressScreen() {
                         style={[styles.catChip, formCategory === c && styles.catChipActive, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}
                         onPress={() => setFormCategory(c)}
                       >
-                        <Text style={[styles.catChipText, formCategory === c && styles.catChipTextActive, isDark && formCategory !== c && { color: themeColors.textSecondary }]}>{c}</Text>
+                        <Text style={[styles.catChipText, formCategory === c && styles.catChipTextActive, isDark && formCategory !== c && { color: themeColors.textSecondary }]}>
+                          {translateCategory(c, language)}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
 
-                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Summary / Excerpt (1-2 sentences) *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                    {t('admin.summaryExcerpt')}
+                  </Text>
                   <TextInput
                     style={[styles.input, { height: 60 }, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
-                    placeholder="Brief summary for listings and preview cards..."
+                    placeholder={t('admin.summaryPlaceholder')}
                     placeholderTextColor={AdminColors.textMuted}
                     value={formExcerpt}
                     onChangeText={setFormExcerpt}
                     multiline
                   />
 
-                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Full Body (Separate paragraphs with double lines) *</Text>
+                  <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                    {t('admin.fullBody')}
+                  </Text>
                   <TextInput
                     style={[styles.input, { height: 140, textAlignVertical: 'top' }, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
-                    placeholder="SAN FRANCISCO — Remise today announced...&#10;&#10;The new capabilities allow..."
+                    placeholder={t('admin.bodyPlaceholder')}
                     placeholderTextColor={AdminColors.textMuted}
                     value={formBody}
                     onChangeText={setFormBody}
@@ -597,17 +658,21 @@ export default function AdminPressScreen() {
 
                   <View style={styles.formRow}>
                     <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Contact Name</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                        {t('admin.contactNameLabel')}
+                      </Text>
                       <TextInput
                         style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
-                        placeholder="Remise Press Team"
+                        placeholder={t('admin.contactNamePlaceholder')}
                         placeholderTextColor={AdminColors.textMuted}
                         value={formContactName}
                         onChangeText={setFormContactName}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>Contact Email</Text>
+                      <Text style={[styles.inputLabel, isDark && { color: themeColors.textSecondary }]}>
+                        {t('admin.contactEmailLabel')}
+                      </Text>
                       <TextInput
                         style={[styles.input, isDark && { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: '#FFFFFF' }]}
                         placeholder="porulontechnologies@gmail.com"
@@ -621,28 +686,36 @@ export default function AdminPressScreen() {
                   </View>
 
                   {/* Toggles */}
-                  <View style={styles.toggleRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.toggleLabel}>Featured Banner</Text>
-                      <Text style={styles.toggleSub}>Hero announcement on Newsroom</Text>
+                  <View style={[styles.toggleRow, isDark && { borderTopColor: themeColors.border }]}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={[styles.toggleLabel, { color: themeColors.textPrimary }]}>
+                        {t('admin.featuredBanner')}
+                      </Text>
+                      <Text style={[styles.toggleSub, { color: themeColors.textSecondary }]}>
+                        {t('admin.featuredBannerSub')}
+                      </Text>
                     </View>
                     <Switch
                       value={formFeatured}
                       onValueChange={setFormFeatured}
-                      trackColor={{ false: '#E5E7EB', true: AdminColors.primary + '80' }}
+                      trackColor={{ false: isDark ? '#374151' : '#E5E7EB', true: AdminColors.primary + '80' }}
                       thumbColor={formFeatured ? AdminColors.primary : '#fff'}
                     />
                   </View>
 
-                  <View style={styles.toggleRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.toggleLabel}>Publish Live</Text>
-                      <Text style={styles.toggleSub}>Make visible to public on /press</Text>
+                  <View style={[styles.toggleRow, isDark && { borderTopColor: themeColors.border }]}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={[styles.toggleLabel, { color: themeColors.textPrimary }]}>
+                        {t('admin.publishLiveToggle')}
+                      </Text>
+                      <Text style={[styles.toggleSub, { color: themeColors.textSecondary }]}>
+                        {t('admin.publishLiveSub')}
+                      </Text>
                     </View>
                     <Switch
                       value={formPublished}
                       onValueChange={setFormPublished}
-                      trackColor={{ false: '#E5E7EB', true: '#10B98180' }}
+                      trackColor={{ false: isDark ? '#374151' : '#E5E7EB', true: '#10B98180' }}
                       thumbColor={formPublished ? '#059669' : '#fff'}
                     />
                   </View>
@@ -651,38 +724,176 @@ export default function AdminPressScreen() {
                 /* Preview mode */
                 <View style={styles.previewContainer}>
                   <View style={styles.previewTagRow}>
-                    <Text style={styles.previewTag}>{formCategory}</Text>
-                    {formFeatured ? <Text style={styles.previewFeaturedTag}>★ Featured</Text> : null}
-                    <Text style={styles.previewDate}>{formDate || 'Date'}</Text>
+                    <Text style={styles.previewTag}>{translateCategory(formCategory, language)}</Text>
+                    {formFeatured ? <Text style={styles.previewFeaturedTag}>★ {t('admin.featured')}</Text> : null}
+                    <Text style={styles.previewDate}>{translateDate(formDate, language) || t('admin.dateLabel')}</Text>
                   </View>
-                  <Text style={styles.previewTitle}>{formTitle || 'Untitled Press Release'}</Text>
-                  <Text style={styles.previewExcerpt}>{formExcerpt || 'Summary here...'}</Text>
+                  <Text style={styles.previewTitle}>{formTitle || t('admin.untitledPressRelease')}</Text>
+                  <Text style={styles.previewExcerpt}>{formExcerpt || t('admin.summaryHere')}</Text>
                   <View style={styles.previewDivider} />
                   {formBody ? (
                     formBody.split(/\n\n+/).filter(Boolean).map((p, i) => (
                       <Text key={i} style={styles.previewPara}>{p}</Text>
                     ))
                   ) : (
-                    <Text style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No body text.</Text>
+                    <Text style={{ color: '#9CA3AF', fontStyle: 'italic' }}>{t('admin.noBodyText')}</Text>
                   )}
                   <View style={styles.previewDivider} />
                   <Text style={styles.previewContact}>
-                    {formContactName || 'Press Contact'} • {formContactEmail || 'porulontechnologies@gmail.com'}
+                    {formContactName || t('admin.pressContact')} • {formContactEmail || 'porulontechnologies@gmail.com'}
                   </Text>
                 </View>
               )}
             </ScrollView>
 
             {/* Modal Actions */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.draftBtn} onPress={() => handleSave(false)}>
-                <Text style={styles.draftBtnText}>Save Draft</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.pubBtn} onPress={() => handleSave(true)}>
-                <Save size={15} color="#fff" />
-                <Text style={styles.pubBtnText}>
-                  {isEditing ? 'Save & Update' : 'Publish Live'}
+            <View style={[styles.modalFooter, isDark && { borderTopColor: themeColors.border }]}>
+              <TouchableOpacity
+                style={[styles.draftBtn, isDark && { backgroundColor: '#78350F40' }]}
+                onPress={() => handleSave(false)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[styles.draftBtnText, isDark && { color: '#FBBF24' }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {t('admin.saveDraft')}
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.pubBtn}
+                onPress={() => handleSave(true)}
+                activeOpacity={0.8}
+              >
+                <Save size={15} color="#fff" />
+                <Text
+                  style={styles.pubBtnText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {isEditing ? t('admin.saveAndUpdate') : t('admin.publishLiveBtn')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── CUSTOM DELETE MODAL ────────────────────────────────────── */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isDeleting) {
+            setDeleteModalVisible(false);
+            setItemToDelete(null);
+          }
+        }}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View
+            style={[
+              styles.deleteModalCard,
+              {
+                backgroundColor: themeColors.cardBg,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            {/* Warning Icon Badge */}
+            <View
+              style={[
+                styles.deleteIconBadge,
+                {
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2',
+                },
+              ]}
+            >
+              <Trash2 size={28} color="#DC2626" />
+            </View>
+
+            {/* Modal Title */}
+            <Text style={[styles.deleteModalTitle, { color: themeColors.textPrimary }]}>
+              {t('admin.deletePressReleaseTitle')}
+            </Text>
+
+            {/* Modal Subtitle / Question */}
+            <Text style={[styles.deleteModalDesc, { color: themeColors.textSecondary }]}>
+              {t('admin.deletePressReleaseConfirm')}
+            </Text>
+
+            {/* Target Item Details Card */}
+            {itemToDelete ? (
+              <View
+                style={[
+                  styles.deleteTargetBox,
+                  {
+                    backgroundColor: isDark ? themeColors.bg : '#F3F4F6',
+                    borderColor: isDark ? themeColors.border : '#E5E7EB',
+                  },
+                ]}
+              >
+                <View style={styles.deleteTargetHeader}>
+                  <Text style={styles.deleteTargetCategory}>
+                    {translateCategory(itemToDelete.category, language)}
+                  </Text>
+                  <Text style={[styles.deleteTargetDate, { color: themeColors.textMuted }]}>
+                    {translateDate(itemToDelete.date, language) || itemToDelete.date}
+                  </Text>
+                </View>
+                <Text
+                  style={[styles.deleteTargetTitle, { color: themeColors.textPrimary }]}
+                  numberOfLines={2}
+                >
+                  {translatePressContent(itemToDelete.title, language)}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Caution Warning */}
+            <View style={styles.deleteWarningRow}>
+              <AlertCircle size={14} color="#EF4444" style={{ marginTop: 1 }} />
+              <Text style={[styles.deleteWarningText, { color: isDark ? '#FCA5A5' : '#B91C1C' }]}>
+                {t('admin.deletePressReleaseWarning')}
+              </Text>
+            </View>
+
+            {/* Modal Action Buttons */}
+            <View style={styles.deleteBtnRow}>
+              <TouchableOpacity
+                style={[
+                  styles.deleteCancelBtn,
+                  {
+                    borderColor: themeColors.border,
+                    backgroundColor: isDark ? 'transparent' : '#F9FAFB',
+                  },
+                ]}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setItemToDelete(null);
+                }}
+                disabled={isDeleting}
+              >
+                <Text style={[styles.deleteCancelText, { color: themeColors.textPrimary }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, isDeleting && { opacity: 0.7 }]}
+                onPress={handleExecuteDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Trash2 size={16} color="#FFFFFF" />
+                    <Text style={styles.deleteConfirmText}>{t('admin.delete')}</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -695,102 +906,95 @@ export default function AdminPressScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AdminColors.bg },
   header: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.md,
-    backgroundColor: AdminColors.sidebarBg,
-    borderBottomWidth: 1,
-    borderBottomColor: AdminColors.border,
+    gap: 12,
+    marginBottom: 6,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: AdminColors.textPrimary },
-  headerSubtitle: { fontSize: 12, color: AdminColors.textMuted, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontWeight: '800', flex: 1 },
+  headerSubtitle: { fontSize: 12, lineHeight: 18 },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: AdminColors.primary,
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: BorderRadius.md,
+    flexShrink: 0,
   },
   addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   content: { padding: Spacing.md },
-  statsGrid: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
   statCard: {
-    flex: 1,
-    backgroundColor: AdminColors.sidebarBg,
+    flexGrow: 1,
+    flexBasis: '47%',
     padding: 10,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: AdminColors.border,
     alignItems: 'center',
   },
-  statNum: { fontSize: 18, fontWeight: '800', color: AdminColors.textPrimary },
-  statLabel: { fontSize: 10, fontWeight: '700', color: AdminColors.textMuted, textTransform: 'uppercase', marginTop: 2 },
+  statNum: { fontSize: 18, fontWeight: '800' },
+  statLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 2, textAlign: 'center' },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: AdminColors.sidebarBg,
     paddingHorizontal: 12,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: AdminColors.border,
     marginBottom: 10,
     height: 42,
   },
-  searchInput: { flex: 1, fontSize: 13, color: AdminColors.textPrimary },
+  searchInput: { flex: 1, fontSize: 13 },
   filterRow: { flexDirection: 'row', marginBottom: 10 },
   statusChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.pill,
-    backgroundColor: AdminColors.sidebarBg,
     borderWidth: 1,
-    borderColor: AdminColors.border,
     marginRight: 6,
   },
-  statusChipActive: { backgroundColor: AdminColors.primary, borderColor: AdminColors.primary },
-  statusChipText: { fontSize: 11, fontWeight: '600', color: AdminColors.textSecondary },
+  statusChipActive: {},
+  statusChipText: { fontSize: 11, fontWeight: '600' },
   statusChipTextActive: { color: '#fff', fontWeight: '700' },
   catRow: { flexDirection: 'row', marginBottom: 14 },
   catChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: BorderRadius.sm,
-    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
     marginRight: 6,
   },
-  catChipActive: { backgroundColor: '#FEE2E2' },
-  catChipText: { fontSize: 11, color: '#4B5563', fontWeight: '600' },
+  catChipActive: {},
+  catChipText: { fontSize: 11, fontWeight: '600' },
   catChipTextActive: { color: AdminColors.primary, fontWeight: '700' },
   emptyCard: {
     padding: 30,
-    backgroundColor: AdminColors.sidebarBg,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: AdminColors.border,
     alignItems: 'center',
     marginTop: 20,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: AdminColors.textPrimary, marginTop: 12 },
-  emptySub: { fontSize: 12, color: AdminColors.textMuted, textAlign: 'center', marginTop: 4 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', marginTop: 12 },
+  emptySub: { fontSize: 12, textAlign: 'center', marginTop: 4 },
   itemCard: {
-    backgroundColor: AdminColors.sidebarBg,
     borderRadius: BorderRadius.md,
     padding: 14,
     borderWidth: 1,
-    borderColor: AdminColors.border,
     marginBottom: 12,
   },
-  itemCardFeatured: { borderColor: '#FCA5A5', backgroundColor: '#FFFDFD' },
+  itemCardFeatured: {},
   badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   featuredBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEE2E2',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: BorderRadius.pill,
@@ -798,19 +1002,18 @@ const styles = StyleSheet.create({
   featuredBadgeText: { fontSize: 10, fontWeight: '800', color: '#DC2626' },
   pubBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.pill },
   pubBadgeText: { fontSize: 10, fontWeight: '700' },
-  catBadge: { fontSize: 10, color: '#6B7280', fontWeight: '600', backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  dateText: { fontSize: 10, color: AdminColors.textMuted, marginLeft: 'auto' },
-  itemTitle: { fontSize: 15, fontWeight: '700', color: AdminColors.textPrimary, marginBottom: 4 },
-  itemExcerpt: { fontSize: 12, color: AdminColors.textSecondary, lineHeight: 17, marginBottom: 8 },
-  itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  contactText: { fontSize: 11, color: AdminColors.textMuted },
-  locationText: { fontSize: 11, color: AdminColors.textMuted },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10 },
+  catBadge: { fontSize: 10, fontWeight: '600', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  dateText: { fontSize: 10, marginLeft: 'auto', alignSelf: 'center' },
+  itemTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  itemExcerpt: { fontSize: 12, lineHeight: 17, marginBottom: 8 },
+  itemMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  contactText: { fontSize: 11, flexShrink: 1 },
+  locationText: { fontSize: 11 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, paddingTop: 10 },
   iconBtn: {
     width: 32,
     height: 32,
     borderRadius: BorderRadius.sm,
-    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -822,17 +1025,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: BorderRadius.sm,
-    backgroundColor: '#F3F4F6',
   },
-  actionPillText: { fontSize: 12, fontWeight: '600', color: AdminColors.textPrimary },
-  deletePill: { backgroundColor: '#FEE2E2', marginLeft: 'auto' },
+  actionPillText: { fontSize: 12, fontWeight: '600' },
+  deletePill: { marginLeft: 'auto' },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalCard: {
     backgroundColor: '#fff',
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
     maxHeight: '90%',
-    paddingBottom: 24,
+    paddingBottom: 16,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -857,10 +1059,18 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderRadius: BorderRadius.md,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    paddingVertical: 10,
+    minHeight: 46,
+    fontSize: 13.5,
     color: '#111827',
     marginBottom: 12,
+  },
+  titleInput: {
+    minHeight: 56,
+    paddingVertical: 10,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlignVertical: 'top',
   },
   formRow: { flexDirection: 'row', marginBottom: 4 },
   toggleRow: {
@@ -886,28 +1096,144 @@ const styles = StyleSheet.create({
   modalFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 8,
+    gap: 10,
     paddingHorizontal: Spacing.md,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: AdminColors.border,
+    width: '100%',
   },
   draftBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    flex: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 12,
     borderRadius: BorderRadius.md,
     backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  draftBtnText: { color: '#92400E', fontSize: 13, fontWeight: '700' },
+  draftBtnText: { color: '#92400E', fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
   pubBtn: {
+    flex: 1.25,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 12,
     borderRadius: BorderRadius.md,
     backgroundColor: AdminColors.primary,
   },
-  pubBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  pubBtnText: { color: '#fff', fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
+
+  // Custom Delete Modal Styles
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  deleteModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: BorderRadius.xl,
+    padding: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    ...Shadows.card,
+  },
+  deleteIconBadge: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  deleteModalDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  deleteTargetBox: {
+    width: '100%',
+    padding: 12,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+    marginBottom: 14,
+  },
+  deleteTargetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  deleteTargetCategory: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  deleteTargetDate: {
+    fontSize: 11,
+  },
+  deleteTargetTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  deleteWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  deleteWarningText: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
+    lineHeight: 16,
+  },
+  deleteBtnRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 10,
+  },
+  deleteCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  deleteConfirmBtn: {
+    flex: 1,
+    backgroundColor: '#DC2626',
+    paddingVertical: 12,
+    borderRadius: BorderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  deleteConfirmText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });

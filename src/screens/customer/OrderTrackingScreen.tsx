@@ -30,30 +30,36 @@ import {
   ExternalLink,
   Bike,
   RotateCcw,
+  Star,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import LiveDeliveryTrackingMap from '../../components/common/LiveDeliveryTrackingMap';
-import { useTranslation, translateProductName } from '../../i18n';
-
-const TRACKING_STEPS = [
-  { key: 'Pending', label: 'Order Placed', desc: 'Order received by store' },
-  { key: 'Accepted', label: 'Partner Assigned', desc: 'Delivery partner assigned' },
-  { key: 'Going to Store', label: 'Heading to Store', desc: 'Partner on the way to store' },
-  { key: 'Arrived at Store', label: 'At Store', desc: 'Partner collecting items' },
-  { key: 'Picked Up', label: 'Picked Up', desc: 'Collected & packed' },
-  { key: 'Out for Delivery', label: 'Out for Delivery', desc: 'On the way to your door' },
-  { key: 'Delivered', label: 'Delivered', desc: 'Successfully delivered' },
-];
+import StoreReviewModal from '../../components/common/StoreReviewModal';
+import { useTranslation, translateProductName, getSupplierTranslations } from '../../i18n';
 
 export default function OrderTrackingScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { language } = useTranslation();
+  const tSupplier = useMemo(() => getSupplierTranslations(language), [language]);
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
+
+  const trackingSteps = useMemo(
+    () => [
+      { key: 'Pending', label: tSupplier.stepOrderPlaced, desc: tSupplier.stepOrderPlacedDesc },
+      { key: 'Accepted', label: tSupplier.stepPartnerAssigned, desc: tSupplier.stepPartnerAssignedDesc },
+      { key: 'Going to Store', label: tSupplier.stepHeadingToStore, desc: tSupplier.stepHeadingToStoreDesc },
+      { key: 'Arrived at Store', label: tSupplier.stepAtStore, desc: tSupplier.stepAtStoreDesc },
+      { key: 'Picked Up', label: tSupplier.stepPickedUp, desc: tSupplier.stepPickedUpDesc },
+      { key: 'Out for Delivery', label: tSupplier.stepOutForDelivery, desc: tSupplier.stepOutForDeliveryDesc },
+      { key: 'Delivered', label: tSupplier.stepDelivered, desc: tSupplier.stepDeliveredDesc },
+    ],
+    [tSupplier]
+  );
 
   const orderId = route.params?.orderId;
 
@@ -138,6 +144,19 @@ export default function OrderTrackingScreen() {
 
   const activeStepIdx = getActiveStepIndex();
 
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
+  const isFulfilled =
+    currentStatus === 'Delivered' ||
+    order?.orderStatus === 'Delivered' ||
+    currentStatus === 'Picked Up' ||
+    order?.orderStatus === 'Picked Up';
+  const isEligibleForReview =
+    isFulfilled &&
+    order?.isOtpVerified === true &&
+    !isRefundedOrCancelled;
+
   const handleCall = (phone: string) => {
     if (!phone) return;
     Linking.openURL(`tel:${phone}`);
@@ -158,7 +177,7 @@ export default function OrderTrackingScreen() {
 
         <View style={{ flex: 1, marginLeft: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.headerTitle}>Live Order Tracking</Text>
+            <Text style={styles.headerTitle}>{tSupplier.liveOrderTracking}</Text>
             <View
               style={[
                 styles.liveBadge,
@@ -180,11 +199,11 @@ export default function OrderTrackingScreen() {
                   isRefundProcessing && { color: '#D97706' },
                 ]}
               >
-                {isRefundCompleted ? 'REFUNDED' : isRefundProcessing ? 'REFUNDING' : 'LIVE'}
+                {isRefundCompleted ? tSupplier.refunded : isRefundProcessing ? tSupplier.refunding : tSupplier.live}
               </Text>
             </View>
           </View>
-          <Text style={styles.headerSub}>Order #{orderId}</Text>
+          <Text style={styles.headerSub}>{tSupplier.orderNumber} #{orderId}</Text>
         </View>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={() => fetchTracking(true)}>
@@ -195,15 +214,15 @@ export default function OrderTrackingScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-          <Text style={styles.loadingText}>Loading Live Tracking…</Text>
+          <Text style={styles.loadingText}>{tSupplier.loadingTracking}</Text>
         </View>
       ) : error || !order ? (
         <View style={styles.center}>
           <AlertCircle size={36} color="#DC2626" />
-          <Text style={styles.errorTitle}>Tracking Unavailable</Text>
-          <Text style={styles.errorSub}>{error || 'Could not locate this order.'}</Text>
+          <Text style={styles.errorTitle}>{tSupplier.trackingUnavailable}</Text>
+          <Text style={styles.errorSub}>{error || tSupplier.couldNotLocateOrder}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => fetchTracking(false)}>
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={styles.retryBtnText}>{tSupplier.retry}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -253,31 +272,31 @@ export default function OrderTrackingScreen() {
                   ]}
                 >
                   {isRefundCompleted
-                    ? 'Refund Completed'
+                    ? tSupplier.refundCompleted
                     : isRefundProcessing
-                    ? 'Refund in Progress'
+                    ? tSupplier.refundInProgress
                     : currentStatus === 'Delivered'
-                    ? 'Fulfillment Completed'
-                    : 'Estimated Arrival: ~15-20 Mins'}
+                    ? tSupplier.fulfillmentCompleted
+                    : tSupplier.estimatedArrival}
                 </Text>
                 <Text style={styles.statusMainText}>
                   {isRefundCompleted
-                    ? 'Order Cancelled · Refund Completed'
+                    ? tSupplier.orderCancelledRefundCompleted
                     : isRefundProcessing
-                    ? 'Order Cancelled · Refund Processing'
+                    ? tSupplier.orderCancelledRefundProcessing
                     : currentStatus === 'Delivered'
-                    ? 'Order Delivered!'
+                    ? tSupplier.orderDeliveredExcl
                     : currentStatus === 'Out for Delivery'
-                    ? 'Out for Delivery!'
+                    ? tSupplier.outForDeliveryExcl
                     : currentStatus === 'Picked Up'
-                    ? 'Picked Up from Store'
+                    ? tSupplier.pickedUpFromStore
                     : currentStatus === 'Arrived at Store'
-                    ? 'Partner at Store'
+                    ? tSupplier.partnerAtStore
                     : currentStatus === 'Going to Store'
-                    ? 'Partner Heading to Store'
+                    ? tSupplier.partnerHeadingToStore
                     : currentStatus === 'Searching'
-                    ? 'Finding Delivery Partner…'
-                    : 'Order Confirmed & Preparing'}
+                    ? tSupplier.findingDeliveryPartner
+                    : tSupplier.orderConfirmedPreparing}
                 </Text>
               </View>
             </View>
@@ -285,17 +304,48 @@ export default function OrderTrackingScreen() {
             {isRefundCompleted ? (
               <View style={{ marginTop: 10, padding: 10, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#ECFDF5', borderRadius: 8, borderWidth: 1, borderColor: '#A7F3D0' }}>
                 <Text style={{ fontSize: 11, color: isDark ? '#6EE7B7' : '#065F46', lineHeight: 16, fontWeight: '500' }}>
-                  This order was cancelled. Your refund of ₹{order?.totalAmount} has been successfully processed by Razorpay to your original payment method.
+                  {tSupplier.refundSuccessMsg.replace('{{amount}}', String(order?.totalAmount || 0))}
                 </Text>
               </View>
             ) : isRefundProcessing ? (
               <View style={{ marginTop: 10, padding: 10, backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#FFFBEB', borderRadius: 8, borderWidth: 1, borderColor: '#FDE68A' }}>
                 <Text style={{ fontSize: 11, color: isDark ? '#FDE68A' : '#92400E', lineHeight: 16, fontWeight: '500' }}>
-                  This order was cancelled. Your refund of ₹{order?.totalAmount} is currently being processed by Razorpay (5-7 business days).
+                  {tSupplier.refundProcessingMsg.replace('{{amount}}', String(order?.totalAmount || 0))}
                 </Text>
               </View>
             ) : null}
           </View>
+
+          {/* Post-Fulfillment Store Review Prompt */}
+          {isEligibleForReview && !reviewSubmitted && (
+            <View style={styles.reviewPromptCard}>
+              <View style={styles.reviewPromptHeader}>
+                <View style={styles.reviewIconWrap}>
+                  <Star size={22} color="#F59E0B" fill="#F59E0B" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.reviewPromptTitle}>Order Completed & Verified!</Text>
+                  <Text style={styles.reviewPromptSub}>
+                    Rate your experience with {order.store?.name || order.storeName || 'the store'} across 10 service criteria.
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.reviewPromptBtn}
+                onPress={() => setReviewModalVisible(true)}
+              >
+                <Star size={16} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.reviewPromptBtnText}>Rate Your Store</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {reviewSubmitted && (
+            <View style={styles.reviewSubmittedCard}>
+              <CheckCircle2 size={18} color="#10B981" />
+              <Text style={styles.reviewSubmittedText}>Thank you! Your store review has been submitted.</Text>
+            </View>
+          )}
 
           {/* Real-time Live GPS Tracking Map */}
           {!isRefundedOrCancelled ? (
@@ -314,9 +364,9 @@ export default function OrderTrackingScreen() {
 
           {/* Stepper Milestone List */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Live Milestone Progress</Text>
+            <Text style={styles.cardTitle}>{tSupplier.liveMilestoneProgress}</Text>
             <View style={styles.stepperContainer}>
-              {TRACKING_STEPS.map((step, idx) => {
+              {trackingSteps.map((step, idx) => {
                 const isPassed = idx < activeStepIdx;
                 const isCurrent = idx === activeStepIdx;
 
@@ -343,7 +393,7 @@ export default function OrderTrackingScreen() {
                           </Text>
                         )}
                       </View>
-                      {idx < TRACKING_STEPS.length - 1 && (
+                      {idx < trackingSteps.length - 1 && (
                         <View
                           style={[
                             styles.stepLine,
@@ -366,7 +416,7 @@ export default function OrderTrackingScreen() {
                         </Text>
                         {isCurrent && (
                           <View style={styles.currentBadge}>
-                            <Text style={styles.currentBadgeText}>Current</Text>
+                            <Text style={styles.currentBadgeText}>{tSupplier.stepCurrent}</Text>
                           </View>
                         )}
                       </View>
@@ -405,7 +455,7 @@ export default function OrderTrackingScreen() {
                     onPress={() => handleCall(driver.phone)}
                   >
                     <Phone size={13} color="#FFFFFF" />
-                    <Text style={styles.callPartnerBtnText}>Call</Text>
+                    <Text style={styles.callPartnerBtnText}>{tSupplier.callPartner}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -417,8 +467,18 @@ export default function OrderTrackingScreen() {
             <View style={styles.addressRow}>
               <Store size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.addressSectionTitle}>Pickup Store</Text>
-                <Text style={styles.addressName}>{order.store?.name || order.storeName}</Text>
+                <Text style={styles.addressSectionTitle}>{tSupplier.pickupStore}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <Text style={styles.addressName}>{order.store?.name || order.storeName}</Text>
+                  {order.store?.rating ? (
+                    <View style={styles.storeRatingBadge}>
+                      <Star size={10} color="#D97706" fill="#D97706" />
+                      <Text style={styles.storeRatingText}>
+                        {Number(order.store.rating).toFixed(1)}{order.store.reviewCount ? ` (${order.store.reviewCount})` : ''}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
                 {order.store?.address ? (
                   <Text style={styles.addressDetail}>{order.store.address}</Text>
                 ) : null}
@@ -430,7 +490,7 @@ export default function OrderTrackingScreen() {
             <View style={styles.addressRow}>
               <MapPin size={18} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.addressSectionTitle}>Delivery Address</Text>
+                <Text style={styles.addressSectionTitle}>{tSupplier.deliveryAddress}</Text>
                 <Text style={styles.addressName}>{order.customerName}</Text>
                 <Text style={styles.addressDetail}>
                   {order.deliveryAddress?.fullAddress || 'Address on file'}
@@ -445,7 +505,7 @@ export default function OrderTrackingScreen() {
                   onPress={() => handleOpenMap(order.deliveryAddress.fullAddress)}
                 >
                   <Navigation size={12} color="#2563EB" />
-                  <Text style={styles.mapBtnText}>Map</Text>
+                  <Text style={styles.mapBtnText}>{tSupplier.openMap}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -454,7 +514,7 @@ export default function OrderTrackingScreen() {
           {/* Order Items Summary */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>
-              Order Items ({order.items?.length || 0})
+              {tSupplier.orderItems} ({order.items?.length || 0})
             </Text>
 
             <View style={styles.itemsList}>
@@ -476,9 +536,18 @@ export default function OrderTrackingScreen() {
 
             <View style={[styles.divider, { marginTop: 10 }]} />
 
+            {Boolean((order as any).platformFee) && (
+              <View style={[styles.totalRow, { marginBottom: 4 }]}>
+                <Text style={styles.totalLabel}>Platform Fee:</Text>
+                <Text style={[styles.totalValue, { fontSize: 13, fontWeight: '600' }]}>
+                  ₹{(order as any).platformFee}
+                </Text>
+              </View>
+            )}
+
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>
-                {isRefundedOrCancelled ? 'Refund Amount:' : 'Total Amount:'}
+                {isRefundedOrCancelled ? tSupplier.refundAmountColon : tSupplier.totalAmountColon}
               </Text>
               <Text
                 style={[
@@ -492,7 +561,7 @@ export default function OrderTrackingScreen() {
             </View>
 
             <View style={[styles.totalRow, { marginTop: 4 }]}>
-              <Text style={styles.totalLabel}>Payment Status:</Text>
+              <Text style={styles.totalLabel}>{tSupplier.paymentStatusColon}</Text>
               <Text
                 style={[
                   styles.totalValue,
@@ -509,9 +578,9 @@ export default function OrderTrackingScreen() {
                 ]}
               >
                 {isRefundCompleted
-                  ? 'REFUNDED'
+                  ? tSupplier.statusRefunded
                   : isRefundProcessing
-                  ? 'REFUND PROCESSING'
+                  ? tSupplier.refunding
                   : order.paymentStatus}
               </Text>
             </View>
@@ -520,12 +589,26 @@ export default function OrderTrackingScreen() {
               <View style={styles.codAlert}>
                 <Banknote size={16} color="#B45309" />
                 <Text style={styles.codAlertText}>
-                  Please pay ₹{order.totalAmount} cash to the delivery partner.
+                  {tSupplier.payCashToPartner.replace('{{amount}}', String(order.totalAmount || 0))}
                 </Text>
               </View>
             ) : null}
           </View>
         </ScrollView>
+      )}
+
+      {order && (
+        <StoreReviewModal
+          visible={reviewModalVisible}
+          onClose={() => setReviewModalVisible(false)}
+          orderId={order._id || orderId}
+          storeId={order.store?._id || order.storeId || order.store}
+          storeName={order.store?.name || order.storeName || 'Store'}
+          onSubmitted={() => {
+            setReviewSubmitted(true);
+            fetchTracking(true);
+          }}
+        />
       )}
     </View>
   );
@@ -929,5 +1012,83 @@ const getStyles = (isDark: boolean) =>
       fontSize: 11,
       fontWeight: '700',
       color: isDark ? '#FCD34D' : '#92400E',
+    },
+    reviewPromptCard: {
+      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.md,
+      marginBottom: Spacing.sm,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#FDE68A',
+      ...Shadows.card,
+    },
+    reviewPromptHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 12,
+    },
+    reviewIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reviewPromptTitle: {
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      marginBottom: 2,
+    },
+    reviewPromptSub: {
+      fontSize: 11,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      lineHeight: 16,
+    },
+    reviewPromptBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#D97706',
+      paddingVertical: 10,
+      borderRadius: BorderRadius.md,
+    },
+    reviewPromptBtnText: {
+      color: '#FFFFFF',
+      fontSize: FontSizes.xs,
+      fontWeight: '800',
+    },
+    reviewSubmittedCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#ECFDF5',
+      padding: Spacing.md,
+      borderRadius: BorderRadius.md,
+      marginBottom: Spacing.sm,
+      borderWidth: 1,
+      borderColor: '#A7F3D0',
+    },
+    reviewSubmittedText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: isDark ? '#6EE7B7' : '#065F46',
+    },
+    storeRatingBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 12,
+    },
+    storeRatingText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: '#D97706',
     },
   });

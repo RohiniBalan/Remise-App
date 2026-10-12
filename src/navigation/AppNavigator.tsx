@@ -111,6 +111,7 @@ function RoleGate() {
 
 export default function AppNavigator() {
   const { loading } = useAuth();
+  const navRef = React.useRef<any>(null);
 
   if (loading) {
     return (
@@ -122,8 +123,6 @@ export default function AppNavigator() {
       />
     );
   }
-
-  const navRef = React.useRef<any>(null);
 
   return (
     <NavigationContainer

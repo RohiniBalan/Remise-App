@@ -184,7 +184,40 @@ interface HeroCarouselProps {
 export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+
+  // Resolved translations with robust fallbacks matching the website
+  const rawBadge = t('common.lifestyleStoreBadge');
+  const badgeText = (!rawBadge || rawBadge === 'lifestyleStoreBadge')
+    ? (language === 'ta' ? 'உங்கள் அன்றாட வாழ்க்கை முறை அங்காடி' : 'YOUR EVERYDAY LIFESTYLE STORE')
+    : rawBadge;
+
+  const rawHeadline1 = t('common.heroHeadline1');
+  const headline1 = (!rawHeadline1 || rawHeadline1 === 'heroHeadline1')
+    ? (language === 'ta' ? 'உங்களுக்குத் தேவையான அனைத்தும்,' : 'Everything You Need,')
+    : rawHeadline1;
+
+  const rawHeadline2 = t('common.heroHeadline2');
+  const headline2 = (!rawHeadline2 || rawHeadline2 === 'heroHeadline2')
+    ? (language === 'ta' ? 'வீட்டு வாசலில் டெலிவரி.' : 'Delivered to Your Door.')
+    : rawHeadline2;
+
+  const rawSubtitle = t('common.heroSubtitle');
+  const subtitleText = (!rawSubtitle || rawSubtitle === 'heroSubtitle')
+    ? (language === 'ta'
+        ? 'மளிகை, அழகு சாதனங்கள், ஃபேஷன் அனைத்தும் உங்கள் இல்லம் தேடி.'
+        : 'Groceries, beauty, fashion & essentials delivered right to your doorstep.')
+    : rawSubtitle;
+
+  const rawShopNow = t('common.shopNow');
+  const shopNowText = (!rawShopNow || rawShopNow === 'shopNow')
+    ? (language === 'ta' ? 'இப்போது வாங்க' : 'Shop Now')
+    : rawShopNow;
+
+  const rawBrowseCat = t('common.browseCategories');
+  const browseCatText = (!rawBrowseCat || rawBrowseCat === 'browseCategories')
+    ? (language === 'ta' ? 'வகைகளை உலாவுங்கள்' : 'Browse Categories')
+    : rawBrowseCat;
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
@@ -193,20 +226,20 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
         <View style={[styles.eyebrowBadge, isDark && styles.eyebrowBadgeDark]}>
           <View style={styles.eyebrowDot} />
           <Text style={[styles.eyebrowText, isDark && styles.eyebrowTextDark]}>
-            {t('common.lifestyleStoreBadge')}
+            {badgeText}
           </Text>
         </View>
       </View>
 
-      {/* Main Title */}
+      {/* Main Title - 2 lines matching website design (line 1 primary, line 2 brand red accent) */}
       <Text style={[styles.title, isDark && styles.titleDark]}>
-        {t('common.heroHeadline1')}{' '}
-        <Text style={styles.titleAccent}>{t('common.heroHeadline2')}</Text>
+        {headline1}{'\n'}
+        <Text style={styles.titleAccent}>{headline2}</Text>
       </Text>
 
-      {/* Subtitle */}
-      <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
-        {t('common.heroSubtitle')}
+      {/* Subtitle - concise and compact for mobile without overcrowding */}
+      <Text style={[styles.subtitle, isDark && styles.subtitleDark]} numberOfLines={2}>
+        {subtitleText}
       </Text>
 
       {/* Graphic Illustration */}
@@ -225,8 +258,10 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
           }}
           activeOpacity={0.88}
         >
-          <Text style={styles.primaryBtnText}>{t('common.shopNow')}</Text>
-          <ArrowRight size={15} color="#FFFFFF" />
+          <Text style={styles.primaryBtnText} numberOfLines={2}>
+            {shopNowText}
+          </Text>
+          <ArrowRight size={14} color="#FFFFFF" style={{ flexShrink: 0 }} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -234,8 +269,8 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
           onPress={() => navigation.navigate('Categories')}
           activeOpacity={0.85}
         >
-          <Text style={[styles.secondaryBtnText, isDark && styles.secondaryBtnTextDark]}>
-            {t('common.browseCategories')}
+          <Text style={[styles.secondaryBtnText, isDark && styles.secondaryBtnTextDark]} numberOfLines={2}>
+            {browseCatText}
           </Text>
         </TouchableOpacity>
       </View>
@@ -331,8 +366,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: CustomerColors.primary,
-    paddingVertical: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.md,
+    minHeight: 48,
+    overflow: 'hidden',
     shadowColor: CustomerColors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -341,18 +379,24 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     color: '#FFFFFF',
-    fontSize: FontSizes.sm,
+    fontSize: 13,
     fontWeight: '800',
+    textAlign: 'center',
+    flexShrink: 1,
+    lineHeight: 18,
   },
   secondaryBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.md,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: '#D1D5DB',
+    overflow: 'hidden',
   },
   secondaryBtnDark: {
     backgroundColor: '#1E293B',
@@ -360,8 +404,11 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     color: '#374151',
-    fontSize: FontSizes.sm,
+    fontSize: 13,
     fontWeight: '700',
+    textAlign: 'center',
+    flexShrink: 1,
+    lineHeight: 18,
   },
   secondaryBtnTextDark: {
     color: '#E5E7EB',

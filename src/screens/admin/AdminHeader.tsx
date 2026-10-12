@@ -30,11 +30,14 @@ import {
   Users,
   Bike,
   Zap,
-  Settings
+  Settings,
+  Globe
 } from 'lucide-react-native';
 import { getAdminColors, AdminColors, Spacing, BorderRadius, FontSizes } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../i18n';
+import LanguageSelectorModal from '../../components/common/LanguageSelectorModal';
 import { notificationApi } from '../../api/notificationApi';
 import type { AdminDrawerParamList } from '../../navigation/AdminNavigator';
 
@@ -61,12 +64,29 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   { name: 'AdminSettings', label: 'Settings', icon: Settings },
 ];
 
+const ROUTE_TO_ADMIN_KEY: Record<string, string> = {
+  AdminDashboard: 'admin.dashboard',
+  AdminAnalytics: 'admin.analytics',
+  AdminStores: 'admin.stores',
+  AdminStoreRegistrations: 'admin.stores',
+  AdminBlogs: 'admin.blogsNews',
+  AdminPress: 'admin.pressReleases',
+  AdminUsers: 'admin.userManagement',
+  AdminDeliveryPartners: 'admin.deliveryPartners',
+  AdminNewsletter: 'admin.newsletter',
+  AdminCategory: 'admin.category',
+  AdminDynamicContent: 'admin.category',
+  AdminSettings: 'admin.settings',
+};
+
 export default function AdminHeader({ navigation, options, route }: any) {
   const { isDark, toggleTheme } = useTheme();
   const themeColors = getAdminColors(isDark);
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
 
   const [visible, setVisible] = useState(false);
+  const [langModalVisible, setLangModalVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
 
   // Helpers for user profile in drawer
@@ -190,17 +210,34 @@ export default function AdminHeader({ navigation, options, route }: any) {
   });
 
   const formatTimeAgo = (dateStr: string) => {
-    if (!dateStr) return 'Just now';
+    if (!dateStr) return t('admin.justNow');
     const now = new Date();
     const past = new Date(dateStr);
     const diffSec = Math.floor((now.getTime() - past.getTime()) / 1000);
-    if (diffSec < 60) return 'Just now';
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-    return `${Math.floor(diffSec / 86400)}d ago`;
+    if (diffSec < 60) return t('admin.justNow');
+    if (diffSec < 3600) return t('admin.minutesAgo', { count: Math.floor(diffSec / 60) });
+    if (diffSec < 86400) return t('admin.hoursAgo', { count: Math.floor(diffSec / 3600) });
+    return t('admin.daysAgo', { count: Math.floor(diffSec / 86400) });
   };
 
-  const title = options?.title ?? route?.name ?? 'Admin';
+  const getHeaderTitle = () => {
+    if (route?.name && ROUTE_TO_ADMIN_KEY[route.name]) {
+      const localized = t(ROUTE_TO_ADMIN_KEY[route.name]);
+      if (localized && localized !== ROUTE_TO_ADMIN_KEY[route.name]) return localized;
+    }
+    return options?.title ?? route?.name ?? 'Admin';
+  };
+
+  const title = getHeaderTitle();
+
+  const getMenuItemLabel = (name: string, fallback: string) => {
+    const key = ROUTE_TO_ADMIN_KEY[name];
+    if (key) {
+      const localized = t(key);
+      if (localized && localized !== key) return localized;
+    }
+    return fallback;
+  };
 
   return (
     <>
@@ -219,7 +256,7 @@ export default function AdminHeader({ navigation, options, route }: any) {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.breadcrumbHome}>Home</Text>
+                <Text style={styles.breadcrumbHome}>{t('common.home')}</Text>
               </TouchableOpacity>
               <Text style={[styles.breadcrumbSep, { color: themeColors.textSecondary }]}> / </Text>
               <Text style={[styles.breadcrumbCurrent, { color: AdminColors.primary }]} numberOfLines={1}>
@@ -243,6 +280,17 @@ export default function AdminHeader({ navigation, options, route }: any) {
                 <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
               </View>
             )}
+          </TouchableOpacity>
+
+          {/* Language Selector Button */}
+          <TouchableOpacity
+            onPress={() => setLangModalVisible(true)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={[styles.iconBtn, { backgroundColor: isDark ? '#1f2937' : '#f1f5f9', borderColor: themeColors.border }]}
+            activeOpacity={0.7}
+            accessibilityLabel="Change Language"
+          >
+            <Globe color={isDark ? '#38BDF8' : '#0284C7'} size={18} />
           </TouchableOpacity>
 
           {/* Theme Toggle Button */}
@@ -311,11 +359,29 @@ export default function AdminHeader({ navigation, options, route }: any) {
                       ]}
                       numberOfLines={1}
                     >
-                      {item.label}
+                      {getMenuItemLabel(item.name, item.label)}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
+
+              <TouchableOpacity
+                style={[styles.drawerItemRow, { marginTop: 8, borderTopWidth: 1, borderTopColor: '#1e293b', paddingTop: 10 }]}
+                onPress={() => go('CustomerHome')}
+                activeOpacity={0.7}
+              >
+                <ExternalLink
+                  size={18}
+                  color="#38BDF8"
+                  style={styles.drawerItemIcon}
+                />
+                <Text
+                  style={[styles.drawerItemText, { color: '#38BDF8', fontWeight: '700' }]}
+                  numberOfLines={1}
+                >
+                  {t('common.home') || 'Customer Home'}
+                </Text>
+              </TouchableOpacity>
             </ScrollView>
 
             {/* Bottom Admin User Profile & Logout matching Web */}
@@ -339,7 +405,7 @@ export default function AdminHeader({ navigation, options, route }: any) {
                 activeOpacity={0.7}
               >
                 <LogOut size={16} color="#EF4444" />
-                <Text style={styles.drawerLogoutText}>Logout</Text>
+                <Text style={styles.drawerLogoutText}>{t('common.signOut')}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -362,15 +428,17 @@ export default function AdminHeader({ navigation, options, route }: any) {
           <View style={[styles.notifModalContent, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             {/* Header */}
             <View style={[styles.notifModalHeader, { borderBottomColor: themeColors.border }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={[styles.notifModalTitle, { color: themeColors.textPrimary }]}>Admin Notifications</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                <Text style={[styles.notifModalTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
+                  {t('admin.adminNotificationsTitle')}
+                </Text>
                 {unreadCount > 0 && (
                   <View style={styles.notifUnreadPill}>
-                    <Text style={styles.notifUnreadPillText}>{unreadCount} New</Text>
+                    <Text style={styles.notifUnreadPillText}>{unreadCount} {t('admin.newBadge')}</Text>
                   </View>
                 )}
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <TouchableOpacity onPress={() => fetchNotifications(true)} style={styles.notifHeaderActionBtn}>
                   <RefreshCw size={15} color={themeColors.textSecondary} />
                 </TouchableOpacity>
@@ -386,39 +454,45 @@ export default function AdminHeader({ navigation, options, route }: any) {
             </View>
 
             {/* Filter Tabs */}
-            <View style={[styles.notifTabsRow, { borderBottomColor: themeColors.border, backgroundColor: themeColors.bg }]}>
-              <TouchableOpacity
-                onPress={() => setActiveFilter('all')}
-                style={[styles.notifTabBtn, activeFilter === 'all' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
+            <View style={{ borderBottomWidth: 1, borderBottomColor: themeColors.border, backgroundColor: themeColors.bg }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.notifTabsScrollContent}
               >
-                <Text style={[styles.notifTabText, activeFilter === 'all' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-                  All ({notifications.length})
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setActiveFilter('stores')}
-                style={[styles.notifTabBtn, activeFilter === 'stores' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
-              >
-                <Text style={[styles.notifTabText, activeFilter === 'stores' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-                  Stores
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setActiveFilter('subscribers')}
-                style={[styles.notifTabBtn, activeFilter === 'subscribers' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
-              >
-                <Text style={[styles.notifTabText, activeFilter === 'subscribers' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-                  Subscribers
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setActiveFilter('unread')}
-                style={[styles.notifTabBtn, activeFilter === 'unread' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
-              >
-                <Text style={[styles.notifTabText, activeFilter === 'unread' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-                  Unread ({unreadCount})
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setActiveFilter('all')}
+                  style={[styles.notifTabBtn, activeFilter === 'all' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
+                >
+                  <Text style={[styles.notifTabText, activeFilter === 'all' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
+                    {t('admin.allNotificationsTab')} ({notifications.length})
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setActiveFilter('stores')}
+                  style={[styles.notifTabBtn, activeFilter === 'stores' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
+                >
+                  <Text style={[styles.notifTabText, activeFilter === 'stores' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
+                    {t('admin.storesNotificationsTab')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setActiveFilter('subscribers')}
+                  style={[styles.notifTabBtn, activeFilter === 'subscribers' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
+                >
+                  <Text style={[styles.notifTabText, activeFilter === 'subscribers' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
+                    {t('admin.subscribersNotificationsTab')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setActiveFilter('unread')}
+                  style={[styles.notifTabBtn, activeFilter === 'unread' && [styles.notifTabActive, { backgroundColor: themeColors.cardBg }]]}
+                >
+                  <Text style={[styles.notifTabText, activeFilter === 'unread' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
+                    {t('admin.unreadNotificationsTab')} ({unreadCount})
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
 
             {/* List */}
@@ -426,14 +500,18 @@ export default function AdminHeader({ navigation, options, route }: any) {
               {loadingNotifs && notifications.length === 0 ? (
                 <View style={styles.notifEmptyBox}>
                   <ActivityIndicator size="small" color={AdminColors.primary} />
-                  <Text style={[styles.notifEmptyText, { color: themeColors.textMuted }]}>Loading alerts...</Text>
+                  <Text style={[styles.notifEmptyText, { color: themeColors.textMuted }]}>
+                    {t('admin.loadingAlerts')}
+                  </Text>
                 </View>
               ) : filteredNotifications.length === 0 ? (
                 <View style={styles.notifEmptyBox}>
                   <Bell size={32} color={themeColors.textMuted} />
-                  <Text style={[styles.notifEmptyTitle, { color: themeColors.textPrimary }]}>No notifications found</Text>
+                  <Text style={[styles.notifEmptyTitle, { color: themeColors.textPrimary }]}>
+                    {t('admin.noNotificationsFound')}
+                  </Text>
                   <Text style={[styles.notifEmptyText, { color: themeColors.textMuted }]}>
-                    {activeFilter !== 'all' ? 'Try switching filter tabs' : 'New store registrations and subscriber requests will appear here'}
+                    {activeFilter !== 'all' ? t('admin.switchFilterTabsHint') : t('admin.noNotificationsSub')}
                   </Text>
                 </View>
               ) : (
@@ -481,16 +559,16 @@ export default function AdminHeader({ navigation, options, route }: any) {
                           </Text>
                         </View>
                         <Text style={[styles.notifDesc, { color: themeColors.textSecondary }]} numberOfLines={2}>
-                          {n.body || 'No details provided'}
+                          {n.body || t('admin.noDetailsProvided')}
                         </Text>
                         
                         <View style={styles.notifCardActionRow}>
                           <Text style={styles.notifJumpText}>
-                            {isStore ? 'Inspect Stores →' : isSub ? 'View Newsletter →' : isOrder ? 'View Order →' : 'View Details →'}
+                            {isStore ? t('admin.inspectStoresAction') : isSub ? t('admin.viewNewsletterAction') : isOrder ? t('admin.viewOrderAction') : t('admin.viewDetailsAction')}
                           </Text>
                           {!n.isRead && (
                             <TouchableOpacity onPress={() => handleMarkRead(id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                              <Text style={styles.notifMarkReadText}>Mark read</Text>
+                              <Text style={styles.notifMarkReadText}>{t('admin.markReadBtn')}</Text>
                             </TouchableOpacity>
                           )}
                         </View>
@@ -503,6 +581,12 @@ export default function AdminHeader({ navigation, options, route }: any) {
           </View>
         </View>
       </Modal>
+
+      <LanguageSelectorModal
+        visible={langModalVisible}
+        onClose={() => setLangModalVisible(false)}
+        isDark={isDark}
+      />
     </>
   );
 }
@@ -754,17 +838,20 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
   },
-  notifTabsRow: {
+  notifTabsScrollContent: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    gap: 6,
-    borderBottomWidth: 1,
+    paddingVertical: 8,
+    gap: 8,
   },
   notifTabBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   notifTabActive: {
     elevation: 1,

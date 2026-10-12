@@ -13,6 +13,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  BackHandler,
+  Share,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
@@ -34,7 +36,10 @@ import {
   Edit3,
   ThumbsUp,
   MessageSquare,
+  Camera,
+  Share2,
 } from 'lucide-react-native';
+import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import {
   productApi,
   Product,
@@ -57,7 +62,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { normalizeSpecifications } from '../../utils/categoryAttributes';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
-import { useTranslation, translateProductName, translateCategory } from '../../i18n';
+import { useTranslation, translateProductName, translateCategory, translateProductDescription } from '../../i18n';
+import { usePlatformFee } from '../../utils/platformFee';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -108,6 +114,7 @@ export default function ProductDetailScreen() {
     userEmail: '',
     recommend: true,
   });
+  const [selectedPhotos, setSelectedPhotos] = useState<Asset[]>([]);
 
 
 
@@ -247,40 +254,94 @@ export default function ProductDetailScreen() {
       userEmail: prev.userEmail || user?.email || '',
       rating: 0,
     }));
+    setSelectedPhotos([]);
     setReviewModalVisible(true);
+  };
+
+  const handlePickImage = async () => {
+    if (selectedPhotos.length >= 5) {
+      Alert.alert(t('products.reviewErrorTitle'), t('products.photoLimitReached'));
+      return;
+    }
+    try {
+      const res = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        selectionLimit: 5 - selectedPhotos.length,
+      });
+      if (res.assets && res.assets.length > 0) {
+        const validAssets = res.assets.filter(a => !!a.uri);
+        setSelectedPhotos(prev => [...prev, ...validAssets].slice(0, 5));
+      }
+    } catch {
+      Alert.alert(t('products.reviewErrorTitle'), t('products.reviewErrorMsg'));
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setSelectedPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmitReview = async () => {
     if (!reviewForm.rating || reviewForm.rating < 1) {
-      Alert.alert('Validation Error', 'Please select a rating between 1 and 5 stars.');
+      Alert.alert(t('products.reviewErrorTitle'), t('products.ratingRequired'));
       return;
     }
     if (!reviewForm.comment.trim()) {
-      Alert.alert('Validation Error', 'Please write a review comment.');
+      Alert.alert(t('products.reviewErrorTitle'), t('products.commentRequired'));
       return;
     }
     if (!reviewForm.userName.trim()) {
-      Alert.alert('Validation Error', 'Please provide your name.');
+      Alert.alert(t('products.reviewErrorTitle'), t('products.nameRequired'));
       return;
     }
 
     if (!targetProductId) {
-      Alert.alert('Error', 'Product ID is missing.');
+      Alert.alert(t('products.reviewErrorTitle'), 'Product ID is missing.');
       return;
     }
 
     setSubmittingReview(true);
     try {
-      await productApi.addReview(targetProductId, {
-        rating: Number(reviewForm.rating),
-        title: reviewForm.title.trim(),
-        comment: reviewForm.comment.trim(),
-        userName: reviewForm.userName.trim(),
-        userEmail: reviewForm.userEmail.trim(),
-        recommend: reviewForm.recommend,
-      });
+      if (selectedPhotos.length > 0) {
+        const formData = new FormData();
+        formData.append('rating', String(reviewForm.rating));
+        formData.append('title', reviewForm.title.trim());
+        formData.append('comment', reviewForm.comment.trim());
+        formData.append('userName', reviewForm.userName.trim());
+        formData.append('userEmail', reviewForm.userEmail.trim());
+        formData.append('recommend', String(reviewForm.recommend));
+        selectedPhotos.forEach((photo, idx) => {
+          if (photo.uri) {
+            const filename = photo.fileName || `review-${Date.now()}-${idx}.jpg`;
+            const type = photo.type || 'image/jpeg';
+            formData.append('images', {
+              uri: photo.uri,
+              name: filename,
+              type,
+            } as any);
+          }
+        });
+        await productApi.addReview(targetProductId, formData, token || undefined);
+      } else {
+        await productApi.addReview(
+          targetProductId,
+          {
+            rating: Number(reviewForm.rating),
+            title: reviewForm.title.trim(),
+            comment: reviewForm.comment.trim(),
+            userName: reviewForm.userName.trim(),
+            userEmail: reviewForm.userEmail.trim(),
+            recommend: reviewForm.recommend,
+          },
+          token || undefined
+        );
+      }
 
       setReviewModalVisible(false);
+      setSelectedPhotos([]);
       setReviewForm({
         rating: 0,
         title: '',
@@ -290,13 +351,15 @@ export default function ProductDetailScreen() {
         recommend: true,
       });
 
-
-      Alert.alert('Thank You!', 'Your review has been submitted successfully.');
+      Alert.alert(t('products.reviewSuccessTitle'), t('products.reviewSuccessMsg'));
       setTab('Reviews');
       fetchReviews(targetProductId);
     } catch (err: any) {
       console.log('Error submitting review:', err);
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to submit review. Please try again.');
+      Alert.alert(
+        t('products.reviewErrorTitle'),
+        err?.response?.data?.message || t('products.reviewErrorMsg')
+      );
     } finally {
       setSubmittingReview(false);
     }
@@ -362,6 +425,42 @@ export default function ProductDetailScreen() {
       .slice(0, 4);
   }, [product, allProducts]);
 
+  const handleBackToProducts = React.useCallback(() => {
+    const targetCategory = product?.category?.trim();
+    if (targetCategory) {
+      (navigation as any).navigate('CustomerTabs', {
+        screen: 'Categories',
+        params: {
+          screen: 'CategoryProducts',
+          params: { category: targetCategory },
+        },
+      });
+    } else {
+      (navigation as any).navigate('CustomerTabs', {
+        screen: 'Categories',
+        params: {
+          screen: 'CategoryProducts',
+          params: { category: 'all' },
+        },
+      });
+    }
+  }, [navigation, product?.category]);
+
+  useEffect(() => {
+    if (isPreview) return;
+    const onBackPress = () => {
+      handleBackToProducts();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [isPreview, handleBackToProducts]);
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -369,20 +468,6 @@ export default function ProductDetailScreen() {
       </View>
     );
   }
-
-  const handleBackToProducts = () => {
-    if (product?.category) {
-      navigation.navigate('Categories', {
-        screen: 'CategoryProducts',
-        params: { category: product.category },
-      });
-    } else {
-      navigation.navigate('Categories', {
-        screen: 'CategoryProducts',
-        params: { category: 'all' },
-      });
-    }
-  };
 
   if (!product) {
     return (
@@ -433,6 +518,7 @@ export default function ProductDetailScreen() {
 
   const pId = product._id || product.id || '';
   const isItemWishlisted = checkWishlisted(pId);
+  const platformFee = usePlatformFee(currentPriceVal * quantity);
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
@@ -471,6 +557,38 @@ export default function ProductDetailScreen() {
     navigation.navigate('Checkout');
   };
 
+  const handleShare = async () => {
+    if (!product) return;
+    try {
+      const prodTitle = translateProductName(product.title, language, product) || product.title || 'Product';
+      const priceStr = currentPriceVal ? `₹${currentPriceVal.toLocaleString('en-IN')}` : '';
+      const prodId = product._id || product.id || routeProductId || '';
+      const shareUrl = `http://localhost:4000/product/${prodId}`;
+      const message = `${prodTitle}${priceStr ? ` (${priceStr})` : ''}\n\nCheck out this product on Remise:\n${shareUrl}`;
+
+      await Share.share(
+        Platform.OS === 'ios'
+          ? {
+              title: prodTitle,
+              message,
+              url: shareUrl,
+            }
+          : {
+              title: prodTitle,
+              message,
+            },
+        {
+          dialogTitle: `Share ${prodTitle}`,
+          subject: `Check out ${prodTitle} on Remise`,
+        }
+      );
+    } catch (error: any) {
+      if (error?.message && !error.message.includes('dismissed') && !error.message.includes('canceled')) {
+        console.error('Error sharing product:', error);
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Top Header */}
@@ -486,9 +604,17 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
         )}
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {product.title}
+          {translateProductName(product.title, language, product)}
         </Text>
         <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={handleShare}
+            activeOpacity={0.7}
+            accessibilityLabel="Share Product"
+          >
+            <Share2 size={19} color={colors.textPrimary} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerBtn}
             onPress={() => navigation.navigate('Notifications')}
@@ -609,22 +735,27 @@ export default function ProductDetailScreen() {
             activeOpacity={0.7}
             style={styles.ratingBar}
           >
-            <View style={styles.ratingChip}>
-              <Star size={13} color="#F59E0B" fill={dynamicReviewCount > 0 ? "#F59E0B" : "transparent"} />
-              <Text style={styles.ratingText}>
+            <View style={styles.ratingGroup}>
+              <View style={styles.ratingChip}>
+                <Star size={13} color="#F59E0B" fill={dynamicReviewCount > 0 ? "#F59E0B" : "transparent"} />
+                <Text style={styles.ratingText}>
+                  {dynamicReviewCount > 0
+                    ? dynamicRating.toFixed(1)
+                    : '0.0'}
+                </Text>
+              </View>
+              <Text style={styles.ratingCount}>
                 {dynamicReviewCount > 0
-                  ? dynamicRating.toFixed(1)
-                  : '0.0'}
+                  ? t('products.reviewsCount', { count: dynamicReviewCount })
+                  : t('products.noReviewsYet')}
               </Text>
             </View>
-            <Text style={styles.ratingCount}>
-              {dynamicReviewCount > 0
-                ? `${dynamicReviewCount} ${dynamicReviewCount === 1 ? 'Rating' : 'Ratings'}`
-                : 'No reviews yet'}
-            </Text>
-            <Text style={styles.dotSeparator}>·</Text>
-            <ShieldCheck size={14} color={CustomerColors.teal700} />
-            <Text style={styles.verifiedText}>Verified Genuine</Text>
+            <View style={styles.verifiedChip}>
+              <ShieldCheck size={14} color={CustomerColors.teal700} />
+              <Text style={styles.verifiedText} numberOfLines={1} ellipsizeMode="tail">
+                {t('products.verifiedGenuine')}
+              </Text>
+            </View>
           </TouchableOpacity>
 
 
@@ -652,22 +783,13 @@ export default function ProductDetailScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.storeName}>
-                Sold by {product.storeId ? 'Verified Partner Store' : 'Remise Direct Official'}
+                {t('products.soldBy', {
+                  store: product.storeId
+                    ? t('products.verifiedPartnerStore')
+                    : t('products.directOfficial'),
+                })}
               </Text>
-              <Text style={styles.storeSub}>Fast Dispatch · 100% Quality Checked</Text>
-            </View>
-          </View>
-
-          {/* Offer Banner */}
-          <View style={styles.offerBanner}>
-            <Tag size={16} color={CustomerColors.teal700} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.offerTitle}>
-                Use Code <Text style={{ textDecorationLine: 'underline', fontWeight: '800' }}>REMISE10</Text> for 10% Extra Off
-              </Text>
-              <Text style={styles.offerSubtitle}>
-                Free delivery on prepaid orders above ₹499
-              </Text>
+              <Text style={styles.storeSub}>{t('products.fastDispatch')}</Text>
             </View>
           </View>
 
@@ -699,6 +821,7 @@ export default function ProductDetailScreen() {
                 styles.wishlistBtn,
                 isItemWishlisted && styles.wishlistBtnActive,
               ]}
+              accessibilityLabel="Add to Wishlist"
             >
               <Heart
                 size={20}
@@ -707,19 +830,46 @@ export default function ProductDetailScreen() {
               />
             </TouchableOpacity>
 
+            <TouchableOpacity
+              onPress={handleShare}
+              style={styles.shareBtn}
+              activeOpacity={0.7}
+              accessibilityLabel="Share Product"
+            >
+              <Share2
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+
             {!isOutOfStock && product.totalStock !== undefined && (
-              <Text style={{ fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600', marginLeft: Spacing.xs }}>
-                Stock: <Text style={{ color: isDark ? '#FFFFFF' : CustomerColors.black, fontWeight: '700' }}>{product.totalStock} {product.stockUnit || product.unit || 'Units'}</Text>
+              <Text
+                style={{
+                  fontSize: FontSizes.xs,
+                  color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+                  fontWeight: '600',
+                  marginLeft: Spacing.xs,
+                  flexShrink: 1,
+                  flexWrap: 'wrap',
+                }}
+                numberOfLines={2}
+              >
+                {t('products.stockLabel')} <Text style={{ color: isDark ? '#FFFFFF' : CustomerColors.black, fontWeight: '700' }}>{product.totalStock} {translateProductName(product.stockUnit || product.unit || 'Units', language)}</Text>
               </Text>
             )}
           </View>
 
-          {/* Delivery Note */}
+          {/* Delivery & Platform Fee Note */}
           <View style={styles.deliveryNote}>
             <Truck size={14} color={CustomerColors.teal700} />
-            <Text style={styles.deliveryText}>
-              Est. delivery in {product.deliveryTime || '3–7 Business Days'}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.deliveryText} numberOfLines={2}>
+                {t('products.estDelivery', { time: product.deliveryTime || t('products.businessDays') })} · Free delivery on ₹499+
+              </Text>
+              <Text style={[styles.deliveryText, { fontSize: 10, marginTop: 2, color: CustomerColors.textSecondary }]}>
+                Platform Fee: {platformFee === 0 ? 'FREE' : `₹${platformFee}`} · Self Pickup: ₹0
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -731,30 +881,43 @@ export default function ProductDetailScreen() {
             style={styles.tabsHeader}
             contentContainerStyle={{ gap: Spacing.sm }}
           >
-            {TABS.map(t => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setTab(t)}
-                style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
-              >
-                <Text
-                  style={[
-                    styles.tabBtnText,
-                    tab === t && styles.tabBtnTextActive,
-                  ]}
+            {TABS.map(tabKey => {
+              const tabLabelMap: Record<string, string> = {
+                About: t('products.tabAbout'),
+                Specifications: t('products.tabSpecifications'),
+                Highlights: t('products.tabHighlights'),
+                Shipping: t('products.tabShipping'),
+                Reviews: t('products.tabReviews'),
+              };
+              return (
+                <TouchableOpacity
+                  key={tabKey}
+                  onPress={() => setTab(tabKey)}
+                  style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
                 >
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.tabBtnText,
+                      tab === tabKey && styles.tabBtnTextActive,
+                    ]}
+                  >
+                    {tabLabelMap[tabKey] || tabKey}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           <View style={styles.tabBody}>
             {tab === 'About' && (
               <View>
-                <Text style={styles.tabHeading}>Description</Text>
+                <Text style={styles.tabHeading}>{t('products.description')}</Text>
                 <Text style={styles.descriptionText}>
-                  {product.aboutDescription ||
+                  {translateProductDescription(
+                    product.aboutDescription || product.description || '',
+                    language,
+                  ) ||
+                    product.aboutDescription ||
                     product.description ||
                     'No detailed description available for this product.'}
                 </Text>
@@ -781,7 +944,7 @@ export default function ProductDetailScreen() {
                   </View>
                 ) : (
                   <Text style={styles.emptyTabText}>
-                    No specifications available.
+                    {t('products.noSpecificationsAvailable')}
                   </Text>
                 )}
               </View>
@@ -798,7 +961,7 @@ export default function ProductDetailScreen() {
                   ))
                 ) : (
                   <Text style={styles.emptyTabText}>
-                    Standard item highlights apply.
+                    {t('products.standardHighlightsApply')}
                   </Text>
                 )}
               </View>
@@ -807,15 +970,15 @@ export default function ProductDetailScreen() {
             {tab === 'Shipping' && (
               <View style={{ gap: Spacing.sm }}>
                 <View style={styles.policyCard}>
-                  <Text style={styles.policyTitle}>Delivery Policy</Text>
+                  <Text style={styles.policyTitle}>{t('products.deliveryPolicy')}</Text>
                   <Text style={styles.policyBody}>
-                    Dispatched within 24 hours of order confirmation. Track live updates directly from your orders tab.
+                    {t('products.deliveryPolicyDesc')}
                   </Text>
                 </View>
                 <View style={styles.policyCard}>
-                  <Text style={styles.policyTitle}>7 Days Replacement</Text>
+                  <Text style={styles.policyTitle}>{t('products.replacementPolicy')}</Text>
                   <Text style={styles.policyBody}>
-                    Hassle-free pickup and replacement for damaged or incorrect items within 7 days of delivery.
+                    {t('products.replacementPolicyDesc')}
                   </Text>
                 </View>
               </View>
@@ -846,8 +1009,8 @@ export default function ProductDetailScreen() {
                     </View>
                     <Text style={styles.reviewScoreSub}>
                       {dynamicReviewCount > 0
-                        ? `Based on ${dynamicReviewCount} rating${dynamicReviewCount === 1 ? '' : 's'}`
-                        : 'No reviews yet'}
+                        ? t('products.basedOnReviews', { count: dynamicReviewCount })
+                        : t('products.noReviewsYet')}
                     </Text>
                   </View>
 
@@ -878,7 +1041,7 @@ export default function ProductDetailScreen() {
                   activeOpacity={0.8}
                 >
                   <Edit3 size={15} color="#FFFFFF" />
-                  <Text style={styles.writeReviewBtnText}>Write a Customer Review</Text>
+                  <Text style={styles.writeReviewBtnText}>{t('products.writeCustomerReview')}</Text>
                 </TouchableOpacity>
 
                 {/* Reviews List */}
@@ -886,15 +1049,15 @@ export default function ProductDetailScreen() {
                   <View style={{ paddingVertical: Spacing.xl, alignItems: 'center' }}>
                     <ActivityIndicator size="small" color={CustomerColors.teal700} />
                     <Text style={[styles.emptyTabText, { marginTop: Spacing.xs }]}>
-                      Loading reviews…
+                      {t('products.loadingReviews')}
                     </Text>
                   </View>
                 ) : reviews.length === 0 ? (
                   <View style={styles.emptyReviewsBox}>
                     <Star size={26} color="#F59E0B" fill="#F59E0B" />
-                    <Text style={styles.emptyReviewsTitle}>No reviews yet</Text>
+                    <Text style={styles.emptyReviewsTitle}>{t('products.noReviewsYet')}</Text>
                     <Text style={styles.emptyReviewsSub}>
-                      Be the first to share your thoughts on this product!
+                      {t('products.beFirstToReview')}
                     </Text>
                   </View>
                 ) : (
@@ -908,11 +1071,11 @@ export default function ProductDetailScreen() {
                         </View>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.reviewAuthor}>{rev.userName || 'Customer'}</Text>
+                            <Text style={styles.reviewAuthor}>{rev.userName || t('products.customer')}</Text>
                             {rev.verified !== false && (
                               <View style={styles.verifiedBadge}>
                                 <Check size={10} color="#059669" />
-                                <Text style={styles.verifiedBadgeText}>Verified</Text>
+                                <Text style={styles.verifiedBadgeText}>{t('products.verifiedBuyer')}</Text>
                               </View>
                             )}
                           </View>
@@ -927,12 +1090,12 @@ export default function ProductDetailScreen() {
                             ))}
                             <Text style={styles.reviewDate}>
                               {rev.createdAt
-                                ? new Date(rev.createdAt).toLocaleDateString('en-IN', {
+                                ? new Date(rev.createdAt).toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-IN', {
                                     day: 'numeric',
                                     month: 'short',
                                     year: 'numeric',
                                   })
-                                : 'Recent'}
+                                : t('products.recent')}
                             </Text>
                           </View>
                         </View>
@@ -941,11 +1104,23 @@ export default function ProductDetailScreen() {
                       {rev.title ? <Text style={styles.reviewTitleText}>{rev.title}</Text> : null}
                       <Text style={styles.reviewBodyText}>{rev.comment}</Text>
 
+                      {rev.images && rev.images.length > 0 && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewImagesRow}>
+                          {rev.images.map((imgUri, idx) => (
+                            <Image
+                              key={idx}
+                              source={{ uri: resolveImageUrl(imgUri) || imgUri }}
+                              style={styles.reviewThumb}
+                            />
+                          ))}
+                        </ScrollView>
+                      )}
+
                       <View style={styles.reviewFooterRow}>
                         {rev.recommend !== false && (
                           <View style={styles.recommendPill}>
                             <CheckCircle size={11} color={CustomerColors.teal700} />
-                            <Text style={styles.recommendPillText}>Recommends</Text>
+                            <Text style={styles.recommendPillText}>{t('products.recommends')}</Text>
                           </View>
                         )}
                         <TouchableOpacity
@@ -955,7 +1130,7 @@ export default function ProductDetailScreen() {
                         >
                           <ThumbsUp size={12} color={colors.textSecondary} />
                           <Text style={styles.helpfulBtnText}>
-                            Helpful {rev.helpfulCount ? `(${rev.helpfulCount})` : ''}
+                            {t('products.helpful')} {rev.helpfulCount ? `(${rev.helpfulCount})` : ''}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -971,7 +1146,9 @@ export default function ProductDetailScreen() {
         {similarProducts.length > 0 && (
           <View style={styles.similarSection}>
             <Text style={styles.similarTitle}>
-              Similar Products in {product.subcategory || product.category}
+              {t('products.similarProductsIn', {
+                category: translateCategory(product.subcategory || product.category, language),
+              })}
             </Text>
             <ScrollView
               horizontal
@@ -998,10 +1175,10 @@ export default function ProductDetailScreen() {
                       )}
                     </View>
                     <Text style={styles.similarBrand} numberOfLines={1}>
-                      {p.brand || p.category}
+                      {p.brand ? translateCategory(p.brand, language) : translateCategory(p.category, language)}
                     </Text>
                     <Text style={styles.similarName} numberOfLines={2}>
-                      {p.title}
+                      {translateProductName(p.title, language, p)}
                     </Text>
                     <Text style={styles.similarPrice}>
                       ₹{p.price?.toLocaleString('en-IN')}
@@ -1021,8 +1198,10 @@ export default function ProductDetailScreen() {
           onPress={handleAddToCart}
           disabled={isOutOfStock}
         >
-          <ShoppingCart size={18} color={CustomerColors.teal700} />
-          <Text style={styles.cartBtnText}>Add to Cart</Text>
+          <ShoppingCart size={17} color={CustomerColors.teal700} />
+          <Text style={styles.cartBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            {t('products.addToCart')}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -1030,8 +1209,10 @@ export default function ProductDetailScreen() {
           onPress={handleBuyNow}
           disabled={isOutOfStock}
         >
-          <Zap size={18} color="#FFFFFF" />
-          <Text style={styles.buyBtnText}>Buy Now</Text>
+          <Zap size={17} color="#FFFFFF" />
+          <Text style={styles.buyBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            {t('products.buyNow')}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -1055,9 +1236,9 @@ export default function ProductDetailScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>Write a Customer Review</Text>
+                <Text style={styles.modalTitle}>{t('products.writeCustomerReview')}</Text>
                 <Text style={styles.modalSub} numberOfLines={1}>
-                  {product?.title}
+                  {translateProductName(product?.title, language, product)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -1071,7 +1252,7 @@ export default function ProductDetailScreen() {
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
               {/* Star Rating Picker */}
               <View style={styles.modalField}>
-                <Text style={styles.modalFieldLabel}>Overall Rating *</Text>
+                <Text style={styles.modalFieldLabel}>{t('products.overallRatingLabel')} *</Text>
                 <View style={styles.modalStarPicker}>
                   {[1, 2, 3, 4, 5].map(st => {
                     const isSelected = st <= reviewForm.rating;
@@ -1091,16 +1272,16 @@ export default function ProductDetailScreen() {
                   })}
                   <Text style={styles.modalStarScore}>
                     {reviewForm.rating === 0
-                      ? 'Select a rating'
+                      ? t('products.selectRating')
                       : reviewForm.rating === 1
-                      ? '1 - Poor'
+                      ? t('products.ratingPoor')
                       : reviewForm.rating === 2
-                      ? '2 - Fair'
+                      ? t('products.ratingFair')
                       : reviewForm.rating === 3
-                      ? '3 - Average'
+                      ? t('products.ratingAverage')
                       : reviewForm.rating === 4
-                      ? '4 - Good'
-                      : '5 - Outstanding!'}
+                      ? t('products.ratingGood')
+                      : t('products.ratingOutstanding')}
                   </Text>
                 </View>
               </View>
@@ -1108,41 +1289,76 @@ export default function ProductDetailScreen() {
 
               {/* Review Title */}
               <View style={styles.modalField}>
-                <Text style={styles.modalFieldLabel}>Review Headline</Text>
+                <Text style={styles.modalFieldLabel}>{t('products.reviewHeadline')}</Text>
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="e.g. Exceptional quality & durable"
+                  placeholder={t('products.reviewHeadlinePlaceholder')}
                   placeholderTextColor={colors.textSecondary}
                   value={reviewForm.title}
-                  onChangeText={t => setReviewForm(f => ({ ...f, title: t }))}
+                  onChangeText={txt => setReviewForm(f => ({ ...f, title: txt }))}
                 />
               </View>
 
               {/* Reviewer Name */}
               <View style={styles.modalField}>
-                <Text style={styles.modalFieldLabel}>Your Name *</Text>
+                <Text style={styles.modalFieldLabel}>{t('products.yourName')} *</Text>
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="Your Name"
+                  placeholder={t('products.yourNamePlaceholder')}
                   placeholderTextColor={colors.textSecondary}
                   value={reviewForm.userName}
-                  onChangeText={t => setReviewForm(f => ({ ...f, userName: t }))}
+                  onChangeText={txt => setReviewForm(f => ({ ...f, userName: txt }))}
                 />
               </View>
 
               {/* Review Comment */}
               <View style={styles.modalField}>
-                <Text style={styles.modalFieldLabel}>Detailed Review *</Text>
+                <Text style={styles.modalFieldLabel}>{t('products.detailedReview')} *</Text>
                 <TextInput
                   style={[styles.modalInput, styles.modalTextArea]}
-                  placeholder="Share details about what you liked or disliked..."
+                  placeholder={t('products.detailedReviewPlaceholder')}
                   placeholderTextColor={colors.textSecondary}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
                   value={reviewForm.comment}
-                  onChangeText={t => setReviewForm(f => ({ ...f, comment: t }))}
+                  onChangeText={txt => setReviewForm(f => ({ ...f, comment: txt }))}
                 />
+              </View>
+
+              {/* Photo Upload Section */}
+              <View style={styles.modalField}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={styles.modalFieldLabel}>{t('products.addPhotos')}</Text>
+                  <Text style={styles.photoCountText}>{selectedPhotos.length}/5</Text>
+                </View>
+                <Text style={styles.photoDescText}>{t('products.addPhotosDesc')}</Text>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoListContainer}>
+                  {selectedPhotos.map((photo, idx) => (
+                    <View key={idx} style={styles.photoPreviewBox}>
+                      <Image source={{ uri: photo.uri }} style={styles.photoPreviewImg} />
+                      <TouchableOpacity
+                        style={styles.photoRemoveBtn}
+                        onPress={() => handleRemovePhoto(idx)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <X size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+
+                  {selectedPhotos.length < 5 && (
+                    <TouchableOpacity
+                      style={styles.photoUploadBtn}
+                      onPress={handlePickImage}
+                      activeOpacity={0.7}
+                    >
+                      <Camera size={22} color={CustomerColors.teal700} />
+                      <Text style={styles.photoUploadBtnText}>{t('products.uploadPhotos')}</Text>
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
               </View>
 
               {/* Recommend Checkbox */}
@@ -1160,7 +1376,7 @@ export default function ProductDetailScreen() {
                   {reviewForm.recommend && <Check size={12} color="#FFFFFF" />}
                 </View>
                 <Text style={styles.modalRecommendText}>
-                  I recommend this product to others
+                  {t('products.recommendProduct')}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -1172,7 +1388,7 @@ export default function ProductDetailScreen() {
                 onPress={() => setReviewModalVisible(false)}
                 disabled={submittingReview}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.modalSubmitBtn}
@@ -1182,7 +1398,7 @@ export default function ProductDetailScreen() {
                 {submittingReview ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalSubmitText}>Submit Review</Text>
+                  <Text style={styles.modalSubmitText}>{t('products.submitReview')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1373,7 +1589,21 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       lineHeight: 26,
       marginBottom: Spacing.xs,
     },
-    ratingBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md },
+    ratingBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      rowGap: 6,
+      columnGap: Spacing.xs,
+      marginBottom: Spacing.md,
+    },
+    ratingGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 1,
+    },
     ratingChip: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1384,9 +1614,15 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       borderRadius: BorderRadius.sm,
     },
     ratingText: { color: '#F59E0B', fontSize: 11, fontWeight: '800' },
-    ratingCount: { color: colors.textSecondary, fontSize: 11 },
+    ratingCount: { color: colors.textSecondary, fontSize: 11, flexShrink: 1 },
+    verifiedChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 1,
+    },
     dotSeparator: { color: isDark ? '#4B5563' : '#CBD5E1' },
-    verifiedText: { color: CustomerColors.teal700, fontSize: 11, fontWeight: '700' },
+    verifiedText: { color: CustomerColors.teal700, fontSize: 11, fontWeight: '700', flexShrink: 1 },
     priceContainer: {
       flexDirection: 'row',
       alignItems: 'baseline',
@@ -1446,7 +1682,7 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
     },
     offerTitle: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.teal700 },
     offerSubtitle: { fontSize: 10, color: isDark ? '#99F6E4' : '#0F766E' },
-    qtyWishlistRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
+    qtyWishlistRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.sm },
     qtySelector: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1476,8 +1712,18 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       justifyContent: 'center',
     },
     wishlistBtnActive: { borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
+    shareBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     deliveryNote: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
-    deliveryText: { fontSize: 11, color: colors.textSecondary },
+    deliveryText: { fontSize: 11, color: colors.textSecondary, flex: 1, flexWrap: 'wrap' },
     tabsCard: {
       backgroundColor: isDark ? '#111827' : '#FFFFFF',
       borderWidth: 1,
@@ -1613,34 +1859,40 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: Spacing.xs,
+      gap: 5,
       backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
       borderWidth: 1.5,
       borderColor: CustomerColors.teal700,
       borderRadius: BorderRadius.xl,
       paddingVertical: 12,
+      paddingHorizontal: 6,
     },
     cartBtnText: {
       color: CustomerColors.teal700,
       fontSize: FontSizes.xs,
       fontWeight: '800',
       textTransform: 'uppercase',
+      flexShrink: 1,
+      textAlign: 'center',
     },
     buyBtn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: Spacing.xs,
+      gap: 5,
       backgroundColor: CustomerColors.primary,
       borderRadius: BorderRadius.xl,
       paddingVertical: 12,
+      paddingHorizontal: 6,
     },
     buyBtnText: {
       color: '#FFFFFF',
       fontSize: FontSizes.xs,
       fontWeight: '800',
       textTransform: 'uppercase',
+      flexShrink: 1,
+      textAlign: 'center',
     },
     btnDisabled: { opacity: 0.5 },
 
@@ -2009,5 +2261,76 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       fontWeight: '800',
       color: '#FFFFFF',
       textTransform: 'uppercase',
+    },
+    photoCountText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: CustomerColors.teal700,
+    },
+    photoDescText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginBottom: Spacing.sm,
+    },
+    photoListContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      paddingVertical: 4,
+    },
+    photoPreviewBox: {
+      width: 68,
+      height: 68,
+      borderRadius: BorderRadius.md,
+      position: 'relative',
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+    },
+    photoPreviewImg: {
+      width: '100%',
+      height: '100%',
+      borderRadius: BorderRadius.md,
+    },
+    photoRemoveBtn: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    photoUploadBtn: {
+      width: 68,
+      height: 68,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: isDark ? '#0D9488' : '#14B8A6',
+      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.1)' : '#F0FDFA',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 4,
+    },
+    photoUploadBtnText: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: CustomerColors.teal700,
+      marginTop: 2,
+      textAlign: 'center',
+    },
+    reviewImagesRow: {
+      marginTop: Spacing.sm,
+      marginBottom: Spacing.xs,
+    },
+    reviewThumb: {
+      width: 60,
+      height: 60,
+      borderRadius: BorderRadius.md,
+      marginRight: Spacing.sm,
+      backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
     },
   });

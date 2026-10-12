@@ -11,6 +11,7 @@ import {
   Modal,
   Alert,
   Dimensions,
+  Platform,
 } from 'react-native';
 import {
   Store,
@@ -40,6 +41,7 @@ import {
 import { adminStoreApi } from '../../api/adminApi';
 import { useTheme } from '../../context/ThemeContext';
 import { getAdminColors, AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTranslation, translateCategory, translateDate } from '../../i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -125,6 +127,7 @@ interface StoreRegistrationItem {
 export default function AdminStoresScreen() {
   const { isDark } = useTheme();
   const themeColors = getAdminColors(isDark);
+  const { t, language } = useTranslation();
 
   const [stores, setStores] = useState<StoreRegistrationItem[]>([]);
   const [stats, setStats] = useState({
@@ -181,13 +184,13 @@ export default function AdminStoresScreen() {
           setStores(altData);
         }
       } catch (e) {
-        Alert.alert('Error', 'Unable to fetch stores. Please try again.');
+        Alert.alert(t('common.error'), t('admin.unableToFetchStores'));
       }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchTerm, typeFilter]);
+  }, [searchTerm, typeFilter, t]);
 
   useEffect(() => {
     fetchStores();
@@ -216,7 +219,7 @@ export default function AdminStoresScreen() {
       if (found) {
         setSelectedStore(found);
       } else {
-        Alert.alert('Error', err?.response?.data?.message || 'Failed to load details');
+        Alert.alert(t('common.error'), err?.response?.data?.message || t('admin.errorLoadingDetails'));
         setIsDetailOpen(false);
       }
     } finally {
@@ -229,14 +232,14 @@ export default function AdminStoresScreen() {
       const newStatus = !store.isVerified;
       const res = await adminStoreApi.toggleVerify(store._id, newStatus);
       if (res.data?.success) {
-        Alert.alert('Success', `Store ${newStatus ? 'verified' : 'unverified'} successfully!`);
+        Alert.alert(t('common.success'), newStatus ? t('admin.storeVerifiedSuccess') : t('admin.storeUnverifiedSuccess'));
         setStores((prev) => prev.map((s) => (s._id === store._id ? { ...s, isVerified: newStatus } : s)));
         if (selectedStore?._id === store._id) {
           setSelectedStore((prev) => (prev ? { ...prev, isVerified: newStatus } : null));
         }
       }
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to update verification');
+      Alert.alert(t('common.error'), err.response?.data?.message || t('admin.errorUpdatingVerification'));
     }
   };
 
@@ -245,31 +248,31 @@ export default function AdminStoresScreen() {
       const isActive = newStatus === 'active';
       const res = await adminStoreApi.updateStatus(store._id, newStatus, isActive);
       if (res.data?.success) {
-        Alert.alert('Success', `Store status changed to ${newStatus}!`);
+        Alert.alert(t('common.success'), t('admin.storeStatusChanged', { status: newStatus }));
         setStores((prev) => prev.map((s) => (s._id === store._id ? { ...s, isActive } : s)));
         if (selectedStore?._id === store._id) {
           setSelectedStore((prev) => (prev ? { ...prev, isActive } : null));
         }
       }
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to update status');
+      Alert.alert(t('common.error'), err.response?.data?.message || t('admin.errorUpdatingStatus'));
     }
   };
 
   const handleResendEmail = async (id: string, storeName: string) => {
     Alert.alert(
-      'Resend Registration Email',
-      `Send full store registration & bank details for "${storeName}" to porulontechnologies@gmail.com?`,
+      t('admin.resendEmailConfirmTitle'),
+      t('admin.resendEmailConfirmMessage', { name: storeName }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Send Email',
+          text: t('admin.sendEmailBtn'),
           onPress: async () => {
             setResendingId(id);
             try {
               const res = await adminStoreApi.resendRegistrationEmail(id);
               if (res.data?.success) {
-                Alert.alert('Success', res.data.message || 'Notification email sent successfully');
+                Alert.alert(t('common.success'), res.data?.message || t('admin.emailSentSuccess'));
                 fetchStores(true);
                 if (selectedStore && selectedStore._id === id) {
                   const updated = await adminStoreApi.getRegistrationById(id);
@@ -279,7 +282,7 @@ export default function AdminStoresScreen() {
                 }
               }
             } catch (err: any) {
-              Alert.alert('Failed', err?.response?.data?.message || 'Could not send email');
+              Alert.alert(t('common.failed'), err?.response?.data?.message || t('admin.emailSendFailed'));
             } finally {
               setResendingId(null);
             }
@@ -319,35 +322,42 @@ export default function AdminStoresScreen() {
   const getStoreTypeBadge = (type?: string) => {
     switch (type) {
       case 'whole_saler':
-        return { label: 'Wholesaler', bg: '#EDE9FE', color: '#6D28D9' };
+        return { label: t('admin.wholesaler'), bg: '#EDE9FE', color: '#6D28D9' };
       case 'home_business':
-        return { label: 'Home Business', bg: '#FCE7F3', color: '#BE185D' };
+        return { label: t('admin.homeBusiness'), bg: '#FCE7F3', color: '#BE185D' };
       default:
-        return { label: 'Store Owner', bg: '#E0F2FE', color: '#0369A1' };
+        return { label: t('admin.storeOwner'), bg: '#E0F2FE', color: '#0369A1' };
     }
   };
 
   const getEmailBadge = (emailInfo?: StoreRegistrationItem['registrationEmailNotification']) => {
     if (emailInfo?.status === 'sent' || emailInfo?.sent) {
-      return { label: 'Email Sent', bg: '#DCFCE7', color: '#15803D', icon: CheckCircle2 };
+      return { label: t('admin.emailSent'), bg: '#DCFCE7', color: '#15803D', icon: CheckCircle2 };
     }
     if (emailInfo?.status === 'failed') {
-      return { label: 'Email Failed', bg: '#FEE2E2', color: '#B91C1C', icon: XCircle };
+      return { label: t('admin.emailFailed'), bg: '#FEE2E2', color: '#B91C1C', icon: XCircle };
     }
-    return { label: 'Email Pending', bg: '#FEF3C7', color: '#B45309', icon: AlertTriangle };
+    return { label: t('admin.emailPending'), bg: '#FEF3C7', color: '#B45309', icon: AlertTriangle };
   };
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
     try {
-      return new Date(dateStr).toLocaleDateString('en-IN', {
+      const formatted = new Date(dateStr).toLocaleDateString('en-IN', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
       });
+      return translateDate(formatted, language);
     } catch {
       return dateStr;
     }
+  };
+
+  const formatKycStatus = (status?: string, isVerified?: boolean) => {
+    if (status === 'VERIFIED' || isVerified) return t('admin.kycVerified');
+    if (status === 'PENDING') return t('admin.kycPending');
+    return status || (isVerified ? t('admin.kycVerified') : t('admin.kycPending'));
   };
 
   return (
@@ -357,8 +367,8 @@ export default function AdminStoresScreen() {
         <View style={[styles.searchBox, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
           <Search size={18} color={themeColors.textMuted} />
           <TextInput
-            placeholder="Search store, owner, email, phone..."
-            placeholderTextColor={themeColors.textMuted}
+            placeholder={t('admin.searchStoresPlaceholder')}
+            placeholderTextColor={isDark ? '#9CA3AF' : '#64748B'}
             style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
             value={searchTerm}
             onChangeText={setSearchTerm}
@@ -375,10 +385,10 @@ export default function AdminStoresScreen() {
         {/* Store Type Filter Chips */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContainer}>
           {[
-            { key: 'all', label: 'All Types' },
-            { key: 'store', label: 'Store Owner' },
-            { key: 'whole_saler', label: 'Wholesaler' },
-            { key: 'home_business', label: 'Home Business' },
+            { key: 'all', label: t('admin.allTypes') },
+            { key: 'store', label: t('admin.storeOwner') },
+            { key: 'whole_saler', label: t('admin.wholesaler') },
+            { key: 'home_business', label: t('admin.homeBusiness') },
           ].map((chip) => (
             <TouchableOpacity
               key={chip.key}
@@ -417,7 +427,7 @@ export default function AdminStoresScreen() {
                 statusFilter === 'active' && { color: '#FFFFFF', fontWeight: '700' },
               ]}
             >
-              Active
+              {t('admin.activeFilter')}
             </Text>
           </TouchableOpacity>
 
@@ -436,7 +446,7 @@ export default function AdminStoresScreen() {
                 statusFilter === 'verified' && { color: '#FFFFFF', fontWeight: '700' },
               ]}
             >
-              Verified
+              {t('admin.verifiedFilter')}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -446,21 +456,21 @@ export default function AdminStoresScreen() {
       <View style={styles.statsRow}>
         <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
           <Text style={[styles.statNum, { color: AdminColors.primary }]}>{stores.length}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Total Stores</Text>
+          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.totalStores')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
           <Text style={[styles.statNum, { color: '#10B981' }]}>{stores.filter((s) => s.isActive).length}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Active</Text>
+          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.activeStores')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
           <Text style={[styles.statNum, { color: '#8B5CF6' }]}>{stores.filter((s) => s.isVerified).length}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Verified</Text>
+          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.verifiedStores')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
           <Text style={[styles.statNum, { color: stats.emailSent > 0 ? '#10B981' : themeColors.textPrimary }]}>
             {stats.emailSent || stores.filter((s) => s.registrationEmailNotification?.status === 'sent' || s.registrationEmailNotification?.sent).length}
           </Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Notified</Text>
+          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{t('admin.notifiedStores')}</Text>
         </View>
       </View>
 
@@ -468,7 +478,7 @@ export default function AdminStoresScreen() {
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={AdminColors.primary} />
-          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Loading stores...</Text>
+          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>{t('admin.loadingStores')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -478,9 +488,9 @@ export default function AdminStoresScreen() {
           {filteredStores.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Store size={48} color={themeColors.textMuted} />
-              <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>No Stores Found</Text>
+              <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>{t('admin.noStoresFound')}</Text>
               <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
-                Try adjusting your search query or filters.
+                {t('admin.noStoresFoundSub')}
               </Text>
             </View>
           ) : (
@@ -515,8 +525,7 @@ export default function AdminStoresScreen() {
               return (
                 <View
                   key={item._id}
-                  style={[styles.regCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}
-                >
+                  style={[styles.regCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
                   {/* Card Header */}
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
@@ -546,7 +555,7 @@ export default function AdminStoresScreen() {
                               { color: item.isActive ? '#15803D' : '#B91C1C' },
                             ]}
                           >
-                            {item.isActive ? 'Active' : 'Inactive'}
+                            {item.isActive ? t('admin.activeFilter') : t('admin.inactiveFilter')}
                           </Text>
                         </View>
                       </View>
@@ -562,7 +571,7 @@ export default function AdminStoresScreen() {
                   <View style={styles.detailsGrid}>
                     <View style={styles.infoRow}>
                       <Building2 size={14} color={themeColors.textMuted} />
-                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>Owner:</Text>
+                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>{t('admin.ownerLabel')}</Text>
                       <Text style={[styles.infoValue, { color: themeColors.textPrimary }]} numberOfLines={1}>
                         {ownerName}
                       </Text>
@@ -570,7 +579,7 @@ export default function AdminStoresScreen() {
 
                     <View style={styles.infoRow}>
                       <Mail size={14} color={themeColors.textMuted} />
-                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>Email:</Text>
+                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>{t('admin.emailLabel')}</Text>
                       <Text style={[styles.infoValue, { color: themeColors.textPrimary }]} numberOfLines={1}>
                         {item.email}
                       </Text>
@@ -578,13 +587,13 @@ export default function AdminStoresScreen() {
 
                     <View style={styles.infoRow}>
                       <Phone size={14} color={themeColors.textMuted} />
-                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>Phone:</Text>
+                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>{t('admin.phoneLabel')}</Text>
                       <Text style={[styles.infoValue, { color: themeColors.textPrimary }]}>{item.phone}</Text>
                     </View>
 
                     <View style={styles.infoRow}>
                       <ShieldCheck size={14} color={themeColors.textMuted} />
-                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>KYC Status:</Text>
+                      <Text style={[styles.infoLabel, { color: themeColors.textMuted }]}>{t('admin.kycStatusLabel')}</Text>
                       <Text
                         style={[
                           styles.infoValue,
@@ -597,7 +606,7 @@ export default function AdminStoresScreen() {
                           },
                         ]}
                       >
-                        {kycStatusDisplay}
+                        {formatKycStatus(item.kycStatus, item.isVerified)}
                       </Text>
                     </View>
                   </View>
@@ -610,7 +619,7 @@ export default function AdminStoresScreen() {
                       activeOpacity={0.8}
                     >
                       <Eye size={15} color="#FFFFFF" />
-                      <Text style={styles.actionBtnText}>Full Store & Bank Details</Text>
+                      <Text style={styles.actionBtnText}>{t('admin.fullStoreBankDetails')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -628,7 +637,7 @@ export default function AdminStoresScreen() {
                         <>
                           <Send size={14} color={themeColors.textPrimary} />
                           <Text style={[styles.actionBtnOutlineText, { color: themeColors.textPrimary }]}>
-                            Resend Email
+                            {t('admin.resendEmail')}
                           </Text>
                         </>
                       )}
@@ -649,10 +658,10 @@ export default function AdminStoresScreen() {
             <View style={[styles.modalHeader, { borderBottomColor: themeColors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
-                  {selectedStore?.name || 'Store & Registration Details'}
+                  {selectedStore?.name || t('admin.storeBankDetailsTitle')}
                 </Text>
                 <Text style={[styles.modalSub, { color: themeColors.textMuted }]}>
-                  Registered on {formatDate(selectedStore?.createdAt)}
+                  {t('admin.registeredOn', { date: formatDate(selectedStore?.createdAt) })}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setIsDetailOpen(false)} style={styles.closeBtn}>
@@ -663,34 +672,34 @@ export default function AdminStoresScreen() {
             {loadingDetail ? (
               <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={AdminColors.primary} />
-                <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Loading full details...</Text>
+                <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>{t('admin.loadingFullDetails')}</Text>
               </View>
             ) : selectedStore ? (
               <>
                 {/* Modal Navigation Tabs */}
                 <View style={[styles.modalTabs, { borderBottomColor: themeColors.border }]}>
                   {[
-                    { key: 'overview', label: 'Overview' },
-                    { key: 'bank', label: 'Bank Details' },
-                    { key: 'kyc', label: 'KYC & Tax' },
-                    { key: 'route_email', label: 'Route & Email' },
-                  ].map((t) => (
+                    { key: 'overview', label: t('admin.tabOverview') },
+                    { key: 'bank', label: t('admin.tabBank') },
+                    { key: 'kyc', label: t('admin.tabKyc') },
+                    { key: 'route_email', label: t('admin.tabRouteEmail') },
+                  ].map((tabItem) => (
                     <TouchableOpacity
-                      key={t.key}
-                      onPress={() => setActiveTab(t.key as any)}
+                      key={tabItem.key}
+                      onPress={() => setActiveTab(tabItem.key as any)}
                       style={[
                         styles.modalTabItem,
-                        activeTab === t.key && [styles.modalTabItemActive, { borderBottomColor: AdminColors.primary }],
+                        activeTab === tabItem.key && [styles.modalTabItemActive, { borderBottomColor: AdminColors.primary }],
                       ]}
                     >
                       <Text
                         style={[
                           styles.modalTabItemText,
                           { color: themeColors.textSecondary },
-                          activeTab === t.key && { color: AdminColors.primary, fontWeight: '700' },
+                          activeTab === tabItem.key && { color: AdminColors.primary, fontWeight: '700' },
                         ]}
                       >
-                        {t.label}
+                        {tabItem.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -701,25 +710,29 @@ export default function AdminStoresScreen() {
                   {activeTab === 'overview' && (
                     <View style={styles.tabSection}>
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
-                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>Store Information</Text>
-                        <DetailField label="Store Name" value={selectedStore.name} theme={themeColors} />
+                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>{t('admin.storeInformation')}</Text>
+                        <DetailField label={t('admin.storeName')} value={selectedStore.name} theme={themeColors} />
                         <DetailField
-                          label="Store Type"
+                          label={t('admin.storeType')}
                           value={getStoreTypeBadge(selectedStore.storeType).label}
                           theme={themeColors}
                         />
-                        <DetailField label="Category" value={selectedStore.category || 'General'} theme={themeColors} />
                         <DetailField
-                          label="Description"
+                          label={t('admin.storeCategory')}
+                          value={selectedStore.category ? translateCategory(selectedStore.category, language) : t('admin.generalCategory')}
+                          theme={themeColors}
+                        />
+                        <DetailField
+                          label={t('admin.storeDescription')}
                           value={selectedStore.description || '—'}
                           theme={themeColors}
                         />
                       </View>
 
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
-                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>Owner & Contact</Text>
+                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>{t('admin.ownerAndContact')}</Text>
                         <DetailField
-                          label="Owner Name"
+                          label={t('admin.ownerName')}
                           value={
                             typeof selectedStore.ownerId === 'object' && selectedStore.ownerId?.fullname
                               ? selectedStore.ownerId.fullname
@@ -727,24 +740,24 @@ export default function AdminStoresScreen() {
                           }
                           theme={themeColors}
                         />
-                        <DetailField label="Email" value={selectedStore.email} theme={themeColors} />
-                        <DetailField label="Phone" value={selectedStore.phone} theme={themeColors} />
+                        <DetailField label={t('admin.ownerEmail')} value={selectedStore.email} theme={themeColors} />
+                        <DetailField label={t('admin.ownerPhone')} value={selectedStore.phone} theme={themeColors} />
                       </View>
 
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
-                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>Address</Text>
+                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>{t('admin.addressSection')}</Text>
                         <DetailField
-                          label="Street"
+                          label={t('admin.street')}
                           value={selectedStore.address?.street || '—'}
                           theme={themeColors}
                         />
                         <DetailField
-                          label="City / State"
+                          label={t('admin.cityState')}
                           value={`${selectedStore.address?.city || '—'}, ${selectedStore.address?.state || '—'}`}
                           theme={themeColors}
                         />
                         <DetailField
-                          label="PIN / Country"
+                          label={t('admin.pinCountry')}
                           value={`${selectedStore.address?.pinCode || '—'}, ${selectedStore.address?.country || 'India'}`}
                           theme={themeColors}
                         />
@@ -752,7 +765,7 @@ export default function AdminStoresScreen() {
 
                       {/* Admin Actions Box */}
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
-                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>Store Status Controls</Text>
+                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>{t('admin.storeStatusControls')}</Text>
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                           <TouchableOpacity
                             style={[
@@ -763,7 +776,7 @@ export default function AdminStoresScreen() {
                           >
                             <ShieldCheck size={16} color={selectedStore.isVerified ? '#DC2626' : '#16A34A'} />
                             <Text style={{ color: selectedStore.isVerified ? '#DC2626' : '#16A34A', fontWeight: '600', fontSize: 12 }}>
-                              {selectedStore.isVerified ? 'Revoke Verification' : 'Verify Store'}
+                              {selectedStore.isVerified ? t('admin.revokeVerification') : t('admin.verifyStore')}
                             </Text>
                           </TouchableOpacity>
 
@@ -776,7 +789,7 @@ export default function AdminStoresScreen() {
                           >
                             <CheckCircle2 size={16} color={selectedStore.isActive ? '#D97706' : '#10B981'} />
                             <Text style={{ color: selectedStore.isActive ? '#D97706' : '#10B981', fontWeight: '600', fontSize: 12 }}>
-                              {selectedStore.isActive ? 'Deactivate Store' : 'Activate Store'}
+                              {selectedStore.isActive ? t('admin.deactivateStore') : t('admin.activateStore')}
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -788,10 +801,10 @@ export default function AdminStoresScreen() {
                     <View style={styles.tabSection}>
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
                         <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>
-                          Settlement Bank Account
+                          {t('admin.settlementBankAccount')}
                         </Text>
                         <DetailField
-                          label="Account Holder Name"
+                          label={t('admin.accountHolderName')}
                           value={
                             selectedStore.bankDetails?.accountHolderName ||
                             selectedStore.bankAccount?.beneficiaryName ||
@@ -802,7 +815,7 @@ export default function AdminStoresScreen() {
                           theme={themeColors}
                         />
                         <DetailField
-                          label="Account Number"
+                          label={t('admin.accountNumber')}
                           value={
                             selectedStore.bankDetails?.accountNumber ||
                             selectedStore.bankDetails?.maskedAccountNumber ||
@@ -814,7 +827,7 @@ export default function AdminStoresScreen() {
                           theme={themeColors}
                         />
                         <DetailField
-                          label="IFSC Code"
+                          label={t('admin.ifscCode')}
                           value={
                             selectedStore.bankDetails?.ifscCode ||
                             selectedStore.bankAccount?.ifscCode ||
@@ -825,12 +838,12 @@ export default function AdminStoresScreen() {
                           theme={themeColors}
                         />
                         <DetailField
-                          label="Bank Name"
+                          label={t('admin.bankName')}
                           value={selectedStore.bankDetails?.bankName || 'Direct NEFT/RTGS Transfer'}
                           theme={themeColors}
                         />
                         <DetailField
-                          label="UPI ID"
+                          label={t('admin.upiId')}
                           value={selectedStore.upiId || '—'}
                           theme={themeColors}
                         />
@@ -842,22 +855,22 @@ export default function AdminStoresScreen() {
                     <View style={styles.tabSection}>
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
                         <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>
-                          KYC & Tax Compliance
+                          {t('admin.kycTaxCompliance')}
                         </Text>
                         <DetailField
-                          label="PAN Number"
+                          label={t('admin.panNumber')}
                           value={selectedStore.pan || selectedStore.businessDetails?.pan || '—'}
                           monospace
                           theme={themeColors}
                         />
                         <DetailField
-                          label="GSTIN Number"
+                          label={t('admin.gstinNumber')}
                           value={selectedStore.gstin || selectedStore.businessDetails?.gstin || '—'}
                           monospace
                           theme={themeColors}
                         />
                         <DetailField
-                          label="Aadhaar Number"
+                          label={t('admin.aadhaarNumber')}
                           value={
                             selectedStore.aadhaar ||
                             selectedStore.aadhaarNumber ||
@@ -869,7 +882,7 @@ export default function AdminStoresScreen() {
                           theme={themeColors}
                         />
                         <DetailField
-                          label="FSSAI License"
+                          label={t('admin.fssaiLicense')}
                           value={
                             selectedStore.fssai ||
                             selectedStore.fssaiNumber ||
@@ -880,13 +893,13 @@ export default function AdminStoresScreen() {
                           theme={themeColors}
                         />
                         <DetailField
-                          label="Legal Business Name"
+                          label={t('admin.legalBusinessName')}
                           value={selectedStore.businessDetails?.legalBusinessName || selectedStore.name || '—'}
                           theme={themeColors}
                         />
                         <DetailField
-                          label="KYC Status"
-                          value={selectedStore.kycStatus || (selectedStore.isVerified ? 'VERIFIED' : 'PENDING')}
+                          label={t('admin.kycStatus')}
+                          value={formatKycStatus(selectedStore.kycStatus, selectedStore.isVerified)}
                           theme={themeColors}
                         />
                       </View>
@@ -897,21 +910,21 @@ export default function AdminStoresScreen() {
                     <View style={styles.tabSection}>
                       {/* Razorpay Route */}
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
-                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>Razorpay Route</Text>
+                        <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>{t('admin.razorpayRoute')}</Text>
                         <DetailField
-                          label="Linked Route Account ID"
+                          label={t('admin.linkedRouteAccountId')}
                           value={selectedStore.razorpayRoute?.accountId || selectedStore.razorpayAccountId || '—'}
                           monospace
                           theme={themeColors}
                         />
                         <DetailField
-                          label="Route Status"
-                          value={selectedStore.razorpayRoute?.status || selectedStore.razorpayRouteStatus || 'Not Linked'}
+                          label={t('admin.routeStatus')}
+                          value={selectedStore.razorpayRoute?.status || selectedStore.razorpayRouteStatus || t('admin.notLinked')}
                           theme={themeColors}
                         />
                         {selectedStore.razorpayRoute?.activatedAt ? (
                           <DetailField
-                            label="Activated At"
+                            label={t('admin.activatedAt')}
                             value={formatDate(selectedStore.razorpayRoute.activatedAt)}
                             theme={themeColors}
                           />
@@ -921,18 +934,21 @@ export default function AdminStoresScreen() {
                       {/* Registration Email Notification */}
                       <View style={[styles.detailCard, { backgroundColor: themeColors.bg, borderColor: themeColors.border }]}>
                         <Text style={[styles.detailSectionTitle, { color: AdminColors.primary }]}>
-                          Registration Email Notification
+                          {t('admin.registrationEmailNotification')}
                         </Text>
                         <DetailField
-                          label="Status"
+                          label={t('admin.status')}
                           value={
-                            selectedStore.registrationEmailNotification?.status?.toUpperCase() ||
-                            (selectedStore.registrationEmailNotification?.sent ? 'SENT' : 'PENDING')
+                            selectedStore.registrationEmailNotification?.status === 'sent' || selectedStore.registrationEmailNotification?.sent
+                              ? t('admin.emailSent')
+                              : selectedStore.registrationEmailNotification?.status === 'failed'
+                              ? t('admin.emailFailed')
+                              : t('admin.emailPending')
                           }
                           theme={themeColors}
                         />
                         <DetailField
-                          label="Recipient"
+                          label={t('admin.recipient')}
                           value={
                             selectedStore.registrationEmailNotification?.sentTo ||
                             selectedStore.registrationEmailNotification?.recipient ||
@@ -941,13 +957,13 @@ export default function AdminStoresScreen() {
                           theme={themeColors}
                         />
                         <DetailField
-                          label="Sent Date"
+                          label={t('admin.sentDate')}
                           value={formatDate(selectedStore.registrationEmailNotification?.sentAt)}
                           theme={themeColors}
                         />
                         {selectedStore.registrationEmailNotification?.error ? (
                           <DetailField
-                            label="Error Reason"
+                            label={t('admin.errorReason')}
                             value={selectedStore.registrationEmailNotification.error}
                             theme={themeColors}
                           />
@@ -963,7 +979,7 @@ export default function AdminStoresScreen() {
                           ) : (
                             <>
                               <Send size={16} color="#FFFFFF" />
-                              <Text style={styles.resendBigBtnText}>Resend Email Notification Now</Text>
+                              <Text style={styles.resendBigBtnText}>{t('admin.resendEmailNow')}</Text>
                             </>
                           )}
                         </TouchableOpacity>
@@ -1022,13 +1038,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: BorderRadius.md,
     paddingHorizontal: 12,
-    height: 42,
+    minHeight: 48,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: FontSizes.sm,
-    paddingVertical: 0,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+    minHeight: 40,
+    textAlignVertical: 'center',
+    includeFontPadding: true,
   },
   chipsContainer: {
     flexDirection: 'row',
@@ -1155,39 +1174,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardActions: {
-    flexDirection: 'row',
     gap: 8,
     borderTopWidth: 1,
     paddingTop: 10,
     marginTop: 4,
   },
   actionBtn: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: BorderRadius.md,
-    gap: 6,
+    gap: 8,
   },
   actionBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
   actionBtnOutline: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    paddingVertical: 9,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    gap: 6,
+    gap: 8,
   },
   actionBtnOutlineText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
   // Modal
   modalOverlay: {

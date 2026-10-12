@@ -18,7 +18,7 @@ export const storeApi = {
 
   getAll: () => gatewayClient.get('/api/stores'),
 
-  getByIds: (ids: string[]) => gatewayClient.get('/api/stores/by-ids', { params: { ids: ids.join(',') } }),
+  getByIds: (ids: string[]) => gatewayClient.post('/api/stores/batch', { ids }),
 
   syncRole: () => gatewayClient.post('/api/stores/me/sync-role'),
 
@@ -58,5 +58,29 @@ export const storeApi = {
     name?: string;
     storeName?: string;
   }) => gatewayClient.post('/api/stores/verify/all', data),
+
+  // Store Review & Rating APIs
+  checkReviewEligibility: (orderId: string, storeId?: string) =>
+    gatewayClient.get('/api/stores/reviews/eligibility', {
+      params: { orderId, ...(storeId ? { storeId } : {}) },
+    }),
+
+  submitReview: (payload: any) =>
+    gatewayClient.post('/api/stores/reviews', payload),
+
+  getCustomerReviewByOrder: (orderId: string) =>
+    gatewayClient.get(`/api/stores/reviews/order/${orderId}`),
+
+  getMyReviews: () =>
+    gatewayClient.get('/api/stores/reviews/my'),
+
+  getMyStoreReviews: (params?: any) =>
+    gatewayClient.get('/api/stores/me/reviews', { params }),
+
+  getStoreReviews: (storeId: string, params?: any) =>
+    gatewayClient.get(`/api/stores/${storeId}/reviews`, { params }),
+
+  getStoreRatingSummary: (storeId: string) =>
+    gatewayClient.get(`/api/stores/${storeId}/reviews/summary`),
 };
 

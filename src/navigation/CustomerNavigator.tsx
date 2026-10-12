@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import {
   Home,
   LayoutGrid,
@@ -13,6 +14,7 @@ import {
   User,
   ArrowLeft,
   Store,
+  LayoutDashboard,
 } from 'lucide-react-native';
 import PlaceholderScreen from '../screens/common/PlaceholderScreen';
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
@@ -50,6 +52,8 @@ import CareersScreen from '../screens/customer/CareersScreen';
 import BlogScreen from '../screens/customer/BlogScreen';
 import PressScreen from '../screens/customer/PressScreen';
 import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
+import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
+import MyCreditScreen from '../screens/customer/MyCreditScreen';
 import DeliveryPartnerApplicationScreen from '../screens/delivery/DeliveryPartnerApplicationScreen';
 import DeliveryPartnerDashboardScreen from '../screens/delivery/DeliveryPartnerDashboardScreen';
 import { SmartOrderCartItem } from '../api/smartOrderApi';
@@ -58,6 +62,10 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation, translateCategory } from '../i18n';
+import { useDeliveryPartnerTranslations } from '../i18n/deliveryPartnerTranslations';
+import { isDeliveryPartnerUser, navigateToDeliveryDashboard } from '../utils/deliveryPartnerHelper';
+import { isAdminUser, navigateToAdminDashboard } from '../utils/adminHelper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type CustomerTabParamList = {
@@ -77,6 +85,7 @@ export type HomeStackParamList = {
   BestSellers: undefined;
   NewArrivals: undefined;
   Suppliers: undefined;
+  DeliveryPartnerDashboard: undefined;
 };
 
 export type CategoriesStackParamList = {
@@ -125,8 +134,11 @@ export type CustomerStackParamList = {
   BlogNews: undefined;
   Press: undefined;
   OrderTracking: { orderId: string };
+  OrderDetail: { orderId: string };
+  MyCredit: undefined;
   DeliveryPartnerApplication: undefined;
   DeliveryDashboard: undefined;
+  DeliveryPartnerDashboard: undefined;
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -143,6 +155,7 @@ function HomeNavigator() {
       <HomeStack.Screen name="BestSellers" component={BestSellersScreen} />
       <HomeStack.Screen name="NewArrivals" component={NewArrivalsScreen} />
       <HomeStack.Screen name="Suppliers" component={SuppliersScreen} />
+      <HomeStack.Screen name="DeliveryPartnerDashboard" component={DeliveryPartnerDashboardScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -151,6 +164,7 @@ function HomeNavigator() {
 // when navigating from the category grid to the product listing.
 function CategoriesNavigator() {
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   return (
     <CategoriesStack.Navigator screenOptions={{ headerShown: false }}>
       <CategoriesStack.Screen
@@ -162,16 +176,22 @@ function CategoriesNavigator() {
         component={CategoryScreen}
         options={({ route, navigation }: any) => ({
           headerShown: true,
-          title: route.params?.category || 'Products',
+          title: route.params?.category
+            ? translateCategory(route.params.category, language)
+            : (t('common.categories') || 'Products'),
           headerStyle: {
             backgroundColor: isDark ? '#0f172a' : '#FFFFFF',
           },
           headerTintColor: isDark ? '#FFFFFF' : CustomerColors.black,
           headerLeft: () => (
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('CustomerTabs', { screen: 'Home' })
-              }
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('CategoryGrid');
+                }
+              }}
               style={{ marginRight: 12 }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
@@ -188,14 +208,18 @@ function CategoriesNavigator() {
 }
 
 function CustomerTabs() {
+  const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const isAdmin = isAdminUser(user);
 
   return (
-    <Tab.Navigator
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: CustomerColors.primary,
@@ -208,7 +232,7 @@ function CustomerTabs() {
           paddingTop: 4,
         },
         tabBarLabelStyle: {
-          fontSize: 9.5,
+          fontSize: 9,
           fontWeight: '700',
         },
         tabBarItemStyle: {
@@ -220,7 +244,7 @@ function CustomerTabs() {
         name="Home"
         component={HomeNavigator}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: t('common.tabHome') || 'Home',
           tabBarIcon: ({ color, size }) => <Home color={color} size={20} />,
         }}
       />
@@ -228,7 +252,7 @@ function CustomerTabs() {
         name="Categories"
         component={CategoriesNavigator}
         options={{
-          tabBarLabel: 'Categories',
+          tabBarLabel: t('common.tabCategories') || 'Categories',
           tabBarIcon: ({ color, size }) => (
             <LayoutGrid color={color} size={20} />
           ),
@@ -238,7 +262,7 @@ function CustomerTabs() {
         name="BulkPurchase"
         component={BulkPurchaseScreen}
         options={{
-          tabBarLabel: 'Bulk',
+          tabBarLabel: t('common.tabBulk') || 'Bulk',
           tabBarIcon: ({ color, size }) => (
             <ClipboardList color={color} size={20} />
           ),
@@ -248,7 +272,7 @@ function CustomerTabs() {
         name="Nearby"
         component={NearbyOffersScreen}
         options={{
-          tabBarLabel: 'Nearby',
+          tabBarLabel: t('common.tabNearby') || 'Nearby',
           tabBarIcon: ({ color, size }) => <MapPin color={color} size={20} />,
         }}
       />
@@ -256,7 +280,7 @@ function CustomerTabs() {
         name="Wishlist"
         component={WishlistScreen}
         options={{
-          tabBarLabel: 'Wishlist',
+          tabBarLabel: t('common.tabWishlist') || 'Wishlist',
           tabBarIcon: ({ color, size }) => <Heart color={color} size={20} />,
           tabBarBadge: wishlistCount > 0 ? wishlistCount : undefined,
           tabBarBadgeStyle: {
@@ -271,7 +295,7 @@ function CustomerTabs() {
         name="Orders"
         component={OrdersScreen}
         options={{
-          tabBarLabel: 'Orders',
+          tabBarLabel: t('common.tabOrders') || 'Orders',
           tabBarIcon: ({ color, size }) => <Package color={color} size={20} />,
         }}
       />
@@ -279,7 +303,7 @@ function CustomerTabs() {
         name="Cart"
         component={CartScreen}
         options={{
-          tabBarLabel: 'Cart',
+          tabBarLabel: t('common.tabCart') || 'Cart',
           tabBarIcon: ({ color, size }) => (
             <ShoppingCart color={color} size={20} />
           ),
@@ -296,7 +320,7 @@ function CustomerTabs() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: user ? 'Profile' : 'Account',
+          tabBarLabel: user ? (t('common.tabProfile') || 'Profile') : (t('common.tabAccount') || 'Account'),
           tabBarIcon: ({ color, size, focused }) => {
             if (user) {
               const initials = (user.fullname || user.name || user.email || 'U')
@@ -333,6 +357,26 @@ function CustomerTabs() {
         }}
       />
     </Tab.Navigator>
+
+      {isAdmin && (
+        <TouchableOpacity
+          onPress={() => navigateToAdminDashboard(navigation)}
+          style={[
+            styles.adminFloatingPill,
+            { bottom: 66 + insets.bottom },
+            isDark && styles.adminFloatingPillDark,
+          ]}
+          activeOpacity={0.85}
+          accessibilityLabel="Return to Admin Dashboard"
+        >
+          <View style={styles.adminFloatingDot} />
+          <LayoutDashboard size={14} color="#FFFFFF" />
+          <Text style={styles.adminFloatingText}>
+            {t('common.adminDashboard') || 'Admin Dashboard'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
@@ -365,7 +409,7 @@ export default function CustomerNavigator() {
       <Stack.Screen
         name="Checkout"
         component={CheckoutScreen}
-        options={{ headerShown: true }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="PhonePeWebView"
@@ -517,12 +561,27 @@ export default function CustomerNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="OrderDetail"
+        component={OrderDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="MyCredit"
+        component={MyCreditScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="DeliveryPartnerApplication"
         component={DeliveryPartnerApplicationScreen}
         options={{ headerShown: true, title: 'Become a Delivery Partner' }}
       />
       <Stack.Screen
         name="DeliveryDashboard"
+        component={DeliveryPartnerDashboardScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="DeliveryPartnerDashboard"
         component={DeliveryPartnerDashboardScreen}
         options={{ headerShown: false }}
       />
@@ -534,3 +593,41 @@ export default function CustomerNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  adminFloatingPill: {
+    position: 'absolute',
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 999,
+  },
+  adminFloatingPillDark: {
+    backgroundColor: '#1E293B',
+    borderColor: '#EF4444',
+  },
+  adminFloatingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#EF4444',
+  },
+  adminFloatingText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+});

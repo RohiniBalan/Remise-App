@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { GATEWAY_URL } from '../../api/endpoints';
-import { Package, Tag, ShoppingBag, IndianRupee, Clock, AlertCircle, TrendingUp, Target, Store, CheckCircle2 } from 'lucide-react-native';
+import { Package, Tag, ShoppingBag, IndianRupee, Clock, AlertCircle, TrendingUp, Target, Store, CheckCircle2, Star } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
@@ -94,6 +94,19 @@ export default function StoreOverviewScreen() {
               <Text style={styles.storeCategoryText}>{store?.category ? translateCategory(store.category, language) : 'General Store'}</Text>
               {store?.phone ? <Text style={styles.storePhoneText}>{store.phone}</Text> : null}
             </View>
+            <TouchableOpacity
+              style={styles.ratingHeaderBadge}
+              onPress={() => navigation.navigate('StoreReviews')}
+              activeOpacity={0.7}
+            >
+              <Star size={13} color="#D97706" fill="#D97706" />
+              <Text style={styles.ratingHeaderText}>
+                {store?.rating ? Number(store.rating).toFixed(1) : 'New'}
+              </Text>
+              <Text style={styles.reviewCountHeaderText}>
+                ({store?.reviewCount || 0})
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* ── Target Revenue card ── */}
@@ -152,7 +165,11 @@ export default function StoreOverviewScreen() {
                 <View key={o._id} style={styles.listRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.listRowTitle} numberOfLines={1}>
-                      {o.offerTitle ? translateProductName(o.offerTitle, language) : o.customerName}
+                      {o.rawItems && o.rawItems.length
+                        ? o.rawItems.map((it: any) => `${it.quantity || 1}x ${translateProductName(it.title, language)}`).join(', ')
+                        : o.offerTitle
+                          ? translateProductName(o.offerTitle, language)
+                          : o.customerName}
                     </Text>
                     <Text style={styles.listRowSub}>{o.customerName}</Text>
                   </View>
@@ -259,6 +276,27 @@ const getStyles = (isDark: boolean) =>
       fontSize: 11,
       color: isDark ? '#64748B' : '#6B7280',
       marginTop: 1,
+    },
+    ratingHeaderBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: BorderRadius.pill,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+    },
+    ratingHeaderText: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: '#D97706',
+    },
+    reviewCountHeaderText: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: isDark ? '#9CA3AF' : '#9CA3AF',
     },
     targetCard: {
       backgroundColor: isDark ? '#111827' : CustomerColors.white,

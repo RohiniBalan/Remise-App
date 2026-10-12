@@ -81,12 +81,13 @@ function InputField({ label, sub, value, onChange, placeholder, secureTextEntry,
 }
 
 function SaveBtn({ loading, onPress, label, loadingLabel }: { loading: boolean; onPress: () => void; label?: string; loadingLabel?: string }) {
+  const { t } = useTranslation();
   return (
     <TouchableOpacity style={s.saveBtn} onPress={onPress} activeOpacity={0.85} disabled={loading}>
       {loading
         ? <ActivityIndicator size={14} color="#fff" />
         : <Save size={14} color="#fff" />}
-      <Text style={s.saveBtnText}>{loading ? (loadingLabel || 'Saving…') : (label || 'Save Changes')}</Text>
+      <Text style={s.saveBtnText}>{loading ? (loadingLabel || t('admin.saving')) : (label || t('admin.saveChanges'))}</Text>
     </TouchableOpacity>
   );
 }
@@ -226,9 +227,9 @@ export default function AdminSettingsScreen() {
               <SelectRow label={t('admin.currencyLabel')} value={currency} onChange={setCurrency} themeColors={themeColors} isDark={isDark}
                 options={[{ val: 'INR', label: '₹ INR' }, { val: 'USD', label: '$ USD' }, { val: 'EUR', label: '€ EUR' }]} />
             </SectionCard>
-            <SectionCard title="Platform Controls" themeColors={themeColors} isDark={isDark}>
-              <ToggleRow label="Maintenance Mode" sub="Hide storefront for visitors" value={maintenanceMode} onChange={setMaintenanceMode} themeColors={themeColors} isDark={isDark} />
-              <ToggleRow label="Allow Registrations" sub="Let new users sign up" value={allowRegistrations} onChange={setAllowRegistrations} themeColors={themeColors} isDark={isDark} />
+            <SectionCard title={t('admin.platformControls')} themeColors={themeColors} isDark={isDark}>
+              <ToggleRow label={t('admin.maintenanceMode')} sub={t('admin.maintenanceModeDesc')} value={maintenanceMode} onChange={setMaintenanceMode} themeColors={themeColors} isDark={isDark} />
+              <ToggleRow label={t('admin.allowRegistrations')} sub={t('admin.allowRegistrationsDesc')} value={allowRegistrations} onChange={setAllowRegistrations} themeColors={themeColors} isDark={isDark} />
             </SectionCard>
             <SaveBtn loading={saving} onPress={handleSave} label={t('admin.saveSettings')} loadingLabel={t('admin.savingSettings')} />
           </>
@@ -237,20 +238,20 @@ export default function AdminSettingsScreen() {
       case 'profile':
         return (
           <>
-            <SectionCard title="Admin Profile" description="Your personal admin account information." themeColors={themeColors} isDark={isDark}>
+            <SectionCard title={t('admin.adminProfile')} description={t('admin.adminProfileDesc')} themeColors={themeColors} isDark={isDark}>
               <View style={[s.avatarRow, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
                 <View style={s.avatarBox}>
                   <Text style={s.avatarText}>{adminName.slice(0, 2).toUpperCase()}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.avatarName, { color: isDark ? '#FFFFFF' : '#111827' }]}>{adminName || 'Admin User'}</Text>
+                  <Text style={[s.avatarName, { color: isDark ? '#FFFFFF' : '#111827' }]}>{adminName || t('admin.fullNamePlaceholder')}</Text>
                   <Text style={[s.avatarEmail, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{adminEmail}</Text>
-                  <View style={[s.roleBadge, { backgroundColor: isDark ? 'rgba(255, 0, 0, 0.2)' : '#FFF1F2' }]}><Text style={s.roleBadgeText}>Administrator</Text></View>
+                  <View style={[s.roleBadge, { backgroundColor: isDark ? 'rgba(255, 0, 0, 0.2)' : '#FFF1F2' }]}><Text style={s.roleBadgeText}>{t('admin.administratorRole')}</Text></View>
                 </View>
               </View>
-              <InputField label="Full Name" value={adminName} onChange={setAdminName} placeholder="Admin User" themeColors={themeColors} isDark={isDark} />
-              <InputField label="Email Address" value={adminEmail} onChange={setAdminEmail} placeholder="admin@remise.com" themeColors={themeColors} isDark={isDark} />
-              <InputField label="Phone Number" value={adminPhone} onChange={setAdminPhone} placeholder="+91 98765 43210" themeColors={themeColors} isDark={isDark} />
+              <InputField label={t('admin.fullName')} value={adminName} onChange={setAdminName} placeholder={t('admin.fullNamePlaceholder')} themeColors={themeColors} isDark={isDark} />
+              <InputField label={t('admin.emailAddress')} value={adminEmail} onChange={setAdminEmail} placeholder="admin@remise.com" themeColors={themeColors} isDark={isDark} />
+              <InputField label={t('admin.phoneNumber')} value={adminPhone} onChange={setAdminPhone} placeholder="+91 98765 43210" themeColors={themeColors} isDark={isDark} />
             </SectionCard>
             <SaveBtn loading={saving} onPress={handleSave} />
           </>
@@ -259,7 +260,7 @@ export default function AdminSettingsScreen() {
       case 'appearance':
         return (
           <>
-            <SectionCard title="Theme" description="Choose your preferred dashboard color scheme." themeColors={themeColors} isDark={isDark}>
+            <SectionCard title={t('admin.theme')} description={t('admin.themeDesc')} themeColors={themeColors} isDark={isDark}>
               <SelectRow label="" value={theme} onChange={(val) => {
                 const mode = val as 'light' | 'dark' | 'system';
                 setTheme(mode);
@@ -268,18 +269,22 @@ export default function AdminSettingsScreen() {
                 }
               }}
                 themeColors={themeColors} isDark={isDark}
-                options={[{ val: 'light', label: '☀️ Light' }, { val: 'dark', label: '🌙 Dark' }, { val: 'system', label: '📱 System' }]} />
+                options={[
+                  { val: 'light', label: `☀️ ${t('admin.themeLight')}` },
+                  { val: 'dark', label: `🌙 ${t('admin.themeDark')}` },
+                  { val: 'system', label: `📱 ${t('admin.themeSystem')}` }
+                ]} />
             </SectionCard>
-            <SectionCard title="Accent Color" themeColors={themeColors} isDark={isDark}>
+            <SectionCard title={t('admin.accentColor')} themeColors={themeColors} isDark={isDark}>
               <View style={s.colorRow}>
                 {['#EF0000', '#6366F1', '#0EA5E9', '#10B981', '#F59E0B', '#EC4899'].map(c => (
-                  <TouchableOpacity key={c} style={[s.colorSwatch, { backgroundColor: c }]} onPress={() => showToast(`Accent color set to ${c}`)} />
+                  <TouchableOpacity key={c} style={[s.colorSwatch, { backgroundColor: c }]} onPress={() => showToast(t('admin.accentColorSet', { color: c }))} />
                 ))}
               </View>
             </SectionCard>
-            <SectionCard title="Display" themeColors={themeColors} isDark={isDark}>
-              <ToggleRow label="Compact Mode" sub="Reduce spacing on screen" value={compactMode} onChange={setCompactMode} themeColors={themeColors} isDark={isDark} />
-              <ToggleRow label="Animations" sub="Enable smooth motion effects" value={showAnimations} onChange={setShowAnimations} themeColors={themeColors} isDark={isDark} />
+            <SectionCard title={t('admin.display')} themeColors={themeColors} isDark={isDark}>
+              <ToggleRow label={t('admin.compactMode')} sub={t('admin.compactModeDesc')} value={compactMode} onChange={setCompactMode} themeColors={themeColors} isDark={isDark} />
+              <ToggleRow label={t('admin.animations')} sub={t('admin.animationsDesc')} value={showAnimations} onChange={setShowAnimations} themeColors={themeColors} isDark={isDark} />
             </SectionCard>
             <SaveBtn loading={saving} onPress={handleSave} />
           </>
@@ -288,14 +293,14 @@ export default function AdminSettingsScreen() {
       case 'notifications':
         return (
           <>
-            <SectionCard title="Email Alerts" themeColors={themeColors} isDark={isDark}>
-              <ToggleRow label="New Orders" sub="When a customer places an order" value={emailOrders} onChange={setEmailOrders} themeColors={themeColors} isDark={isDark} />
-              <ToggleRow label="New Registrations" sub="When a new user signs up" value={emailUsers} onChange={setEmailUsers} themeColors={themeColors} isDark={isDark} />
-              <ToggleRow label="Low Stock Warnings" sub="When inventory runs low" value={emailStock} onChange={setEmailStock} themeColors={themeColors} isDark={isDark} />
+            <SectionCard title={t('admin.emailAlerts')} themeColors={themeColors} isDark={isDark}>
+              <ToggleRow label={t('admin.newOrders')} sub={t('admin.newOrdersDesc')} value={emailOrders} onChange={setEmailOrders} themeColors={themeColors} isDark={isDark} />
+              <ToggleRow label={t('admin.newRegistrations')} sub={t('admin.newRegistrationsDesc')} value={emailUsers} onChange={setEmailUsers} themeColors={themeColors} isDark={isDark} />
+              <ToggleRow label={t('admin.lowStockWarnings')} sub={t('admin.lowStockWarningsDesc')} value={emailStock} onChange={setEmailStock} themeColors={themeColors} isDark={isDark} />
             </SectionCard>
-            <SectionCard title="Push & SMS" themeColors={themeColors} isDark={isDark}>
-              <ToggleRow label="Push Notifications" sub="Real-time app alerts" value={pushEnabled} onChange={setPushEnabled} themeColors={themeColors} isDark={isDark} />
-              <ToggleRow label="SMS Alerts" sub="Text alerts for critical events" value={smsAlerts} onChange={setSmsAlerts} themeColors={themeColors} isDark={isDark} />
+            <SectionCard title={t('admin.pushAndSms')} themeColors={themeColors} isDark={isDark}>
+              <ToggleRow label={t('admin.pushNotifications')} sub={t('admin.pushNotificationsDesc')} value={pushEnabled} onChange={setPushEnabled} themeColors={themeColors} isDark={isDark} />
+              <ToggleRow label={t('admin.smsAlerts')} sub={t('admin.smsAlertsDesc')} value={smsAlerts} onChange={setSmsAlerts} themeColors={themeColors} isDark={isDark} />
             </SectionCard>
             <SaveBtn loading={saving} onPress={handleSave} />
           </>
@@ -304,8 +309,8 @@ export default function AdminSettingsScreen() {
       case 'security':
         return (
           <>
-            <SectionCard title="Change Password" themeColors={themeColors} isDark={isDark}>
-              <InputField label="Current Password" value={currentPwd} onChange={setCurrentPwd} placeholder="Enter current password"
+            <SectionCard title={t('admin.changePassword')} themeColors={themeColors} isDark={isDark}>
+              <InputField label={t('admin.currentPassword')} value={currentPwd} onChange={setCurrentPwd} placeholder={t('admin.currentPasswordPlaceholder')}
                 secureTextEntry={!showPwd}
                 themeColors={themeColors} isDark={isDark}
                 rightEl={
@@ -314,18 +319,23 @@ export default function AdminSettingsScreen() {
                   </TouchableOpacity>
                 }
               />
-              <InputField label="New Password" value={newPwd} onChange={setNewPwd} placeholder="Minimum 8 characters" secureTextEntry themeColors={themeColors} isDark={isDark} />
-              <InputField label="Confirm Password" value={confirmPwd} onChange={setConfirmPwd} placeholder="Repeat new password" secureTextEntry themeColors={themeColors} isDark={isDark} />
+              <InputField label={t('admin.newPassword')} value={newPwd} onChange={setNewPwd} placeholder={t('admin.newPasswordPlaceholder')} secureTextEntry themeColors={themeColors} isDark={isDark} />
+              <InputField label={t('admin.confirmPassword')} value={confirmPwd} onChange={setConfirmPwd} placeholder={t('admin.confirmPasswordPlaceholder')} secureTextEntry themeColors={themeColors} isDark={isDark} />
               {newPwd !== '' && confirmPwd !== '' && newPwd !== confirmPwd && (
-                <Text style={{ color: '#EF4444', fontSize: 12, marginTop: -8, marginBottom: 8 }}>⚠ Passwords do not match</Text>
+                <Text style={{ color: '#EF4444', fontSize: 12, marginTop: -8, marginBottom: 8 }}>⚠ {t('admin.passwordsDoNotMatch')}</Text>
               )}
             </SectionCard>
-            <SectionCard title="Two-Factor Authentication" themeColors={themeColors} isDark={isDark}>
-              <ToggleRow label="Enable 2FA" sub="Require a code on every login" value={twoFA} onChange={setTwoFA} themeColors={themeColors} isDark={isDark} />
+            <SectionCard title={t('admin.twoFactorAuth')} themeColors={themeColors} isDark={isDark}>
+              <ToggleRow label={t('admin.enableTwoFactor')} sub={t('admin.enableTwoFactorDesc')} value={twoFA} onChange={setTwoFA} themeColors={themeColors} isDark={isDark} />
             </SectionCard>
-            <SectionCard title="Session Timeout" themeColors={themeColors} isDark={isDark}>
+            <SectionCard title={t('admin.sessionTimeout')} themeColors={themeColors} isDark={isDark}>
               <SelectRow label="" value={sessionTimeout} onChange={setSessionTimeout} themeColors={themeColors} isDark={isDark}
-                options={[{ val: '1d', label: '1 Day' }, { val: '7d', label: '7 Days' }, { val: '14d', label: '14 Days' }, { val: '30d', label: '30 Days' }]} />
+                options={[
+                  { val: '1d', label: t('admin.oneDay') },
+                  { val: '7d', label: t('admin.sevenDays') },
+                  { val: '14d', label: t('admin.fourteenDays') },
+                  { val: '30d', label: t('admin.thirtyDays') }
+                ]} />
             </SectionCard>
             <SaveBtn loading={saving} onPress={handleSave} />
           </>
@@ -334,9 +344,9 @@ export default function AdminSettingsScreen() {
       case 'api':
         return (
           <>
-            <SectionCard title="AI Integration" description="Gemini API for smart product scan & voice features." themeColors={themeColors} isDark={isDark}>
+            <SectionCard title={t('admin.aiIntegration')} description={t('admin.aiIntegrationDesc')} themeColors={themeColors} isDark={isDark}>
               <InputField
-                label="Google Gemini API Key"
+                label={t('admin.geminiApiKey')}
                 value={googleKey} onChange={setGoogleKey}
                 placeholder="AQ.Ab8RN6..."
                 secureTextEntry={!showApiKey}
@@ -349,16 +359,19 @@ export default function AdminSettingsScreen() {
               />
               <View style={[s.infoBanner, { backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : '#F5F3FF', borderColor: isDark ? '#5B21B6' : '#EDE9FE' }]}>
                 <Cpu size={16} color="#A78BFA" style={{ marginRight: 8, flexShrink: 0 }} />
-                <Text style={[s.infoBannerText, { color: isDark ? '#DDD6FE' : '#7C3AED' }]}>Token usage is tracked automatically and shown on the Dashboard.</Text>
+                <Text style={[s.infoBannerText, { color: isDark ? '#DDD6FE' : '#7C3AED' }]}>{t('admin.tokenUsageNote')}</Text>
               </View>
             </SectionCard>
-            <SectionCard title="Payment Gateways" themeColors={themeColors} isDark={isDark}>
-              <InputField label="Razorpay Key ID" value={razorpayKey} onChange={setRazorpayKey} placeholder="rzp_test_..." themeColors={themeColors} isDark={isDark} />
-              <SelectRow label="Cashfree Mode" value={cashfreeMode} onChange={setCashfreeMode} themeColors={themeColors} isDark={isDark}
-                options={[{ val: 'sandbox', label: 'Sandbox' }, { val: 'production', label: 'Production' }]} />
+            <SectionCard title={t('admin.paymentGateways')} themeColors={themeColors} isDark={isDark}>
+              <InputField label={t('admin.razorpayKeyId')} value={razorpayKey} onChange={setRazorpayKey} placeholder="rzp_test_..." themeColors={themeColors} isDark={isDark} />
+              <SelectRow label={t('admin.cashfreeMode')} value={cashfreeMode} onChange={setCashfreeMode} themeColors={themeColors} isDark={isDark}
+                options={[
+                  { val: 'sandbox', label: t('admin.modeSandbox') },
+                  { val: 'production', label: t('admin.modeProduction') }
+                ]} />
             </SectionCard>
-            <SectionCard title="Webhooks" themeColors={themeColors} isDark={isDark}>
-              <InputField label="Webhook URL" value={webhookUrl} onChange={setWebhookUrl} placeholder="https://your-domain.com/api/webhook" themeColors={themeColors} isDark={isDark} />
+            <SectionCard title={t('admin.webhooks')} themeColors={themeColors} isDark={isDark}>
+              <InputField label={t('admin.webhookUrl')} value={webhookUrl} onChange={setWebhookUrl} placeholder="https://your-domain.com/api/webhook" themeColors={themeColors} isDark={isDark} />
             </SectionCard>
             <SaveBtn loading={saving} onPress={handleSave} />
           </>
@@ -369,31 +382,31 @@ export default function AdminSettingsScreen() {
           <>
             <View style={[s.dangerBanner, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFF1F2', borderColor: isDark ? '#7F1D1D' : '#FECACA' }]}>
               <AlertTriangle size={18} color="#EF4444" style={{ marginRight: 10, flexShrink: 0 }} />
-              <View>
-                <Text style={[s.dangerBannerTitle, { color: isDark ? '#FCA5A5' : '#B91C1C' }]}>Caution: Irreversible Actions</Text>
-                <Text style={[s.dangerBannerSub, { color: isDark ? '#F87171' : '#EF4444' }]}>These actions are permanent and cannot be undone.</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.dangerBannerTitle, { color: isDark ? '#FCA5A5' : '#B91C1C' }]}>{t('admin.cautionIrreversible')}</Text>
+                <Text style={[s.dangerBannerSub, { color: isDark ? '#F87171' : '#EF4444' }]}>{t('admin.cautionIrreversibleDesc')}</Text>
               </View>
             </View>
 
-            <SectionCard title="Clear Cache" description="Flush all server-side caches." themeColors={themeColors} isDark={isDark}>
-              <TouchableOpacity style={[s.outlineBtn, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }]} onPress={() => showToast('Cache cleared!')}>
+            <SectionCard title={t('admin.clearCache')} description={t('admin.clearCacheDesc')} themeColors={themeColors} isDark={isDark}>
+              <TouchableOpacity style={[s.outlineBtn, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }]} onPress={() => showToast(t('admin.cacheClearedToast'))}>
                 <RefreshCw size={14} color={isDark ? '#FFFFFF' : '#374151'} />
-                <Text style={[s.outlineBtnText, { color: isDark ? '#FFFFFF' : '#374151' }]}>Clear All Caches</Text>
+                <Text style={[s.outlineBtnText, { color: isDark ? '#FFFFFF' : '#374151' }]}>{t('admin.clearAllCachesBtn')}</Text>
               </TouchableOpacity>
             </SectionCard>
 
-            <SectionCard title="Export Data" description="Download a full backup of your platform data." themeColors={themeColors} isDark={isDark}>
-              <TouchableOpacity style={[s.outlineBtn, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }]} onPress={() => showToast('Export started — you will receive an email.')}>
+            <SectionCard title={t('admin.exportData')} description={t('admin.exportDataDesc')} themeColors={themeColors} isDark={isDark}>
+              <TouchableOpacity style={[s.outlineBtn, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB' }]} onPress={() => showToast(t('admin.exportStartedToast'))}>
                 <Database size={14} color={isDark ? '#FFFFFF' : '#374151'} />
-                <Text style={[s.outlineBtnText, { color: isDark ? '#FFFFFF' : '#374151' }]}>Export All Data</Text>
+                <Text style={[s.outlineBtnText, { color: isDark ? '#FFFFFF' : '#374151' }]}>{t('admin.exportAllDataBtn')}</Text>
               </TouchableOpacity>
             </SectionCard>
 
             <View style={[s.card, { backgroundColor: isDark ? '#111827' : '#FFFFFF', borderColor: isDark ? '#7F1D1D' : '#FCA5A5', borderWidth: 2 }]}>
-              <Text style={[s.cardTitle, { color: '#EF4444' }]}>Delete Platform Data</Text>
-              <Text style={[s.cardDesc, { color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 12 }]}>This will permanently erase all orders, products, and user data.</Text>
+              <Text style={[s.cardTitle, { color: '#EF4444' }]}>{t('admin.deletePlatformData')}</Text>
+              <Text style={[s.cardDesc, { color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 12 }]}>{t('admin.deletePlatformDataDesc')}</Text>
               <InputField
-                label={'Type "DELETE" to confirm'}
+                label={t('admin.typeDeleteToConfirm')}
                 value={confirmDelete} onChange={setConfirmDelete}
                 placeholder="DELETE"
                 themeColors={themeColors} isDark={isDark}
@@ -401,10 +414,10 @@ export default function AdminSettingsScreen() {
               <TouchableOpacity
                 style={[s.saveBtn, { backgroundColor: confirmDelete === 'DELETE' ? '#EF4444' : (isDark ? '#374151' : '#9CA3AF') }]}
                 disabled={confirmDelete !== 'DELETE'}
-                onPress={() => Alert.alert('Blocked', 'This action is blocked in demo mode.')}
+                onPress={() => Alert.alert(t('admin.actionBlockedTitle'), t('admin.actionBlockedDesc'))}
               >
                 <AlertTriangle size={14} color="#fff" />
-                <Text style={s.saveBtnText}>Delete All Data</Text>
+                <Text style={s.saveBtnText}>{t('admin.deleteAllDataBtn')}</Text>
               </TouchableOpacity>
             </View>
           </>

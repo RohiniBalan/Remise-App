@@ -5,13 +5,15 @@ import { ArrowLeft, Plus, Edit2, Trash2, Package, Eye } from 'lucide-react-nativ
 import { storeProductApi } from '../../api/storeProductApi';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
-import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, translateProductName } from '../../i18n';
+import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 
 export default function StoreManageBrandsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { title, category, items: initialItems, brandCount, totalStock, typeKey } = route.params;
   const { refresh } = useStoreDashboard();
@@ -44,7 +46,7 @@ export default function StoreManageBrandsScreen() {
         </TouchableOpacity>
         <View style={styles.headerTitleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>{title}</Text>
+            <Text style={styles.headerTitle}>{translateProductName(title, language, items?.[0])}</Text>
             <Text style={styles.headerSub}>{brandCount} brand{brandCount !== 1 ? 's' : ''} · {totalStock} total stock</Text>
           </View>
           <TouchableOpacity
@@ -77,15 +79,17 @@ export default function StoreManageBrandsScreen() {
                 onPress={() => navigation.navigate('ProductDetail', { productId: p._id })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.brandName} numberOfLines={1}>{p.brand || 'Unbranded'}</Text>
+                <Text style={styles.brandName} numberOfLines={1}>{p.brand === 'Unbranded' ? (t('store.unbranded') || 'Unbranded') : (p.brand || 'Unbranded')}</Text>
                 <View style={styles.priceRow}>
                   <Text style={styles.price}>₹{p.discountedPrice || p.price}</Text>
                   {p.discountedPrice ? <Text style={styles.originalPrice}>₹{p.price}</Text> : null}
                 </View>
                 <View style={styles.metaRow}>
-                  <Text style={styles.availability}>{p.availability}</Text>
+                  <Text style={styles.availability}>
+                    {p.availability === 'In Stock' ? (t('store.inStock') || 'In Stock') : p.availability === 'Out of Stock' ? (t('store.outOfStock') || 'Out of Stock') : p.availability}
+                  </Text>
                   <Text style={[styles.stock, p.totalStock < 5 && styles.stockLow]}>
-                    Stock {p.totalStock} {p.stockUnit || p.unit || 'Count'}
+                    {t('store.stock') || 'Stock'} {p.totalStock} {(((p.stockUnit || p.unit) === 'Count' || !(p.stockUnit || p.unit)) && language === 'ta') ? 'எண்ணிக்கை' : (p.stockUnit || p.unit || 'Count')}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -122,7 +126,7 @@ export default function StoreManageBrandsScreen() {
             </View>
             <Text style={styles.modalTitle}>Delete this product?</Text>
             <Text style={styles.modalSubtitle}>
-              Are you sure you want to delete "{deleteTarget?.brand || deleteTarget?.title || 'this item'}"? This action cannot be undone.
+              Are you sure you want to delete "{deleteTarget?.brand || translateProductName(deleteTarget?.title, language) || 'this item'}"? This action cannot be undone.
             </Text>
 
             <View style={styles.modalActions}>

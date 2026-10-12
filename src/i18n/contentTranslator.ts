@@ -2,8 +2,151 @@ import { LanguageCode } from './types';
 
 // Common product dictionary
 const PRODUCT_DICTIONARY: Record<string, Record<LanguageCode, string>> = {
-  
-    'buy 1 get 1 free mouse': {
+  'apple': {
+    en: 'Apple',
+    ta: 'ஆப்பிள்',
+    te: 'యాపిల్',
+    ml: 'ആപ്പിൾ',
+    kn: 'ಸೇಬು',
+    hi: 'सेब',
+  },
+  'chicken biryani': {
+    en: 'Chicken Biryani',
+    ta: 'சிக்கன் பிரியாணி',
+    te: 'చికెన్ బిర్యానీ',
+    ml: 'ചിക്കൻ ബിരിയാണി',
+    kn: 'ಚಿಕನ್ ಬಿರಿಯಾನಿ',
+    hi: 'चिकन बिरयानी',
+  },
+  'biryani': {
+    en: 'Biryani',
+    ta: 'பிரியாணி',
+    te: 'బిర్యానీ',
+    ml: 'ബിരിയാണി',
+    kn: 'ಬಿರಿಯಾನಿ',
+    hi: 'बिरयानी',
+  },
+  'zigger burger': {
+    en: 'Zigger Burger',
+    ta: 'ஜிக்கர் பர்கர்',
+    te: 'జిగ్గర్ బర్గర్',
+    ml: 'സിഗ്ഗർ ബർഗർ',
+    kn: 'ಝಿಗ್ಗರ್ ಬರ್ಗರ್',
+    hi: 'ज़िगर बर्गर',
+  },
+  'cheeseburger': {
+    en: 'Cheeseburger',
+    ta: 'சீஸ் பர்கர்',
+    te: 'చీజ్ బర్గర్',
+    ml: 'ചീസ് ബർഗർ',
+    kn: 'ಚೀಸ್ ಬರ್ಗರ್',
+    hi: 'चीज़बर्गर',
+  },
+  'burger': {
+    en: 'Burger',
+    ta: 'பர்கர்',
+    te: 'బర్గర్',
+    ml: 'ബർഗർ',
+    kn: 'ಬರ್ಗರ್',
+    hi: 'बर्गर',
+  },
+  'pizza': {
+    en: 'Pizza',
+    ta: 'பீட்சா',
+    te: 'పిజ్జా',
+    ml: 'പിസ്സ',
+    kn: 'ಪಿಜ್ಜಾ',
+    hi: 'पिज़्ज़ा',
+  },
+  'bread': {
+    en: 'Bread',
+    ta: 'ரொட்டி',
+    te: 'బ్రెడ్',
+    ml: 'ബ്രെഡ്',
+    kn: 'ಬ್ರೆಡ್',
+    hi: 'ब्रेड',
+  },
+  'egg': {
+    en: 'Egg',
+    ta: 'முட்டை',
+    te: 'గుడ్డు',
+    ml: 'മുട്ട',
+    kn: 'ಮೊಟ್ಟೆ',
+    hi: 'अंडा',
+  },
+  'eggs': {
+    en: 'Eggs',
+    ta: 'முட்டைகள்',
+    te: 'గుడ్లు',
+    ml: 'മുട്ടകൾ',
+    kn: 'ಮೊಟ್ಟೆಗಳು',
+    hi: 'अंडे',
+  },
+  'banana': {
+    en: 'Banana',
+    ta: 'வாழைப்பழம்',
+    te: 'అరటిపండు',
+    ml: 'വാഴപ്പഴം',
+    kn: 'ಬಾಳೆಹಣ್ಣು',
+    hi: 'केला',
+  },
+  'orange': {
+    en: 'Orange',
+    ta: 'ஆரஞ்சு',
+    te: 'నారింజ',
+    ml: 'ഓറഞ്ച്',
+    kn: 'ಕಿತ್ತಳೆ',
+    hi: 'संतरा',
+  },
+  'mango': {
+    en: 'Mango',
+    ta: 'மாம்பழம்',
+    te: 'మామిడి',
+    ml: 'മാമ്പഴം',
+    kn: 'ಮಾವಿನಹಣ್ಣು',
+    hi: 'आम',
+  },
+  'tomato': {
+    en: 'Tomato',
+    ta: 'தக்காளி',
+    te: 'టమోటా',
+    ml: 'തക്കാളി',
+    kn: 'ಟೊಮೆಟೊ',
+    hi: 'टमाटर',
+  },
+  'potato': {
+    en: 'Potato',
+    ta: 'உருளைக்கிழங்கு',
+    te: 'బంగాళాదుంప',
+    ml: 'ഉരുളക്കിഴങ്ങ്',
+    kn: 'ಆಲೂಗಡ್ಡೆ',
+    hi: 'आलू',
+  },
+  'onion': {
+    en: 'Onion',
+    ta: 'வெங்காயம்',
+    te: 'ఉల్లిపాయ',
+    ml: 'സവാള',
+    kn: 'ಈರುಳ್ಳಿ',
+    hi: 'प्याज',
+  },
+  'water bottle': {
+    en: 'Water Bottle',
+    ta: 'தண்ணீர் பாட்டில்',
+    te: 'నీటి సీసా',
+    ml: 'വെള്ളക്കുപ്പി',
+    kn: 'ನೀರಿನ ಬಾಟಲ್',
+    hi: 'पानी की बोतल',
+  },
+  'bed sheet': {
+    en: 'Bed Sheet',
+    ta: 'படுக்கை விரிப்பு',
+    te: 'బెడ్ షీట్',
+    ml: 'ബെഡ് ഷീറ്റ്',
+    kn: 'ಬೆಡ್ ಶೀಟ್',
+    hi: 'बेड शीट',
+  },
+  'buy 1 get 1 free mouse': {
     en: 'Buy 1 Get 1 Free Mouse',
     ta: '1 வாங்கினால் 1 இலவச மவுஸ்',
     te: '1 కొంటే 1 ఉచిత మౌస్',
@@ -2633,27 +2776,95 @@ const MONTHS: Record<string, Record<LanguageCode, string>> = {
   'december': { en: 'December', ta: 'டிசம்பர்', te: 'డిసెంబర్', ml: 'ഡിസംബർ', kn: 'ಡಿಸೆಂಬರ್', hi: 'दिसंबर' },
 };
 
+// Dynamic product translations cache (in-memory)
+const DYNAMIC_PRODUCT_TRANSLATIONS: Record<string, Record<string, string>> = {};
+
 /**
- * Translates a product title or common item name.
- * Uses exact match first, then longest multi-word compounds and phrases,
- * preventing hybrid two-language combinations (e.g. "Toor பருப்பு" -> "துவரம் பருப்பு", "பால் Powder" -> "பால் தூள்").
+ * Registers translations for a product name dynamically so all components immediately see it.
  */
-export function translateProductName(title: string | undefined | null, lang: LanguageCode): string {
+export function registerProductTranslations(title: string | undefined | null, translations: any) {
+  if (!title || !translations) return;
+  const lower = title.trim().toLowerCase();
+  if (!lower) return;
+
+  const plainTrans: Record<string, string> = {};
+  if (translations instanceof Map || typeof translations?.get === 'function') {
+    ['en', 'ta', 'te', 'ml', 'kn', 'hi'].forEach((k) => {
+      const v = translations.get(k);
+      if (v) plainTrans[k] = v;
+    });
+  } else if (typeof translations === 'object') {
+    Object.assign(plainTrans, translations);
+  }
+
+  if (Object.keys(plainTrans).length > 0) {
+    DYNAMIC_PRODUCT_TRANSLATIONS[lower] = {
+      ...(DYNAMIC_PRODUCT_TRANSLATIONS[lower] || {}),
+      ...plainTrans,
+    };
+  }
+}
+
+/**
+ * Helper to bulk register products from API responses.
+ */
+export function registerProducts(products: any[]) {
+  if (!Array.isArray(products)) return;
+  products.forEach((p) => {
+    if (p?.title && p?.translations) {
+      registerProductTranslations(p.title, p.translations);
+    }
+  });
+}
+
+/**
+ * Translates a product title or common item name into the selected language.
+ * Checks:
+ * 1. Product object translations if supplied
+ * 2. Dynamic translations cache
+ * 3. Exact dictionary match
+ * 4. Multi-word phrase substitutions
+ */
+export function translateProductName(
+  title: string | undefined | null,
+  lang: LanguageCode,
+  productOrTranslations?: any
+): string {
   if (!title) return '';
   if (lang === 'en') return title;
 
   const trimmed = title.trim();
   const lower = trimmed.toLowerCase();
-  
-  // 1. Exact dictionary match (case-insensitive)
+
+  // 1. Direct product object or translations map/object passed
+  if (productOrTranslations) {
+    const t = productOrTranslations.translations || productOrTranslations;
+    if (t) {
+      let candidate = '';
+      if (typeof t.get === 'function') {
+        candidate = t.get(lang);
+      } else if (typeof t === 'object' && t[lang]) {
+        candidate = t[lang];
+      }
+      if (candidate && typeof candidate === 'string') {
+        registerProductTranslations(trimmed, t);
+        return candidate;
+      }
+    }
+  }
+
+  // 2. Check dynamic translations cache
+  if (DYNAMIC_PRODUCT_TRANSLATIONS[lower]?.[lang]) {
+    return DYNAMIC_PRODUCT_TRANSLATIONS[lower][lang];
+  }
+
+  // 3. Exact dictionary match (case-insensitive)
   if (PRODUCT_DICTIONARY[lower]?.[lang]) {
     return PRODUCT_DICTIONARY[lower][lang];
   }
 
-  // 2. Multi-word phrase and word matching (sorted longest keys first)
+  // 4. Multi-word phrase and compound matching (sorted longest keys first)
   let result = trimmed;
-  let hasReplaced = false;
-
   for (const key of SORTED_PRODUCT_KEYS) {
     const mapping = PRODUCT_DICTIONARY[key];
     if (!mapping?.[lang]) continue;
@@ -2662,7 +2873,6 @@ export function translateProductName(title: string | undefined | null, lang: Lan
     const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
     if (regex.test(result)) {
       result = result.replace(regex, mapping[lang]);
-      hasReplaced = true;
     }
   }
 
@@ -2717,4 +2927,49 @@ export function translateDate(dateStr: string | undefined | null, lang: Language
   }
 
   return result;
+}
+
+// Product description dictionary
+const DESCRIPTION_DICTIONARY: Record<string, Record<LanguageCode, string>> = {
+  'a simple bed sheet available for purchase. the price of this bed sheet is 40 rupees.': {
+    en: 'A simple bed sheet available for purchase. The price of this bed sheet is 40 rupees.',
+    ta: 'வாங்குவதற்கு எளிய படுக்கை விரிப்பு கிடைக்கிறது. இந்த படுக்கை விரிப்பின் விலை 40 ரூபாய்.',
+    te: 'కొనుగోలుకు సాధారణ బెడ్ షీట్ అందుబాటులో ఉంది. ఈ బెడ్ షీట్ ధర 40 రూపాయలు.',
+    ml: 'വാങ്ങുന്നതിനായി ഒരു ലളിതമായ ബെഡ് ഷീറ്റ് ലഭ്യമാണ്. ഈ ബെഡ് ഷീറ്റിന്റെ വില 40 രൂപയാണ്.',
+    kn: 'ಖರೀದಿಗೆ ಸರಳವಾದ ಬೆಡ್ ಶೀಟ್ ಲಭ್ಯವಿದೆ. ಈ ಬೆಡ್ ಶೀಟ್‌ನ ಬೆಲೆ 40 ರೂಪಾಯಿಗಳು.',
+    hi: 'खरीदने के लिए एक साधारण बेड शीट उपलब्ध है। इस बेड शीट की कीमत 40 रुपये है।',
+  },
+  'no detailed description available for this product.': {
+    en: 'No detailed description available for this product.',
+    ta: 'இந்த தயாரிப்புக்கு விரிவான விளக்கம் எதுவும் கிடைக்கவில்லை.',
+    te: 'ఈ ఉత్పత్తికి వివరణాత్మక వివరణ అందుబాటులో లేదు.',
+    ml: 'ഈ ഉൽപ്പന്നത്തിന് വിശദമായ വിവരണം ലഭ്യമല്ല.',
+    kn: 'ಈ ಉತ್ಪನ್ನಕ್ಕೆ ಯಾವುದೇ ವಿವರವಾದ ವಿವರಣೆ ಲಭ್ಯವಿಲ್ಲ.',
+    hi: 'इस उत्पाद के लिए कोई विस्तृत विवरण उपलब्ध नहीं है।',
+  },
+  'no detailed description provided for this item.': {
+    en: 'No detailed description provided for this item.',
+    ta: 'இந்த தயாரிப்புக்கு விரிவான விளக்கம் எதுவும் வழங்கப்படவில்லை.',
+    te: 'ఈ అంశానికి వివరణాత్మక వివరణ అందించబడలేదు.',
+    ml: 'ഈ ഇനത്തിന് വിശദമായ വിവരണം നൽകിയിട്ടില്ല.',
+    kn: 'ಈ ವಸ್ತುವಿಗೆ ಯಾವುದೇ ವಿವರವಾದ ವಿವರಣೆ ಒದಗಿಸಲಾಗಿಲ್ಲ.',
+    hi: 'इस वस्तु के लिए कोई विस्तृत विवरण प्रदान नहीं किया गया है।',
+  },
+};
+
+/**
+ * Translates product description or about description.
+ */
+export function translateProductDescription(desc: string | undefined | null, lang: LanguageCode): string {
+  if (!desc) return '';
+  if (lang === 'en') return desc;
+
+  const trimmed = desc.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (DESCRIPTION_DICTIONARY[lower]?.[lang]) {
+    return DESCRIPTION_DICTIONARY[lower][lang];
+  }
+
+  return desc;
 }

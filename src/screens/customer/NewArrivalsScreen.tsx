@@ -13,38 +13,172 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Filter, X, Sparkles, ArrowLeft } from 'lucide-react-native';
 import { productApi, Product, productId, productImage } from '../../api/productApi';
-import { NEW_ARRIVAL_WINDOW_DAYS } from '../../api/homeSectionsApi';
+import { NEW_ARRIVAL_WINDOW_DAYS, fetchNewArrivals } from '../../api/homeSectionsApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/common/ProductCard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, translateCategory } from '../../i18n';
 import {
   CustomerColors,
-  GoldColors,
   Spacing,
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
 
-// Ported 1:1 from client/app/new-arrivals/page.tsx — same 14-day cutoff window,
-// same category / brand / availability / price presets / sort filtering, and
-// store-owner role pricing support.
+const NEW_ARRIVALS_I18N: Record<string, Record<string, string>> = {
+  en: {
+    justIn: 'Just In',
+    newArrivals: 'New Arrivals',
+    filters: 'Filters',
+    productsCount: '{count} products',
+    noNewArrivals: 'No new arrivals',
+    noNewArrivalsDesc: 'Check back soon for latest arrivals or adjust your active filters.',
+    clearAllFilters: 'Clear all filters',
+    all: 'All',
+    under500: 'Under ₹500',
+    from500to1000: '₹500–1000',
+    from1000to2500: '₹1000–2500',
+    above2500: '₹2500+',
+    newest: 'Newest',
+    priceLowToHigh: 'Price: Low to High',
+    priceHighToLow: 'Price: High to Low',
+    inStock: 'In Stock',
+    outOfStock: 'Out of Stock',
+    endOfNewArrivals: '✦ End of new arrivals ✦',
+    addedToCart: 'Added to cart ✓',
+    loginToPurchase: 'Login to Purchase',
+    loginToPurchaseDesc: 'Please sign in or register to complete this purchase.',
+  },
+  ta: {
+    justIn: 'புதிய வரவு',
+    newArrivals: 'புதிய வரவுகள்',
+    filters: 'வடிகட்டிகள்',
+    productsCount: '{count} பொருட்கள்',
+    noNewArrivals: 'புதிய வரவுகள் எதுவும் இல்லை',
+    noNewArrivalsDesc: 'சமீபத்திய வரவுகளுக்கு விரைவில் மீண்டும் சரிபார்க்கவும் அல்லது வடிகட்டிகளை மாற்றவும்.',
+    clearAllFilters: 'அனைத்து வடிகட்டிகளையும் நீக்கு',
+    all: 'அனைத்தும்',
+    under500: '₹500க்கு கீழ்',
+    from500to1000: '₹500–1000',
+    from1000to2500: '₹1000–2500',
+    above2500: '₹2500+',
+    newest: 'புதியவை',
+    priceLowToHigh: 'விலை: குறைவு முதல் அதிகம்',
+    priceHighToLow: 'விலை: அதிகம் முதல் குறைவு',
+    inStock: 'இருப்பில் உள்ளது',
+    outOfStock: 'இருப்பில் இல்லை',
+    endOfNewArrivals: '✦ புதிய வரவுகளின் முடிவு ✦',
+    addedToCart: 'கூடையில் சேர்க்கப்பட்டது ✓',
+    loginToPurchase: 'வாங்க உள்நுழையவும்',
+    loginToPurchaseDesc: 'இந்த வாங்குதலை முடிக்க உள்நுழையவும் அல்லது பதிவு செய்யவும்.',
+  },
+  te: {
+    justIn: 'కొత్తగా వచ్చినవి',
+    newArrivals: 'కొత్తగా వచ్చినవి',
+    filters: 'ఫిల్టర్లు',
+    productsCount: '{count} ఉత్పత్తులు',
+    noNewArrivals: 'కొత్తగా వచ్చినవి ఏవీ లేవు',
+    noNewArrivalsDesc: 'తాజా రాకల కోసం త్వరలో మళ్లీ తనిఖీ చేయండి లేదా మీ ఫిల్టర్‌లను సర్దుబాటు చేయండి.',
+    clearAllFilters: 'అన్ని ఫిల్టర్‌లను క్లియర్ చేయండి',
+    all: 'అన్నీ',
+    under500: '₹500 లోపు',
+    from500to1000: '₹500–1000',
+    from1000to2500: '₹1000–2500',
+    above2500: '₹2500+',
+    newest: 'సరికొత్తవి',
+    priceLowToHigh: 'ధర: తక్కువ నుండి ఎక్కువ',
+    priceHighToLow: 'ధర: ఎక్కువ నుండి తక్కువ',
+    inStock: 'స్టాక్‌లో ఉంది',
+    outOfStock: 'స్టాక్ అయిపోయింది',
+    endOfNewArrivals: '✦ కొత్తగా వచ్చిన వాటి ముగింపు ✦',
+    addedToCart: 'కార్ట్‌కు జోడించబడింది ✓',
+    loginToPurchase: 'కొనుగోలు చేయడానికి లాగిన్ చేయండి',
+    loginToPurchaseDesc: 'ఈ కొనుగోలును పూర్తి చేయడానికి దయచేసి లాగిన్ అవ్వండి లేదా నమోదు చేసుకోండి.',
+  },
+  kn: {
+    justIn: 'ಹೊಸ ಆಗಮನ',
+    newArrivals: 'ಹೊಸ ಆಗಮನಗಳು',
+    filters: 'ಫಿಲ್ಟರ್‌ಗಳು',
+    productsCount: '{count} ಉತ್ಪನ್ನಗಳು',
+    noNewArrivals: 'ಯಾವುದೇ ಹೊಸ ಆಗಮನಗಳಿಲ್ಲ',
+    noNewArrivalsDesc: 'ಇತ್ತೀಚಿನ ಆಗಮನಗಳಿಗಾಗಿ ಶೀಘ್ರದಲ್ಲೇ ಪರಿಶೀಲಿಸಿ ಅಥವಾ ಫಿಲ್ಟರ್‌ಗಳನ್ನು ಸರಿಹೊಂದಿಸಿ.',
+    clearAllFilters: 'ಎಲ್ಲಾ ಫಿಲ್ಟರ್‌ಗಳನ್ನು ತೆರವುಗೊಳಿಸಿ',
+    all: 'ಎಲ್ಲವೂ',
+    under500: '₹500 ಒಳಗೆ',
+    from500to1000: '₹500–1000',
+    from1000to2500: '₹1000–2500',
+    above2500: '₹2500+',
+    newest: 'ಹೊಸದು',
+    priceLowToHigh: 'ಬೆಲೆ: ಕಡಿಮೆಯಿಂದ ಹೆಚ್ಚು',
+    priceHighToLow: 'ಬೆಲೆ: ಹೆಚ್ಚಿನಿಂದ ಕಡಿಮೆ',
+    inStock: 'ಸ್ಟಾಕ್‌ನಲ್ಲಿದೆ',
+    outOfStock: 'ಸ್ಟಾಕ್ ಮುಗಿದಿದೆ',
+    endOfNewArrivals: '✦ ಹೊಸ ಆಗಮನಗಳ ಅಂತ್ಯ ✦',
+    addedToCart: 'ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಲಾಗಿದೆ ✓',
+    loginToPurchase: 'ಖರೀದಿಸಲು ಲಾಗಿನ್ ಮಾಡಿ',
+    loginToPurchaseDesc: 'ಈ ಖರೀದಿಯನ್ನು ಪೂರ್ಣಗೊಳಿಸಲು ದಯವಿಟ್ಟು ಲಾಗಿನ್ ಮಾಡಿ ಅಥವಾ ನೋಂದಾಯಿಸಿ.',
+  },
+  ml: {
+    justIn: 'പുതിയ വരവുകൾ',
+    newArrivals: 'പുതിയ വരവുകൾ',
+    filters: 'ഫിൽട്ടറുകൾ',
+    productsCount: '{count} ഉൽപ്പന്നങ്ങൾ',
+    noNewArrivals: 'പുതിയ വരവുകളൊന്നുമില്ല',
+    noNewArrivalsDesc: 'ഏറ്റവും പുതിയ വരവുകൾക്കായി ഉടൻ വീണ്ടും പരിശോധിക്കുക അല്ലെങ്കിൽ ഫിൽട്ടറുകൾ ക്രമീകരിക്കുക.',
+    clearAllFilters: 'എല്ലാ ഫിൽട്ടറുകളും മായ്‌ക്കുക',
+    all: 'എല്ലാം',
+    under500: '₹500 ന് താഴെ',
+    from500to1000: '₹500–1000',
+    from1000to2500: '₹1000–2500',
+    above2500: '₹2500+',
+    newest: 'ഏറ്റവും പുതിയത്',
+    priceLowToHigh: 'വില: കുറഞ്ഞതിൽ നിന്ന് കൂടിയതിലേക്ക്',
+    priceHighToLow: 'വില: കൂടിയതിൽ നിന്ന് കുറഞ്ഞതിലേക്ക്',
+    inStock: 'സ്റ്റോക്കുണ്ട്',
+    outOfStock: 'സ്റ്റോക്ക് തീർന്നു',
+    endOfNewArrivals: '✦ പുതിയ വരവുകളുടെ അവസാനം ✦',
+    addedToCart: 'കാർട്ടിലേക്ക് ചേർത്തു ✓',
+    loginToPurchase: 'വാങ്ങാൻ ലോഗിൻ ചെയ്യുക',
+    loginToPurchaseDesc: 'ഈ വാങ്ങൽ പൂർത്തിയാക്കാൻ ദയവായി ലോഗിൻ ചെയ്യുക അല്ലെങ്കിൽ രജിസ്റ്റർ ചെയ്യുക.',
+  },
+  hi: {
+    justIn: 'अभी आया',
+    newArrivals: 'नए आगमन',
+    filters: 'फ़िल्टर',
+    productsCount: '{count} उत्पाद',
+    noNewArrivals: 'कोई नया आगमन नहीं है',
+    noNewArrivalsDesc: 'नवीनतम आगमन के लिए जल्द ही दोबारा जांचें या अपने फ़िल्टर समायोजित करें।',
+    clearAllFilters: 'सभी फ़िल्टर साफ़ करें',
+    all: 'सभी',
+    under500: '₹500 से कम',
+    from500to1000: '₹500–1000',
+    from1000to2500: '₹1000–2500',
+    above2500: '₹2500+',
+    newest: 'नवीनतम',
+    priceLowToHigh: 'कीमत: कम से ज्यादा',
+    priceHighToLow: 'कीमत: ज्यादा से कम',
+    inStock: 'स्टॉक में है',
+    outOfStock: 'स्टॉक समाप्त',
+    endOfNewArrivals: '✦ नए आगमन समाप्त ✦',
+    addedToCart: 'कार्ट में जोड़ा गया ✓',
+    loginToPurchase: 'खरीदने के लिए लॉगिन करें',
+    loginToPurchaseDesc: 'इस खरीदारी को पूरा करने के लिए कृपया लॉगिन करें या पंजीकरण करें।',
+  },
+};
 
-const PRICE_PRESETS: Array<{ label: string; min: number; max: number }> = [
-  { label: 'All', min: 0, max: Infinity },
-  { label: 'Under ₹500', min: 0, max: 500 },
-  { label: '₹500–1000', min: 500, max: 1000 },
-  { label: '₹1000–2500', min: 1000, max: 2500 },
-  { label: '₹2500+', min: 2500, max: Infinity },
-];
-
-const SORT_OPTIONS = [
-  'Newest',
-  'Price: Low to High',
-  'Price: High to Low',
+const PRICE_PRESET_DEFS = [
+  { key: 'all', min: 0, max: Infinity },
+  { key: 'under500', min: 0, max: 500 },
+  { key: 'from500to1000', min: 500, max: 1000 },
+  { key: 'from1000to2500', min: 1000, max: 2500 },
+  { key: 'above2500', min: 2500, max: Infinity },
 ] as const;
+
+type SortKey = 'newest' | 'priceLowToHigh' | 'priceHighToLow';
+const SORT_KEY_LIST: SortKey[] = ['newest', 'priceLowToHigh', 'priceHighToLow'];
 
 const STORE_OWNER_ROLES = ['store_owner', 'whole_saler', 'home_business'];
 
@@ -54,6 +188,8 @@ export default function NewArrivalsScreen() {
   const { addToCart, setBuyNowItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const txt = NEW_ARRIVALS_I18N[language] || NEW_ARRIVALS_I18N.en;
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,8 +204,13 @@ export default function NewArrivalsScreen() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedAvailabilities, setSelectedAvailabilities] = useState<string[]>([]);
-  const [pricePreset, setPricePreset] = useState(PRICE_PRESETS[0]);
-  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>('Newest');
+  const [selectedPresetKey, setSelectedPresetKey] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<SortKey>('newest');
+
+  const pricePreset = useMemo(
+    () => PRICE_PRESET_DEFS.find(p => p.key === selectedPresetKey) || PRICE_PRESET_DEFS[0],
+    [selectedPresetKey],
+  );
 
   const fetchProducts = async (pageNum: number, isInitial: boolean = false) => {
     if (isFetchingRef.current) return;
@@ -81,9 +222,13 @@ export default function NewArrivalsScreen() {
     }
 
     try {
+      let filteredArr: Product[] = [];
+      let next = false;
+      let total = 0;
+
       const res = await productApi.getProductsViaGateway({
         sort: 'newest',
-        limit: 20,
+        limit: 50,
         page: pageNum,
         excludeOwnerRole: 'whole_saler,wholesaler',
       });
@@ -94,9 +239,20 @@ export default function NewArrivalsScreen() {
         ? data
         : data?.products || [];
 
-      const filteredArr = rawArr.filter(
+      filteredArr = rawArr.filter(
         (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
       );
+      next = Boolean(data?.hasNextPage);
+      if (typeof data?.total === 'number') total = data.total;
+
+      // Fallback: If gateway returned empty array on initial load, try homeSectionsApi
+      if (filteredArr.length === 0 && isInitial) {
+        const fallbackItems = await fetchNewArrivals(true);
+        if (fallbackItems && fallbackItems.length > 0) {
+          filteredArr = fallbackItems;
+          total = fallbackItems.length;
+        }
+      }
 
       if (isInitial) {
         setAllProducts(filteredArr);
@@ -108,13 +264,24 @@ export default function NewArrivalsScreen() {
         });
       }
 
-      setHasNextPage(Boolean(data?.hasNextPage));
-      if (typeof data?.total === 'number') {
-        setTotalCount(data.total);
-      }
+      setHasNextPage(next);
+      setTotalCount(total);
       setPage(pageNum);
     } catch {
-      if (isInitial) setAllProducts([]);
+      if (isInitial) {
+        try {
+          const fallbackItems = await fetchNewArrivals(true);
+          if (fallbackItems && fallbackItems.length > 0) {
+            setAllProducts(fallbackItems);
+            setTotalCount(fallbackItems.length);
+            setHasNextPage(false);
+          } else {
+            setAllProducts([]);
+          }
+        } catch {
+          setAllProducts([]);
+        }
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -135,12 +302,14 @@ export default function NewArrivalsScreen() {
   const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
 
   // 14-day cutoff window — products created/updated within NEW_ARRIVAL_WINDOW_DAYS
+  // If no products were added strictly within the 14-day window, graceful fallback to newest available products
   const newArrivalProducts = useMemo(() => {
     const cutoff = Date.now() - NEW_ARRIVAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    return allProducts.filter(p => {
+    const fresh = allProducts.filter(p => {
       const created = new Date((p as any).createdAt || (p as any).updatedAt || 0).getTime();
       return created >= cutoff;
     });
+    return fresh.length > 0 ? fresh : allProducts;
   }, [allProducts]);
 
   const displayProducts = useMemo(() => {
@@ -180,8 +349,8 @@ export default function NewArrivalsScreen() {
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'Price: Low to High') return a.price - b.price;
-        if (sortBy === 'Price: High to Low') return b.price - a.price;
+        if (sortBy === 'priceLowToHigh') return a.price - b.price;
+        if (sortBy === 'priceHighToLow') return b.price - a.price;
         return (
           new Date((b as any).createdAt || 0).getTime() -
           new Date((a as any).createdAt || 0).getTime()
@@ -200,13 +369,13 @@ export default function NewArrivalsScreen() {
     Boolean(activeCategory) ||
     selectedBrands.length > 0 ||
     selectedAvailabilities.length > 0 ||
-    pricePreset.label !== 'All';
+    selectedPresetKey !== 'all';
 
   const clearFilters = () => {
     setActiveCategory(null);
     setSelectedBrands([]);
     setSelectedAvailabilities([]);
-    setPricePreset(PRICE_PRESETS[0]);
+    setSelectedPresetKey('all');
   };
 
   const showToast = (msg: string) => {
@@ -229,7 +398,7 @@ export default function NewArrivalsScreen() {
       image: productImage(p) || '',
       totalStock: p.totalStock,
     });
-    showToast('Added to cart ✓');
+    showToast(txt.addedToCart);
   };
 
   const handleBuyNow = (p: Product) => {
@@ -280,10 +449,10 @@ export default function NewArrivalsScreen() {
           <View>
             <View style={styles.eyebrowRow}>
               <Sparkles size={13} color={CustomerColors.primary} />
-              <Text style={styles.eyebrowText}>Just In</Text>
+              <Text style={styles.eyebrowText}>{txt.justIn}</Text>
             </View>
             <Text style={[styles.pageTitle, isDark && { color: '#FFFFFF' }]}>
-              {activeCategory ? activeCategory : 'New Arrivals'}
+              {activeCategory ? translateCategory(activeCategory, language) : txt.newArrivals}
             </Text>
           </View>
         </View>
@@ -296,14 +465,16 @@ export default function NewArrivalsScreen() {
         >
           <Filter size={13} color={CustomerColors.primary} />
           <Text style={[styles.filterToggleText, isDark && { color: '#F1F5F9' }]}>
-            Filters{hasActiveFilters ? ' •' : ''}
+            {txt.filters}{hasActiveFilters ? ' •' : ''}
           </Text>
         </TouchableOpacity>
-        <Text style={[styles.count, isDark && { color: '#94A3B8' }]}>{filtered.length} products</Text>
+        <Text style={[styles.count, isDark && { color: '#94A3B8' }]}>
+          {txt.productsCount.replace('{count}', String(filtered.length))}
+        </Text>
       </View>
 
       {filtersOpen && (
-        <View style={styles.filtersPanel}>
+        <View style={[styles.filtersPanel, isDark && { backgroundColor: '#0F172A', borderBottomColor: '#1E293B' }]}>
           {categories.length > 0 && (
             <ScrollView
               horizontal
@@ -313,8 +484,9 @@ export default function NewArrivalsScreen() {
               {categories.map(cat => (
                 <Chip
                   key={cat}
-                  label={cat}
+                  label={translateCategory(cat, language)}
                   active={activeCategory === cat}
+                  isDark={isDark}
                   onPress={() => setActiveCategory(activeCategory === cat ? null : cat)}
                 />
               ))}
@@ -332,6 +504,7 @@ export default function NewArrivalsScreen() {
                   key={b}
                   label={b}
                   active={selectedBrands.includes(b)}
+                  isDark={isDark}
                   onPress={() => toggle(selectedBrands, setSelectedBrands, b)}
                 />
               ))}
@@ -343,12 +516,13 @@ export default function NewArrivalsScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.chipRow}
           >
-            {PRICE_PRESETS.map(preset => (
+            {PRICE_PRESET_DEFS.map(preset => (
               <Chip
-                key={preset.label}
-                label={preset.label}
-                active={pricePreset.label === preset.label}
-                onPress={() => setPricePreset(preset)}
+                key={preset.key}
+                label={txt[preset.key] || preset.key}
+                active={selectedPresetKey === preset.key}
+                isDark={isDark}
+                onPress={() => setSelectedPresetKey(preset.key)}
               />
             ))}
           </ScrollView>
@@ -362,8 +536,9 @@ export default function NewArrivalsScreen() {
               {availabilities.map(a => (
                 <Chip
                   key={a}
-                  label={a}
+                  label={a === 'In Stock' ? txt.inStock : a === 'Out of Stock' ? txt.outOfStock : a}
                   active={selectedAvailabilities.includes(a)}
+                  isDark={isDark}
                   onPress={() => toggle(selectedAvailabilities, setSelectedAvailabilities, a)}
                 />
               ))}
@@ -375,11 +550,12 @@ export default function NewArrivalsScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.chipRow}
           >
-            {SORT_OPTIONS.map(s => (
+            {SORT_KEY_LIST.map(s => (
               <Chip
                 key={s}
-                label={s}
+                label={txt[s] || s}
                 active={sortBy === s}
+                isDark={isDark}
                 onPress={() => setSortBy(s)}
               />
             ))}
@@ -388,7 +564,7 @@ export default function NewArrivalsScreen() {
           {hasActiveFilters && (
             <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
               <X size={12} color={CustomerColors.primary} />
-              <Text style={styles.clearBtnText}>Clear all filters</Text>
+              <Text style={styles.clearBtnText}>{txt.clearAllFilters}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -406,9 +582,9 @@ export default function NewArrivalsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Sparkles size={32} color={CustomerColors.primary} style={{ alignSelf: 'center', marginBottom: 8 }} />
-            <Text style={styles.emptyTitle}>No new arrivals</Text>
-            <Text style={styles.emptySubtitle}>
-              Check back soon for latest arrivals or adjust your active filters.
+            <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>{txt.noNewArrivals}</Text>
+            <Text style={[styles.emptySubtitle, isDark && { color: '#94A3B8' }]}>
+              {txt.noNewArrivalsDesc}
             </Text>
           </View>
         }
@@ -437,7 +613,7 @@ export default function NewArrivalsScreen() {
           ) : !hasNextPage && filtered.length > 0 ? (
             <View style={{ paddingVertical: 16, alignItems: 'center' }}>
               <Text style={{ fontSize: 11, color: isDark ? '#64748B' : '#94A3B8', fontWeight: '600' }}>
-                ✦ End of new arrivals ✦
+                {txt.endOfNewArrivals}
               </Text>
             </View>
           ) : null
@@ -447,8 +623,8 @@ export default function NewArrivalsScreen() {
       <AuthRequiredModal
         visible={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        title="Login to Purchase"
-        subtitle="Please sign in or register to complete this purchase."
+        title={txt.loginToPurchase}
+        subtitle={txt.loginToPurchaseDesc}
         onLogin={() => navigation.navigate('LoginRegister')}
       />
     </View>
@@ -458,18 +634,30 @@ export default function NewArrivalsScreen() {
 function Chip({
   label,
   active,
+  isDark = false,
   onPress,
 }: {
   label: string;
   active: boolean;
+  isDark?: boolean;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive]}
+      style={[
+        styles.chip,
+        isDark && { backgroundColor: '#1E293B', borderColor: '#334155' },
+        active && styles.chipActive,
+      ]}
       onPress={onPress}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+      <Text
+        style={[
+          styles.chipText,
+          isDark && { color: '#CBD5E1' },
+          active && styles.chipTextActive,
+        ]}
+      >
         {label}
       </Text>
     </TouchableOpacity>

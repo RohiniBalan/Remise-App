@@ -56,7 +56,11 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import OrdersScreen from '../screens/customer/OrdersScreen';
 import MyOffersScreen from '../screens/customer/MyOffersScreen';
+import WishlistScreen from '../screens/customer/WishlistScreen';
+import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
+import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
 import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
 import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
@@ -97,7 +101,14 @@ export type HomeBusinessStackParamList = {
   StoreOrderTracking: { orderId: string };
   Notifications: undefined;
   Profile: undefined;
+  Orders: undefined;
+  OrderDetail: { orderId: string };
+  OrderTracking: { orderId: string };
+  Settings:
+    | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
+    | undefined;
   MyOffers: undefined;
+  Wishlist: undefined;
   AccountSettings:
     | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
     | undefined;
@@ -132,10 +143,11 @@ function HomeBusinessUserMenu() {
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [open, setOpen] = useState(false);
 
-  const displayName = user?.fullname || user?.name || 'Home Business Owner';
+  const displayName = user?.fullname || user?.name || t('common.roleHomeBusiness') || 'Home Business Owner';
   const isVerified = user?.isEmailVerified !== false;
 
   const close = () => setOpen(false);
@@ -167,18 +179,18 @@ function HomeBusinessUserMenu() {
                     {user?.email}
                   </Text>
                   <View style={styles.roleTag}>
-                    <Text style={styles.roleTagText}>🏠 Home Business Producer</Text>
+                    <Text style={styles.roleTagText}>🏠 {t('common.roleHomeBusiness') || 'Home Business'}</Text>
                   </View>
                 </View>
                 {isVerified ? (
                   <View style={styles.verifiedBadge}>
                     <CheckCircle size={9} color="#15803D" />
-                    <Text style={styles.verifiedBadgeText}>Verified</Text>
+                    <Text style={styles.verifiedBadgeText}>{t('profile.verified') || 'Verified'}</Text>
                   </View>
                 ) : (
                   <View style={styles.unverifiedBadge}>
                     <AlertCircle size={9} color="#B45309" />
-                    <Text style={styles.unverifiedBadgeText}>Verify</Text>
+                    <Text style={styles.unverifiedBadgeText}>{t('profile.verify') || 'Verify'}</Text>
                   </View>
                 )}
               </View>
@@ -187,25 +199,29 @@ function HomeBusinessUserMenu() {
             <View style={styles.menuLinks}>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('Profile')}>
                 <UserIcon size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>My Profile</Text>
+                <Text style={styles.menuItemText}>{t('common.myProfile') || 'My Profile'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => go('Orders')}>
+                <ShoppingBag size={15} color="#9CA3AF" />
+                <Text style={styles.menuItemText}>{t('common.myOrders') || 'My Orders'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('MyOffers')}>
                 <Tag size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>My Offers</Text>
+                <Text style={styles.menuItemText}>{t('offers.myOffers') || 'My Offers'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => go('HomeBusinessTabs')}
               >
                 <Store size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Home Business Dashboard</Text>
+                <Text style={styles.menuItemText}>{t('common.homeBusinessDashboard') || 'Home Business Dashboard'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => go('StoreDeliveries')}
               >
                 <Truck size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Deliveries Log</Text>
+                <Text style={styles.menuItemText}>{t('store.deliveriesTab') || 'Deliveries Log'}</Text>
               </TouchableOpacity>
 
               <View style={styles.menuDivider} />
@@ -215,21 +231,21 @@ function HomeBusinessUserMenu() {
                 onPress={() => go('AccountSettings', { initialTab: 'account' })}
               >
                 <SettingsIcon size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Settings</Text>
+                <Text style={styles.menuItemText}>{t('settings.settingsTitle') || 'Settings'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => go('AccountSettings', { initialTab: 'preferences' })}
               >
                 <SlidersHorizontal size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>Preferences</Text>
+                <Text style={styles.menuItemText}>{t('settings.preferencesTab') || 'Preferences'}</Text>
               </TouchableOpacity>
 
               <View style={styles.menuDivider} />
 
               <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
                 <LogOut size={15} color="#FF0000" />
-                <Text style={[styles.menuItemText, { color: '#FF0000' }]}>Sign Out</Text>
+                <Text style={[styles.menuItemText, { color: '#FF0000' }]}>{t('common.signOut') || 'Sign Out'}</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -395,6 +411,7 @@ function HomeBusinessDashboardGate({ children }: { children: React.ReactNode }) 
 
 export default function HomeBusinessNavigator() {
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   return (
     <SellerDashboardProvider>
       <HomeBusinessDashboardGate>
@@ -439,22 +456,47 @@ export default function HomeBusinessNavigator() {
           <Stack.Screen
             name="Profile"
             component={ProfileScreen}
-            options={{ headerShown: true, title: 'Profile' }}
+            options={{ headerShown: true, title: t('common.myProfile') || 'Profile' }}
+          />
+          <Stack.Screen
+            name="Orders"
+            component={OrdersScreen}
+            options={{ headerShown: true, title: t('common.myOrders') || 'My Orders' }}
+          />
+          <Stack.Screen
+            name="OrderDetail"
+            component={OrderDetailScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="OrderTracking"
+            component={OrderTrackingScreen}
+            options={{ headerShown: true, title: t('order.trackOrder') || 'Track Order' }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={AccountSettingsScreen}
+            options={{ headerShown: true, title: t('settings.settingsTitle') || 'Settings' }}
           />
           <Stack.Screen
             name="MyOffers"
             component={MyOffersScreen}
-            options={{ headerShown: true, title: 'My Offers' }}
+            options={{ headerShown: true, title: t('common.myOffers') || 'My Offers' }}
+          />
+          <Stack.Screen
+            name="Wishlist"
+            component={WishlistScreen}
+            options={{ headerShown: true, title: t('common.myWishlist') || 'My Wishlist' }}
           />
           <Stack.Screen
             name="Notifications"
             component={NotificationScreen}
-            options={{ headerShown: true, title: 'Notifications' }}
+            options={{ headerShown: true, title: t('notifications.notificationsTitle') || 'Notifications' }}
           />
           <Stack.Screen
             name="AccountSettings"
             component={AccountSettingsScreen}
-            options={{ headerShown: true, title: 'Settings' }}
+            options={{ headerShown: true, title: t('settings.settingsTitle') || 'Settings' }}
           />
           <Stack.Screen
             name="StoreDeliveries"

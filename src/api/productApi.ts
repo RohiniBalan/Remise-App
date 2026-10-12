@@ -71,6 +71,7 @@ export interface ProductReview {
   recommend?: boolean;
   verified?: boolean;
   helpfulCount?: number;
+  images?: string[];
   createdAt?: string;
 }
 
@@ -99,8 +100,33 @@ export const productApi = {
   // Product Reviews
   getReviews: (productId: string) =>
     gatewayClient.get(`/api/products/${productId}/reviews`),
-  addReview: (productId: string, data: { rating: number; title?: string; comment: string; userName: string; userEmail?: string; recommend?: boolean }, token?: string) =>
-    gatewayClient.post(`/api/products/${productId}/reviews`, data, token ? { headers: auth(token) } : undefined),
+  addReview: (
+    productId: string,
+    data: FormData | {
+      rating: number;
+      title?: string;
+      comment: string;
+      userName: string;
+      userEmail?: string;
+      recommend?: boolean;
+      images?: string[];
+    },
+    token?: string
+  ) =>
+    gatewayClient.post(
+      `/api/products/${productId}/reviews`,
+      data,
+      data instanceof FormData
+        ? {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              ...(token ? auth(token) : {}),
+            },
+          }
+        : token
+        ? { headers: auth(token) }
+        : undefined
+    ),
   voteReviewHelpful: (productId: string, reviewId: string) =>
     gatewayClient.post(`/api/products/${productId}/reviews/${reviewId}/helpful`),
 

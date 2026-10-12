@@ -113,7 +113,7 @@ export const HELP_CENTER_DATA: Record<LanguageCode, HelpCenterData> = {
     eyebrow: "WE'RE HERE TO HELP",
     heroTitle: "Help Center",
     heroSubtitle: "Answers on shopping, stores, products, orders, payments, delivery, and your account — all in one place.",
-    searchPlaceholder: 'Search for a topic, e.g. "cancel order"',
+    searchPlaceholder: 'Search topics or questions...',
     categories: [
       { id: "getting-started", label: "Getting Started" },
       { id: "finding-products", label: "Finding Products" },
@@ -295,7 +295,7 @@ export const HELP_CENTER_DATA: Record<LanguageCode, HelpCenterData> = {
     eyebrow: "உங்களுக்கு உதவ நாங்கள் இருக்கிறோம்",
     heroTitle: "உதவி மையம்",
     heroSubtitle: "ஷாப்பிங், கடைகள், தயாரிப்புகள், ஆர்டர்கள், கட்டணங்கள், டெலிவரி மற்றும் உங்கள் கணக்கு பற்றிய பதில்கள் — அனைத்தும் ஒரே இடத்தில்.",
-    searchPlaceholder: 'தலைப்பைத் தேடுங்கள், எ.கா. "ஆர்டரை ரத்து செய்"',
+    searchPlaceholder: 'தலைப்பைத் தேடுங்கள்...',
     categories: [
       { id: "getting-started", label: "தொடங்குதல்" },
       { id: "finding-products", label: "பொருட்களைக் கண்டறிதல்" },
@@ -477,7 +477,7 @@ export const HELP_CENTER_DATA: Record<LanguageCode, HelpCenterData> = {
     eyebrow: "మీకు సహాయం చేయడానికి మేము ఇక్కడ ఉన్నాము",
     heroTitle: "సహాయ కేంద్రం",
     heroSubtitle: "షాపింగ్, దుకాణాలు, ఉత్పత్తులు, ఆర్డర్లు, చెల్లింపులు, డెలివరీ మరియు మీ ఖాతా గురించిన సమాధానాలు — అన్నీ ఒకే చోట.",
-    searchPlaceholder: 'విషయాన్ని శోధించండి, ఉదా. "ఆర్డర్ రద్దు"',
+    searchPlaceholder: 'విషయాలు లేదా ప్రశ్నలను వెతకండి...',
     categories: [
       { id: "getting-started", label: "ప్రారంభించడం" },
       { id: "finding-products", label: "ఉత్పత్తులను కనుగొనడం" },
@@ -653,7 +653,7 @@ export const HELP_CENTER_DATA: Record<LanguageCode, HelpCenterData> = {
     eyebrow: "ഞങ്ങൾ നിങ്ങളെ സഹായിക്കാൻ ഇവിടെയുണ്ട്",
     heroTitle: "സഹായ കേന്ദ്രം",
     heroSubtitle: "ഷോപ്പിംഗ്, സ്റ്റോറുകൾ, ഉൽപ്പന്നങ്ങൾ, ഓർഡറുകൾ, പേയ്‌മെന്റുകൾ, ഡെലിവറി, അക്കൗണ്ട് എന്നിവയെക്കുറിച്ചുള്ള വിവരങ്ങൾ — എല്ലാം ഒരിടത്ത്.",
-    searchPlaceholder: 'വിഷയം തിരയുക, ഉദാ. "ഓർഡർ റദ്ദാക്കുക"',
+    searchPlaceholder: 'വിഷയങ്ങൾ തിരയുക...',
     categories: [
       { id: "getting-started", label: "തുടങ്ങാം" },
       { id: "finding-products", label: "ഉൽപ്പന്നങ്ങൾ കണ്ടെത്താം" },
@@ -829,7 +829,7 @@ export const HELP_CENTER_DATA: Record<LanguageCode, HelpCenterData> = {
     eyebrow: "ನಾವು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಇಲ್ಲಿದ್ದೇವೆ",
     heroTitle: "ಸಹಾಯ ಕೇಂದ್ರ",
     heroSubtitle: "ಶಾಪಿಂಗ್, ಅಂಗಡಿಗಳು, ಉತ್ಪನ್ನಗಳು, ಆರ್ಡರ್‌ಗಳು, ಪಾವತಿಗಳು, ಡೆಲಿವರಿ ಮತ್ತು ನಿಮ್ಮ ಖಾತೆಯ ಕುರಿತಾದ ಉತ್ತರಗಳು — ಎಲ್ಲವೂ ಒಂದೇ ಸ್ಥಳದಲ್ಲಿ.",
-    searchPlaceholder: 'ವಿಷಯವನ್ನು ಹುಡುಕಿ, ಉದಾ. "ಆರ್ಡರ್ ರದ್ದುಗೊಳಿಸಿ"',
+    searchPlaceholder: 'ವಿಷಯಗಳನ್ನು ಹುಡುಕಿ...',
     categories: [
       { id: "getting-started", label: "ಪ್ರಾರಂಭಿಸುವುದು" },
       { id: "finding-products", label: "ಉತ್ಪನ್ನಗಳನ್ನು ಹುಡುಕುವುದು" },
@@ -1005,7 +1005,7 @@ export const HELP_CENTER_DATA: Record<LanguageCode, HelpCenterData> = {
     eyebrow: "हम आपकी सहायता के लिए यहां हैं",
     heroTitle: "सहायता केंद्र",
     heroSubtitle: "खरीदारी, स्टोर, उत्पाद, ऑर्डर, भुगतान, डिलीवरी और आपके खाते से संबंधित सभी उत्तर — एक ही स्थान पर।",
-    searchPlaceholder: 'कोई विषय खोजें, उदा. "ऑर्डर रद्द करें"',
+    searchPlaceholder: 'विषय या प्रश्न खोजें...',
     categories: [
       { id: "getting-started", label: "शुरुआत करें" },
       { id: "finding-products", label: "उत्पाद खोजना" },

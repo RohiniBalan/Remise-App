@@ -25,6 +25,7 @@ import {
 import { getAdminColors, AdminColors, Spacing, BorderRadius, FontSizes, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { adminNewsletterApi } from '../../api/adminApi';
+import { useTranslation } from '../../i18n';
 
 interface Subscriber {
   _id: string;
@@ -37,6 +38,7 @@ interface Subscriber {
 export default function AdminNewsletterScreen() {
   const { isDark } = useTheme();
   const themeColors = getAdminColors(isDark);
+  const { t, language } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<'subscribers' | 'compose'>('subscribers');
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
@@ -96,19 +98,19 @@ export default function AdminNewsletterScreen() {
 
   const handleDeleteSubscriber = (id: string, email: string) => {
     Alert.alert(
-      'Delete Subscriber',
-      `Are you sure you want to remove ${email}?`,
+      t('admin.deleteSubscriberTitle'),
+      t('admin.deleteSubscriberConfirm', { email }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await adminNewsletterApi.deleteSubscriber(id);
               setSubscribers(prev => prev.filter(s => s._id !== id));
             } catch (err: any) {
-              Alert.alert('Error', err.response?.data?.message || 'Failed to delete subscriber');
+              Alert.alert(t('common.error'), err.response?.data?.message || t('admin.failedDeleteSubscriber'));
             }
           },
         },
@@ -118,12 +120,12 @@ export default function AdminNewsletterScreen() {
 
   const handleSendCampaign = async (isTest: boolean) => {
     if (!campaignSubject.trim() || !campaignBody.trim()) {
-      Alert.alert('Incomplete Campaign', 'Please provide a subject and body.');
+      Alert.alert(t('admin.incompleteCampaignTitle'), t('admin.incompleteCampaignMsg'));
       return;
     }
 
     if (isTest && !testEmail.trim()) {
-      Alert.alert('Missing Test Email', 'Please enter a test recipient email address.');
+      Alert.alert(t('admin.missingTestEmailTitle'), t('admin.missingTestEmailMsg'));
       return;
     }
 
@@ -138,8 +140,8 @@ export default function AdminNewsletterScreen() {
       });
 
       Alert.alert(
-        'Success',
-        isTest ? `Test campaign sent to ${testEmail}` : 'Newsletter campaign broadcasted successfully!'
+        t('common.success'),
+        isTest ? t('admin.testCampaignSent', { email: testEmail }) : t('admin.broadcastSuccessMsg')
       );
       if (!isTest) {
         setCampaignSubject('');
@@ -147,7 +149,7 @@ export default function AdminNewsletterScreen() {
         setCampaignBody('');
       }
     } catch (err: any) {
-      Alert.alert('Send Failed', err.response?.data?.message || 'Failed to send campaign');
+      Alert.alert(t('common.error'), err.response?.data?.message || t('admin.failedSendCampaign'));
     } finally {
       setIsSending(false);
     }
@@ -162,14 +164,25 @@ export default function AdminNewsletterScreen() {
     return true;
   });
 
+  const formatShortDate = (dateStr?: string) => {
+    if (!dateStr) return t('admin.recentDate');
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#0b0f19' : '#f8fafc' }}>
       {/* Top Header */}
       <View style={[styles.topBar, { backgroundColor: themeColors.sidebarBg, borderBottomColor: themeColors.border }]}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.screenTitle, { color: themeColors.textPrimary }]}>Newsletter & Subscribers</Text>
+          <Text style={[styles.screenTitle, { color: themeColors.textPrimary }]}>{t('admin.newsletterAndSubscribers')}</Text>
           <Text style={[styles.screenSub, { color: themeColors.textSecondary }]}>
-            Audience management & email broadcasts
+            {t('admin.audienceManagementSub')}
           </Text>
         </View>
 
@@ -186,7 +199,7 @@ export default function AdminNewsletterScreen() {
         >
           <Users size={14} color={activeTab === 'subscribers' ? AdminColors.primary : themeColors.textSecondary} />
           <Text style={[styles.modeTabText, activeTab === 'subscribers' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-            Subscribers ({subscribers.length})
+            {t('admin.subscribersTab', { count: subscribers.length })}
           </Text>
         </TouchableOpacity>
 
@@ -196,7 +209,7 @@ export default function AdminNewsletterScreen() {
         >
           <Send size={14} color={activeTab === 'compose' ? AdminColors.primary : themeColors.textSecondary} />
           <Text style={[styles.modeTabText, activeTab === 'compose' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-            Compose Campaign
+            {t('admin.composeCampaignTab')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -210,7 +223,9 @@ export default function AdminNewsletterScreen() {
         <View style={styles.kpiGrid}>
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Total</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2} adjustsFontSizeToFit>
+                {t('admin.totalKpi')}
+              </Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#EFF6FF' }]}>
                 <Mail size={13} color="#2563EB" />
               </View>
@@ -220,7 +235,9 @@ export default function AdminNewsletterScreen() {
 
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Active</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2} adjustsFontSizeToFit>
+                {t('admin.activeKpi')}
+              </Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#ECFDF5' }]}>
                 <UserCheck size={13} color="#059669" />
               </View>
@@ -232,7 +249,9 @@ export default function AdminNewsletterScreen() {
 
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Unconfirmed</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2} adjustsFontSizeToFit>
+                {t('admin.unconfirmedKpi')}
+              </Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#FFFBEB' }]}>
                 <AlertCircle size={13} color="#D97706" />
               </View>
@@ -244,7 +263,9 @@ export default function AdminNewsletterScreen() {
 
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Unsubscribed</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2} adjustsFontSizeToFit>
+                {t('admin.unsubscribedKpi')}
+              </Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#FEF2F2' }]}>
                 <UserX size={13} color="#EF4444" />
               </View>
@@ -265,7 +286,7 @@ export default function AdminNewsletterScreen() {
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder="Search subscriber email or source..."
+                  placeholder={t('admin.searchSubscriberPlaceholder')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
                 />
@@ -274,10 +295,10 @@ export default function AdminNewsletterScreen() {
               {/* Status Filter Chips */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
                 {[
-                  { label: 'All', value: 'all' },
-                  { label: 'Active', value: 'active' },
-                  { label: 'Unconfirmed', value: 'unconfirmed' },
-                  { label: 'Unsubscribed', value: 'unsubscribed' },
+                  { label: t('admin.all'), value: 'all' },
+                  { label: t('admin.activeKpi'), value: 'active' },
+                  { label: t('admin.unconfirmedKpi'), value: 'unconfirmed' },
+                  { label: t('admin.unsubscribedKpi'), value: 'unsubscribed' },
                 ].map(item => {
                   const active = statusFilter === item.value;
                   return (
@@ -303,14 +324,14 @@ export default function AdminNewsletterScreen() {
             {/* Subscriber List */}
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
               <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>
-                Subscribers Directory ({filteredSubscribers.length})
+                {t('admin.subscribersDirectory', { count: filteredSubscribers.length })}
               </Text>
 
               {filteredSubscribers.length === 0 ? (
                 <View style={{ paddingVertical: 30, alignItems: 'center' }}>
                   <Mail size={32} color={isDark ? '#4B5563' : '#9CA3AF'} />
                   <Text style={{ marginTop: 8, fontSize: 12, color: themeColors.textSecondary }}>
-                    No subscribers match your search.
+                    {t('admin.noSubscribersMatch')}
                   </Text>
                 </View>
               ) : (
@@ -328,7 +349,10 @@ export default function AdminNewsletterScreen() {
                           {sub.email}
                         </Text>
                         <Text style={[styles.subDate, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                          Source: {sub.source || 'Website'} • {sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString() : 'Recent'}
+                          {t('admin.subscriberSourceInfo', { 
+                            source: sub.source || t('admin.websiteSource'), 
+                            date: formatShortDate(sub.subscribedAt) 
+                          })}
                         </Text>
                       </View>
 
@@ -353,7 +377,11 @@ export default function AdminNewsletterScreen() {
                                 : { color: '#EF4444' },
                             ]}
                           >
-                            {sub.status.toUpperCase()}
+                            {sub.status === 'active' 
+                              ? t('admin.activeKpi').toUpperCase() 
+                              : sub.status === 'unconfirmed' 
+                              ? t('admin.unconfirmedKpi').toUpperCase() 
+                              : t('admin.unsubscribedKpi').toUpperCase()}
                           </Text>
                         </View>
 
@@ -374,40 +402,40 @@ export default function AdminNewsletterScreen() {
           /* Compose Campaign Mode */
           <View style={{ gap: Spacing.md }}>
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
-              <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>Broadcast Newsletter Campaign</Text>
+              <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>{t('admin.broadcastNewsletterTitle')}</Text>
               <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>
-                Send rich promotional email updates to all active subscribers
+                {t('admin.broadcastNewsletterSub')}
               </Text>
 
               <View style={{ marginTop: 14, gap: 10 }}>
                 <View>
-                  <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>Email Subject Line *</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>{t('admin.emailSubjectLabel')}</Text>
                   <TextInput
                     value={campaignSubject}
                     onChangeText={setCampaignSubject}
-                    placeholder="e.g. Exclusive Weekend Sale is Live!"
+                    placeholder={t('admin.emailSubjectPlaceholder')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     style={[styles.textInput, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB', color: isDark ? '#FFFFFF' : '#111827' }]}
                   />
                 </View>
 
                 <View>
-                  <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>Campaign Title / Heading</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>{t('admin.campaignTitleLabel')}</Text>
                   <TextInput
                     value={campaignTitle}
                     onChangeText={setCampaignTitle}
-                    placeholder="e.g. Super Saver Discounts Across All Stores"
+                    placeholder={t('admin.campaignTitlePlaceholder')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     style={[styles.textInput, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB', color: isDark ? '#FFFFFF' : '#111827' }]}
                   />
                 </View>
 
                 <View>
-                  <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>Campaign Content Body *</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>{t('admin.campaignBodyLabel')}</Text>
                   <TextInput
                     value={campaignBody}
                     onChangeText={setCampaignBody}
-                    placeholder="Write your email body or announcement..."
+                    placeholder={t('admin.campaignBodyPlaceholder')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     multiline
                     numberOfLines={5}
@@ -418,12 +446,12 @@ export default function AdminNewsletterScreen() {
 
               {/* Test Email Row */}
               <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: isDark ? '#374151' : '#E5E7EB' }}>
-                <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>Send Test Email First (Optional)</Text>
+                <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>{t('admin.sendTestEmailLabel')}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                   <TextInput
                     value={testEmail}
                     onChangeText={setTestEmail}
-                    placeholder="your-email@domain.com"
+                    placeholder={t('admin.testEmailPlaceholder')}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                     style={[styles.textInput, { flex: 1, backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: isDark ? '#374151' : '#E5E7EB', color: isDark ? '#FFFFFF' : '#111827' }]}
                   />
@@ -432,7 +460,7 @@ export default function AdminNewsletterScreen() {
                     disabled={isSending}
                     style={[styles.testSendBtn, { borderColor: themeColors.border }]}
                   >
-                    <Text style={[styles.testSendBtnText, { color: themeColors.textPrimary }]}>Send Test</Text>
+                    <Text style={[styles.testSendBtnText, { color: themeColors.textPrimary }]}>{t('admin.sendTestBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -447,8 +475,10 @@ export default function AdminNewsletterScreen() {
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <>
-                    <Send size={16} color="#FFFFFF" />
-                    <Text style={styles.broadcastBtnText}>Broadcast to All Subscribers</Text>
+                    <View style={styles.btnIconBox}>
+                      <Send size={16} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.broadcastBtnText}>{t('admin.broadcastToAllBtn')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -518,16 +548,20 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
+    overflow: 'hidden',
     ...Shadows.card,
   },
   kpiTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 6,
   },
   kpiLabel: {
+    flex: 1,
     fontSize: 11,
     fontWeight: '600',
+    flexShrink: 1,
   },
   kpiIconBox: {
     width: 22,
@@ -535,11 +569,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   kpiValue: {
     fontSize: 16,
     fontWeight: '900',
-    marginTop: 4,
+    marginTop: 6,
   },
 
   sectionCard: {
@@ -640,20 +675,30 @@ const styles = StyleSheet.create({
   testSendBtnText: {
     fontSize: 11,
     fontWeight: '700',
+    textAlign: 'center',
   },
   broadcastBtn: {
     marginTop: 16,
     backgroundColor: AdminColors.primary,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: BorderRadius.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    overflow: 'hidden',
+  },
+  btnIconBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   broadcastBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });

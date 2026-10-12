@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
-import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard, RotateCcw } from 'lucide-react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Alert } from 'react-native';
+import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard, RotateCcw, CheckCircle2, Banknote } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { offersApi } from '../../api/offersApi';
+import { smartOrderApi } from '../../api/smartOrderApi';
+import { creditApi } from '../../api/creditApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
@@ -30,6 +32,8 @@ export default function StoreOrdersScreen() {
         return t.store.deliveryOutForDelivery;
       case 'Picked Up':
         return t.store.deliveryPickedUp;
+      case 'Ready':
+        return 'Ready for Pickup';
       case 'Accepted':
         return t.store.deliveryAccepted;
       case 'Assigned':
@@ -50,6 +54,44 @@ export default function StoreOrdersScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const [updating, setUpdating] = useState<string | null>(null);
   const [selectedDeliveryOrder, setSelectedDeliveryOrder] = useState<any>(null);
+
+  const [pickupModalOrder, setPickupModalOrder] = useState<any>(null);
+  const [pickupOtp, setPickupOtp] = useState('');
+  const [pickupOtpError, setPickupOtpError] = useState('');
+  const [verifyingPickupOtp, setVerifyingPickupOtp] = useState(false);
+
+  // Self Pickup inline OTP confirmation state
+  const [inlineOtpMap, setInlineOtpMap] = useState<Record<string, string>>({});
+  const [inlineVerifyingMap, setInlineVerifyingMap] = useState<Record<string, boolean>>({});
+  const [inlineErrorMap, setInlineErrorMap] = useState<Record<string, string>>({});
+  const [inlineSuccessMap, setInlineSuccessMap] = useState<Record<string, string>>({});
+
+  const handleInlinePickupDelivery = async (o: any) => {
+    const orderId = o.orderId || o._id;
+    const otp = (inlineOtpMap[orderId] || '').trim();
+    if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      setInlineErrorMap(prev => ({ ...prev, [orderId]: 'Please enter a valid 6-digit OTP' }));
+      return;
+    }
+    setInlineVerifyingMap(prev => ({ ...prev, [orderId]: true }));
+    setInlineErrorMap(prev => ({ ...prev, [orderId]: '' }));
+    setInlineSuccessMap(prev => ({ ...prev, [orderId]: '' }));
+    try {
+      const res = await smartOrderApi.confirmSelfPickupOtp(orderId, otp);
+      if (res.data?.success) {
+        setInlineSuccessMap(prev => ({ ...prev, [orderId]: 'Pickup confirmed! Order marked as Delivered.' }));
+        o.deliveryStatus = 'Delivered';
+        o.status = 'Delivered';
+        refresh();
+      } else {
+        setInlineErrorMap(prev => ({ ...prev, [orderId]: res.data?.message || 'Verification failed' }));
+      }
+    } catch (err: any) {
+      setInlineErrorMap(prev => ({ ...prev, [orderId]: err?.response?.data?.message || err?.message || 'Failed to verify OTP' }));
+    } finally {
+      setInlineVerifyingMap(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
 
   const ITEMS_PER_PAGE = 30;
 
@@ -82,6 +124,73 @@ export default function StoreOrdersScreen() {
       setErrorModal('Failed to update order status. Please try again.');
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const handleMarkReady = async (o: any) => {
+    setUpdating(o._id);
+    try {
+      const orderId = o.orderId || o._id;
+      await smartOrderApi.updateDeliveryStatusDirect(orderId, { status: 'Ready' });
+      refresh();
+    } catch (err: any) {
+      setErrorModal(err?.response?.data?.message || err?.message || 'Failed to update order to Ready for Pickup.');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleConfirmCod = (o: any) => {
+    Alert.alert(
+      'Confirm Cash Collection',
+      `Have you collected cash of ₹${o.totalAmount} for order #${(o.orderId || o._id).slice(-6).toUpperCase()}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm Collected',
+          style: 'default',
+          onPress: async () => {
+            setUpdating(o._id);
+            try {
+              const res = await creditApi.confirmCodCollection(o.orderId || o._id);
+              if (res.data?.success) {
+                refresh();
+              } else {
+                setErrorModal(res.data?.message || 'Failed to confirm COD collection.');
+              }
+            } catch (err: any) {
+              setErrorModal(err?.response?.data?.message || 'Failed to confirm COD collection.');
+            } finally {
+              setUpdating(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleVerifyPickupOtp = async () => {
+    if (!pickupModalOrder) return;
+    if (!pickupOtp || pickupOtp.trim().length !== 6) {
+      setPickupOtpError('Please enter a valid 6-digit OTP');
+      return;
+    }
+    setVerifyingPickupOtp(true);
+    setPickupOtpError('');
+    try {
+      const orderId = pickupModalOrder.orderId || pickupModalOrder._id;
+      const res = await smartOrderApi.verifyOrderOtp(orderId, pickupOtp.trim());
+      if (res.data?.success) {
+        setPickupModalOrder(null);
+        setPickupOtp('');
+        refresh();
+      } else {
+        setPickupOtpError(res.data?.message || 'Verification failed');
+      }
+    } catch (err: any) {
+      setPickupOtpError(err?.response?.data?.message || err?.message || 'Failed to verify OTP');
+    } finally {
+      setVerifyingPickupOtp(false);
     }
   };
 
@@ -196,13 +305,6 @@ export default function StoreOrdersScreen() {
                   {o.deliveryMethod === 'pickup' ? <Store size={10} color={isDark ? '#9CA3AF' : '#6B7280'} /> : <Truck size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />}
                   <Text style={styles.metaChipText}>{o.deliveryMethod === 'pickup' ? t.store.selfPickup : t.store.homeDelivery}</Text>
                 </View>
-                {o.orderOtp ? (
-                  <View style={[styles.metaChip, { backgroundColor: isDark ? '#0f2928' : '#F0FDFA', borderColor: isDark ? '#115e59' : '#99F6E4' }]}>
-                    <Text style={[styles.metaChipText, { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' }]}>
-                      Order OTP: {o.orderOtp}
-                    </Text>
-                  </View>
-                ) : null}
                 <View style={[styles.metaChip, (o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded') && { backgroundColor: isDark ? '#3b0764' : '#FAF5FF', borderColor: '#E9D5FF' }]}>
                   <CreditCard size={10} color={isDark ? '#9CA3AF' : '#6B7280'} />
                   <Text style={[styles.metaChipText, (o.paymentStatus === 'REFUNDED' || o.refundStatus === 'refunded') && { color: '#9333EA', fontWeight: '700' }]}>
@@ -261,19 +363,102 @@ export default function StoreOrdersScreen() {
             <View style={styles.footerRow}>
               <View style={styles.footerTop}>
                 <Text style={styles.orderId}>#{o._id.slice(-6).toUpperCase()}</Text>
-                {o.orderOtp ? (
-                  <View style={{ backgroundColor: isDark ? '#0f2928' : '#F0FDFA', borderWidth: 1, borderColor: isDark ? '#115e59' : '#99F6E4', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 }}>
-                      OTP: {o.orderOtp}
-                    </Text>
-                  </View>
-                ) : null}
                 {updating === o._id && <ActivityIndicator size="small" color={isDark ? '#2DD4BF' : CustomerColors.teal700} style={{ marginLeft: 6 }} />}
               </View>
               <Text style={styles.orderAmount}>₹{o.totalAmount}</Text>
 
               {/* Action Buttons Row */}
               <View style={styles.actionButtonsRow}>
+                {o.paymentMethod === 'cod' && (o.codDetails?.status === 'pending' || (!o.codDetails?.status && o.paymentStatus !== 'SUCCESS')) && (
+                  <TouchableOpacity
+                    style={styles.codCollectBtn}
+                    disabled={updating === o._id}
+                    onPress={() => handleConfirmCod(o)}
+                  >
+                    <Banknote size={12} color="#FFFFFF" />
+                    <Text style={styles.codCollectBtnText}>Confirm Cash (₹{o.totalAmount})</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Self Pickup OTP Confirmation Section — Only for eligible, not-yet-delivered Self Pickup orders */}
+                {o.deliveryMethod === 'pickup' &&
+                  o.status !== 'Delivered' &&
+                  o.deliveryStatus !== 'Delivered' &&
+                  o.deliveryStatus !== 'Picked Up' &&
+                  o.status !== 'Cancelled' && (
+                    <View style={styles.pickupSection}>
+                      <View style={styles.pickupSectionHeader}>
+                        <View style={styles.pickupHeaderLeft}>
+                          <Store size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                          <Text style={styles.pickupHeaderTitle}>Delivery Method: Self Pickup</Text>
+                        </View>
+                        <View style={styles.pickupStatusBadge}>
+                          <Text style={styles.pickupStatusBadgeText}>
+                            Status: {o.deliveryStatus === 'Ready' ? 'Ready for Pickup' : (translateStatus(o.deliveryStatus) || 'Ready for Pickup')}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Success notification */}
+                      {inlineSuccessMap[o.orderId || o._id] ? (
+                        <View style={styles.pickupSuccessBox}>
+                          <CheckCircle2 size={15} color="#059669" />
+                          <Text style={styles.pickupSuccessText}>{inlineSuccessMap[o.orderId || o._id]}</Text>
+                        </View>
+                      ) : null}
+
+                      {/* Error notification */}
+                      {inlineErrorMap[o.orderId || o._id] ? (
+                        <View style={styles.pickupErrorBox}>
+                          <AlertCircle size={15} color="#EF4444" />
+                          <Text style={styles.pickupErrorText}>{inlineErrorMap[o.orderId || o._id]}</Text>
+                        </View>
+                      ) : null}
+
+                      {/* OTP Input and Delivered Button */}
+                      {!inlineSuccessMap[o.orderId || o._id] ? (
+                        <View style={styles.pickupInputRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.pickupInputLabel}>Enter Customer OTP:</Text>
+                            <TextInput
+                              style={styles.pickupOtpTextInput}
+                              keyboardType="number-pad"
+                              maxLength={6}
+                              value={inlineOtpMap[o.orderId || o._id] || ''}
+                              onChangeText={(text) => {
+                                const clean = text.replace(/[^0-9]/g, '').slice(0, 6);
+                                setInlineOtpMap(prev => ({ ...prev, [o.orderId || o._id]: clean }));
+                                if (inlineErrorMap[o.orderId || o._id]) {
+                                  setInlineErrorMap(prev => ({ ...prev, [o.orderId || o._id]: '' }));
+                                }
+                              }}
+                              placeholder="[ _ _ _ _ _ _ ]"
+                              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                              editable={!inlineVerifyingMap[o.orderId || o._id]}
+                            />
+                          </View>
+                          <TouchableOpacity
+                            style={[
+                              styles.pickupDeliveredBtn,
+                              (inlineVerifyingMap[o.orderId || o._id] || (inlineOtpMap[o.orderId || o._id] || '').length !== 6) && styles.btnDisabled
+                            ]}
+                            disabled={inlineVerifyingMap[o.orderId || o._id] || (inlineOtpMap[o.orderId || o._id] || '').length !== 6}
+                            onPress={() => handleInlinePickupDelivery(o)}
+                          >
+                            {inlineVerifyingMap[o.orderId || o._id] ? (
+                              <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                              <>
+                                <CheckCircle2 size={13} color="#FFFFFF" />
+                                <Text style={styles.pickupDeliveredBtnText}>Delivered</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                    </View>
+                )}
+
                 {o.deliveryMethod !== 'pickup' &&
                   (o.deliveryMethod === 'delivery' || !!o.deliveryAddress) && (
                     <TouchableOpacity
@@ -301,7 +486,7 @@ export default function StoreOrdersScreen() {
                   )}
 
                 <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>{translateStatus(o.status)}</Text>
+                  <Text style={styles.statusBadgeText}>{translateStatus(o.deliveryStatus || o.status)}</Text>
                 </View>
               </View>
             </View>
@@ -316,6 +501,64 @@ export default function StoreOrdersScreen() {
           onClose={() => setSelectedDeliveryOrder(null)}
           onRefresh={refresh}
         />
+      )}
+
+      {/* Pickup OTP Verification Modal */}
+      {pickupModalOrder && (
+        <Modal
+          visible={!!pickupModalOrder}
+          transparent
+          animationType="fade"
+          onRequestClose={() => !verifyingPickupOtp && setPickupModalOrder(null)}
+        >
+          <View style={styles.errorModalBackdrop}>
+            <View style={styles.errorModalCard}>
+              <View style={[styles.errorModalIconWrap, { backgroundColor: isDark ? '#14532d' : '#DCFCE7' }]}>
+                <CheckCircle2 size={28} color="#16A34A" />
+              </View>
+              <Text style={styles.errorModalTitle}>Confirm Pickup</Text>
+              <Text style={styles.errorModalMsg}>
+                Enter customer's 6-digit OTP received via WhatsApp
+              </Text>
+              <TextInput
+                style={styles.otpInput}
+                value={pickupOtp}
+                onChangeText={(text) => {
+                  setPickupOtp(text.replace(/[^0-9]/g, ''));
+                  setPickupOtpError('');
+                }}
+                keyboardType="number-pad"
+                maxLength={6}
+                placeholder="• • • • • •"
+                placeholderTextColor={isDark ? '#4B5563' : '#9CA3AF'}
+                autoFocus
+              />
+              {pickupOtpError ? (
+                <Text style={styles.otpErrorText}>{pickupOtpError}</Text>
+              ) : null}
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalSecondaryBtn, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}
+                  disabled={verifyingPickupOtp}
+                  onPress={() => setPickupModalOrder(null)}
+                >
+                  <Text style={[styles.modalSecondaryBtnText, { color: isDark ? '#D1D5DB' : '#374151' }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalPrimaryBtn, (verifyingPickupOtp || pickupOtp.length !== 6) && { opacity: 0.6 }]}
+                  disabled={verifyingPickupOtp || pickupOtp.length !== 6}
+                  onPress={handleVerifyPickupOtp}
+                >
+                  {verifyingPickupOtp ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.modalPrimaryBtnText}>Verify Pickup</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
 
       {/* Custom Error Modal */}
@@ -372,7 +615,7 @@ const getStyles = (isDark: boolean) =>
     filterChipTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
     list: { padding: Spacing.md },
     empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
-    emptyTitle: { fontSize: FontSizes.base, fontWeight: '700', color: isDark ? '#9CA3AF' : '#374151' },
+    emptyTitle: { fontSize: FontSizes.base, fontWeight: '700', color: isDark ? '#9CA3AF' : '#374151', textAlign: 'center' },
     card: {
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
       borderRadius: BorderRadius.md,
@@ -464,5 +707,208 @@ const getStyles = (isDark: boolean) =>
     errorModalMsg: { fontSize: FontSizes.xs, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm },
     errorModalBtn: { width: '100%', backgroundColor: CustomerColors.primary, paddingVertical: 12, borderRadius: BorderRadius.md, alignItems: 'center' },
     errorModalBtnText: { color: '#fff', fontSize: FontSizes.xs, fontWeight: '700' },
+    pickupActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#2563EB',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+    },
+    pickupVerifyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#16A34A',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+    },
+    pickupActionBtnText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    codCollectBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#059669',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+    },
+    codCollectBtnText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    otpInput: {
+      width: '100%',
+      letterSpacing: 8,
+      textAlign: 'center',
+      fontSize: 22,
+      fontWeight: '800',
+      fontFamily: 'monospace',
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#D1D5DB',
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
+      color: isDark ? '#F9FAFB' : '#111827',
+      marginVertical: 10,
+    },
+    otpErrorText: {
+      color: '#EF4444',
+      fontSize: 11,
+      fontWeight: '600',
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    modalBtnRow: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+      marginTop: 8,
+    },
+    modalSecondaryBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      alignItems: 'center',
+    },
+    modalSecondaryBtnText: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+    },
+    modalPrimaryBtn: {
+      flex: 1,
+      backgroundColor: '#16A34A',
+      paddingVertical: 12,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+    },
+    modalPrimaryBtnText: {
+      color: '#fff',
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+    },
+    pickupSection: {
+      marginTop: 10,
+      padding: 12,
+      borderRadius: BorderRadius.md,
+      backgroundColor: isDark ? '#064e3b22' : '#F0FDFA',
+      borderWidth: 1,
+      borderColor: isDark ? '#134e4a' : '#CCFBF1',
+    },
+    pickupSectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    pickupHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    pickupHeaderTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+    },
+    pickupStatusBadge: {
+      backgroundColor: isDark ? '#134e4a' : '#E6FFFA',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.sm,
+      borderWidth: 1,
+      borderColor: isDark ? '#2DD4BF' : '#99F6E4',
+    },
+    pickupStatusBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: isDark ? '#5EEAD4' : '#0F766E',
+    },
+    pickupSuccessBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: '#05966915',
+      borderColor: '#05966935',
+      borderWidth: 1,
+      padding: 8,
+      borderRadius: BorderRadius.sm,
+      marginBottom: 6,
+    },
+    pickupSuccessText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#059669',
+    },
+    pickupErrorBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: '#EF444415',
+      borderColor: '#EF444435',
+      borderWidth: 1,
+      padding: 8,
+      borderRadius: BorderRadius.sm,
+      marginBottom: 6,
+    },
+    pickupErrorText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#EF4444',
+    },
+    pickupInputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 10,
+      marginTop: 4,
+    },
+    pickupInputLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: isDark ? '#D1D5DB' : '#4B5563',
+      marginBottom: 4,
+    },
+    pickupOtpTextInput: {
+      height: 40,
+      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#99F6E4',
+      borderRadius: BorderRadius.sm,
+      paddingHorizontal: 12,
+      fontSize: 16,
+      fontWeight: '800',
+      letterSpacing: 4,
+      textAlign: 'center',
+      color: isDark ? '#F9FAFB' : '#111827',
+      fontFamily: 'monospace',
+    },
+    pickupDeliveredBtn: {
+      height: 40,
+      paddingHorizontal: 16,
+      backgroundColor: '#0D9488',
+      borderRadius: BorderRadius.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+    },
+    pickupDeliveredBtnText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    btnDisabled: {
+      opacity: 0.5,
+    },
   });
 

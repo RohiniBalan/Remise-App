@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { Layers, Plus, Trash2, Search, Lock, Tag, ShieldCheck } from 'lucide-react-native';
 import { adminCategoryApi } from '../../api/adminApi';
 import { AdminColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
@@ -173,7 +173,11 @@ export default function AdminDynamicContentScreen() {
         </View>
 
         {/* Filter Chips */}
-        <View style={styles.filterRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
           <TouchableOpacity
             style={[styles.filterChip, isDark && styles.filterChipDark, activeFilter === 'ALL' && styles.filterChipActive]}
             onPress={() => setActiveFilter('ALL')}
@@ -198,7 +202,7 @@ export default function AdminDynamicContentScreen() {
               {t('admin.customTab')} ({customCount})
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
 
       {/* Categories Grid */}
@@ -342,7 +346,9 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.xs,
+    paddingRight: Spacing.md,
   },
   filterChip: {
     paddingHorizontal: Spacing.md,

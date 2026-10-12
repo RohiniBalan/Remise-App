@@ -27,6 +27,7 @@ import {
 import { getAdminColors, AdminColors, Spacing, BorderRadius, FontSizes, Shadows } from '../../styles/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { adminStoreApi, adminStatsApi, adminOrderApi, adminProductApi } from '../../api/adminApi';
+import { useTranslation, translateCategory } from '../../i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -83,6 +84,7 @@ interface BackendOrder {
 export default function AdminAnalyticsScreen() {
   const { isDark } = useTheme();
   const themeColors = getAdminColors(isDark);
+  const { t, language } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<'area' | 'store'>('area');
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '3m' | '1y'>('30d');
@@ -493,24 +495,24 @@ export default function AdminAnalyticsScreen() {
       {/* Top Header & Time Filter */}
       <View style={[styles.topBar, { backgroundColor: themeColors.sidebarBg, borderBottomColor: themeColors.border }]}>
         <View style={styles.topBarLeft}>
-          <Text style={[styles.screenTitle, { color: themeColors.textPrimary }]}>Analytics & Insights</Text>
-          <Text style={[styles.screenSub, { color: themeColors.textSecondary }]}>Real Database Analytics</Text>
+          <Text style={[styles.screenTitle, { color: themeColors.textPrimary }]}>{t('admin.analyticsInsights')}</Text>
+          <Text style={[styles.screenSub, { color: themeColors.textSecondary }]}>{t('admin.realDatabaseAnalytics')}</Text>
         </View>
 
         {/* Time Filter Chips */}
         <View style={styles.timeFilterRow}>
-          {(['7d', '30d', '3m', '1y'] as const).map(t => (
+          {(['7d', '30d', '3m', '1y'] as const).map(tr => (
             <TouchableOpacity
-              key={t}
-              onPress={() => setTimeRange(t)}
+              key={tr}
+              onPress={() => setTimeRange(tr)}
               style={[
                 styles.timeChip,
-                timeRange === t && { backgroundColor: AdminColors.primary },
-                { borderColor: timeRange === t ? AdminColors.primary : themeColors.border },
+                timeRange === tr && { backgroundColor: AdminColors.primary },
+                { borderColor: timeRange === tr ? AdminColors.primary : themeColors.border },
               ]}
             >
-              <Text style={[styles.timeChipText, timeRange === t ? { color: '#FFFFFF', fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-                {t.toUpperCase()}
+              <Text style={[styles.timeChipText, timeRange === tr ? { color: '#FFFFFF', fontWeight: '700' } : { color: themeColors.textSecondary }]}>
+                {tr.toUpperCase()}
               </Text>
             </TouchableOpacity>
           ))}
@@ -525,20 +527,28 @@ export default function AdminAnalyticsScreen() {
         <TouchableOpacity
           onPress={() => setActiveTab('area')}
           style={[styles.modeTab, activeTab === 'area' && styles.modeTabActive]}
+          activeOpacity={0.7}
         >
-          <MapPin size={14} color={activeTab === 'area' ? AdminColors.primary : themeColors.textSecondary} />
-          <Text style={[styles.modeTabText, activeTab === 'area' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-            Regional & Area Sales
+          <MapPin size={14} color={activeTab === 'area' ? AdminColors.primary : themeColors.textSecondary} style={{ flexShrink: 0 }} />
+          <Text
+            numberOfLines={2}
+            style={[styles.modeTabText, activeTab === 'area' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}
+          >
+            {t('admin.regionalAreaSales')}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => setActiveTab('store')}
           style={[styles.modeTab, activeTab === 'store' && styles.modeTabActive]}
+          activeOpacity={0.7}
         >
-          <Store size={14} color={activeTab === 'store' ? AdminColors.primary : themeColors.textSecondary} />
-          <Text style={[styles.modeTabText, activeTab === 'store' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}>
-            Store-Wise Performance
+          <Store size={14} color={activeTab === 'store' ? AdminColors.primary : themeColors.textSecondary} style={{ flexShrink: 0 }} />
+          <Text
+            numberOfLines={2}
+            style={[styles.modeTabText, activeTab === 'store' ? { color: AdminColors.primary, fontWeight: '700' } : { color: themeColors.textSecondary }]}
+          >
+            {t('admin.storeWisePerformance')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -552,40 +562,40 @@ export default function AdminAnalyticsScreen() {
         <View style={styles.kpiGrid}>
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Total Sales</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2}>{t('admin.totalSales')}</Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#ECFDF5' }]}>
                 <IndianRupee size={14} color="#059669" />
               </View>
             </View>
             <Text style={[styles.kpiValue, { color: themeColors.textPrimary }]}>₹{(totalRevenue / 100000).toFixed(1)}L</Text>
-            <Text style={styles.kpiTrend}>Live Synced</Text>
+            <Text style={styles.kpiTrend}>{t('admin.liveSynced')}</Text>
           </View>
 
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Units Sold</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2}>{t('admin.unitsSold')}</Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#EFF6FF' }]}>
                 <ShoppingBag size={14} color="#2563EB" />
               </View>
             </View>
             <Text style={[styles.kpiValue, { color: themeColors.textPrimary }]}>{totalUnits.toLocaleString('en-IN')}</Text>
-            <Text style={[styles.kpiTrend, { color: '#2563EB' }]}>Real Orders</Text>
+            <Text style={[styles.kpiTrend, { color: '#2563EB' }]}>{t('admin.realOrders')}</Text>
           </View>
 
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Stores</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2}>{t('admin.storesLabel')}</Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#FAF5FF' }]}>
                 <Store size={14} color="#9333EA" />
               </View>
             </View>
             <Text style={[styles.kpiValue, { color: themeColors.textPrimary }]}>{rawStores.length}</Text>
-            <Text style={[styles.kpiTrend, { color: '#9333EA' }]}>Active Partners</Text>
+            <Text style={[styles.kpiTrend, { color: '#9333EA' }]}>{t('admin.activePartners')}</Text>
           </View>
 
           <View style={[styles.kpiCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
             <View style={styles.kpiTop}>
-              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]}>Top Region</Text>
+              <Text style={[styles.kpiLabel, { color: themeColors.textSecondary }]} numberOfLines={2}>{t('admin.topRegion')}</Text>
               <View style={[styles.kpiIconBox, { backgroundColor: '#FEF2F2' }]}>
                 <Flame size={14} color="#EF4444" />
               </View>
@@ -593,7 +603,7 @@ export default function AdminAnalyticsScreen() {
             <Text style={[styles.kpiValue, { color: themeColors.textPrimary, fontSize: 13 }]} numberOfLines={1}>
               {areaSummaryList[0]?.area || 'Tamil Nadu'}
             </Text>
-            <Text style={[styles.kpiTrend, { color: '#EF4444' }]}>Rank #1</Text>
+            <Text style={[styles.kpiTrend, { color: '#EF4444' }]}>{t('admin.rankNumber', { rank: 1 })}</Text>
           </View>
         </View>
 
@@ -604,10 +614,11 @@ export default function AdminAnalyticsScreen() {
           <View style={{ gap: Spacing.md }}>
             {/* Area Filter Scroll */}
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
-              <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>Select Real Area / City</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+              <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>{t('admin.selectRealArea')}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ paddingRight: 12 }}>
                 {areaList.map(area => {
                   const active = selectedArea === area;
+                  const displayArea = area === 'All Areas' ? t('admin.allAreas') : area;
                   return (
                     <TouchableOpacity
                       key={area}
@@ -620,7 +631,7 @@ export default function AdminAnalyticsScreen() {
                       ]}
                     >
                       <Text style={[styles.areaChipText, active ? { color: '#FFFFFF', fontWeight: '700' } : { color: isDark ? '#D1D5DB' : '#374151' }]}>
-                        {area}
+                        {displayArea}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -633,7 +644,7 @@ export default function AdminAnalyticsScreen() {
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder="Filter real product in this area..."
+                  placeholder={t('admin.filterProductInArea')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
                 />
@@ -643,13 +654,15 @@ export default function AdminAnalyticsScreen() {
             {/* Highly Sold Products in Area */}
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
               <View style={styles.cardHeaderRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Flame size={18} color="#EF4444" />
-                  <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>Highly Sold in {selectedArea}</Text>
+                <View style={styles.cardHeaderTitleWrap}>
+                  <Flame size={18} color="#EF4444" style={{ flexShrink: 0 }} />
+                  <Text style={[styles.cardTitle, { color: themeColors.textPrimary, flex: 1 }]} numberOfLines={2}>
+                    {t('admin.highlySoldIn', { area: selectedArea === 'All Areas' ? t('admin.allAreas') : selectedArea })}
+                  </Text>
                 </View>
 
                 {/* Top-N Quick Chips */}
-                <View style={{ flexDirection: 'row', gap: 4 }}>
+                <View style={styles.chipsRow}>
                   {(['10', '25', '50'] as const).map(lim => (
                     <TouchableOpacity
                       key={lim}
@@ -662,14 +675,14 @@ export default function AdminAnalyticsScreen() {
                       ]}
                     >
                       <Text style={[styles.miniLimitText, topLimit === lim ? { color: '#FFFFFF', fontWeight: '700' } : { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
-                        Top {lim}
+                        {t('admin.topLimit', { limit: lim })}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
               <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>
-                Ranked by real database purchase quantities and store inventory movements
+                {t('admin.rankedByMovements')}
               </Text>
 
               <View style={{ marginTop: 12, gap: 10 }}>
@@ -695,11 +708,11 @@ export default function AdminAnalyticsScreen() {
                             {item.name}
                           </Text>
                           <Text style={[styles.productCat, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                            {item.category} • {item.area}
+                            {translateCategory(item.category, language) || 'General'} • {item.area}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.productUnits}>{item.unitsSold} units</Text>
+                          <Text style={styles.productUnits}>{t('admin.unitsCount', { count: item.unitsSold.toLocaleString('en-IN') })}</Text>
                           <Text style={[styles.productRevenue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                             ₹{item.revenue.toLocaleString('en-IN')}
                           </Text>
@@ -707,15 +720,15 @@ export default function AdminAnalyticsScreen() {
                       </View>
 
                       <View style={[styles.productCardBottom, { borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Store size={11} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, marginRight: 8 }}>
+                          <Store size={11} color={isDark ? '#9CA3AF' : '#6B7280'} style={{ flexShrink: 0 }} />
                           <Text style={[styles.productStore, { color: isDark ? '#D1D5DB' : '#4B5563' }]} numberOfLines={1}>
                             {item.storeName}
                           </Text>
                         </View>
                         <View style={styles.trendPill}>
                           <Text style={styles.trendPillText}>
-                            {item.demandTrend === 'viral' ? '🔥 Top Seller' : item.demandTrend === 'high' ? '⚡ High Demand' : '📈 Steady'}
+                            {item.demandTrend === 'viral' ? `🔥 ${t('admin.topSellerTrend')}` : item.demandTrend === 'high' ? `⚡ ${t('admin.highDemandTrend')}` : `📈 ${t('admin.steadyTrend')}`}
                           </Text>
                         </View>
                       </View>
@@ -733,11 +746,11 @@ export default function AdminAnalyticsScreen() {
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: page === 1 ? 0.4 : 1 }]}
                   >
                     <ChevronLeft size={16} color={themeColors.textPrimary} />
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Prev</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.prevPage')}</Text>
                   </TouchableOpacity>
 
                   <Text style={[styles.pageIndicatorText, { color: themeColors.textSecondary }]}>
-                    Page <Text style={{ fontWeight: '800', color: themeColors.textPrimary }}>{page}</Text> of {totalPages}
+                    {t('admin.pageOf', { current: page, total: totalPages })}
                   </Text>
 
                   <TouchableOpacity
@@ -745,7 +758,7 @@ export default function AdminAnalyticsScreen() {
                     disabled={page === totalPages}
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: page === totalPages ? 0.4 : 1 }]}
                   >
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Next</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.nextPage')}</Text>
                     <ChevronRight size={16} color={themeColors.textPrimary} />
                   </TouchableOpacity>
                 </View>
@@ -755,15 +768,15 @@ export default function AdminAnalyticsScreen() {
             {/* Regional Demand Matrix with Scalability Controls */}
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
               <View style={styles.cardHeaderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>Regional Area Demand Matrix</Text>
+                <View style={styles.cardHeaderTitleWrap}>
+                  <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>{t('admin.regionalAreaDemandMatrix')}</Text>
                   <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>
-                    Tap any card to inspect products in that region
+                    {t('admin.tapCardInspect')}
                   </Text>
                 </View>
 
                 {/* Quick Limit */}
-                <View style={{ flexDirection: 'row', gap: 4 }}>
+                <View style={styles.chipsRow}>
                   {(['6', '12', 'all'] as const).map(lim => (
                     <TouchableOpacity
                       key={lim}
@@ -776,7 +789,7 @@ export default function AdminAnalyticsScreen() {
                       ]}
                     >
                       <Text style={[styles.miniLimitText, regionLimit === lim ? { color: '#FFFFFF', fontWeight: '700' } : { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
-                        {lim === 'all' ? 'All' : `Top ${lim}`}
+                        {lim === 'all' ? t('admin.allFilter') : t('admin.topLimit', { limit: lim })}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -789,7 +802,7 @@ export default function AdminAnalyticsScreen() {
                 <TextInput
                   value={regionSearch}
                   onChangeText={setRegionSearch}
-                  placeholder="Filter regions or products..."
+                  placeholder={t('admin.filterRegionsProducts')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
                 />
@@ -824,19 +837,19 @@ export default function AdminAnalyticsScreen() {
                             </Text>
                           </View>
                           <Text style={[styles.regionMatrixStoreCount, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                            {areaItem.storesCount} Registered Store{areaItem.storesCount > 1 ? 's' : ''}
+                            {areaItem.storesCount === 1 ? t('admin.registeredStoreSingle') : t('admin.registeredStoresCount', { count: areaItem.storesCount })}
                           </Text>
                         </View>
                         <View style={[styles.regionRankPill, { backgroundColor: globalRank === 1 ? '#EF4444' : (isDark ? '#374151' : '#E5E7EB') }]}>
                           <Text style={[styles.regionRankText, { color: globalRank === 1 ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#4B5563') }]}>
-                            Rank #{globalRank}
+                            {t('admin.rankNumber', { rank: globalRank })}
                           </Text>
                         </View>
                       </View>
 
                       <View style={[styles.regionMatrixBody, { borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.regionItemLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>#1 Highly Sold Item:</Text>
+                          <Text style={[styles.regionItemLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.highlySoldItemNumber1')}</Text>
                           <Text style={styles.regionItemValue} numberOfLines={1}>
                             {areaItem.topProduct}
                           </Text>
@@ -845,15 +858,15 @@ export default function AdminAnalyticsScreen() {
 
                       <View style={styles.regionMatrixFooter}>
                         <View>
-                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Area Revenue</Text>
+                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.areaRevenue')}</Text>
                           <Text style={[styles.regionMetricValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                             ₹{Math.round(areaItem.totalRevenue).toLocaleString('en-IN')}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Units Sold</Text>
+                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.unitsSold')}</Text>
                           <Text style={[styles.regionMetricValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                            {areaItem.totalUnits.toLocaleString('en-IN')} units
+                            {t('admin.unitsCount', { count: areaItem.totalUnits.toLocaleString('en-IN') })}
                           </Text>
                         </View>
                       </View>
@@ -871,11 +884,11 @@ export default function AdminAnalyticsScreen() {
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: regionPage === 1 ? 0.4 : 1 }]}
                   >
                     <ChevronLeft size={16} color={themeColors.textPrimary} />
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Prev</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.prevPage')}</Text>
                   </TouchableOpacity>
 
                   <Text style={[styles.pageIndicatorText, { color: themeColors.textSecondary }]}>
-                    Page <Text style={{ fontWeight: '800', color: themeColors.textPrimary }}>{regionPage}</Text> of {totalRegionPages}
+                    {t('admin.pageOf', { current: regionPage, total: totalRegionPages })}
                   </Text>
 
                   <TouchableOpacity
@@ -883,7 +896,7 @@ export default function AdminAnalyticsScreen() {
                     disabled={regionPage === totalRegionPages}
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: regionPage === totalRegionPages ? 0.4 : 1 }]}
                   >
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Next</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.nextPage')}</Text>
                     <ChevronRight size={16} color={themeColors.textPrimary} />
                   </TouchableOpacity>
                 </View>
@@ -898,15 +911,15 @@ export default function AdminAnalyticsScreen() {
             {/* Store Directory Cards Section */}
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
               <View style={styles.cardHeaderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>Store Performance Directory</Text>
+                <View style={styles.cardHeaderTitleWrap}>
+                  <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>{t('admin.storePerformanceDirectory')}</Text>
                   <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>
-                    Tap any store card to view full analytics
+                    {t('admin.tapStoreCardView')}
                   </Text>
                 </View>
 
                 {/* Quick Limit */}
-                <View style={{ flexDirection: 'row', gap: 4 }}>
+                <View style={styles.chipsRow}>
                   {(['6', '12', 'all'] as const).map(lim => (
                     <TouchableOpacity
                       key={lim}
@@ -919,7 +932,7 @@ export default function AdminAnalyticsScreen() {
                       ]}
                     >
                       <Text style={[styles.miniLimitText, storeLimit === lim ? { color: '#FFFFFF', fontWeight: '700' } : { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
-                        {lim === 'all' ? 'All' : `Top ${lim}`}
+                        {lim === 'all' ? t('admin.allFilter') : t('admin.topLimit', { limit: lim })}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -932,7 +945,7 @@ export default function AdminAnalyticsScreen() {
                 <TextInput
                   value={storeSearch}
                   onChangeText={setStoreSearch}
-                  placeholder="Search store name, city..."
+                  placeholder={t('admin.searchStoreNameCity')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
                 />
@@ -954,15 +967,15 @@ export default function AdminAnalyticsScreen() {
                 <View style={styles.regionMatrixTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.regionMatrixName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                      All Stores (Network Aggregation)
+                      {t('admin.allStoresNetwork')}
                     </Text>
                     <Text style={[styles.regionMatrixStoreCount, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                      Consolidated stats across {rawStores.length} stores
+                      {t('admin.consolidatedAcrossStores', { count: rawStores.length })}
                     </Text>
                   </View>
                   {selectedStore === 'all' && (
                     <View style={[styles.regionRankPill, { backgroundColor: AdminColors.primary }]}>
-                      <Text style={[styles.regionRankText, { color: '#FFFFFF' }]}>Active View</Text>
+                      <Text style={[styles.regionRankText, { color: '#FFFFFF' }]}>{t('admin.activeView')}</Text>
                     </View>
                   )}
                 </View>
@@ -995,33 +1008,33 @@ export default function AdminAnalyticsScreen() {
                             </Text>
                           </View>
                           <Text style={[styles.regionMatrixStoreCount, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                            {store.address?.city || 'Tamil Nadu'} • {store.category || 'General'}
+                            {store.address?.city || 'Tamil Nadu'} • {translateCategory(store.category, language) || 'General'}
                           </Text>
                         </View>
                         <View style={[styles.regionRankPill, { backgroundColor: isSelected ? AdminColors.primary : (isDark ? '#374151' : '#E5E7EB') }]}>
                           <Text style={[styles.regionRankText, { color: isSelected ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#4B5563') }]}>
-                            {isSelected ? 'Selected' : `Store #${globalRank}`}
+                            {isSelected ? t('admin.selected') : t('admin.storeNumber', { rank: globalRank })}
                           </Text>
                         </View>
                       </View>
 
                       <View style={styles.regionMatrixFooter}>
                         <View>
-                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Revenue</Text>
+                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.revenueLabel')}</Text>
                           <Text style={[styles.regionMetricValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                             ₹{Math.round(store.computedRevenue).toLocaleString('en-IN')}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'center' }}>
-                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Orders</Text>
+                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.ordersLabel')}</Text>
                           <Text style={[styles.regionMetricValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                             {store.computedOrders}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Catalog</Text>
+                          <Text style={[styles.regionMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.catalogLabel')}</Text>
                           <Text style={[styles.regionMetricValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                            {store.catalogCount} items
+                            {t('admin.itemsCount', { count: store.catalogCount })}
                           </Text>
                         </View>
                       </View>
@@ -1039,11 +1052,11 @@ export default function AdminAnalyticsScreen() {
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: storePage === 1 ? 0.4 : 1 }]}
                   >
                     <ChevronLeft size={16} color={themeColors.textPrimary} />
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Prev</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.prevPage')}</Text>
                   </TouchableOpacity>
 
                   <Text style={[styles.pageIndicatorText, { color: themeColors.textSecondary }]}>
-                    Page <Text style={{ fontWeight: '800', color: themeColors.textPrimary }}>{storePage}</Text> of {totalStorePages}
+                    {t('admin.pageOf', { current: storePage, total: totalStorePages })}
                   </Text>
 
                   <TouchableOpacity
@@ -1051,7 +1064,7 @@ export default function AdminAnalyticsScreen() {
                     disabled={storePage === totalStorePages}
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: storePage === totalStorePages ? 0.4 : 1 }]}
                   >
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Next</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.nextPage')}</Text>
                     <ChevronRight size={16} color={themeColors.textPrimary} />
                   </TouchableOpacity>
                 </View>
@@ -1061,32 +1074,32 @@ export default function AdminAnalyticsScreen() {
             {/* Store Specific Details Card */}
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
               <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>
-                {currentStore ? currentStore.name : 'Network-Wide Performance'}
+                {currentStore ? currentStore.name : t('admin.networkWidePerformance')}
               </Text>
               <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>
-                {currentStore ? `Location: ${currentStore.address?.city || 'Tamil Nadu'} • Owner: ${currentStore.ownerName || 'Merchant'}` : 'Consolidated performance from database'}
+                {currentStore ? t('admin.storeLocationOwner', { city: currentStore.address?.city || 'Tamil Nadu', owner: currentStore.ownerName || 'Merchant' }) : t('admin.consolidatedFromDb')}
               </Text>
 
               {/* Store Metrics */}
               <View style={{ marginTop: 14, gap: 10 }}>
                 <View style={[styles.storeMetricRow, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
-                  <Text style={[styles.storeMetricKey, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Store Revenue</Text>
+                  <Text style={[styles.storeMetricKey, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.storeRevenue')}</Text>
                   <Text style={[styles.storeMetricVal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                     ₹{Math.round(currentStore ? (Number(currentStore.totalRevenue) || 0) : totalRevenue).toLocaleString('en-IN')}
                   </Text>
                 </View>
 
                 <View style={[styles.storeMetricRow, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
-                  <Text style={[styles.storeMetricKey, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Total Orders</Text>
+                  <Text style={[styles.storeMetricKey, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.totalOrdersLabel')}</Text>
                   <Text style={[styles.storeMetricVal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                     {(currentStore ? (Number(currentStore.totalOrders) || 0) : (rawOrders.length || rawStores.length)).toLocaleString('en-IN')}
                   </Text>
                 </View>
 
                 <View style={[styles.storeMetricRow, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
-                  <Text style={[styles.storeMetricKey, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Active Catalog</Text>
+                  <Text style={[styles.storeMetricKey, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('admin.activeCatalogLabel')}</Text>
                   <Text style={[styles.storeMetricVal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                    {currentStoreProducts.length} Items
+                    {t('admin.itemsCount', { count: currentStoreProducts.length })}
                   </Text>
                 </View>
               </View>
@@ -1095,7 +1108,7 @@ export default function AdminAnalyticsScreen() {
             {/* Store Top Products List */}
             <View style={[styles.sectionCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
               <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>
-                Products ({currentStore ? currentStore.name : 'All Stores'})
+                {currentStore ? t('admin.productsOfStore', { name: currentStore.name }) : t('admin.productsAllStores')}
               </Text>
 
               <View style={{ marginTop: 12, gap: 8 }}>
@@ -1118,11 +1131,11 @@ export default function AdminAnalyticsScreen() {
                             {p.title}
                           </Text>
                           <Text style={[styles.productCat, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                            {p.category || 'General'} • Stock: {p.totalStock ?? 0}
+                            {translateCategory(p.category, language) || 'General'} • {t('admin.stockCountLabel', { count: p.totalStock ?? 0 })}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.productUnits}>{p.computedSoldUnits.toLocaleString('en-IN')} sold</Text>
+                          <Text style={styles.productUnits}>{t('admin.soldCountLabel', { count: p.computedSoldUnits.toLocaleString('en-IN') })}</Text>
                           <Text style={[styles.productRevenue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                             ₹{Math.round(p.computedRevenue).toLocaleString('en-IN')}
                           </Text>
@@ -1142,11 +1155,11 @@ export default function AdminAnalyticsScreen() {
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: storeProdPage === 1 ? 0.4 : 1 }]}
                   >
                     <ChevronLeft size={16} color={themeColors.textPrimary} />
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Prev</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.prevPage')}</Text>
                   </TouchableOpacity>
 
                   <Text style={[styles.pageIndicatorText, { color: themeColors.textSecondary }]}>
-                    Page <Text style={{ fontWeight: '800', color: themeColors.textPrimary }}>{storeProdPage}</Text> of {totalStoreProdPages}
+                    {t('admin.pageOf', { current: storeProdPage, total: totalStoreProdPages })}
                   </Text>
 
                   <TouchableOpacity
@@ -1154,7 +1167,7 @@ export default function AdminAnalyticsScreen() {
                     disabled={storeProdPage === totalStoreProdPages}
                     style={[styles.pageBtn, { borderColor: themeColors.border, opacity: storeProdPage === totalStoreProdPages ? 0.4 : 1 }]}
                   >
-                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>Next</Text>
+                    <Text style={[styles.pageBtnText, { color: themeColors.textPrimary }]}>{t('admin.nextPage')}</Text>
                     <ChevronRight size={16} color={themeColors.textPrimary} />
                   </TouchableOpacity>
                 </View>
@@ -1221,6 +1234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -1230,6 +1244,8 @@ const styles = StyleSheet.create({
   modeTabText: {
     fontSize: 12,
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
   },
 
   kpiGrid: {
@@ -1243,16 +1259,20 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
+    overflow: 'hidden',
     ...Shadows.card,
   },
   kpiTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 6,
   },
   kpiLabel: {
     fontSize: 11,
     fontWeight: '600',
+    flex: 1,
+    flexShrink: 1,
   },
   kpiIconBox: {
     width: 24,
@@ -1260,6 +1280,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   kpiValue: {
     fontSize: 16,
@@ -1277,6 +1298,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
+    overflow: 'hidden',
     ...Shadows.card,
   },
   cardTitle: {
@@ -1291,6 +1313,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    rowGap: 8,
+  },
+  cardHeaderTitleWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 140,
+    marginRight: 6,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
   },
   miniLimitChip: {
     paddingHorizontal: 7,
@@ -1381,7 +1419,8 @@ const styles = StyleSheet.create({
   },
   productStore: {
     fontSize: 11,
-    maxWidth: 160,
+    flex: 1,
+    marginRight: 6,
   },
   trendPill: {
     backgroundColor: 'rgba(239, 68, 68, 0.12)',

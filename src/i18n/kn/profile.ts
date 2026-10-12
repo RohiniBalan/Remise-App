@@ -1,6 +1,7 @@
 import { TranslationSchema } from '../types';
 
 export const profile: TranslationSchema['profile'] = {
+  title: 'ನನ್ನ ಪ್ರೊಫೈಲ್',
   myProfileTitle: 'ನನ್ನ ಪ್ರೊಫೈಲ್',
   mySettingsTitle: 'ನನ್ನ ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
   homeBreadcrumb: 'ಮುಖಪುಟ',

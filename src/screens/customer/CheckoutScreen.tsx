@@ -24,9 +24,13 @@ import {
   Lock,
   Truck,
   Check,
+  Banknote,
+  AlertTriangle,
+  FileText,
 } from 'lucide-react-native';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { creditApi } from '../../api/creditApi';
 import {
   paymentApi,
   PAYMENT_RETURN_SENTINEL,
@@ -46,6 +50,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useTranslation, translateProductName } from '../../i18n';
 import { navigateToAuthFlow } from '../../utils/authGuard';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
+import { usePlatformFee } from '../../utils/platformFee';
 
 const emptyAddress = (): AddressData => ({
   country: 'India',
@@ -61,7 +66,7 @@ const emptyAddress = (): AddressData => ({
 
 export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
   const { isDark } = useTheme();
   const { user, token } = useAuth();
   const {
@@ -96,14 +101,52 @@ export default function CheckoutScreen() {
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>(
     'delivery',
   );
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod' | 'credit'>('razorpay');
+  const [creditEligibility, setCreditEligibility] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
   const itemsToCheckout = buyNowItem ? [buyNowItem] : cart;
+  const primaryStoreId = useMemo(() => {
+    return (itemsToCheckout as any[]).find(i => i.storeId)?.storeId || null;
+  }, [itemsToCheckout]);
+
+  const primaryStoreName = useMemo(() => {
+    return ((itemsToCheckout as any[]).find(i => i.storeName)?.storeName as string) || 'Vendor Store';
+  }, [itemsToCheckout]);
+
   const subtotal = useMemo(
     () => itemsToCheckout.reduce((sum, i) => sum + i.price * i.quantity, 0),
     [itemsToCheckout],
+  );
+  const platformFee = usePlatformFee(subtotal);
+  const deliveryFee = deliveryMethod === 'pickup' ? 0 : (subtotal >= 499 ? 0 : 49);
+  const totalPayable = subtotal + platformFee + deliveryFee;
+
+  useEffect(() => {
+    if (!primaryStoreId || !token) {
+      setCreditEligibility(null);
+      return;
+    }
+    creditApi
+      .checkEligibility(primaryStoreId, totalPayable, paymentMethod)
+      .then(res => {
+        if (res.data?.success) {
+          setCreditEligibility(res.data.data);
+        }
+      })
+      .catch(err => {
+        const d = err.response?.data;
+        if (d) {
+          setCreditEligibility(d);
+        }
+      });
+  }, [primaryStoreId, totalPayable, paymentMethod, token]);
+
+  const hasStoreDebt = Boolean(
+    creditEligibility &&
+    creditEligibility.outstandingBalance &&
+    creditEligibility.outstandingBalance > 0
   );
 
   const isEmailValid = (email: string) =>
@@ -126,7 +169,7 @@ export default function CheckoutScreen() {
       billingAddress.pinCode.trim() !== '' &&
       isPhoneValid(billingAddress.phone));
 
-  const isFormValid = isShippingValid && isBillingValid;
+  const isFormValid = isShippingValid && isBillingValid && !hasStoreDebt;
 
   const handlePayment = async () => {
     if (!token || !user) {
@@ -135,7 +178,7 @@ export default function CheckoutScreen() {
     }
 
     if (!isEmailValid(contactEmail)) {
-      setError('Please enter a valid email address.');
+      setError(t('checkout.validEmailError') || 'Please enter a valid email address.');
       setCurrentStep(1);
       return;
     }
@@ -162,7 +205,9 @@ export default function CheckoutScreen() {
 
     try {
       const res = await paymentApi.initiate({
-        amount: subtotal,
+        amount: totalPayable,
+        platformFee,
+        deliveryFee,
         userId: user?._id ?? null,
         redirectUrl: PAYMENT_RETURN_SENTINEL,
         cartItems: itemsToCheckout.map(i => ({
@@ -179,10 +224,22 @@ export default function CheckoutScreen() {
           ? shippingAddress
           : billingAddress,
         deliveryMethod,
-        paymentMethod: 'razorpay',
+        paymentMethod,
+        storeId: primaryStoreId,
+        storeName: primaryStoreName,
       });
 
       const data = res.data;
+      if (paymentMethod === 'cod' || paymentMethod === 'credit') {
+        if (data.orderId) {
+          creditApi.sendOrderConfirmedWhatsApp(data.orderId).catch(() => {});
+        }
+        if (!buyNowItem) clearCart();
+        setIsProcessing(false);
+        navigation.navigate('OrderDetail', { orderId: data.orderId });
+        return;
+      }
+
       if (data.success && (data.razorpayOrderId || data.orderId)) {
         const options = {
           provider: 'razorpay',
@@ -190,7 +247,7 @@ export default function CheckoutScreen() {
           razorpayOrderId: data.razorpayOrderId,
           keyId: data.keyId,
           amount: data.amount,
-          amountPaise: data.amountPaise || Math.round(subtotal * 100),
+          amountPaise: data.amountPaise || Math.round(totalPayable * 100),
           currency: data.currency || 'INR',
           name: data.name || 'Remise Marketplace',
           description: data.description || `Order #${data.orderId}`,
@@ -229,7 +286,7 @@ export default function CheckoutScreen() {
         <BrandHeader />
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>
-            There is nothing to checkout.
+            {t('checkout.emptyCartTitle') || 'There is nothing to checkout.'}
           </Text>
           <TouchableOpacity
             style={styles.emptyBtn}
@@ -237,7 +294,9 @@ export default function CheckoutScreen() {
               navigation.navigate('CustomerTabs', { screen: 'Categories' })
             }
           >
-            <Text style={styles.emptyBtnText}>Return to Shop</Text>
+            <Text style={styles.emptyBtnText}>
+              {t('checkout.returnToShop') || 'Return to Shop'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -270,18 +329,17 @@ export default function CheckoutScreen() {
             color={isDark ? '#FFFFFF' : CustomerColors.black}
           />
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: Spacing.xs,
-            }}
+        <View style={{ flex: 1, justifyContent: 'center', marginRight: Spacing.xs }}>
+          <Text
+            style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
           >
-            <Text style={[styles.headerTitle, isDark && { color: '#FFFFFF' }]}>
-              Secure Checkout
-            </Text>
-            {buyNowItem ? (
+            {t('checkout.secureCheckout') || 'Secure Checkout'}
+          </Text>
+          {buyNowItem ? (
+            <View style={{ flexDirection: 'row', marginTop: 3 }}>
               <View
                 style={[
                   styles.buyNowPill,
@@ -296,16 +354,18 @@ export default function CheckoutScreen() {
                     styles.buyNowPillText,
                     isDark && { color: '#5EEAD4' },
                   ]}
+                  numberOfLines={1}
                 >
-                  BUY NOW
+                  {t('checkout.buyNowBadge') || 'BUY NOW'}
                 </Text>
               </View>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
         </View>
         <View
           style={[
             styles.sslBadge,
+            { flexShrink: 0 },
             isDark && {
               backgroundColor: 'rgba(15, 163, 177, 0.15)',
               borderColor: 'rgba(15, 163, 177, 0.3)',
@@ -342,13 +402,15 @@ export default function CheckoutScreen() {
         >
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}>
-              Order Summary
+              {t('checkout.orderSummary') || 'Order Summary'}
             </Text>
             <Text
               style={[styles.itemCountText, isDark && { color: '#5EEAD4' }]}
             >
-              {itemsToCheckout.length} item
-              {itemsToCheckout.length !== 1 ? 's' : ''}
+              {itemsToCheckout.length}{' '}
+              {itemsToCheckout.length !== 1
+                ? (t('checkout.itemsCount') || 'items')
+                : (t('checkout.itemCount') || 'item')}
             </Text>
           </View>
 
@@ -427,7 +489,7 @@ export default function CheckoutScreen() {
           <View style={styles.priceStrip}>
             <View style={styles.priceRow}>
               <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
-                Subtotal
+                {t('checkout.subtotal') || 'Product Subtotal'}
               </Text>
               <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>
                 ₹{subtotal.toLocaleString()}
@@ -435,15 +497,25 @@ export default function CheckoutScreen() {
             </View>
             <View style={styles.priceRow}>
               <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
-                Delivery
+                {t('checkout.platformFee') || 'Platform Fee'}
+              </Text>
+              <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>
+                {platformFee === 0 ? (t('checkout.free') || 'FREE') : `₹${platformFee.toLocaleString()}`}
+              </Text>
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
+                {t('checkout.delivery') || 'Delivery'}
               </Text>
               <Text
                 style={[
                   styles.priceValue,
-                  { color: isDark ? '#4ADE80' : '#15803D' },
+                  deliveryFee === 0
+                    ? { color: isDark ? '#4ADE80' : '#15803D' }
+                    : (isDark ? { color: '#FFFFFF' } : {}),
                 ]}
               >
-                FREE
+                {deliveryFee === 0 ? (t('checkout.free') || 'FREE') : `₹${deliveryFee.toLocaleString()}`}
               </Text>
             </View>
             <View
@@ -454,10 +526,10 @@ export default function CheckoutScreen() {
               ]}
             >
               <Text style={[styles.totalLabel, isDark && { color: '#FFFFFF' }]}>
-                Total Payable
+                {t('checkout.totalPayable') || 'Total Payable'}
               </Text>
               <Text style={[styles.totalValue, isDark && { color: '#2DD4BF' }]}>
-                ₹{subtotal.toLocaleString()}
+                ₹{totalPayable.toLocaleString()}
               </Text>
             </View>
           </View>
@@ -510,8 +582,11 @@ export default function CheckoutScreen() {
                   isDark && { color: '#9CA3AF' },
                   currentStep === 1 && styles.stepTabTextActive,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
               >
-                Contact
+                {t('checkout.stepContact') || 'Contact'}
               </Text>
             </TouchableOpacity>
 
@@ -530,7 +605,7 @@ export default function CheckoutScreen() {
                   setCurrentStep(2);
                   setError('');
                 } else {
-                  setError('Please enter a valid email address first.');
+                  setError(t('checkout.validEmailError') || 'Please enter a valid email address first.');
                 }
               }}
               activeOpacity={0.7}
@@ -566,8 +641,11 @@ export default function CheckoutScreen() {
                   isDark && { color: '#9CA3AF' },
                   currentStep === 2 && styles.stepTabTextActive,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
               >
-                Address
+                {t('checkout.stepAddress') || 'Address'}
               </Text>
             </TouchableOpacity>
 
@@ -583,11 +661,11 @@ export default function CheckoutScreen() {
               style={styles.stepTab}
               onPress={() => {
                 if (!isEmailValid(contactEmail)) {
-                  setError('Please enter a valid email address first.');
+                  setError(t('checkout.validEmailError') || 'Please enter a valid email address first.');
                   setCurrentStep(1);
                 } else if (!isShippingValid) {
                   setError(
-                    'Please complete all delivery address fields first.',
+                    t('checkout.fillRequiredAddressError') || 'Please complete all delivery address fields first.',
                   );
                   setCurrentStep(2);
                 } else {
@@ -623,8 +701,11 @@ export default function CheckoutScreen() {
                   isDark && { color: '#9CA3AF' },
                   currentStep === 3 && styles.stepTabTextActive,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
               >
-                Payment
+                {t('checkout.stepPayment') || 'Payment'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -639,21 +720,22 @@ export default function CheckoutScreen() {
             ]}
           >
             <View style={styles.stepCardHeader}>
-              <View>
+              <View style={{ flex: 1, marginRight: Spacing.xs }}>
                 <Text
                   style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}
                 >
-                  1. Contact Information
+                  {t('checkout.contactInfoTitle') || '1. Contact Information'}
                 </Text>
                 <Text
                   style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}
                 >
-                  Where we'll send order receipts & tracking updates
+                  {t('checkout.contactInfoSubtitle') || "Where we'll send order receipts & tracking updates"}
                 </Text>
               </View>
               <View
                 style={[
                   styles.stepNumberBadge,
+                  { flexShrink: 0 },
                   isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' },
                 ]}
               >
@@ -662,15 +744,16 @@ export default function CheckoutScreen() {
                     styles.stepNumberBadgeText,
                     isDark && { color: '#5EEAD4' },
                   ]}
+                  numberOfLines={1}
                 >
-                  Step 1/3
+                  {t('checkout.step1of3') || 'Step 1/3'}
                 </Text>
               </View>
             </View>
 
             <View style={{ marginTop: Spacing.sm }}>
               <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>
-                Email Address *
+                {t('checkout.emailAddressLabel') || 'Email Address *'}
               </Text>
               <TextInput
                 style={[
@@ -683,7 +766,7 @@ export default function CheckoutScreen() {
                 ]}
                 value={contactEmail}
                 onChangeText={setContactEmail}
-                placeholder="e.g. yourname@example.com"
+                placeholder={t('checkout.emailPlaceholder') || 'e.g. yourname@example.com'}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -697,11 +780,13 @@ export default function CheckoutScreen() {
                   setError('');
                   setCurrentStep(2);
                 } else {
-                  setError('Please enter a valid email address.');
+                  setError(t('checkout.validEmailError') || 'Please enter a valid email address.');
                 }
               }}
             >
-              <Text style={styles.stepActionBtnText}>Continue to Delivery</Text>
+              <Text style={styles.stepActionBtnText}>
+                {t('checkout.continueToDelivery') || 'Continue to Delivery'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -715,21 +800,22 @@ export default function CheckoutScreen() {
             ]}
           >
             <View style={styles.stepCardHeader}>
-              <View>
+              <View style={{ flex: 1, marginRight: Spacing.xs }}>
                 <Text
                   style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}
                 >
-                  2. Delivery Address
+                  {t('checkout.deliveryAddressTitle') || '2. Delivery Address'}
                 </Text>
                 <Text
                   style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}
                 >
-                  Enter complete shipping address with 10-digit phone
+                  {t('checkout.deliveryAddressSubtitle') || 'Enter complete shipping address with 10-digit phone'}
                 </Text>
               </View>
               <View
                 style={[
                   styles.stepNumberBadge,
+                  { flexShrink: 0 },
                   isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' },
                 ]}
               >
@@ -738,8 +824,9 @@ export default function CheckoutScreen() {
                     styles.stepNumberBadgeText,
                     isDark && { color: '#5EEAD4' },
                   ]}
+                  numberOfLines={1}
                 >
-                  Step 2/3
+                  {t('checkout.step2of3') || 'Step 2/3'}
                 </Text>
               </View>
             </View>
@@ -758,12 +845,12 @@ export default function CheckoutScreen() {
               ]}
             >
               <Text style={[styles.inputLabel, isDark && { color: '#9CA3AF' }]}>
-                Delivery Method
+                {t('checkout.deliveryMethodLabel') || 'Delivery Method'}
               </Text>
               <Text
                 style={[styles.cardSubTitle, isDark && { color: '#9CA3AF' }]}
               >
-                Choose how you want to receive this order.
+                {t('checkout.deliveryMethodSubtitle') || 'Choose how you want to receive this order.'}
               </Text>
               <View style={styles.deliveryMethodOptions}>
                 <TouchableOpacity
@@ -791,7 +878,7 @@ export default function CheckoutScreen() {
                         isDark && { color: '#FFFFFF' },
                       ]}
                     >
-                      Home Delivery
+                      {t('checkout.homeDelivery') || 'Home Delivery'}
                     </Text>
                     <Text
                       style={[
@@ -799,7 +886,7 @@ export default function CheckoutScreen() {
                         isDark && { color: '#9CA3AF' },
                       ]}
                     >
-                      Deliver to the address above
+                      {t('checkout.homeDeliverySubtitle') || 'Deliver to the address above'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -828,7 +915,7 @@ export default function CheckoutScreen() {
                         isDark && { color: '#FFFFFF' },
                       ]}
                     >
-                      Self Pickup
+                      {t('checkout.selfPickup') || 'Self Pickup'}
                     </Text>
                     <Text
                       style={[
@@ -836,7 +923,7 @@ export default function CheckoutScreen() {
                         isDark && { color: '#9CA3AF' },
                       ]}
                     >
-                      Collect from the selected store
+                      {t('checkout.selfPickupSubtitle') || 'Collect from the selected store'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -871,7 +958,7 @@ export default function CheckoutScreen() {
                 <Text
                   style={[styles.checkboxText, isDark && { color: '#E5E7EB' }]}
                 >
-                  Billing address same as shipping
+                  {t('checkout.billingSameAsShipping') || 'Billing address same as shipping'}
                 </Text>
               </TouchableOpacity>
 
@@ -883,7 +970,7 @@ export default function CheckoutScreen() {
                       isDark && { color: '#FFFFFF' },
                     ]}
                   >
-                    Different Billing Address
+                    {t('checkout.differentBillingAddress') || 'Different Billing Address'}
                   </Text>
                   <AddressFormFields
                     data={billingAddress}
@@ -920,7 +1007,7 @@ export default function CheckoutScreen() {
                     isDark && { color: '#E5E7EB' },
                   ]}
                 >
-                  Back
+                  {t('checkout.backBtn') || 'Back'}
                 </Text>
               </TouchableOpacity>
 
@@ -929,17 +1016,17 @@ export default function CheckoutScreen() {
                 onPress={() => {
                   if (!isShippingValid) {
                     if (!isPhoneValid(shippingAddress.phone)) {
-                      setError('Please enter a valid 10-digit phone number.');
+                      setError(t('checkout.validPhoneError') || 'Please enter a valid 10-digit phone number.');
                     } else {
                       setError(
-                        'Please fill in all required delivery address fields.',
+                        t('checkout.fillRequiredAddressError') || 'Please fill in all required delivery address fields.',
                       );
                     }
                     return;
                   }
                   if (!billingSameAsShipping && !isBillingValid) {
                     setError(
-                      'Please fill in all required billing address fields.',
+                      t('checkout.fillRequiredBillingError') || 'Please fill in all required billing address fields.',
                     );
                     return;
                   }
@@ -948,7 +1035,7 @@ export default function CheckoutScreen() {
                 }}
               >
                 <Text style={styles.stepActionBtnText}>
-                  Continue to Payment
+                  {t('checkout.continueToPayment') || 'Continue to Payment'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -972,7 +1059,7 @@ export default function CheckoutScreen() {
                 <Text
                   style={[styles.summaryTitle, isDark && { color: '#9CA3AF' }]}
                 >
-                  DELIVERY & CONTACT DETAILS
+                  {t('checkout.deliveryContactDetails') || 'DELIVERY & CONTACT DETAILS'}
                 </Text>
                 <TouchableOpacity onPress={() => setCurrentStep(2)}>
                   <Text
@@ -981,7 +1068,7 @@ export default function CheckoutScreen() {
                       isDark && { color: '#2DD4BF' },
                     ]}
                   >
-                    Edit
+                    {t('checkout.editBtn') || 'Edit'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1005,8 +1092,8 @@ export default function CheckoutScreen() {
                 style={[styles.summarySubText, isDark && { color: '#9CA3AF' }]}
               >
                 {deliveryMethod === 'delivery'
-                  ? 'Home Delivery'
-                  : 'Self Pickup'}
+                  ? (t('checkout.homeDelivery') || 'Home Delivery')
+                  : (t('checkout.selfPickup') || 'Self Pickup')}
               </Text>
             </View>
 
@@ -1021,11 +1108,11 @@ export default function CheckoutScreen() {
               ]}
             >
               <View style={styles.stepCardHeader}>
-                <View>
+                <View style={{ flex: 1, marginRight: Spacing.xs }}>
                   <Text
                     style={[styles.cardTitle, isDark && { color: '#FFFFFF' }]}
                   >
-                    3. Payment Method
+                    {t('checkout.paymentMethodStepTitle') || '3. Payment Method'}
                   </Text>
                   <Text
                     style={[
@@ -1033,12 +1120,13 @@ export default function CheckoutScreen() {
                       isDark && { color: '#9CA3AF' },
                     ]}
                   >
-                    All payments are 100% secure & encrypted
+                    {t('checkout.paymentsSecure') || 'All payments are 100% secure & encrypted'}
                   </Text>
                 </View>
                 <View
                   style={[
                     styles.stepNumberBadge,
+                    { flexShrink: 0 },
                     isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' },
                   ]}
                 >
@@ -1047,13 +1135,53 @@ export default function CheckoutScreen() {
                       styles.stepNumberBadgeText,
                       isDark && { color: '#5EEAD4' },
                     ]}
+                    numberOfLines={1}
                   >
-                    Step 3/3
+                    {t('checkout.step3of3') || 'Step 3/3'}
                   </Text>
                 </View>
               </View>
 
-              {/* Razorpay Option */}
+              {/* Mandatory Store-Specific Credit Restriction Banner */}
+              {hasStoreDebt && (
+                <View
+                  style={{
+                    backgroundColor: isDark ? 'rgba(180, 83, 9, 0.2)' : '#FFFBEB',
+                    borderColor: '#F59E0B',
+                    borderWidth: 1.5,
+                    borderRadius: BorderRadius.lg,
+                    padding: Spacing.md,
+                    marginBottom: Spacing.md,
+                    flexDirection: 'row',
+                    gap: Spacing.sm,
+                  }}
+                >
+                  <AlertTriangle size={20} color="#D97706" style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: isDark ? '#FDE68A' : '#92400E',
+                        fontWeight: '800',
+                        fontSize: FontSizes.sm,
+                      }}
+                    >
+                      Full Settlement Required ({creditEligibility?.storeName || primaryStoreName})
+                    </Text>
+                    <Text
+                      style={{
+                        color: isDark ? '#FCD34D' : '#B45309',
+                        fontSize: FontSizes.xs,
+                        marginTop: 4,
+                        lineHeight: 18,
+                      }}
+                    >
+                      You have an outstanding balance with this store (₹{creditEligibility?.outstandingBalance?.toLocaleString()}). Please settle your full outstanding amount before placing another order from this store.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* 1. Razorpay Option */}
               <TouchableOpacity
                 style={[
                   styles.paymentCard,
@@ -1068,8 +1196,10 @@ export default function CheckoutScreen() {
                           backgroundColor: 'rgba(15, 163, 177, 0.12)',
                         }
                       : styles.paymentCardActive),
+                  hasStoreDebt && { opacity: 0.5 },
                 ]}
-                onPress={() => setPaymentMethod('razorpay')}
+                onPress={() => !hasStoreDebt && setPaymentMethod('razorpay')}
+                disabled={hasStoreDebt}
               >
                 <View
                   style={[
@@ -1088,18 +1218,23 @@ export default function CheckoutScreen() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: Spacing.xs,
+                      flexWrap: 'wrap',
                     }}
                   >
                     <Text
                       style={[
                         styles.paymentTitle,
                         isDark && { color: '#FFFFFF' },
+                        { flexShrink: 1 },
                       ]}
+                      numberOfLines={1}
                     >
-                      Online Payment (Razorpay)
+                      {t('checkout.onlinePaymentRazorpay') || 'Online Payment (Razorpay)'}
                     </Text>
                     <View style={styles.instantTag}>
-                      <Text style={styles.instantTagText}>INSTANT</Text>
+                      <Text style={styles.instantTagText}>
+                        {t('checkout.instantTag') || 'INSTANT'}
+                      </Text>
                     </View>
                   </View>
                   <Text
@@ -1108,7 +1243,7 @@ export default function CheckoutScreen() {
                       isDark && { color: '#9CA3AF' },
                     ]}
                   >
-                    UPI, Debit/Credit Cards, Net Banking & Wallets
+                    {t('checkout.paymentMethodsList') || 'UPI, Debit/Credit Cards, Net Banking & Wallets'}
                   </Text>
                 </View>
                 <CreditCard
@@ -1116,6 +1251,198 @@ export default function CheckoutScreen() {
                   color={isDark ? '#2DD4BF' : CustomerColors.teal600}
                 />
               </TouchableOpacity>
+
+              {/* 2. Cash on Delivery (COD) Option */}
+              <TouchableOpacity
+                style={[
+                  styles.paymentCard,
+                  isDark && {
+                    backgroundColor: '#111827',
+                    borderColor: '#1F2937',
+                  },
+                  paymentMethod === 'cod' &&
+                    (isDark
+                      ? {
+                          borderColor: '#059669',
+                          backgroundColor: 'rgba(5, 150, 105, 0.12)',
+                        }
+                      : {
+                          borderColor: '#059669',
+                          backgroundColor: '#ECFDF5',
+                        }),
+                  hasStoreDebt && { opacity: 0.5 },
+                ]}
+                onPress={() => !hasStoreDebt && setPaymentMethod('cod')}
+                disabled={hasStoreDebt}
+              >
+                <View
+                  style={[
+                    styles.radio,
+                    isDark && { borderColor: '#6B7280' },
+                    paymentMethod === 'cod' && { borderColor: '#059669' },
+                  ]}
+                >
+                  {paymentMethod === 'cod' && (
+                    <View style={[styles.radioDot, { backgroundColor: '#059669' }]} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: Spacing.xs,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentTitle,
+                        isDark && { color: '#FFFFFF' },
+                        { flexShrink: 1 },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      Cash on Delivery (COD)
+                    </Text>
+                    <View style={[styles.instantTag, { backgroundColor: '#059669' }]}>
+                      <Text style={styles.instantTagText}>CASH</Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={[
+                      styles.paymentSubtitle,
+                      isDark && { color: '#9CA3AF' },
+                    ]}
+                  >
+                    {deliveryMethod === 'delivery'
+                      ? 'Pay cash upon delivery. Confirmed after collection.'
+                      : 'Pay cash at counter upon pickup. Confirmed after collection.'}
+                  </Text>
+                </View>
+                <Banknote
+                  size={18}
+                  color={isDark ? '#34D399' : '#059669'}
+                />
+              </TouchableOpacity>
+
+              {/* 3. Store Credit (Kadan) Option */}
+              {creditEligibility?.hasAccount && creditEligibility?.status === 'APPROVED' ? (
+                <TouchableOpacity
+                  style={[
+                    styles.paymentCard,
+                    isDark && {
+                      backgroundColor: '#111827',
+                      borderColor: '#1F2937',
+                    },
+                    paymentMethod === 'credit' &&
+                      (isDark
+                        ? {
+                            borderColor: '#7C3AED',
+                            backgroundColor: 'rgba(124, 58, 237, 0.12)',
+                          }
+                        : {
+                            borderColor: '#7C3AED',
+                            backgroundColor: '#F5F3FF',
+                          }),
+                    (hasStoreDebt || (creditEligibility.availableCredit || 0) < totalPayable) && {
+                      opacity: 0.5,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (!hasStoreDebt && (creditEligibility.availableCredit || 0) >= totalPayable) {
+                      setPaymentMethod('credit');
+                    }
+                  }}
+                  disabled={hasStoreDebt || (creditEligibility.availableCredit || 0) < totalPayable}
+                >
+                  <View
+                    style={[
+                      styles.radio,
+                      isDark && { borderColor: '#6B7280' },
+                      paymentMethod === 'credit' && { borderColor: '#7C3AED' },
+                    ]}
+                  >
+                    {paymentMethod === 'credit' && (
+                      <View style={[styles.radioDot, { backgroundColor: '#7C3AED' }]} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: Spacing.xs,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.paymentTitle,
+                          isDark && { color: '#FFFFFF' },
+                          { flexShrink: 1 },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        Store Credit (Kadan)
+                      </Text>
+                      <View style={[styles.instantTag, { backgroundColor: '#7C3AED' }]}>
+                        <Text style={styles.instantTagText}>APPROVED</Text>
+                      </View>
+                    </View>
+                    <Text
+                      style={[
+                        styles.paymentSubtitle,
+                        isDark && { color: '#9CA3AF' },
+                      ]}
+                    >
+                      Available: ₹{(creditEligibility.availableCredit || 0).toLocaleString()} · Next Due:{' '}
+                      {creditEligibility.nextDueDate
+                        ? new Date(creditEligibility.nextDueDate).toLocaleDateString()
+                        : 'As agreed'}
+                    </Text>
+                    {(creditEligibility.availableCredit || 0) < totalPayable && (
+                      <Text style={{ color: '#EF4444', fontSize: FontSizes.xs, marginTop: 2, fontWeight: '700' }}>
+                        Total exceeds available credit limit.
+                      </Text>
+                    )}
+                  </View>
+                  <FileText
+                    size={18}
+                    color={isDark ? '#A78BFA' : '#7C3AED'}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={[
+                    styles.paymentCard,
+                    {
+                      borderStyle: 'dashed',
+                      opacity: 0.7,
+                      backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.paymentTitle,
+                        { color: isDark ? '#9CA3AF' : '#64748B' },
+                      ]}
+                    >
+                      Store Credit (Kadan) — In-Person Setup
+                    </Text>
+                    <Text
+                      style={[
+                        styles.paymentSubtitle,
+                        isDark && { color: '#9CA3AF' },
+                      ]}
+                    >
+                      Private credit is registered in person with {primaryStoreName}. Visit store to enroll.
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {/* Step 3 Action Buttons */}
               <View style={styles.stepBtnRow}>
@@ -1139,7 +1466,7 @@ export default function CheckoutScreen() {
                       isDark && { color: '#E5E7EB' },
                     ]}
                   >
-                    Back
+                    {t('checkout.backBtn') || 'Back'}
                   </Text>
                 </TouchableOpacity>
 
@@ -1147,13 +1474,29 @@ export default function CheckoutScreen() {
                   style={[
                     styles.stepActionBtn,
                     { flex: 1 },
-                    (!isFormValid || isProcessing) && styles.payBtnDisabled,
+                    (!isFormValid || isProcessing || hasStoreDebt) && styles.payBtnDisabled,
+                    hasStoreDebt && { backgroundColor: '#D97706' },
+                    paymentMethod === 'cod' && !hasStoreDebt && { backgroundColor: '#059669' },
+                    paymentMethod === 'credit' && !hasStoreDebt && { backgroundColor: '#7C3AED' },
                   ]}
                   onPress={handlePayment}
-                  disabled={!isFormValid || isProcessing}
+                  disabled={!isFormValid || isProcessing || hasStoreDebt}
                 >
                   {isProcessing ? (
                     <ActivityIndicator color="#fff" />
+                  ) : hasStoreDebt ? (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: Spacing.xs,
+                      }}
+                    >
+                      <AlertTriangle size={15} color="#fff" />
+                      <Text style={styles.stepActionBtnText}>
+                        Settlement Required
+                      </Text>
+                    </View>
                   ) : (
                     <View
                       style={{
@@ -1162,9 +1505,19 @@ export default function CheckoutScreen() {
                         gap: Spacing.xs,
                       }}
                     >
-                      <Lock size={15} color="#fff" />
+                      {paymentMethod === 'cod' ? (
+                        <Banknote size={15} color="#fff" />
+                      ) : paymentMethod === 'credit' ? (
+                        <FileText size={15} color="#fff" />
+                      ) : (
+                        <Lock size={15} color="#fff" />
+                      )}
                       <Text style={styles.stepActionBtnText}>
-                        Pay ₹{subtotal.toLocaleString()}
+                        {paymentMethod === 'cod'
+                          ? `Place COD Order (₹${totalPayable.toLocaleString()})`
+                          : paymentMethod === 'credit'
+                          ? `Place Credit Order (₹${totalPayable.toLocaleString()})`
+                          : `${t('checkout.payAmount') || 'Pay'} ₹${totalPayable.toLocaleString()}`}
                       </Text>
                     </View>
                   )}
@@ -1178,8 +1531,8 @@ export default function CheckoutScreen() {
       <AuthRequiredModal
         visible={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        title="Login to Place Order"
-        subtitle="Please sign in or register to place your order."
+        title={t('checkout.loginToPlaceOrder') || 'Login to Place Order'}
+        subtitle={t('checkout.loginToPlaceOrderSubtitle') || 'Please sign in or register to place your order.'}
         onLogin={() => navigateToAuthFlow(navigation)}
       />
     </View>
@@ -1656,6 +2009,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: Spacing.xs,
     marginBottom: Spacing.sm,
     paddingBottom: Spacing.xs,
   },
@@ -1740,6 +2094,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: CustomerColors.textSecondary,
     letterSpacing: 0.5,
+    flex: 1,
   },
   summaryEditBtn: {
     fontSize: FontSizes.xs,

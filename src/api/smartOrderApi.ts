@@ -32,6 +32,8 @@ export interface StoreResult {
   storeId: string;
   storeName: string;
   distanceKm: number;
+  rating?: number;
+  reviewCount?: number;
   matched: MatchedLine[];
   insufficientStock: InsufficientLine[];
   unmatched: string[];
@@ -52,6 +54,10 @@ export const smartOrderApi = {
   // for OrdersScreen to merge alongside legacy-monolith cart-checkout orders.
   getMyOrders: (userId: string, email: string) =>
     gatewayClient.get('/api/orders/my-orders', { params: { userId, email } }),
+
+  // Fetch full details of a single order (Customer / Store)
+  getOrderDetails: (orderId: string) =>
+    gatewayClient.get(`/api/orders/${orderId}`),
 
   // Live order tracking data for Customer & Store Owner
   getOrderTracking: (orderId: string) =>
@@ -75,6 +81,8 @@ export const smartOrderApi = {
 
   placeOrder: (payload: {
     amount: number;
+    platformFee?: number;
+    deliveryFee?: number;
     cartItems: Array<{ id: string; title: string; price: number; quantity: number; image?: string | null }>;
     contactEmail: string;
     shippingAddress: Record<string, any>;
@@ -164,6 +172,18 @@ export const smartOrderApi = {
   declineDeliveryPartnerRequest: (orderId: string, reason?: string) => gatewayClient.post(`/api/orders/delivery/partner/requests/${orderId}/decline`, { reason }),
 
   updateDeliveryPartnerStatus: (orderId: string, status: string, note?: string) => gatewayClient.post(`/api/orders/delivery/partner/${orderId}/status`, { status, note }),
+
+  // Store Owner: Confirm Self Pickup delivery via customer OTP
+  confirmSelfPickupOtp: (orderId: string, otp: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/confirm-self-pickup`, { otp }),
+
+  // Store Owner / Driver: Verify Order OTP (Self Pickup or Authenticated Delivery)
+  verifyOrderOtp: (orderId: string, otp: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/verify-otp`, { otp }),
+
+  // Delivery Person / Driver: Verify Order OTP via public delivery token
+  verifyDeliveryPortalOtp: (token: string, otp: string) =>
+    gatewayClient.post(`/api/orders/delivery-portal/${token}/verify-otp`, { otp }),
 };
 
 

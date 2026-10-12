@@ -27,9 +27,10 @@ export interface VoiceLanguageOption {
 export const VOICE_LANGUAGES: VoiceLanguageOption[] = [
   { code: 'en-IN', short: 'en', label: 'English' },
   { code: 'ta-IN', short: 'ta', label: 'Tamil' },
+  { code: 'ml-IN', short: 'ml', label: 'Malayalam' },
   { code: 'te-IN', short: 'te', label: 'Telugu' },
   { code: 'kn-IN', short: 'kn', label: 'Kannada' },
-  { code: 'ml-IN', short: 'ml', label: 'Malayalam' },
+  { code: 'hi-IN', short: 'hi', label: 'Hindi' },
 ];
 
 async function requestMicPermission(): Promise<boolean> {

@@ -55,7 +55,11 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
+import OrdersScreen from '../screens/customer/OrdersScreen';
 import MyOffersScreen from '../screens/customer/MyOffersScreen';
+import WishlistScreen from '../screens/customer/WishlistScreen';
+import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
+import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
 import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
 import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
@@ -96,7 +100,14 @@ export type WholesalerStackParamList = {
   StoreOrderTracking: { orderId: string };
   Notifications: undefined;
   Profile: undefined;
+  Orders: undefined;
+  OrderDetail: { orderId: string };
+  OrderTracking: { orderId: string };
+  Settings:
+    | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
+    | undefined;
   MyOffers: undefined;
+  Wishlist: undefined;
   AccountSettings:
     | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
     | undefined;
@@ -188,7 +199,11 @@ function WholesalerUserMenu() {
             <View style={styles.menuLinks}>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('Profile')}>
                 <UserIcon size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>{t('profile.title') || 'My Profile'}</Text>
+                <Text style={styles.menuItemText}>{t('common.myProfile') || 'My Profile'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => go('Orders')}>
+                <ShoppingBag size={15} color="#9CA3AF" />
+                <Text style={styles.menuItemText}>{t('common.myOrders') || 'My Orders'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('MyOffers')}>
                 <Tag size={15} color="#9CA3AF" />
@@ -217,7 +232,7 @@ function WholesalerUserMenu() {
                 onPress={() => go('AccountSettings', { initialTab: 'preferences' })}
               >
                 <SlidersHorizontal size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>{t('settings.preferences') || 'Preferences'}</Text>
+                <Text style={styles.menuItemText}>{t('settings.preferencesTab') || 'Preferences'}</Text>
               </TouchableOpacity>
 
               <View style={styles.menuDivider} />
@@ -435,12 +450,37 @@ export default function WholesalerNavigator() {
           <Stack.Screen
             name="Profile"
             component={ProfileScreen}
-            options={{ headerShown: true, title: t('profile.title') || 'Profile' }}
+            options={{ headerShown: true, title: t('common.myProfile') || 'Profile' }}
+          />
+          <Stack.Screen
+            name="Orders"
+            component={OrdersScreen}
+            options={{ headerShown: true, title: t('common.myOrders') || 'My Orders' }}
+          />
+          <Stack.Screen
+            name="OrderDetail"
+            component={OrderDetailScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="OrderTracking"
+            component={OrderTrackingScreen}
+            options={{ headerShown: true, title: t('order.trackOrder') || 'Track Order' }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={AccountSettingsScreen}
+            options={{ headerShown: true, title: t('settings.settingsTitle') || 'Settings' }}
           />
           <Stack.Screen
             name="MyOffers"
             component={MyOffersScreen}
             options={{ headerShown: true, title: t('store.offersTab') || 'My Offers' }}
+          />
+          <Stack.Screen
+            name="Wishlist"
+            component={WishlistScreen}
+            options={{ headerShown: true, title: t('common.myWishlist') || 'My Wishlist' }}
           />
           <Stack.Screen
             name="Notifications"

@@ -82,7 +82,7 @@ export default function StoreDeliveriesScreen() {
       const offerTitle =
         o.offerTitle ||
         (items.length
-          ? items.map((i: any) => `${i.quantity}x ${i.title || 'Item'}`).join(', ')
+          ? items.map((i: any) => `${i.quantity}x ${translateProductName(i.title, language) || 'Item'}`).join(', ')
           : `Order ${o.orderId || o._id?.slice(-6) || ''}`);
 
       const customerName =
@@ -198,58 +198,63 @@ export default function StoreDeliveriesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.statsContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
+      <View style={styles.statsGrid}>
+        <View style={styles.statsRow}>
           <View style={[styles.statCard, { borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder }]}>
             <View style={styles.statIconWrap}>
-              <Truck size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+              <Truck size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
             </View>
-            <View>
-              <Text style={styles.statLabel}>{t.store.totalDeliveries}</Text>
+            <View style={styles.statTextWrap}>
+              <Text style={styles.statLabel} numberOfLines={2}>{t.store.totalDeliveries}</Text>
               <Text style={styles.statValue}>{totalCount}</Text>
             </View>
           </View>
 
           <View style={[styles.statCard, { backgroundColor: isDark ? '#064e3b' : '#F0FDF4', borderColor: isDark ? '#059669' : '#BBF7D0' }]}>
             <View style={[styles.statIconWrap, { backgroundColor: isDark ? '#047857' : '#DCFCE7' }]}>
-              <CheckCircle2 size={14} color={isDark ? '#34D399' : '#15803D'} />
+              <CheckCircle2 size={15} color={isDark ? '#34D399' : '#15803D'} />
             </View>
-            <View>
-              <Text style={[styles.statLabel, { color: isDark ? '#A7F3D0' : '#166534' }]}>{t.store.deliveredStat}</Text>
+            <View style={styles.statTextWrap}>
+              <Text style={[styles.statLabel, { color: isDark ? '#A7F3D0' : '#166534' }]} numberOfLines={2}>{t.store.deliveredStat}</Text>
               <Text style={[styles.statValue, { color: isDark ? '#34D399' : '#15803D' }]}>{deliveredCount}</Text>
             </View>
           </View>
+        </View>
 
+        <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: isDark ? '#312e81' : '#EEF2FF', borderColor: isDark ? '#4338CA' : '#C7D2FE' }]}>
             <View style={[styles.statIconWrap, { backgroundColor: isDark ? '#3730A3' : '#E0E7FF' }]}>
-              <Navigation size={14} color={isDark ? '#A5B4FC' : '#4338CA'} />
+              <Navigation size={15} color={isDark ? '#A5B4FC' : '#4338CA'} />
             </View>
-            <View>
-              <Text style={[styles.statLabel, { color: isDark ? '#C7D2FE' : '#3730A3' }]}>{t.store.outForDeliveryStat}</Text>
+            <View style={styles.statTextWrap}>
+              <Text style={[styles.statLabel, { color: isDark ? '#C7D2FE' : '#3730A3' }]} numberOfLines={2}>{t.store.outForDeliveryStat}</Text>
               <Text style={[styles.statValue, { color: isDark ? '#A5B4FC' : '#4338CA' }]}>{outForDeliveryCount}</Text>
             </View>
           </View>
 
           <View style={[styles.statCard, { backgroundColor: isDark ? '#451a03' : '#FFFBEB', borderColor: isDark ? '#78350f' : '#FDE68A' }]}>
             <View style={[styles.statIconWrap, { backgroundColor: isDark ? '#78350f' : '#FEF3C7' }]}>
-              <Clock size={14} color={isDark ? '#FBBF24' : '#B45309'} />
+              <Clock size={15} color={isDark ? '#FBBF24' : '#B45309'} />
             </View>
-            <View>
-              <Text style={[styles.statLabel, { color: isDark ? '#FDE68A' : '#92400E' }]}>{t.store.pendingAssignedStat}</Text>
+            <View style={styles.statTextWrap}>
+              <Text style={[styles.statLabel, { color: isDark ? '#FDE68A' : '#92400E' }]} numberOfLines={2}>{t.store.pendingAssignedStat}</Text>
               <Text style={[styles.statValue, { color: isDark ? '#FBBF24' : '#B45309' }]}>{pendingCount}</Text>
             </View>
           </View>
-        </ScrollView>
+        </View>
       </View>
 
       <View style={styles.searchRow}>
-        <Search size={14} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+        <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
         <TextInput
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder={t.store.searchDeliveriesPlaceholder}
+          placeholder={t.store.searchDeliveriesPlaceholder || 'Search deliveries…'}
           placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+          numberOfLines={1}
+          multiline={false}
+          returnKeyType="search"
         />
       </View>
 
@@ -297,16 +302,9 @@ export default function StoreDeliveriesScreen() {
           return (
             <View style={styles.deliveryCard}>
               <View style={styles.cardHeader}>
-                <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={styles.cardHeaderLeft}>
+                  <View style={styles.orderIdOtpRow}>
                     <Text style={styles.orderIdText}>#{o.orderId || o._id.slice(-6).toUpperCase()}</Text>
-                    {o.orderOtp ? (
-                      <View style={{ backgroundColor: isDark ? '#0f2928' : '#F0FDFA', borderWidth: 1, borderColor: isDark ? '#115e59' : '#99F6E4', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 }}>
-                          Order OTP: {o.orderOtp}
-                        </Text>
-                      </View>
-                    ) : null}
                   </View>
                   <Text style={styles.orderDateText}>
                     {new Date(o.createdAt).toLocaleString(language === 'ta' ? 'ta-IN' : 'en-IN', {
@@ -337,6 +335,7 @@ export default function StoreDeliveriesScreen() {
                         ? styles.statusTextTransit
                         : styles.statusTextPending,
                     ]}
+                    numberOfLines={1}
                   >
                     {translateStatus(currentDeliveryStatus)}
                   </Text>
@@ -346,11 +345,11 @@ export default function StoreDeliveriesScreen() {
               <View style={[styles.sectionBox, { marginTop: 10 }]}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleWithIcon}>
-                    <Truck size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.sectionTitle}>{t.store.whoDeliveredTitle}</Text>
+                    <Truck size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    <Text style={styles.sectionTitle} numberOfLines={1}>{t.store.whoDeliveredTitle}</Text>
                   </View>
                   <View style={styles.modeTag}>
-                    <Text style={styles.modeTagText}>
+                    <Text style={styles.modeTagText} numberOfLines={1} ellipsizeMode="tail">
                       {o.deliveryMode === 'portal_delivery'
                         ? t.store.remisePortalNetwork
                         : o.deliveryMode === 'self_arrange'
@@ -361,7 +360,7 @@ export default function StoreDeliveriesScreen() {
                 </View>
 
                 <View style={styles.personRow}>
-                  <Text style={styles.personName}>
+                  <Text style={styles.personName} numberOfLines={1}>
                     {o.deliveryPerson?.name || t.store.assignedDeliveryPartner}
                   </Text>
                   {o.deliveryPerson?.phone ? (
@@ -369,7 +368,7 @@ export default function StoreDeliveriesScreen() {
                       style={styles.callSmallBtn}
                       onPress={() => handleCall(o.deliveryPerson.phone)}
                     >
-                      <Phone size={10} color="#0D9488" />
+                      <Phone size={11} color="#0D9488" />
                       <Text style={styles.callSmallBtnText}>{t.store.callBtn}</Text>
                     </TouchableOpacity>
                   ) : null}
@@ -392,21 +391,21 @@ export default function StoreDeliveriesScreen() {
               <View style={[styles.sectionBox, { marginTop: 8 }]}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleWithIcon}>
-                    <User size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.sectionTitle}>{t.store.toWhomTitle}</Text>
+                    <User size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                    <Text style={styles.sectionTitle} numberOfLines={1}>{t.store.toWhomTitle}</Text>
                   </View>
                   {o.customerPhone ? (
                     <TouchableOpacity
                       style={styles.callSmallBtn}
                       onPress={() => handleCall(o.customerPhone)}
                     >
-                      <Phone size={10} color="#0D9488" />
+                      <Phone size={11} color="#0D9488" />
                       <Text style={styles.callSmallBtnText}>{t.store.callBtn}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
 
-                <Text style={styles.personName}>{o.customerName || 'Customer'}</Text>
+                <Text style={styles.personName} numberOfLines={1}>{o.customerName || 'Customer'}</Text>
                 <Text style={styles.addressText} numberOfLines={2}>
                   📍 {o.deliveryAddress || t.store.addressNotProvided}
                 </Text>
@@ -416,40 +415,46 @@ export default function StoreDeliveriesScreen() {
                     style={styles.mapLinkBtn}
                     onPress={() => handleOpenMap(o.deliveryAddress)}
                   >
-                    <MapPin size={11} color="#3B82F6" />
+                    <MapPin size={12} color="#3B82F6" />
                     <Text style={styles.mapLinkBtnText}>{t.store.openMapNavigation}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
 
-              <View style={styles.footerRow}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.itemsSummary} numberOfLines={1}>
-                    {o.offerTitle}
-                  </Text>
+              <View style={styles.footerContainer}>
+                <View style={styles.footerInfoBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <ShoppingBag size={13} color={isDark ? '#9CA3AF' : '#64748B'} />
+                    <Text style={styles.itemsSummary} numberOfLines={1}>
+                      {o.offerTitle}
+                    </Text>
+                  </View>
                   <Text style={styles.paymentInfoText}>
-                    ₹{o.totalAmount} · {o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR Payment' : o.paymentMethod === 'cod' ? 'Cash on Delivery' : (o.paymentMethod || 'Online')} (
-                    {o.paymentStatus === 'SUCCESS' ? t.store.paymentPaid : t.store.paymentPending})
+                    ₹{o.totalAmount} · {o.paymentMethod === 'razorpay' ? 'Razorpay' : o.paymentMethod === 'qr' ? 'QR Payment' : o.paymentMethod === 'cod' ? 'Cash on Delivery' : (o.paymentMethod || 'Online')} ({o.paymentStatus === 'SUCCESS' ? t.store.paymentPaid : t.store.paymentPending})
                   </Text>
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                <View style={styles.footerActionsRow}>
                   <TouchableOpacity
-                    style={styles.trackDeliveryBtn}
+                    style={[styles.trackDeliveryBtn, !isCompleted && styles.actionBtnFlex]}
                     onPress={() => navigation.navigate('StoreOrderTracking', { orderId: o.orderId || o._id })}
+                    activeOpacity={0.8}
                   >
-                    <Navigation size={12} color="#2563EB" />
-                    <Text style={styles.trackDeliveryBtnText}>{t.store.viewDeliveryLinkBtn || 'Live Track'}</Text>
+                    <Navigation size={13} color={isDark ? '#93C5FD' : '#2563EB'} />
+                    <Text style={styles.trackDeliveryBtnText} numberOfLines={1} ellipsizeMode="tail">
+                      {t.store.viewDeliveryLinkBtn || 'Live Track'}
+                    </Text>
                   </TouchableOpacity>
 
                   {!isCompleted && (
                     <TouchableOpacity
-                      style={styles.manageDeliveryBtn}
+                      style={[styles.manageDeliveryBtn, styles.actionBtnFlex]}
                       onPress={() => setSelectedDeliveryOrder(o)}
+                      activeOpacity={0.8}
                     >
-                      <Truck size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                      <Text style={styles.manageDeliveryBtnText}>
-                        {o.deliveryToken ? t.store.viewDeliveryLinkBtn : t.store.manageDeliveryBtn}
+                      <Truck size={13} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                      <Text style={styles.manageDeliveryBtnText} numberOfLines={1} ellipsizeMode="tail">
+                        {t.store.manageDeliveryBtn || 'Manage Delivery'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -476,47 +481,86 @@ const getStyles = (isDark: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
-    statsContainer: { marginTop: Spacing.sm },
-    statsScroll: { paddingHorizontal: Spacing.md, gap: Spacing.sm },
+    statsGrid: {
+      paddingHorizontal: Spacing.md,
+      marginTop: Spacing.sm,
+      gap: Spacing.xs,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+    },
     statCard: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: Spacing.sm,
+      gap: 8,
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
-      paddingHorizontal: Spacing.md,
-      paddingVertical: Spacing.sm,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
-      minWidth: 140,
     },
-    statIconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: isDark ? '#1F2937' : '#F0FDFA', alignItems: 'center', justifyContent: 'center' },
-    statLabel: { fontSize: 10, fontWeight: '700', color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textTransform: 'uppercase' },
-    statValue: { fontSize: FontSizes.base, fontWeight: '900', color: isDark ? '#FFFFFF' : CustomerColors.black, marginTop: 1 },
+    statIconWrap: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? '#1F2937' : '#F0FDFA',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statTextWrap: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    statLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      lineHeight: 13,
+    },
+    statValue: {
+      fontSize: 16,
+      fontWeight: '900',
+      color: isDark ? '#FFFFFF' : CustomerColors.black,
+      marginTop: 2,
+    },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: Spacing.sm,
+      gap: 10,
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
       marginHorizontal: Spacing.md,
       marginTop: Spacing.sm,
-      paddingHorizontal: Spacing.md,
-      borderRadius: BorderRadius.md,
+      paddingHorizontal: 12,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
+      height: 46,
     },
-    searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
+    searchInput: {
+      flex: 1,
+      height: '100%',
+      paddingVertical: 0,
+      textAlignVertical: 'center',
+      fontSize: FontSizes.sm,
+      color: isDark ? '#FFFFFF' : CustomerColors.black,
+    },
     filterScrollWrap: { marginTop: Spacing.xs },
     filterScroll: { paddingHorizontal: Spacing.md, gap: Spacing.xs, paddingVertical: 4 },
     filterChip: {
-      paddingHorizontal: Spacing.md,
-      paddingVertical: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      minHeight: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
       borderRadius: BorderRadius.pill,
       backgroundColor: isDark ? '#111827' : CustomerColors.white,
       borderWidth: 1,
       borderColor: isDark ? '#1F2937' : CustomerColors.steelBorder,
     },
     filterChipActive: { backgroundColor: isDark ? '#134e4a' : CustomerColors.mint, borderColor: isDark ? '#2DD4BF' : CustomerColors.teal600 },
-    filterChipText: { fontSize: 10, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
+    filterChipText: { fontSize: 11, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, fontWeight: '600' },
     filterChipTextActive: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' },
     list: { padding: Spacing.md, paddingBottom: Spacing.xxl },
     empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.xs },
@@ -537,87 +581,111 @@ const getStyles = (isDark: boolean) =>
       alignItems: 'flex-start',
       borderBottomWidth: 1,
       borderBottomColor: isDark ? '#1F2937' : '#F3F4F6',
-      paddingBottom: 8,
+      paddingBottom: 10,
+      gap: 8,
     },
-    orderIdText: { fontSize: FontSizes.xs, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black, fontFamily: 'monospace' },
-    orderDateText: { fontSize: 10, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 2 },
-    statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.pill, borderWidth: 1 },
+    cardHeaderLeft: { flex: 1 },
+    orderIdOtpRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+    otpBadge: {
+      backgroundColor: isDark ? '#0f2928' : '#F0FDFA',
+      borderWidth: 1,
+      borderColor: isDark ? '#115e59' : '#99F6E4',
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    otpBadgeText: { fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    orderIdText: { fontSize: 13, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black, fontFamily: 'monospace' },
+    orderDateText: { fontSize: 11, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 3 },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.pill, borderWidth: 1, alignSelf: 'flex-start' },
     statusBadgeDelivered: { backgroundColor: isDark ? '#064e3b' : '#DCFCE7', borderColor: isDark ? '#059669' : '#86EFAC' },
     statusBadgeTransit: { backgroundColor: isDark ? '#312e81' : '#E0E7FF', borderColor: isDark ? '#4338CA' : '#A5B4FC' },
     statusBadgePending: { backgroundColor: isDark ? '#134e4a' : '#F0FDFA', borderColor: isDark ? '#115e59' : '#99F6E4' },
-    statusBadgeText: { fontSize: 10, fontWeight: '800' },
+    statusBadgeText: { fontSize: 11, fontWeight: '800' },
     statusTextDelivered: { color: isDark ? '#34D399' : '#15803D' },
     statusTextTransit: { color: isDark ? '#A5B4FC' : '#4338CA' },
     statusTextPending: { color: isDark ? '#2DD4BF' : '#0F766E' },
     sectionBox: {
       backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
       borderRadius: BorderRadius.md,
-      padding: Spacing.sm,
+      padding: 10,
       borderWidth: 1,
       borderColor: isDark ? '#374151' : '#E2E8F0',
     },
-    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    sectionTitleWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    sectionTitle: { fontSize: 9, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, letterSpacing: 0.5 },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+      gap: 6,
+    },
+    sectionTitleWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, marginRight: 6 },
+    sectionTitle: { fontSize: 10, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
     modeTag: {
       backgroundColor: isDark ? '#111827' : '#FFFFFF',
       borderWidth: 1,
       borderColor: isDark ? '#374151' : '#CBD5E1',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 4,
+      paddingHorizontal: 7,
+      paddingVertical: 2.5,
+      borderRadius: 5,
+      alignSelf: 'flex-start',
+      maxWidth: '48%',
     },
-    modeTagText: { fontSize: 8, fontWeight: '700', color: isDark ? '#9CA3AF' : '#475569' },
-    personRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    personName: { fontSize: FontSizes.sm, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
-    personPhoneText: { fontSize: 11, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 },
+    modeTagText: { fontSize: 9, fontWeight: '700', color: isDark ? '#9CA3AF' : '#475569' },
+    personRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+    personName: { flex: 1, fontSize: 13, fontWeight: '800', color: isDark ? '#FFFFFF' : CustomerColors.black },
+    personPhoneText: { fontSize: 11, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 3 },
     timestampDelivered: { fontSize: 10, fontWeight: '700', color: isDark ? '#34D399' : '#16A34A', marginTop: 4 },
     callSmallBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       backgroundColor: isDark ? 'rgba(45,212,191,0.2)' : '#CCFBF1',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
       borderRadius: BorderRadius.pill,
     },
-    callSmallBtnText: { fontSize: 9, fontWeight: '800', color: isDark ? '#2DD4BF' : '#0F766E' },
-    addressText: { fontSize: 11, color: isDark ? '#D1D5DB' : '#4B5563', marginTop: 2, lineHeight: 15 },
-    mapLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-    mapLinkBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#60A5FA' : '#2563EB' },
-    footerRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginTop: Spacing.sm,
-      paddingTop: Spacing.sm,
+    callSmallBtnText: { fontSize: 10, fontWeight: '800', color: isDark ? '#2DD4BF' : '#0F766E' },
+    addressText: { fontSize: 11, color: isDark ? '#D1D5DB' : '#4B5563', marginTop: 4, lineHeight: 16 },
+    mapLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, alignSelf: 'flex-start' },
+    mapLinkBtnText: { fontSize: 11, fontWeight: '700', color: isDark ? '#60A5FA' : '#2563EB' },
+    footerContainer: {
+      marginTop: 10,
+      paddingTop: 10,
       borderTopWidth: 1,
       borderTopColor: isDark ? '#1F2937' : '#F3F4F6',
     },
-    itemsSummary: { fontSize: FontSizes.xs, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
-    paymentInfoText: { fontSize: 10, color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '600', marginTop: 2 },
-    manageDeliveryBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      backgroundColor: isDark ? '#134e4a' : CustomerColors.mint,
-      borderWidth: 1,
-      borderColor: isDark ? '#115e59' : CustomerColors.steelBorder,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: BorderRadius.md,
-    },
-    manageDeliveryBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
+    footerInfoBox: { marginBottom: 8 },
+    itemsSummary: { flex: 1, fontSize: 12, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
+    paymentInfoText: { fontSize: 11, color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '600', marginTop: 3 },
+    footerActionsRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+    actionBtnFlex: { flex: 1 },
     trackDeliveryBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      justifyContent: 'center',
+      gap: 6,
       backgroundColor: isDark ? '#1e3a8a' : '#EFF6FF',
       borderWidth: 1,
       borderColor: isDark ? '#3b82f6' : '#BFDBFE',
-      paddingHorizontal: 10,
-      paddingVertical: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 9,
       borderRadius: BorderRadius.md,
+      minHeight: 38,
     },
-    trackDeliveryBtnText: { fontSize: 10, fontWeight: '700', color: isDark ? '#93C5FD' : '#1D4ED8' },
+    trackDeliveryBtnText: { fontSize: 11, fontWeight: '700', color: isDark ? '#93C5FD' : '#1D4ED8', textAlign: 'center' },
+    manageDeliveryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: isDark ? '#134e4a' : CustomerColors.mint,
+      borderWidth: 1,
+      borderColor: isDark ? '#115e59' : CustomerColors.steelBorder,
+      paddingHorizontal: 8,
+      paddingVertical: 9,
+      borderRadius: BorderRadius.md,
+      minHeight: 38,
+    },
+    manageDeliveryBtnText: { fontSize: 11, fontWeight: '700', color: isDark ? '#2DD4BF' : CustomerColors.teal700, textAlign: 'center' },
   });

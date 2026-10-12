@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { useTranslation, translateProductName } from '../../i18n';
+import { usePlatformFee } from '../../utils/platformFee';
 
 // Ported from client/app/components-main/CartDrawer.tsx — same qty +/-,
 // remove, subtotal, and the ₹499 free-delivery nudge, and "Proceed to
@@ -33,17 +34,23 @@ const FREE_DELIVERY_THRESHOLD = 499;
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
   const { user, token } = useAuth();
   const { isDark } = useTheme();
   const { cart, removeFromCart, decreaseQuantity, addToCart, setBuyNowItem } =
     useCart();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  React.useEffect(() => {
+    navigation.setOptions({ title: t('cart.yourCart') });
+  }, [navigation, t, language]);
+
   const subtotal = useMemo(
     () => cart.reduce((sum, i) => sum + i.price * i.quantity, 0),
     [cart],
   );
+  const platformFee = usePlatformFee(subtotal);
+  const grandTotal = subtotal + platformFee;
   const remainingForFreeDelivery = Math.max(
     0,
     FREE_DELIVERY_THRESHOLD - subtotal,
@@ -64,7 +71,7 @@ export default function CartScreen() {
         <BrandHeader />
         <View style={[styles.emptyContainer, { backgroundColor: isDark ? '#0b0f19' : CustomerColors.bg }]}>
           <ShoppingBag size={40} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>Your cart is empty</Text>
+          <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>{t('cart.cartEmpty')}</Text>
           <TouchableOpacity
             style={styles.shopBtn}
             onPress={() => {
@@ -74,7 +81,7 @@ export default function CartScreen() {
               });
             }}
           >
-            <Text style={styles.shopBtnText}>Continue Shopping</Text>
+            <Text style={styles.shopBtnText}>{t('cart.continueShopping')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -87,13 +94,13 @@ export default function CartScreen() {
       {remainingForFreeDelivery > 0 ? (
         <View style={[styles.nudge, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}>
           <Text style={[styles.nudgeText, isDark && { color: '#5EEAD4' }]}>
-            Add ₹{remainingForFreeDelivery} more for free delivery!
+            {t('cart.freeDeliveryNudge', { amount: remainingForFreeDelivery })}
           </Text>
         </View>
       ) : (
         <View style={[styles.nudge, styles.nudgeSuccess, isDark && { backgroundColor: 'rgba(22, 163, 74, 0.2)' }]}>
           <Text style={[styles.nudgeText, styles.nudgeSuccessText]}>
-            You've unlocked free delivery!
+            {t('cart.freeDeliveryUnlocked')}
           </Text>
         </View>
       )}
@@ -115,19 +122,29 @@ export default function CartScreen() {
 
       <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderTopColor: isDark ? '#1F2937' : CustomerColors.border }]}>
         <View style={styles.subtotalRow}>
-          <Text style={[styles.subtotalLabel, isDark && { color: '#D1D5DB' }]}>Subtotal</Text>
+          <Text style={[styles.subtotalLabel, isDark && { color: '#D1D5DB' }]}>{t('cart.subtotal') || 'Product Subtotal'}</Text>
           <Text style={[styles.subtotalValue, isDark && { color: '#FFFFFF' }]}>₹{subtotal.toLocaleString()}</Text>
         </View>
+        <View style={styles.subtotalRow}>
+          <Text style={[styles.subtotalLabel, isDark && { color: '#D1D5DB' }]}>{t('cart.platformFee') || 'Platform Fee'}</Text>
+          <Text style={[styles.subtotalValue, isDark && { color: '#FFFFFF' }]}>
+            {platformFee === 0 ? (t('cart.free') || 'FREE') : `₹${platformFee.toLocaleString()}`}
+          </Text>
+        </View>
+        <View style={[styles.subtotalRow, { borderTopWidth: 1, borderTopColor: isDark ? '#374151' : '#E5E7EB', paddingTop: 8, marginTop: 4 }]}>
+          <Text style={[styles.subtotalLabel, { fontWeight: '800' }, isDark && { color: '#FFFFFF' }]}>{t('cart.total') || 'Total Amount'}</Text>
+          <Text style={[styles.subtotalValue, { fontWeight: '900', color: CustomerColors.primary }, isDark && { color: '#2DD4BF' }]}>₹{grandTotal.toLocaleString()}</Text>
+        </View>
         <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout}>
-          <Text style={styles.checkoutBtnText}>Proceed to Checkout</Text>
+          <Text style={styles.checkoutBtnText}>{t('cart.proceedToCheckout')}</Text>
         </TouchableOpacity>
       </View>
 
       <AuthRequiredModal
         visible={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        title="Login to Checkout"
-        subtitle="Please sign in or register to proceed to checkout."
+        title={t('cart.loginToCheckout')}
+        subtitle={t('cart.loginToCheckoutDesc')}
         onLogin={() => navigation.navigate('LoginRegister')}
       />
     </View>

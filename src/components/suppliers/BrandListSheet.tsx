@@ -4,6 +4,7 @@ import { X, ChevronLeft, ChevronRight, Package } from 'lucide-react-native';
 import { TitleGroup, ProductGroup } from '../../utils/supplierGrouping';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { useTranslation, translateProductName, getSupplierTranslations } from '../../i18n';
 
 interface Props {
   titleGroup: TitleGroup | null;
@@ -14,6 +15,8 @@ interface Props {
 
 export default function BrandListSheet({ titleGroup, visible, onClose, onCompareBrand }: Props) {
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const tSupplier = getSupplierTranslations(language);
   const [index, setIndex] = useState(0);
 
   useEffect(() => { if (visible) setIndex(0); }, [visible, titleGroup?.titleKey]);
@@ -26,15 +29,17 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
   const goPrev = () => setIndex(i => (i - 1 + total) % total);
   const goNext = () => setIndex(i => (i + 1) % total);
 
+  const displayTitle = translateProductName(titleGroup.title, language);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
         <View style={[styles.sheet, isDark && { backgroundColor: '#111827', borderColor: '#1F2937' }]}>
           <View style={[styles.header, isDark && { backgroundColor: '#1F2937', borderBottomColor: '#374151' }]}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: isDark ? '#ffffff' : '#000000' }]}>{titleGroup.title}</Text>
-              <Text style={styles.subtitle}>
-                {titleGroup.brandCount} brand{titleGroup.brandCount !== 1 ? 's' : ''} available
+              <Text style={[styles.title, { color: isDark ? '#ffffff' : '#000000' }]}>{displayTitle}</Text>
+              <Text style={[styles.subtitle, isDark && { color: '#9CA3AF' }]}>
+                {titleGroup.brandCount} {tSupplier.brandsAvailable}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
@@ -46,7 +51,7 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
             {total === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: Spacing.xxl }}>
                 <Package size={36} color={CustomerColors.border} />
-                <Text style={{ color: CustomerColors.textSecondary, marginTop: Spacing.sm }}>No brands available.</Text>
+                <Text style={{ color: CustomerColors.textSecondary, marginTop: Spacing.sm }}>{tSupplier.noBrandsAvailable}</Text>
               </View>
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
@@ -57,34 +62,38 @@ export default function BrandListSheet({ titleGroup, visible, onClose, onCompare
                 )}
 
                 <View style={{ flex: 1 }}>
-                  <View style={[styles.card, index === 0 && styles.cardBest, isDark && { backgroundColor: '#1F2937', borderColor: '#374151' }]}>
+                  <View style={[styles.card, index === 0 && styles.cardBest, isDark && { backgroundColor: index === 0 ? '#134e4a' : '#1F2937', borderColor: '#374151' }]}>
                     <View style={styles.cardTopRow}>
                       <View style={{ flex: 1, marginRight: Spacing.sm }}>
-                        <Text style={[styles.brandName, { color: isDark ? '#ffffff' : '#000000' }]} numberOfLines={1}>{b.brand || 'Unbranded'}</Text>
+                        <Text style={[styles.brandName, { color: isDark ? '#ffffff' : '#000000' }]} numberOfLines={1}>
+                          {b.brand || tSupplier.unbranded}
+                        </Text>
                         {index === 0 && (
-                          <View style={styles.bestPill}><Text style={styles.bestPillText}>Best price</Text></View>
+                          <View style={styles.bestPill}>
+                            <Text style={styles.bestPillText}>{tSupplier.bestPrice}</Text>
+                          </View>
                         )}
                         <Text style={[styles.metaText, isDark && { color: '#9CA3AF' }]}>
-                          Stock: {cheapest?.totalStock ?? '—'} · Available from{' '}
-                          <Text style={{ fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>{b.supplierCount}</Text> supplier{b.supplierCount !== 1 ? 's' : ''}
+                          {tSupplier.stock}: {cheapest?.totalStock ?? '—'} · {tSupplier.availableFrom}{' '}
+                          <Text style={{ fontWeight: '700', color: isDark ? '#ffffff' : '#000000' }}>{b.supplierCount}</Text> {tSupplier.suppliersCount}
                         </Text>
                       </View>
-                      <Text style={styles.priceText}>₹{b.lowestPrice}</Text>
+                      <Text style={[styles.priceText, isDark && { color: '#2DD4BF' }]}>₹{b.lowestPrice}</Text>
                     </View>
                     <TouchableOpacity style={styles.compareBtn} onPress={() => onCompareBrand(b)}>
-                      <Text style={styles.compareBtnText}>Compare Suppliers</Text>
+                      <Text style={styles.compareBtnText}>{tSupplier.compareSuppliers}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {total > 1 && (
                     <View style={styles.dots}>
                       {titleGroup.brands.map((_, i) => (
-                        <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
+                        <View key={i} style={[styles.dot, i === index && styles.dotActive, isDark && i !== index && { backgroundColor: '#374151' }]} />
                       ))}
                     </View>
                   )}
                   {total > 1 && (
-                    <Text style={[styles.countText, isDark && { color: '#9CA3AF' }]}>{index + 1} of {total}</Text>
+                    <Text style={[styles.countText, isDark && { color: '#9CA3AF' }]}>{index + 1} / {total}</Text>
                   )}
                 </View>
 

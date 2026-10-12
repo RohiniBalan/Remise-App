@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import BrandHeader from '../../components/common/BrandHeader';
+import { useTranslation, translateCategory } from '../../i18n';
 
 // Landing/grid screen for the "Categories" tab. Previously this tab went
 // straight to the filter+product-list screen (now moved to the
@@ -74,6 +75,7 @@ function normalizeCategory(raw: any): NormalizedCategory | null {
 export default function CategoryGridScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
+  const { t, language } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [categoryCards, setCategoryCards] = useState<NormalizedCategory[]>([]);
@@ -204,10 +206,13 @@ export default function CategoryGridScreen() {
         };
       })
       .filter(c => c.count > 0)
-      .filter(item =>
-        item.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
-      );
-  }, [categoryCards, products, uniqueProductCategories, searchQuery]);
+      .filter(item => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+        const translatedName = translateCategory(item.name, language).toLowerCase();
+        return item.name.toLowerCase().includes(q) || translatedName.includes(q);
+      });
+  }, [categoryCards, products, uniqueProductCategories, searchQuery, language]);
 
   const goToCategory = (name: string) => {
     navigation.navigate('CategoryProducts', { category: name });
@@ -224,7 +229,7 @@ export default function CategoryGridScreen() {
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search categories"
+            placeholder={t('common.searchCategories')}
             placeholderTextColor={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
             style={[styles.searchInput, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
             autoCapitalize="none"
@@ -252,11 +257,17 @@ export default function CategoryGridScreen() {
                   <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
                 </TouchableOpacity>
                 <View>
-                  <Text style={styles.eyebrow}>Browse</Text>
-                  <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}>Shop by Category</Text>
+                  <Text style={styles.eyebrow}>{t('common.browse')}</Text>
+                  <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}>
+                    {t('products.shopByCategory')}
+                  </Text>
                 </View>
               </View>
-              <Text style={[styles.headerCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>{products.length} products</Text>
+              <Text style={[styles.headerCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
+                {products.length === 1
+                  ? t('common.productCount', { count: products.length })
+                  : t('common.productsCount', { count: products.length })}
+              </Text>
             </View>
           </View>
         }
@@ -267,10 +278,14 @@ export default function CategoryGridScreen() {
                 <Package size={18} color={CustomerColors.primary} />
               </View>
               <ActivityIndicator size="small" color={CustomerColors.primary} />
-              <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>Loading Categories</Text>
+              <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
+                {t('common.loadingCategories')}
+              </Text>
             </View>
           ) : (
-            <Text style={[styles.empty, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>No categories found.</Text>
+            <Text style={[styles.empty, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
+              {t('common.noCategoriesFound')}
+            </Text>
           )
         }
         renderItem={({ item }) => (
@@ -295,10 +310,12 @@ export default function CategoryGridScreen() {
               )}
             </View>
             <Text style={[styles.cardName, { color: isDark ? '#FFFFFF' : CustomerColors.black }]} numberOfLines={1}>
-              {item.name}
+              {translateCategory(item.name, language)}
             </Text>
             <Text style={[styles.cardCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
-              {item.count} product{item.count === 1 ? '' : 's'}
+              {item.count === 1
+                ? t('common.productCount', { count: item.count })
+                : t('common.productsCount', { count: item.count })}
             </Text>
           </TouchableOpacity>
         )}

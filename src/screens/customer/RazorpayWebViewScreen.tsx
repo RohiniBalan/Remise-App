@@ -3,11 +3,16 @@ import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { paymentApi } from '../../api/paymentApi';
+import { creditApi } from '../../api/creditApi';
 import { GoldColors } from '../../styles/theme';
+import { useTranslation, getSupplierTranslations } from '../../i18n';
 
 export default function RazorpayWebViewScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { language } = useTranslation();
+  const tSupplier = getSupplierTranslations(language);
+
   const { options, orderId } = route.params;
   const [verifying, setVerifying] = useState(false);
   const handledRef = useRef(false);
@@ -60,8 +65,8 @@ export default function RazorpayWebViewScreen() {
       <body>
         <div class="loader-box">
           <div class="spinner"></div>
-          <h2>Launching Razorpay Checkout</h2>
-          <p>Connecting securely to Razorpay Gateway...</p>
+          <h2>${tSupplier.launchingRazorpay}</h2>
+          <p>${tSupplier.connectingSecurely}</p>
         </div>
 
         <script>
@@ -138,6 +143,7 @@ export default function RazorpayWebViewScreen() {
           const verifyRes = await paymentApi.verify(verifyPayload);
 
           if (verifyRes.data?.success) {
+            creditApi.sendOrderConfirmedWhatsApp(orderId).catch(() => {});
             route.params?.onSuccess?.();
             navigation.replace('PaymentStatus', {
               orderId,
@@ -145,7 +151,7 @@ export default function RazorpayWebViewScreen() {
               returnScreen: route.params?.returnScreen,
             });
           } else {
-            Alert.alert('Payment Verification Failed', verifyRes.data?.message || 'Payment could not be verified');
+            Alert.alert(tSupplier.verificationFailed, verifyRes.data?.message || tSupplier.verificationFailed);
             navigation.goBack();
           }
         } catch (err: any) {
@@ -159,7 +165,7 @@ export default function RazorpayWebViewScreen() {
       } else if (data.type === 'FAILED') {
         handledRef.current = true;
         paymentApi.cancel(orderId, 'app_webview_failed').catch(() => {});
-        Alert.alert('Payment Failed', data.error?.description || 'Transaction failed or was declined');
+        Alert.alert(tSupplier.paymentFailedTitle, data.error?.description || tSupplier.paymentDeclined);
         navigation.goBack();
       }
     } catch (e) {

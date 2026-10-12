@@ -2,6 +2,8 @@ export interface GroupedSupplier {
   productId: string;
   storeId: string;
   storeName: string;
+  storeRating?: number;
+  reviewCount?: number;
   price: number;
   moq: number;
   bulkPricing: { minQty: number; price: number }[];

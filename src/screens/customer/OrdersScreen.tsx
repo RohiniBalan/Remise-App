@@ -22,6 +22,7 @@ import {
   Download,
   RotateCcw,
   MapPin,
+  ExternalLink,
 } from 'lucide-react-native';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +31,7 @@ import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import { isValidPlacedOrder } from '../../utils/orderValidation';
 import RefundModal from '../../components/common/RefundModal';
+import StoreReviewModal from '../../components/common/StoreReviewModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import { useTheme } from '../../context/ThemeContext';
@@ -59,10 +61,14 @@ const TIME_FILTERS = [
 interface DisplayItem {
   key: string;
   orderId: string;
+  storeId?: string;
+  storeName?: string;
   paymentStatus: string;
   paymentMethod?: string;
+  deliveryMethod?: string;
   deliveryStatus?: string;
   refundStatus?: string;
+  isOtpVerified?: boolean;
   title: string;
   price: number;
   quantity: number;
@@ -72,16 +78,36 @@ interface DisplayItem {
   deliveryDate: string;
   createdAt: string;
   totalAmount: number;
+  platformFee?: number;
   refundWindowEndAt?: string;
 }
+
+const formatLocalizedDate = (date: Date | string, lang: string) => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '';
+  const localeMap: Record<string, string> = {
+    ta: 'ta-IN',
+    te: 'te-IN',
+    ml: 'ml-IN',
+    kn: 'kn-IN',
+    hi: 'hi-IN',
+    en: 'en-US',
+  };
+  return d.toLocaleDateString(localeMap[lang] || 'en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
 
 function getStatusUI(
   status: string,
   orderDate: string,
   deliveryDate: string,
-  deliveryStatus?: string,
-  paymentStatus?: string,
-  refundStatus?: string,
+  deliveryStatus: string | undefined,
+  paymentStatus: string | undefined,
+  refundStatus: string | undefined,
+  t: (key: any) => string,
 ) {
   const isRefundCompleted =
     status === 'Refund Completed' ||
@@ -93,9 +119,8 @@ function getStatusUI(
   if (isRefundCompleted) {
     return {
       color: '#10B981',
-      text: `Cancelled · Refund Completed`,
-      subText:
-        'Amount has been successfully refunded via Razorpay to your original payment method.',
+      text: t('orders.refundCompleted'),
+      subText: t('orders.refundCompletedDesc'),
     };
   }
 
@@ -108,75 +133,74 @@ function getStatusUI(
   ) {
     return {
       color: '#D97706',
-      text: `Cancelled · Refund Processing`,
-      subText:
-        'Razorpay is processing the refund to your original payment method (5-7 business days).',
+      text: t('orders.refundProcessing'),
+      subText: t('orders.refundProcessingDesc'),
     };
   }
   if (status === 'Delivered' || deliveryStatus === 'Delivered')
     return {
       color: CustomerColors.success,
-      text: `Delivered on ${deliveryDate}`,
-      subText: 'Your item has been delivered.',
+      text: t('orders.deliveredOn').replace('{{date}}', deliveryDate),
+      subText: t('orders.deliveredDesc'),
     };
   if (status === 'Cancelled' || deliveryStatus === 'Cancelled')
     return {
       color: CustomerColors.danger,
-      text: `Cancelled on ${orderDate}`,
-      subText: 'Your order was cancelled.',
+      text: t('orders.cancelledOn').replace('{{date}}', orderDate),
+      subText: t('orders.cancelledDesc'),
     };
   if (deliveryStatus === 'Out for Delivery')
     return {
       color: '#7C3AED',
-      text: 'Out for Delivery',
-      subText: 'Delivery partner is on the way to your location.',
+      text: t('orders.statusOutForDelivery'),
+      subText: t('orders.outForDeliveryDesc'),
     };
   if (deliveryStatus === 'Picked Up')
     return {
       color: '#2563EB',
-      text: 'Picked Up from Store',
-      subText: 'Item collected, arriving soon.',
+      text: t('orders.pickedUpFromStore'),
+      subText: t('orders.pickedUpDesc'),
     };
   if (deliveryStatus === 'Arrived at Store')
     return {
       color: '#4F46E5',
-      text: 'Partner at Store',
-      subText: 'Delivery partner is at the store collecting your items.',
+      text: t('orders.partnerAtStore'),
+      subText: t('orders.partnerAtStoreDesc'),
     };
   if (deliveryStatus === 'Going to Store')
     return {
       color: CustomerColors.teal700,
-      text: 'Partner Heading to Store',
-      subText: 'Delivery partner is heading to the store for pickup.',
+      text: t('orders.partnerHeadingToStore'),
+      subText: t('orders.partnerHeadingToStoreDesc'),
     };
   if (deliveryStatus === 'Accepted' || deliveryStatus === 'Assigned')
     return {
       color: CustomerColors.teal700,
-      text: 'Delivery Partner Assigned',
-      subText: 'A delivery partner is preparing your order pickup.',
+      text: t('orders.partnerAssigned'),
+      subText: t('orders.deliveryPartnerAssignedDesc'),
     };
   if (deliveryStatus === 'Searching')
     return {
       color: '#4F46E5',
-      text: 'Finding Delivery Partner',
-      subText: 'Locating a nearby Remise delivery partner for your order.',
+      text: t('orders.findingDeliveryPartner'),
+      subText: t('orders.findingDeliveryPartnerDesc'),
     };
   if (status === 'Shipped')
     return {
       color: '#3B82F6',
-      text: `Shipped, arriving by ${deliveryDate}`,
-      subText: 'Your item is on the way.',
+      text: t('orders.shippedArrivingBy').replace('{{date}}', deliveryDate),
+      subText: t('orders.shippedDesc'),
     };
   return {
     color: CustomerColors.warning,
-    text: `Processing, expected by ${deliveryDate}`,
-    subText: 'Your order is currently being packed.',
+    text: t('orders.processingExpectedBy').replace('{{date}}', deliveryDate),
+    subText: t('orders.processingDesc'),
   };
 }
 
 export default function OrdersScreen() {
   const { isDark } = useTheme();
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -193,6 +217,7 @@ export default function OrdersScreen() {
     orderId: string;
     totalAmount: number;
   } | null>(null);
+  const [selectedReviewItem, setSelectedReviewItem] = useState<DisplayItem | null>(null);
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundError, setRefundError] = useState('');
 
@@ -207,20 +232,25 @@ export default function OrdersScreen() {
       Promise.allSettled([
         orderApi.getMyOrders(user._id, user.email),
         smartOrderApi.getMyOrders(user._id, user.email),
+        orderApi.getMyWholesaleOrders(user._id),
       ])
-        .then(([legacyRes, smartRes]) => {
+        .then(([legacyRes, smartRes, wholesaleRes]) => {
           const legacyOrders =
-            legacyRes.status === 'fulfilled' && legacyRes.value.data.success
+            legacyRes.status === 'fulfilled' && legacyRes.value?.data?.success
               ? legacyRes.value.data.data
               : [];
           const smartOrders =
-            smartRes.status === 'fulfilled' && smartRes.value.data.success
+            smartRes.status === 'fulfilled' && smartRes.value?.data?.success
               ? smartRes.value.data.data
+              : [];
+          const wholesaleOrders =
+            wholesaleRes.status === 'fulfilled' && wholesaleRes.value?.data?.success
+              ? wholesaleRes.value.data.data
               : [];
 
           // Deduplicate orders by orderId / _id and exclude abandoned/failed payment attempts
           const seenOrderIds = new Set<string>();
-          const uniqueOrders = [...legacyOrders, ...smartOrders].filter(
+          const uniqueOrders = [...legacyOrders, ...smartOrders, ...wholesaleOrders].filter(
             order => {
               if (!isValidPlacedOrder(order)) return false;
               const id = order.orderId || order._id || (order as any).id;
@@ -320,16 +350,8 @@ export default function OrdersScreen() {
       const orderDateObj = new Date(order.createdAt || Date.now());
       const deliveryDateObj = new Date(orderDateObj);
       deliveryDateObj.setDate(deliveryDateObj.getDate() + 5);
-      const fmt = (d: Date) =>
-        isNaN(d.getTime())
-          ? ''
-          : d.toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            });
-      const orderDate = fmt(orderDateObj);
-      const deliveryDate = fmt(deliveryDateObj);
+      const orderDate = formatLocalizedDate(orderDateObj, language);
+      const deliveryDate = formatLocalizedDate(deliveryDateObj, language);
       const items = order.items || [];
 
       const isRefundCompleted =
@@ -353,10 +375,14 @@ export default function OrdersScreen() {
         list.push({
           key: `${order._id || orderIdx}`,
           orderId: order._id || '',
+          storeId: (order as any).storeId,
+          storeName: (order as any).storeName,
           paymentStatus: order.paymentStatus || 'PENDING',
           paymentMethod: order.paymentMethod,
+          deliveryMethod: (order as any).deliveryMethod,
           deliveryStatus: (order as any).deliveryStatus,
           refundStatus: (order as any).refundStatus,
+          isOtpVerified: (order as any).isOtpVerified,
           title: `Order #${(order._id || '').slice(-6).toUpperCase()}`,
           price: order.totalAmount,
           quantity: 1,
@@ -366,6 +392,7 @@ export default function OrdersScreen() {
           deliveryDate,
           createdAt: order.createdAt,
           totalAmount: order.totalAmount,
+          platformFee: (order as any).platformFee,
           refundWindowEndAt: (order as any).refundWindowEndAt,
         });
       } else {
@@ -373,10 +400,14 @@ export default function OrdersScreen() {
           list.push({
             key: `${order._id || orderIdx}-${idx}`,
             orderId: order._id || '',
+            storeId: (order as any).storeId || (it as any)?.storeId,
+            storeName: (order as any).storeName || (it as any)?.storeName,
             paymentStatus: order.paymentStatus || 'PENDING',
             paymentMethod: order.paymentMethod,
+            deliveryMethod: (order as any).deliveryMethod,
             deliveryStatus: (order as any).deliveryStatus,
             refundStatus: (order as any).refundStatus,
+            isOtpVerified: (order as any).isOtpVerified,
             title: (it as any).name || it.title || 'Product',
             price: it.price,
             quantity: it.quantity,
@@ -386,13 +417,14 @@ export default function OrdersScreen() {
             deliveryDate,
             createdAt: order.createdAt,
             totalAmount: order.totalAmount,
+            platformFee: (order as any).platformFee,
             refundWindowEndAt: (order as any).refundWindowEndAt,
           });
         });
       }
     });
     return list;
-  }, [orders]);
+  }, [orders, language]);
 
   const toggleStatus = (filter: string) =>
     setStatusFilters(prev =>
@@ -409,6 +441,19 @@ export default function OrdersScreen() {
     setTimeFilters([]);
     setSearchQuery('');
   };
+
+  const statusFilterOptions = useMemo(() => [
+    { key: 'On the way', label: t('profile.statusOnTheWay') },
+    { key: 'Delivered', label: t('orders.statusDelivered') },
+    { key: 'Cancelled', label: t('orders.statusCancelled') },
+    { key: 'Returned', label: t('orders.statusReturned') },
+  ], [t]);
+
+  const getTimeFilterLabel = useCallback((time: string) => {
+    if (time === 'Last 30 days') return t('profile.timeLast30Days');
+    if (time === 'Older') return t('profile.timeOlder');
+    return time;
+  }, [t]);
 
   const filteredItems = displayItems.filter(item => {
     const q = searchQuery.trim().toLowerCase();
@@ -498,7 +543,7 @@ export default function OrdersScreen() {
           style={[styles.searchInput, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search by product name or order ID"
+          placeholder={t('orders.searchOrdersPlaceholderApp')}
           placeholderTextColor={isDark ? '#9CA3AF' : CustomerColors.textSecondary}
         />
       </View>
@@ -509,51 +554,51 @@ export default function OrdersScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}
         >
-          {STATUS_FILTERS.map(f => (
+          {statusFilterOptions.map(f => (
             <TouchableOpacity
-              key={f}
+              key={f.key}
               style={[
                 styles.filterChip,
                 {
                   backgroundColor: isDark ? '#111827' : CustomerColors.white,
                   borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
                 },
-                statusFilters.includes(f) && styles.filterChipActive,
+                statusFilters.includes(f.key) && styles.filterChipActive,
               ]}
-              onPress={() => toggleStatus(f)}
+              onPress={() => toggleStatus(f.key)}
             >
               <Text
                 style={[
                   styles.filterChipText,
                   { color: isDark ? '#D1D5DB' : CustomerColors.textSecondary },
-                  statusFilters.includes(f) && styles.filterChipTextActive,
+                  statusFilters.includes(f.key) && styles.filterChipTextActive,
                 ]}
               >
-                {f}
+                {f.label}
               </Text>
             </TouchableOpacity>
           ))}
-          {TIME_FILTERS.map(t => (
+          {TIME_FILTERS.map(tf => (
             <TouchableOpacity
-              key={t}
+              key={tf}
               style={[
                 styles.filterChip,
                 {
                   backgroundColor: isDark ? '#111827' : CustomerColors.white,
                   borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
                 },
-                timeFilters.includes(t) && styles.filterChipActive,
+                timeFilters.includes(tf) && styles.filterChipActive,
               ]}
-              onPress={() => toggleTime(t)}
+              onPress={() => toggleTime(tf)}
             >
               <Text
                 style={[
                   styles.filterChipText,
                   { color: isDark ? '#D1D5DB' : CustomerColors.textSecondary },
-                  timeFilters.includes(t) && styles.filterChipTextActive,
+                  timeFilters.includes(tf) && styles.filterChipTextActive,
                 ]}
               >
-                {t}
+                {getTimeFilterLabel(tf)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -564,7 +609,7 @@ export default function OrdersScreen() {
               style={styles.clearChip}
               onPress={clearAllFilters}
             >
-              <Text style={styles.clearChipText}>Clear All</Text>
+              <Text style={styles.clearChipText}>{t('profile.clearAll')}</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -573,17 +618,20 @@ export default function OrdersScreen() {
       <FlatList
         data={filteredItems}
         keyExtractor={item => item.key}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          filteredItems.length === 0 && styles.listEmpty,
+        ]}
         ListEmptyComponent={
           <View style={styles.empty}>
             <PackageX size={56} color={isDark ? '#4B5563' : '#D1D5DB'} />
-            <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>No Orders Found</Text>
+            <Text style={[styles.emptyTitle, isDark && { color: '#FFFFFF' }]}>{t('profile.noOrdersFound')}</Text>
             <Text style={[styles.emptySubtitle, isDark && { color: '#9CA3AF' }]}>
               {searchQuery ||
               statusFilters.length > 0 ||
               timeFilters.length > 0
-                ? "We couldn't find any orders matching your search or filters."
-                : "Looks like you haven't placed any orders yet."}
+                ? t('orders.noOrdersMatchingFilters')
+                : t('profile.noOrdersFoundDesc')}
             </Text>
             {statusFilters.length > 0 ||
             timeFilters.length > 0 ||
@@ -592,7 +640,7 @@ export default function OrdersScreen() {
                 style={styles.clearBtn}
                 onPress={clearAllFilters}
               >
-                <Text style={styles.clearBtnText}>Clear Filters</Text>
+                <Text style={styles.clearBtnText}>{t('orders.clearFilters')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -605,17 +653,29 @@ export default function OrdersScreen() {
             item.deliveryStatus,
             item.paymentStatus,
             item.refundStatus,
+            t,
           );
 
           return (
             <View style={[styles.orderCard, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
-              <Image source={{ uri: resolveImageUrl(item.image) }} style={[styles.orderImage, isDark && { backgroundColor: '#1F2937' }]} />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('OrderDetail', { orderId: item.orderId })}
+              >
+                <Image source={{ uri: resolveImageUrl(item.image) }} style={[styles.orderImage, isDark && { backgroundColor: '#1F2937' }]} />
+              </TouchableOpacity>
               <View style={styles.orderInfo}>
-                <Text style={[styles.orderTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
-                  {translateProductName(item.title, language)}
-                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('OrderDetail', { orderId: item.orderId })}
+                >
+                  <Text style={[styles.orderTitle, isDark && { color: '#F9FAFB' }]} numberOfLines={2}>
+                    {translateProductName(item.title, language)}
+                  </Text>
+                </TouchableOpacity>
                 <Text style={[styles.orderQty, isDark && { color: '#9CA3AF' }]}>
-                  Qty: {item.quantity} · ₹{item.price.toLocaleString()}
+                  {t('orders.qty')}: {item.quantity} · ₹{item.price.toLocaleString()}
+                  {Boolean((item as any).platformFee) && ` (incl. ₹${(item as any).platformFee} fee)`}
                 </Text>
                 <View style={styles.statusRow}>
                   <View
@@ -630,11 +690,21 @@ export default function OrdersScreen() {
 
                 <View style={styles.actionRow}>
                   <TouchableOpacity
+                    style={[styles.viewDetailsBtn, isDark && { backgroundColor: '#1E1B4B', borderColor: '#4338CA' }]}
+                    onPress={() => navigation.navigate('OrderDetail', { orderId: item.orderId })}
+                  >
+                    <ExternalLink size={11} color={isDark ? '#A5B4FC' : '#4338CA'} />
+                    <Text style={[styles.viewDetailsBtnText, isDark && { color: '#A5B4FC' }]}>
+                      {t('common.viewDetails')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
                     style={[styles.trackBtn, isDark && { backgroundColor: '#1E3A8A', borderColor: '#2563EB' }]}
                     onPress={() => navigation.navigate('OrderTracking', { orderId: item.orderId })}
                   >
                     <MapPin size={11} color={isDark ? '#93C5FD' : '#2563EB'} />
-                    <Text style={[styles.trackBtnText, isDark && { color: '#93C5FD' }]}>Track</Text>
+                    <Text style={[styles.trackBtnText, isDark && { color: '#93C5FD' }]}>{t('orders.track')}</Text>
                   </TouchableOpacity>
 
                   {(item.paymentStatus === 'SUCCESS' ||
@@ -646,7 +716,7 @@ export default function OrdersScreen() {
                         onPress={() => setSelectedInvoiceOrderId(item.orderId)}
                       >
                         <FileText size={12} color={isDark ? '#5EEAD4' : CustomerColors.teal700} />
-                        <Text style={[styles.invoiceBtnText, isDark && { color: '#5EEAD4' }]}>View Bill</Text>
+                        <Text style={[styles.invoiceBtnText, isDark && { color: '#5EEAD4' }]}>{t('orders.viewBill')}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -666,7 +736,7 @@ export default function OrdersScreen() {
                         }}
                       >
                         <Download size={11} color="#FFFFFF" />
-                        <Text style={styles.pdfBtnText}>PDF</Text>
+                        <Text style={styles.pdfBtnText}>{t('orders.pdfInvoice')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -688,23 +758,36 @@ export default function OrdersScreen() {
                             <RotateCcw size={13} color={isDark ? '#FDBA74' : '#C2410C'} />
                             <Text style={[styles.refundBtnText, isDark && { color: '#FDBA74' }]}>
                               {item.displayStatus === 'Delivered' || item.deliveryStatus === 'Delivered'
-                                ? 'Return & Refund'
-                                : 'Cancel Order'}
+                                ? t('orders.returnRefund')
+                                : t('orders.cancelOrder')}
                             </Text>
                           </TouchableOpacity>
                         ) : null}
                       </>
                     )}
 
-                  {item.displayStatus === 'Delivered' && (
-                    <TouchableOpacity style={styles.reviewBtn}>
+                  {/* RATE YOUR STORE (Available strictly post-fulfillment & verified OTP) */}
+                  {Boolean(
+                    item.isOtpVerified &&
+                      item.paymentStatus === 'SUCCESS' &&
+                      item.displayStatus !== 'Cancelled' &&
+                      item.deliveryStatus !== 'Cancelled' &&
+                      (item.deliveryStatus === 'Delivered' ||
+                        item.displayStatus === 'Delivered' ||
+                        (item.deliveryMethod === 'pickup' &&
+                          item.deliveryStatus === 'Picked Up'))
+                  ) && (
+                    <TouchableOpacity
+                      style={styles.reviewBtn}
+                      onPress={() => setSelectedReviewItem(item)}
+                    >
                       <Star
                         size={14}
-                        color={CustomerColors.teal700}
-                        fill={CustomerColors.teal700}
+                        color="#F59E0B"
+                        fill="#F59E0B"
                       />
-                      <Text style={[styles.reviewBtnText, isDark && { color: '#5EEAD4' }]}>
-                        Rate & Review Product
+                      <Text style={[styles.reviewBtnText, isDark && { color: '#FCD34D' }]}>
+                        Rate Your Store
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -732,6 +815,16 @@ export default function OrdersScreen() {
             if (!isRefunding) setSelectedRefund(null);
           }}
           onSubmit={handleRefund}
+        />
+      ) : null}
+
+      {selectedReviewItem ? (
+        <StoreReviewModal
+          visible={!!selectedReviewItem}
+          onClose={() => setSelectedReviewItem(null)}
+          orderId={selectedReviewItem.orderId}
+          storeId={selectedReviewItem.storeId}
+          storeName={selectedReviewItem.storeName}
         />
       ) : null}
     </View>
@@ -819,21 +912,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   list: { padding: Spacing.md },
+  listEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: Spacing.xxl,
+  },
   empty: {
     alignItems: 'center',
-    paddingVertical: Spacing.xxl,
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    width: '100%',
     gap: Spacing.sm,
   },
   emptyTitle: {
     fontSize: FontSizes.md,
     fontWeight: '700',
     color: CustomerColors.black,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.md,
   },
   emptySubtitle: {
     fontSize: FontSizes.sm,
     color: CustomerColors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: Spacing.xl,
+    lineHeight: 20,
   },
   orderCard: {
     flexDirection: 'row',
@@ -948,5 +1053,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#1D4ED8',
+  },
+  viewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  viewDetailsBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4338CA',
   },
 });

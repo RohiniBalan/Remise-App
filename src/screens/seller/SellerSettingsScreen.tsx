@@ -28,7 +28,7 @@ import { normalizeLoc, lookupPincode } from '../../components/common/LocationSel
 import { mergeCategories } from '../../utils/storeCategories';
 import { useTheme } from '../../context/ThemeContext';
 import { resolveImageUrl } from '../../utils/imageUrl';
-import { useTranslation, translateCategory } from '../../i18n';
+import { useTranslation, translateCategory, translateState, translateCity } from '../../i18n';
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const STORE_CATEGORIES = [
@@ -128,14 +128,26 @@ export default function SellerSettingsScreen() {
     setCities(state ? getCities(state.isoCode) : []);
   }, [form.state, findState]);
 
-  const stateOptions = indianStates.map(s => ({
-    key: s.isoCode,
-    label: s.name,
-  }));
-  const cityOptions = cities.map((c: any) => ({ key: c.name, label: c.name }));
+  const stateOptions = useMemo(() => {
+    return indianStates.map(s => ({
+      key: s.isoCode,
+      canonicalName: s.name,
+      label: translateState(s.name, language),
+    }));
+  }, [language]);
 
-  const handleStateSelect = (isoCode: string, label: string) => {
-    setForm(f => ({ ...f, state: label, city: '', pinCode: '' }));
+  const cityOptions = useMemo(() => {
+    return cities.map((c: any) => ({
+      key: c.name,
+      canonicalName: c.name,
+      label: translateCity(c.name, language),
+    }));
+  }, [cities, language]);
+
+  const handleStateSelect = (isoCode: string, _label: string) => {
+    const matched = indianStates.find(s => s.isoCode === isoCode);
+    const canonicalName = matched ? matched.name : isoCode;
+    setForm(f => ({ ...f, state: canonicalName, city: '', pinCode: '' }));
     setCities(getCities(isoCode));
   };
 
@@ -403,8 +415,10 @@ export default function SellerSettingsScreen() {
         </View>
 
         <View style={styles.divider} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
-          <Text style={styles.sectionLabel}>{t('store.razorpayRouteTitle') || "Razorpay Route Payments"}</Text>
+        <View style={styles.routeHeaderRow}>
+          <Text style={styles.routeSectionLabel} numberOfLines={2}>
+            {t('store.razorpayRouteTitle') || "Razorpay Route Payments"}
+          </Text>
           <View style={[
             styles.routeBadge,
             store?.razorpayAccountId
@@ -528,7 +542,7 @@ function SelectField({
   label: string;
   value: string;
   placeholder: string;
-  options: { key: string; label: string }[];
+  options: { key: string; label: string; canonicalName?: string }[];
   disabled?: boolean;
   style?: any;
   onSelect: (key: string, label: string) => void;
@@ -536,6 +550,10 @@ function SelectField({
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [open, setOpen] = useState(false);
+  const selectedOption = options.find(
+    o => o.key === value || o.label === value || (o as any).canonicalName === value,
+  );
+  const displayLabel = selectedOption ? selectedOption.label : value;
   return (
     <View style={[{ marginBottom: Spacing.md }, style]}>
       <Text style={styles.label}>{label}</Text>
@@ -544,8 +562,8 @@ function SelectField({
         onPress={() => !disabled && setOpen(true)}
         disabled={disabled}
       >
-        <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
-          {value || placeholder}
+        <Text style={displayLabel ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
+          {displayLabel || placeholder}
         </Text>
         <ChevronDown size={16} color={CustomerColors.textSecondary} />
       </TouchableOpacity>
@@ -568,7 +586,7 @@ function SelectField({
                   style={styles.modalItem}
                   onPress={() => { onSelect(item.key, item.label); setOpen(false); }}
                 >
-                  <Text style={[styles.modalItemText, item.label === value && styles.modalItemTextActive]}>
+                  <Text style={[styles.modalItemText, (item.key === value || item.label === value || (item as any).canonicalName === value) && styles.modalItemTextActive]}>
                     {item.label}
                   </Text>
                 </TouchableOpacity>
@@ -688,6 +706,21 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     color: isDark ? '#F9FAFB' : '#374151',
     marginBottom: 4,
   },
+  routeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: Spacing.xs,
+  },
+  routeSectionLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: isDark ? '#F9FAFB' : '#374151',
+    flex: 1,
+    minWidth: 150,
+  },
   sectionHint: { fontSize: 11, color: isDark ? '#9CA3AF' : '#9CA3AF', marginBottom: Spacing.sm },
   upiRow: { flexDirection: 'row', gap: Spacing.sm },
   qrBox: {
@@ -707,6 +740,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   saveRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
     marginTop: Spacing.sm,
   },
@@ -813,9 +847,10 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   routeBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
+    alignSelf: 'flex-start',
   },
   routeBadgeActive: {
     backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#F0FDF4',

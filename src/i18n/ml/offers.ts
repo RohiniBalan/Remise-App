@@ -18,7 +18,8 @@ export const offers: TranslationSchema['offers'] = {
   noPrivateOffersDesc: 'ഒരു സ്റ്റോർ നിങ്ങൾക്ക് വ്യക്തിഗത ഡീൽ അയക്കുമ്പോൾ, അത് ഇവിടെ കാണിക്കും.',
   dealsStoreSentPersonally: 'ഒരു സ്റ്റോർ നിങ്ങൾക്ക് വ്യക്തിഗതമായി അയച്ച ഡീലുകൾ',
   justForYou: 'നിങ്ങൾക്കായി മാത്രം',
-  orderNowBtn: 'ഇപ്പോൾ ഓർഡർ ചെയ്യുക',
+  orderNowBtn: 'ഓർഡർ ചെയ്യുക',
   signInForPrivateOffers: 'നിങ്ങളുടെ ഓഫറുകൾ കാണാൻ സൈൻ ഇൻ ചെയ്യുക',
   signInForPrivateOffersDesc: 'നിങ്ങൾ ലോഗിൻ ചെയ്തുകഴിഞ്ഞാൽ നിങ്ങളുടെ അക്കൗണ്ടിലേക്ക് അയച്ച പ്രത്യേക ഓഫറുകൾ ഇവിടെ ദൃശ്യമാകും.',
+  privateOffers: 'പ്രത്യേകമായത്',
 };

@@ -234,7 +234,7 @@ export async function scanBulkProducts(base64: string, mimeType: string): Promis
 // one round trip, same "if not already English, translate first" idea.
 
 const VOICE_LANG_NAMES: Record<string, string> = {
-  en: 'English', ta: 'Tamil', te: 'Telugu', kn: 'Kannada', ml: 'Malayalam',
+  en: 'English', ta: 'Tamil', te: 'Telugu', kn: 'Kannada', ml: 'Malayalam', hi: 'Hindi',
 };
 
 function voiceLangClause(sourceLang: string): string {
@@ -834,4 +834,31 @@ export async function fetchProductPhotoUrl(productName: string, category: string
 export function buildGeneratedImageUrl(productName: string, category: string, seedOffset: number = 0): string {
   return getCuratedPhotoFallback(productName, category);
 }
+
+/**
+ * Translates any manually typed regional grocery term (Tamil, Malayalam, Telugu,
+ * Kannada, Hindi, Tanglish, Hinglish, etc.) into a standard English grocery item name
+ * for catalog and store comparison matching.
+ */
+export async function translateGroceryTerm(text: string): Promise<{ englishName: string; quantity?: string }> {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return { englishName: '' };
+  const prompt = `You are an Indian grocery and household item translator.
+The customer typed a grocery or household item: "${trimmed}".
+Translate it to the canonical standard English grocery item name (e.g., "Rice", "Fresh Milk", "Toor Dal", "Coconut Oil", "Fresh Tomatoes", "Wheat Flour", "Cooking Oil", etc.) and extract any quantity if present.
+Reply ONLY with a raw JSON object (no markdown, no code fences):
+{"englishName":"<standard English product name>","quantity":"<extracted quantity with unit, or empty string if none>"}`;
+
+  try {
+    const raw = await callGeminiText(prompt);
+    const parsed = JSON.parse(raw);
+    return {
+      englishName: String(parsed.englishName || trimmed).trim(),
+      quantity: String(parsed.quantity || '').trim() || undefined,
+    };
+  } catch {
+    return { englishName: trimmed };
+  }
+}
+
 

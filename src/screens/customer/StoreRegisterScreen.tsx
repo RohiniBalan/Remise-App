@@ -50,7 +50,8 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
-import { indianStates, getCities } from '../../utils/indiaLocation';
+import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
+import { useTranslation } from '../../i18n';
 
 const CATEGORIES = [
   'Food & Beverages',
@@ -93,6 +94,7 @@ export default function StoreRegisterScreen() {
   const route = useRoute<any>();
   const { user, token, login } = useAuth();
   const { isDark, colors } = useTheme();
+  const { language } = useTranslation();
 
   const storeType =
     route.params?.storeType ||
@@ -1843,7 +1845,7 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                         : { color: '#111827' },
                   ]}
                 >
-                  {form.state || 'Select State'}
+                  {form.state ? translateState(form.state, language) : 'Select State'}
                 </Text>
                 <ChevronDown size={18} color={isDark ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
@@ -1876,7 +1878,7 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                         : { color: '#111827' },
                   ]}
                 >
-                  {form.city || (form.state ? 'Select City' : 'Select State first')}
+                  {form.city ? translateCity(form.city, language) : (form.state ? 'Select City' : 'Select State first')}
                 </Text>
                 <ChevronDown size={18} color={isDark ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
@@ -2473,7 +2475,7 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                       form.state === item.name && styles.modalItemTextActive,
                     ]}
                   >
-                    {item.name}
+                    {translateState(item.name, language)}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -2512,7 +2514,7 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                       form.city === item.name && styles.modalItemTextActive,
                     ]}
                   >
-                    {item.name}
+                    {translateCity(item.name, language)}
                   </Text>
                 </TouchableOpacity>
               )}

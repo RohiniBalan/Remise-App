@@ -6,6 +6,7 @@ import { smartOrderApi } from '../api/smartOrderApi';
 import { storeProductApi } from '../api/storeProductApi';
 import { useAuth } from './AuthContext';
 import { isValidPlacedOrder } from '../utils/orderValidation';
+import { registerProducts } from '../i18n';
 
 // Ported from client/app/store/dashboard/page.tsx's loadData() — same
 // sequence (load own store scoped by ownerId -> self-heal role if still
@@ -66,7 +67,6 @@ function normalizeSmartOrder(o: any) {
     paymentStatus: o.paymentStatus,
     vendorTransfers: o.vendorTransfers || [],
     rawItems: items,
-    orderOtp: o.orderOtp,
     refundStatus: o.refundStatus || (o.paymentStatus === 'REFUNDED' ? 'refunded' : 'none'),
     totalRefundedAmount: o.totalRefundedAmount || (o.paymentStatus === 'REFUNDED' ? o.totalAmount : 0),
     refunds: o.refunds || [],
@@ -174,7 +174,11 @@ export function StoreDashboardProvider({ children }: { children: React.ReactNode
       ]);
 
       if (offRes.status === 'fulfilled') setOffers(offRes.value.data.data || []);
-      if (prodRes.status === 'fulfilled') setProducts(prodRes.value.data.data || []);
+      if (prodRes.status === 'fulfilled') {
+        const pList = prodRes.value.data.data || [];
+        registerProducts(pList);
+        setProducts(pList);
+      }
       if (catRes.status === 'fulfilled') setCategories(catRes.value.data.data || []);
 
       const offerOrders = ordRes.status === 'fulfilled' ? (ordRes.value.data.data || []).filter(isValidPlacedOrder).map((o: any) => ({

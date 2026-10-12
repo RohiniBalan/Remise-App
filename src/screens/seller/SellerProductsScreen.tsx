@@ -189,7 +189,7 @@ export default function SellerProductsScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder={isWholesaler ? (t('products.searchWholesaleCatalog') || 'Search wholesale catalog…') : (t('products.searchArtisanProducts') || 'Search artisan products…')}
+            placeholder={isWholesaler ? (t('store.searchWholesaleCatalog') || 'Search wholesale catalog…') : (t('store.searchArtisanProducts') || 'Search artisan products…')}
             placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
             style={styles.searchInput}
           />
@@ -197,24 +197,24 @@ export default function SellerProductsScreen() {
       </View>
 
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => setScanModalType('single')} disabled={scanning}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setScanModalType('single')} disabled={scanning} activeOpacity={0.8}>
           {scanning ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <ScanLine size={15} color="#fff" />
-              <Text style={styles.actionBtnText}>{t('store.scanPaperList') || 'Scan Paper'}</Text>
+              <ScanLine size={14} color="#fff" style={{ flexShrink: 0 }} />
+              <Text style={styles.actionBtnText} numberOfLines={2}>{t('store.scanPaperList') || 'Scan Paper'}</Text>
             </>
           )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => setShowBulkScanModal(true)} disabled={scanning}>
-          <ListChecks size={15} color="#fff" />
-          <Text style={styles.actionBtnText}>{t('store.bulkProductScan') || t('store.scanGroceryList') || 'Scan List'}</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setShowBulkScanModal(true)} disabled={scanning} activeOpacity={0.8}>
+          <ListChecks size={14} color="#fff" style={{ flexShrink: 0 }} />
+          <Text style={styles.actionBtnText} numberOfLines={2}>{t('store.bulkProductScan') || t('store.scanGroceryList') || 'Scan List'}</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('SellerProductForm', {})}>
+      <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('SellerProductForm', {})} activeOpacity={0.8}>
         <Plus size={15} color="#fff" />
-        <Text style={styles.addBtnText}>
+        <Text style={styles.addBtnText} numberOfLines={1}>
           {isWholesaler ? (t('store.addProduct') || 'Add Wholesale Product') : (t('store.addProduct') || 'Add Home Product')}
         </Text>
       </TouchableOpacity>
@@ -241,16 +241,20 @@ export default function SellerProductsScreen() {
             <TouchableOpacity
               style={styles.card}
               onPress={() => navigation.navigate('SellerManageBrands', { typeKey: pt.typeKey, title: pt.title, category: pt.category, items: pt.items, brandCount: pt.brandCount, totalStock: pt.totalStock, stockUnit: (pt as any).stockUnit })}
+              activeOpacity={0.85}
             >
               <View style={styles.cardImageWrap}>
                 {img ? <Image source={{ uri: img }} style={styles.cardImage} /> : <Package size={30} color={isDark ? '#4B5563' : '#E5E7EB'} />}
               </View>
               <View style={{ padding: Spacing.sm }}>
                 <Text style={styles.cardCategory} numberOfLines={1}>{pt.category ? translateCategory(pt.category, language) : '—'}</Text>
-                <Text style={styles.cardTitle} numberOfLines={1}>{translateProductName(pt.title, language)}</Text>
-                <Text style={styles.cardSub}>{pt.brandCount} {t('store.availableBrandsLabel') || 'Brands'}</Text>
-                <Text style={styles.cardSub}>{t('store.totalStock') || 'Total Stock'}: {pt.totalStock} {(pt as any).stockUnit || 'Count'}</Text>
-                <View style={styles.manageBtn}><Text style={styles.manageBtnText}>{t('store.manageBrands') || 'Manage Brands'} →</Text></View>
+                <Text style={styles.cardTitle} numberOfLines={1}>{translateProductName(pt.title, language, pt.items?.[0])}</Text>
+                <Text style={styles.cardSub} numberOfLines={1}>{pt.brandCount} {pt.brandCount !== 1 ? (t('store.availableBrandsLabel') || 'Brands') : (t('store.brandLabel') || 'Brand')}</Text>
+                <Text style={styles.cardSub} numberOfLines={1}>{t('store.productStock') || t('store.totalStock') || 'Total Stock'}: {pt.totalStock} {(((pt as any).stockUnit === 'Count' || !(pt as any).stockUnit) && language === 'ta') ? 'எண்ணிக்கை' : ((pt as any).stockUnit || 'Count')}</Text>
+                <View style={styles.manageBtn}>
+                  <Text style={styles.manageBtnText} numberOfLines={1}>{t('store.manageBrands') || 'Manage Brands'}</Text>
+                  <Text style={styles.manageBtnArrow}>→</Text>
+                </View>
               </View>
             </TouchableOpacity>
           );
@@ -319,10 +323,40 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: FontSizes.sm, color: isDark ? '#FFFFFF' : CustomerColors.black },
   actionRow: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
-  actionBtn: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.teal600, paddingVertical: 10, borderRadius: BorderRadius.md },
-  actionBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs },
-  addBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF0000', marginHorizontal: Spacing.md, marginTop: Spacing.sm, paddingVertical: 12, borderRadius: BorderRadius.md },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CustomerColors.teal600,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: BorderRadius.md,
+    minHeight: 46,
+    overflow: 'hidden',
+  },
+  actionBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 11,
+    lineHeight: 14,
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF0000',
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm, flexShrink: 1 },
   emptyBox: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: 6 },
   emptyTitle: { fontWeight: '700', fontSize: FontSizes.md, color: isDark ? '#FFFFFF' : '#374151' },
   emptySub: { fontSize: FontSizes.sm, color: isDark ? '#9CA3AF' : '#9CA3AF', textAlign: 'center' },
@@ -340,8 +374,30 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   cardCategory: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF', marginBottom: 2 },
   cardTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },
   cardSub: { fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 },
-  manageBtn: { marginTop: 8, backgroundColor: CustomerColors.teal600, borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
-  manageBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  manageBtn: {
+    marginTop: 8,
+    backgroundColor: CustomerColors.teal600,
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  manageBtnText: {
+    color: '#fff',
+    fontSize: 10.5,
+    fontWeight: '700',
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+  manageBtnArrow: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    flexShrink: 0,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

@@ -3,7 +3,8 @@ import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { AddressData } from '../../api/paymentApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { LocationSelectField, lookupPincode } from './LocationSelectField';
-import { indianStates, getCities } from '../../utils/indiaLocation';
+import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
+import { useTranslation } from '../../i18n';
 import { useTheme } from '../../context/ThemeContext';
 
 interface Props {
@@ -13,16 +14,27 @@ interface Props {
 
 export default function AddressFormFields({ data, onChange }: Props) {
   const { isDark } = useTheme();
+  const { language, t } = useTranslation();
 
   // Build state options
   const stateOptions = useMemo(
-    () => indianStates.map(s => ({ key: s.isoCode, label: s.name })),
-    [],
+    () =>
+      indianStates.map(s => ({
+        key: s.isoCode,
+        canonicalName: s.name,
+        label: translateState(s.name, language),
+      })),
+    [language],
   );
 
   // Find currently selected state's isoCode
   const selectedStateObj = useMemo(
-    () => indianStates.find(s => s.name.toLowerCase() === (data.state || '').toLowerCase() || s.isoCode === data.state),
+    () =>
+      indianStates.find(
+        s =>
+          s.name.toLowerCase() === (data.state || '').toLowerCase() ||
+          s.isoCode.toLowerCase() === (data.state || '').toLowerCase(),
+      ),
     [data.state],
   );
 
@@ -31,19 +43,24 @@ export default function AddressFormFields({ data, onChange }: Props) {
     if (!selectedStateObj) return [];
     return getCities(selectedStateObj.isoCode).map(c => ({
       key: c.name,
-      label: c.name,
+      canonicalName: c.name,
+      label: translateCity(c.name, language),
     }));
-  }, [selectedStateObj]);
+  }, [selectedStateObj, language]);
 
-  const handleStateSelect = (isoCode: string, stateName: string) => {
-    onChange('state', stateName);
+  const handleStateSelect = (isoCode: string, _stateName: string) => {
+    const matched = indianStates.find(s => s.isoCode === isoCode);
+    const canonicalName = matched ? matched.name : isoCode;
+    onChange('state', canonicalName);
     onChange('city', '');
+    onChange('pinCode', '');
   };
 
-  const handleCitySelect = async (_key: string, cityName: string) => {
-    onChange('city', cityName);
+  const handleCitySelect = async (key: string, label: string) => {
+    const canonicalCity = key || label;
+    onChange('city', canonicalCity);
     // Auto lookup pincode
-    const pin = await lookupPincode(cityName);
+    const pin = await lookupPincode(canonicalCity);
     if (pin) {
       onChange('pinCode', pin);
     }
@@ -55,31 +72,39 @@ export default function AddressFormFields({ data, onChange }: Props) {
     <View style={{ gap: Spacing.md }}>
       {/* Country (Fixed India) */}
       <View>
-        <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>Country / Region</Text>
+        <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>
+          {t('checkout.countryRegion') || 'Country / Region'}
+        </Text>
         <View style={[styles.input, styles.disabledInput, isDark && { backgroundColor: '#111827', borderColor: '#374151' }]}>
-          <Text style={[styles.disabledText, isDark && { color: '#9CA3AF' }]}>India</Text>
+          <Text style={[styles.disabledText, isDark && { color: '#9CA3AF' }]}>
+            {t('checkout.india') || 'India'}
+          </Text>
         </View>
       </View>
 
       {/* Name row */}
       <View style={styles.row}>
         <View style={styles.half}>
-          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>First Name *</Text>
+          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>
+            {t('checkout.firstNameLabel') || 'First Name *'}
+          </Text>
           <TextInput
             style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
             value={data.firstName}
             onChangeText={v => onChange('firstName', v)}
-            placeholder="First name"
+            placeholder={t('checkout.firstNamePlaceholder') || 'First name'}
             placeholderTextColor={placeholderColor}
           />
         </View>
         <View style={styles.half}>
-          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>Last Name</Text>
+          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>
+            {t('checkout.lastNameLabel') || 'Last Name'}
+          </Text>
           <TextInput
             style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
             value={data.lastName}
             onChangeText={v => onChange('lastName', v)}
-            placeholder="Last name"
+            placeholder={t('checkout.lastNamePlaceholder') || 'Last name'}
             placeholderTextColor={placeholderColor}
           />
         </View>
@@ -87,24 +112,28 @@ export default function AddressFormFields({ data, onChange }: Props) {
 
       {/* Street Address */}
       <View>
-        <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>Street Address *</Text>
+        <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>
+          {t('checkout.streetAddressLabel') || 'Street Address *'}
+        </Text>
         <TextInput
           style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
           value={data.address}
           onChangeText={v => onChange('address', v)}
-          placeholder="House/Flat No., Building, Street Area"
+          placeholder={t('checkout.streetAddressPlaceholder') || 'House/Flat No., Building, Street Area'}
           placeholderTextColor={placeholderColor}
         />
       </View>
 
       {/* Apartment / Landmark */}
       <View>
-        <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>Apartment, Suite, Landmark (Optional)</Text>
+        <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>
+          {t('checkout.apartmentLabel') || 'Apartment, Suite, Landmark (Optional)'}
+        </Text>
         <TextInput
           style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
           value={data.apartment}
           onChangeText={v => onChange('apartment', v)}
-          placeholder="e.g. Near City Center / 2nd Floor"
+          placeholder={t('checkout.apartmentPlaceholder') || 'e.g. Near City Center / 2nd Floor'}
           placeholderTextColor={placeholderColor}
         />
       </View>
@@ -113,18 +142,18 @@ export default function AddressFormFields({ data, onChange }: Props) {
       <View style={styles.row}>
         <View style={styles.half}>
           <LocationSelectField
-            label="State *"
+            label={t('checkout.stateLabel') || 'State *'}
             value={data.state || ''}
-            placeholder="Select State"
+            placeholder={t('checkout.selectState') || 'Select State'}
             options={stateOptions}
             onSelect={handleStateSelect}
           />
         </View>
         <View style={styles.half}>
           <LocationSelectField
-            label="City *"
+            label={t('checkout.cityLabel') || 'City *'}
             value={data.city || ''}
-            placeholder={selectedStateObj ? 'Select City' : 'Select state first'}
+            placeholder={selectedStateObj ? (t('checkout.selectCity') || 'Select City') : (t('checkout.selectState') || 'Select state first')}
             options={cityOptions}
             disabled={!selectedStateObj}
             onSelect={handleCitySelect}
@@ -135,18 +164,22 @@ export default function AddressFormFields({ data, onChange }: Props) {
       {/* PIN Code & Phone row */}
       <View style={styles.row}>
         <View style={styles.half}>
-          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>PIN Code *</Text>
+          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>
+            {t('checkout.pincodeLabel') || 'PIN Code *'}
+          </Text>
           <TextInput
             style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
             value={data.pinCode}
             onChangeText={v => onChange('pinCode', v)}
-            placeholder="PIN code"
+            placeholder={t('checkout.pincodePlaceholder') || 'PIN code'}
             placeholderTextColor={placeholderColor}
             keyboardType="number-pad"
           />
         </View>
         <View style={styles.half}>
-          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>Phone *</Text>
+          <Text style={[styles.label, isDark && { color: '#9CA3AF' }]}>
+            {t('checkout.phoneLabel') || 'Phone *'}
+          </Text>
           <TextInput
             style={[styles.input, isDark && { backgroundColor: '#1F2937', borderColor: '#374151', color: '#FFFFFF' }]}
             value={data.phone}
@@ -154,7 +187,7 @@ export default function AddressFormFields({ data, onChange }: Props) {
               const numeric = v.replace(/\D/g, '').slice(0, 10);
               onChange('phone', numeric);
             }}
-            placeholder="10-digit mobile"
+            placeholder={t('checkout.phonePlaceholder') || '10-digit mobile'}
             placeholderTextColor={placeholderColor}
             keyboardType="number-pad"
             maxLength={10}

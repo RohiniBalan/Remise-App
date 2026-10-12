@@ -24,7 +24,6 @@ import {
   CheckCircle2,
   Truck,
 } from 'lucide-react-native';
-import { State, City } from 'country-state-city';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useSupplierCart } from '../../context/SupplierCartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -37,13 +36,13 @@ import {
   FontSizes,
   BorderRadius,
 } from '../../styles/theme';
-
-const indianStates = State.getStatesOfCountry('IN');
-const getCities = (stateCode: string) => City.getCitiesOfState('IN', stateCode);
+import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
+import { useTranslation } from '../../i18n';
 
 export default function StoreSupplierCartScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store } = useStoreDashboard();
   const { user, token } = useAuth();
@@ -123,17 +122,21 @@ export default function StoreSupplierCartScreen() {
 
   const filteredStates = useMemo(() => {
     if (!stateSearch.trim()) return indianStates;
+    const q = stateSearch.toLowerCase().trim();
     return indianStates.filter(s =>
-      s.name.toLowerCase().includes(stateSearch.toLowerCase().trim()),
+      s.name.toLowerCase().includes(q) ||
+      translateState(s.name, language).toLowerCase().includes(q),
     );
-  }, [stateSearch]);
+  }, [stateSearch, language]);
 
   const filteredCities = useMemo(() => {
     if (!citySearch.trim()) return cities;
+    const q = citySearch.toLowerCase().trim();
     return cities.filter(c =>
-      c.name.toLowerCase().includes(citySearch.toLowerCase().trim()),
+      c.name.toLowerCase().includes(q) ||
+      translateCity(c.name, language).toLowerCase().includes(q),
     );
-  }, [cities, citySearch]);
+  }, [cities, citySearch, language]);
 
   const cartLines = Object.values(cart);
   const groupsBySupplier: Record<string, any[]> = {};
@@ -373,7 +376,7 @@ export default function StoreSupplierCartScreen() {
                     }
                     numberOfLines={1}
                   >
-                    {form.state || 'Select State'}
+                    {form.state ? translateState(form.state, language) : 'Select State'}
                   </Text>
                   <ChevronDown
                     size={18}
@@ -408,8 +411,9 @@ export default function StoreSupplierCartScreen() {
                     }
                     numberOfLines={1}
                   >
-                    {form.city ||
-                      (form.state ? 'Select City' : 'Choose state first')}
+                    {form.city
+                      ? translateCity(form.city, language)
+                      : (form.state ? 'Select City' : 'Choose state first')}
                   </Text>
                   <ChevronDown
                     size={18}
@@ -674,7 +678,7 @@ export default function StoreSupplierCartScreen() {
                       form.state === item.name && styles.modalItemTextActive,
                     ]}
                   >
-                    {item.name}
+                    {translateState(item.name, language)}
                   </Text>
                   {form.state === item.name && (
                     <Check
@@ -747,7 +751,7 @@ export default function StoreSupplierCartScreen() {
                       form.city === item.name && styles.modalItemTextActive,
                     ]}
                   >
-                    {item.name}
+                    {translateCity(item.name, language)}
                   </Text>
                   {form.city === item.name && (
                     <Check

@@ -55,7 +55,9 @@ import StoreSettingsScreen from '../screens/store/StoreSettingsScreen';
 import StoreMoreScreen from '../screens/store/StoreMoreScreen';
 import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
 import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
+import StoreReviewsScreen from '../screens/store/StoreReviewsScreen';
 import NewOfferScreen from '../screens/store/NewOfferScreen';
+import StoreCreditScreen from '../screens/store/StoreCreditScreen';
 
 import CartScreen from '../screens/customer/CartScreen';
 import CheckoutScreen from '../screens/customer/CheckoutScreen';
@@ -71,7 +73,10 @@ import SettingsScreen from '../screens/customer/SettingsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
 import NotificationScreen from '../screens/customer/NotificationsScreen';
 import OrdersScreen from '../screens/customer/OrdersScreen';
+import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
+import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
 import MyOffersScreen from '../screens/customer/MyOffersScreen';
+import WishlistScreen from '../screens/customer/WishlistScreen';
 import StoreCustomersScreen from '../screens/store/StoreCustomersScreen';
 import StoreSuppliersScreen from '../screens/store/StoreSuppliersScreen';
 import StoreSupplierBrandsScreen from '../screens/store/StoreSupplierBrandsScreen';
@@ -96,7 +101,9 @@ export type StoreOwnerStackParamList = {
   StoreOwnerCategories: undefined;
   Suppliers: { initialView?: 'browse' | 'orders' } | undefined;
   StoreOwnerCustomers: undefined;
+  StoreCredit: undefined;
   StoreSettings: undefined;
+  StoreReviews: undefined;
   NewOffer: { offer?: any; targetCustomerId?: string; targetCustomerName?: string } | undefined;
 
   ProductForm: {
@@ -123,7 +130,10 @@ export type StoreOwnerStackParamList = {
   Profile: undefined;
   Notifications: undefined;
   Orders: undefined;
+  OrderDetail: { orderId: string };
+  OrderTracking: { orderId: string };
   MyOffers: undefined;
+  Wishlist: undefined;
   SupplierBrands: { titleGroup: any };
   SupplierCompare: { group: any };
   SupplierCart: undefined;
@@ -137,13 +147,14 @@ const Stack = createNativeStackNavigator<StoreOwnerStackParamList>();
 function StoreHeaderTitle({ children }: { children?: string }) {
   const { store } = useStoreDashboard();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.headerTitleWrap}>
       <View style={styles.headerNameRow}>
         <Store size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
         <Text style={styles.headerStoreName} numberOfLines={1}>
-          {store?.name || 'My Store'}
+          {store?.name || t('store.myStore') || 'My Store'}
         </Text>
       </View>
       <Text style={styles.headerTabTitle}>{children}</Text>
@@ -154,7 +165,9 @@ function StoreHeaderTitle({ children }: { children?: string }) {
 function useOwnerIdentity() {
   const { user } = useAuth();
   const { store } = useStoreDashboard();
-  const name = user?.fullname || user?.name || store?.name || 'Store Owner';
+  const { t } = useTranslation();
+  const defaultName = t('common.roleStoreOwner') || 'Store Owner';
+  const name = user?.fullname || user?.name || store?.name || defaultName;
   const email = user?.email || '';
   const initials =
     name
@@ -172,6 +185,7 @@ function StoreProfileMenu() {
   const { name, email, initials, isVerified } = useOwnerIdentity();
   const { logout } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const close = () => setOpen(false);
@@ -227,7 +241,9 @@ function StoreProfileMenu() {
                     {email}
                   </Text>
                 )}
-                <Text style={styles.menuRole}>STORE OWNER</Text>
+                <Text style={styles.menuRole}>
+                  {(t('common.roleStoreOwner') || 'Store Owner').toUpperCase()}
+                </Text>
               </View>
             </View>
 
@@ -235,37 +251,37 @@ function StoreProfileMenu() {
 
             <MenuItem
               icon={UserIcon}
-              label="My Profile"
+              label={t('common.myProfile') || 'My Profile'}
               onPress={() => go('Profile')}
               isDark={isDark}
             />
             <MenuItem
               icon={ShoppingBag}
-              label="My Orders"
+              label={t('common.myOrders') || 'My Orders'}
               onPress={() => go('Orders')}
               isDark={isDark}
             />
             <MenuItem
               icon={Tag}
-              label="My Offers"
+              label={t('offers.myOffers') || 'My Offers'}
               onPress={() => go('MyOffers')}
               isDark={isDark}
             />
             <MenuItem
               icon={StoreIcon2}
-              label="My Store"
+              label={t('store.myStore') || 'My Store'}
               onPress={() => go('StoreOwnerTabs')}
               isDark={isDark}
             />
             <MenuItem
               icon={SettingsIcon}
-              label="Settings"
+              label={t('settings.settingsTitle') || 'Settings'}
               onPress={() => go('StoreSettings')}
               isDark={isDark}
             />
             <MenuItem
               icon={SlidersHorizontal}
-              label="Preferences"
+              label={t('settings.preferencesTab') || 'Preferences'}
               onPress={() => go('StoreSettings')}
               isDark={isDark}
             />
@@ -274,7 +290,7 @@ function StoreProfileMenu() {
 
             <MenuItem
               icon={LogOut}
-              label="Sign Out"
+              label={t('common.signOut') || 'Sign Out'}
               danger
               onPress={handleSignOut}
               isDark={isDark}
@@ -401,6 +417,7 @@ function StoreOwnerTabs() {
         name="Overview"
         component={StoreOverviewScreen}
         options={{
+          title: t('store.overview'),
           tabBarLabel: t('store.overview'),
           tabBarIcon: ({ color, size }) => (
             <BarChart2 color={color} size={size} />
@@ -411,6 +428,7 @@ function StoreOwnerTabs() {
         name="Analytics"
         component={StoreAnalyticsScreen}
         options={{
+          title: t('admin.analytics'),
           tabBarLabel: t('admin.analytics'),
           tabBarIcon: ({ color, size }) => (
             <TrendingUp color={color} size={size} />
@@ -421,6 +439,7 @@ function StoreOwnerTabs() {
         name="Products"
         component={StoreProductsScreen}
         options={{
+          title: t('store.productsTab'),
           tabBarLabel: t('store.productsTab'),
           tabBarIcon: ({ color, size }) => (
             <Package color={color} size={size} />
@@ -444,6 +463,7 @@ function StoreOwnerTabs() {
         name="Offers"
         component={StoreOffersScreen}
         options={{
+          title: t('store.offersTab'),
           tabBarLabel: t('store.offersTab'),
           tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />,
         }}
@@ -452,7 +472,8 @@ function StoreOwnerTabs() {
         name="More"
         component={StoreMoreScreen}
         options={{
-          tabBarLabel: t('common.more') || 'More',
+          title: t('common.more'),
+          tabBarLabel: t('common.more'),
           tabBarIcon: ({ color, size }) => (
             <MoreHorizontal color={color} size={size} />
           ),
@@ -466,14 +487,15 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
   const { loading, noStore } = useStoreDashboard();
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   if (loading) {
     return (
       <RemiseLoading
         fullscreen
-        message="Loading Store Dashboard..."
-        subMessage="Fetching store inventory & orders"
+        message={t('store.loadingDashboard') || 'Loading Store Dashboard...'}
+        subMessage={t('store.fetchingInventory') || 'Fetching store inventory & orders'}
       />
     );
   }
@@ -482,15 +504,15 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
     return (
       <View style={styles.center}>
         <Store size={40} color={isDark ? '#2DD4BF' : CustomerColors.teal600} />
-        <Text style={styles.noStoreTitle}>No store found</Text>
+        <Text style={styles.noStoreTitle}>{t('store.noStoreFound') || 'No store found'}</Text>
         <Text style={styles.noStoreSubtitle}>
-          You haven't registered a store yet.
+          {t('store.notRegisteredDesc') || "You haven't registered a store yet."}
         </Text>
         <TouchableOpacity
           style={styles.registerBtn}
           onPress={() => navigation.navigate('StoreRegister')}
         >
-          <Text style={styles.registerBtnText}>Register Store</Text>
+          <Text style={styles.registerBtnText}>{t('store.registerStore') || 'Register Store'}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -501,6 +523,7 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
 
 export default function StoreOwnerNavigator() {
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const stackHeaderOptions = {
     headerShown: true,
     headerStyle: {
@@ -524,7 +547,7 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="StoreDeliveries"
               component={StoreDeliveriesScreen}
-              options={{ ...stackHeaderOptions, title: 'Deliveries Log' }}
+              options={{ ...stackHeaderOptions, title: t('store.deliveriesTab') || 'Deliveries Log' }}
             />
             <Stack.Screen
               name="StoreOrderTracking"
@@ -534,12 +557,12 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="StoreOwnerCategories"
               component={StoreCategoriesScreen}
-              options={{ ...stackHeaderOptions, title: 'Categories' }}
+              options={{ ...stackHeaderOptions, title: t('store.categoriesTab') || 'Categories' }}
             />
             <Stack.Screen
               name="Suppliers"
               component={StoreSuppliersScreen}
-              options={{ ...stackHeaderOptions, title: 'Order Stock' }}
+              options={{ ...stackHeaderOptions, title: t('store.orderStock') || 'Order Stock' }}
             />
             <Stack.Screen
               name="SupplierBrands"
@@ -554,42 +577,52 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="SupplierCart"
               component={StoreSupplierCartScreen}
-              options={{ ...stackHeaderOptions, title: 'Supplier Cart' }}
+              options={{ ...stackHeaderOptions, title: t('store.supplierCart') || 'Supplier Cart' }}
             />
             <Stack.Screen
               name="StoreOwnerCustomers"
               component={StoreCustomersScreen}
-              options={{ ...stackHeaderOptions, title: 'Customers' }}
+              options={{ ...stackHeaderOptions, title: t('store.customers') || 'Customers' }}
+            />
+            <Stack.Screen
+              name="StoreCredit"
+              component={StoreCreditScreen}
+              options={{ ...stackHeaderOptions, title: 'Store Credit (Kadan)' }}
             />
             <Stack.Screen
               name="StoreSettings"
               component={StoreSettingsScreen}
-              options={{ ...stackHeaderOptions, title: 'Settings' }}
+              options={{ ...stackHeaderOptions, title: t('settings.settingsTitle') || 'Settings' }}
+            />
+            <Stack.Screen
+              name="StoreReviews"
+              component={StoreReviewsScreen}
+              options={{ ...stackHeaderOptions, title: 'Store Reviews & Ratings' }}
             />
             <Stack.Screen
               name="NewOffer"
               component={NewOfferScreen}
-              options={{ ...stackHeaderOptions, title: 'New Offer' }}
+              options={{ ...stackHeaderOptions, title: t('offers.newOffer') || 'New Offer' }}
             />
             <Stack.Screen
               name="ProductForm"
               component={StoreProductFormScreen}
-              options={{ ...stackHeaderOptions, title: 'Product' }}
+              options={{ ...stackHeaderOptions, title: t('products.product') || 'Product' }}
             />
             <Stack.Screen
               name="BulkProductScan"
               component={StoreBulkProductScanScreen}
-              options={{ ...stackHeaderOptions, title: 'Scan Grocery List' }}
+              options={{ ...stackHeaderOptions, title: t('store.scanGroceryList') || 'Scan Grocery List' }}
             />
             <Stack.Screen
               name="ManageBrands"
               component={StoreManageBrandsScreen}
-              options={{ ...stackHeaderOptions, title: 'Manage Brands' }}
+              options={{ ...stackHeaderOptions, title: t('store.manageBrands') || 'Manage Brands' }}
             />
             <Stack.Screen
               name="Cart"
               component={CartScreen}
-              options={{ ...stackHeaderOptions, title: 'Your Cart' }}
+              options={{ ...stackHeaderOptions, title: t('cart.cartTitle') || 'Your Cart' }}
             />
             <Stack.Screen
               name="Checkout"
@@ -619,32 +652,47 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ ...stackHeaderOptions, title: 'Settings' }}
+              options={{ ...stackHeaderOptions, title: t('settings.settingsTitle') || 'Settings' }}
             />
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
-              options={{ ...stackHeaderOptions, title: 'Profile' }}
+              options={{ ...stackHeaderOptions, title: t('common.myProfile') || 'Profile' }}
             />
             <Stack.Screen
               name="Notifications"
               component={NotificationScreen}
-              options={{ ...stackHeaderOptions, title: 'Notifications' }}
+              options={{ ...stackHeaderOptions, title: t('notifications.notificationsTitle') || 'Notifications' }}
             />
             <Stack.Screen
               name="Orders"
               component={OrdersScreen}
-              options={{ ...stackHeaderOptions, title: 'My Orders' }}
+              options={{ ...stackHeaderOptions, title: t('common.myOrders') || 'My Orders' }}
+            />
+            <Stack.Screen
+              name="OrderDetail"
+              component={OrderDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="OrderTracking"
+              component={OrderTrackingScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="MyOffers"
               component={MyOffersScreen}
-              options={{ ...stackHeaderOptions, title: 'My Offers' }}
+              options={{ ...stackHeaderOptions, title: t('offers.myOffers') || 'My Offers' }}
+            />
+            <Stack.Screen
+              name="Wishlist"
+              component={WishlistScreen}
+              options={{ ...stackHeaderOptions, title: t('common.myWishlist') || 'My Wishlist' }}
             />
             <Stack.Screen
               name="StoreRegister"
               component={StoreRegisterScreen}
-              options={{ ...stackHeaderOptions, title: 'Register Your Store' }}
+              options={{ ...stackHeaderOptions, title: t('auth.registerStoreTitle') || 'Register Your Store' }}
             />
             <Stack.Screen
               name="ProductDetail"

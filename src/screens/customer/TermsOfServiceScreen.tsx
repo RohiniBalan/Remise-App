@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -153,6 +153,10 @@ export default function TermsOfServiceScreen() {
     const navigation = useNavigation<any>();
     const [openSet, setOpenSet] = useState<Set<number>>(new Set([1]));
 
+    useEffect(() => {
+        navigation.setOptions({ title: terms.heroTitle });
+    }, [navigation, terms.heroTitle]);
+
     const cardBg = isDark ? '#111827' : '#ffffff';
     const borderColor = isDark ? '#1F2937' : '#e2e8f0';
     const textPri = isDark ? '#F9FAFB' : '#0f172a';
@@ -217,17 +221,16 @@ export default function TermsOfServiceScreen() {
                     );
                 })}
             </View>
-
             {/* INDEX */}
             <View style={styles.section}>
                 <View style={styles.indexHeaderRow}>
                     <Text style={[styles.h2, { color: textPri }]}>{language === 'ta' ? 'பொருளடக்கம்' : language === 'te' ? 'విషయ సూచిక' : language === 'ml' ? 'സൂചിക' : language === 'kn' ? 'ಪರಿವಿಡಿ' : language === 'hi' ? 'विषय - सूची' : 'Index'}</Text>
-                    <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                        <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={expandAll}>
-                            <Text style={[styles.pillBtnText, { color: textPri }]}>{language === 'ta' ? 'அனைத்தையும் விரிவாக்கு' : language === 'te' ? 'అన్నీ విస్తరించండి' : language === 'ml' ? 'എല്ലാം വികസിപ്പിക്കുക' : language === 'kn' ? 'ಎಲ್ಲವನ್ನೂ ವಿಸ್ತರಿಸಿ' : language === 'hi' ? 'सभी विस्तृत करें' : 'Expand all'}</Text>
+                    <View style={styles.indexBtnRow}>
+                        <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={expandAll} activeOpacity={0.75}>
+                            <Text style={[styles.pillBtnText, { color: textPri }]}>{language === 'ta' ? 'அனைத்தும் விரிவாக்கு' : language === 'te' ? 'అన్నీ విస్తరించండి' : language === 'ml' ? 'എല്ലാം വികസിപ്പിക്കുക' : language === 'kn' ? 'ಎಲ್ಲವನ್ನೂ ವಿಸ್ತರಿಸಿ' : language === 'hi' ? 'सभी विस्तृत करें' : 'Expand all'}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={collapseAll}>
-                            <Text style={[styles.pillBtnText, { color: textPri }]}>{language === 'ta' ? 'அனைத்தையும் சுருக்கு' : language === 'te' ? 'అన్నీ కుదించండి' : language === 'ml' ? 'എല്ലാം ചുരുക്കുക' : language === 'kn' ? 'ಎಲ್ಲವನ್ನೂ ಕುಗ್ಗಿಸಿ' : language === 'hi' ? 'सभी संक्षिप्त करें' : 'Collapse all'}</Text>
+                        <TouchableOpacity style={[styles.pillBtn, { backgroundColor: cardBg, borderColor }]} onPress={collapseAll} activeOpacity={0.75}>
+                            <Text style={[styles.pillBtnText, { color: textPri }]}>{language === 'ta' ? 'அனைத்தும் சுருக்கு' : language === 'te' ? 'అన్నీ కుదించండి' : language === 'ml' ? 'എല്ലാം ചുരുക്കുക' : language === 'kn' ? 'ಎಲ್ಲವನ್ನೂ ಕುಗ್ಗಿಸಿ' : language === 'hi' ? 'सभी संक्षिप्त करें' : 'Collapse all'}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -240,7 +243,7 @@ export default function TermsOfServiceScreen() {
                             activeOpacity={0.7}
                         >
                             <Text style={styles.indexNumber}>{a.n}</Text>
-                            <Text style={[styles.indexTitle, { color: textPri }]} numberOfLines={1}>{a.title}</Text>
+                            <Text style={[styles.indexTitle, { color: textPri }]}>{a.title}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -248,7 +251,7 @@ export default function TermsOfServiceScreen() {
 
             {/* FULL TERMS */}
             <View style={styles.section}>
-                <Text style={[styles.h2, { color: textPri }]}>{language === 'ta' ? 'முழு விதிமுறைகள்' : language === 'te' ? 'పూర్తి నిబంధనలు' : language === 'ml' ? 'പൂർണ്ണ നിബന്ധനകൾ' : language === 'kn' ? 'ಸಂಪೂರ್ಣ ನಿಯಮಗಳು' : language === 'hi' ? 'पूर्ण शर्तें' : 'Full terms'}</Text>
+                <Text style={[styles.h2, styles.fullTermsHeading, { color: textPri }]}>{language === 'ta' ? 'முழு விதிமுறைகள்' : language === 'te' ? 'పూర్తి నిబంధనలు' : language === 'ml' ? 'പൂർണ്ണ നിബന്ധനകൾ' : language === 'kn' ? 'ಸಂಪೂರ್ಣ ನಿಯಮಗಳು' : language === 'hi' ? 'पूर्ण शर्तें' : 'Full terms'}</Text>
                 <View style={[styles.articlesCard, { backgroundColor: cardBg, borderColor }]}>
                     {terms.articles.map((a) => (
                         <ArticleRow key={a.n} article={a} isOpen={openSet.has(a.n)} onToggle={() => toggle(a.n)} borderColor={borderColor} textPri={textPri} textSec={textSec} iconBg={iconBg} />
@@ -285,10 +288,11 @@ const styles = StyleSheet.create({
     hero: { padding: Spacing.lg, paddingTop: Spacing.xl },
     badge: {
         flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+        maxWidth: '100%',
         borderWidth: 1, borderColor: 'rgba(255,0,0,0.35)', borderRadius: BorderRadius.pill,
         paddingHorizontal: Spacing.md, paddingVertical: 6, marginBottom: Spacing.md,
     },
-    badgeText: { fontSize: 11, fontWeight: '700', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5 },
+    badgeText: { fontSize: 11, fontWeight: '700', color: BRAND_RED, textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 1 },
     heroTitle: { fontSize: FontSizes.xl ?? 28, fontWeight: '900', color: '#FFFFFF', marginBottom: Spacing.sm },
     heroSubtitle: { fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 20 },
 
@@ -304,9 +308,32 @@ const styles = StyleSheet.create({
     highlightTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: '#FFFFFF' },
     highlightDesc: { fontSize: FontSizes.xs, color: '#9CA3AF', marginTop: 2, lineHeight: 16 },
 
-    indexHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
-    pillBtn: { borderWidth: 1, borderColor: '#333', borderRadius: BorderRadius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 6 },
+    indexHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        rowGap: Spacing.sm,
+        marginBottom: Spacing.md,
+    },
+    indexBtnRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+        flexWrap: 'wrap',
+    },
+    pillBtn: {
+        borderWidth: 1,
+        borderColor: '#333',
+        borderRadius: BorderRadius.pill,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+    },
     pillBtnText: { fontSize: 11, fontWeight: '700', color: '#D1D5DB' },
+
+    fullTermsHeading: {
+        marginBottom: Spacing.md,
+    },
 
     indexGrid: { borderWidth: 1, borderColor: '#222', borderRadius: BorderRadius.md, overflow: 'hidden' },
     indexItem: {
@@ -314,7 +341,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
         borderBottomWidth: 1, borderBottomColor: '#222', backgroundColor: '#111',
     },
-    indexNumber: { fontSize: 12, fontWeight: '800', color: BRAND_RED, width: 18 },
+    indexNumber: { fontSize: 12, fontWeight: '800', color: BRAND_RED, minWidth: 22 },
     indexTitle: { flex: 1, fontSize: FontSizes.sm, fontWeight: '600', color: '#D1D5DB' },
 
     articlesCard: { backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.md },
@@ -323,7 +350,7 @@ const styles = StyleSheet.create({
     articleNumber: { fontSize: 22, fontWeight: '300', color: '#374151', width: 34 },
     articleNumberActive: { color: BRAND_RED },
     articleTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    articleTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: '#FFFFFF' },
+    articleTitle: { flex: 1, fontSize: FontSizes.sm, fontWeight: '700', color: '#FFFFFF' },
     articleSummary: { fontSize: FontSizes.xs, color: '#9CA3AF', marginTop: 2 },
     toggleCircle: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: '#333', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
 
@@ -335,10 +362,10 @@ const styles = StyleSheet.create({
     bulletDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: BRAND_RED, marginTop: 7 },
     bulletText: { flex: 1, fontSize: FontSizes.sm, color: '#9CA3AF', lineHeight: 19 },
 
-    ctaCard: { backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,0,0,0.4)', borderRadius: BorderRadius.lg, padding: Spacing.lg },
-    ctaBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: BRAND_RED, alignSelf: 'flex-start', borderRadius: BorderRadius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 4, marginBottom: Spacing.md },
-    ctaBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
-    ctaTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', marginBottom: Spacing.lg, lineHeight: 22 },
-    ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: BRAND_RED, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignSelf: 'flex-start', paddingHorizontal: Spacing.lg },
-    ctaButtonText: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF' },
+    ctaCard: { backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,0,0,0.4)', borderRadius: BorderRadius.lg, padding: Spacing.lg, alignItems: 'center' },
+    ctaBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: BRAND_RED, alignSelf: 'center', maxWidth: '100%', borderRadius: BorderRadius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 4, marginBottom: Spacing.md },
+    ctaBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF', flexShrink: 1, textAlign: 'center' },
+    ctaTitle: { fontSize: FontSizes.base, fontWeight: '800', color: '#FFFFFF', marginBottom: Spacing.lg, lineHeight: 22, textAlign: 'center' },
+    ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: BRAND_RED, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignSelf: 'center', paddingHorizontal: Spacing.lg },
+    ctaButtonText: { fontSize: FontSizes.sm, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' },
 });

@@ -20,7 +20,7 @@ import {
   EyeOff,
   LogOut,
 } from 'lucide-react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../../i18n';
@@ -47,6 +47,7 @@ type Tab = 'account' | 'preferences' | 'security' | 'notifications';
 
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<any>();
   const { logout } = useAuth();
   const { isDark } = useTheme();
   const { t } = useLanguage();
@@ -79,6 +80,16 @@ export default function SettingsScreen() {
 
   const handleSignOut = async () => {
     await logout();
+    try {
+      let rootNav: any = navigation;
+      while (rootNav?.getParent && rootNav.getParent()) {
+        rootNav = rootNav.getParent();
+      }
+      rootNav?.reset?.({
+        index: 0,
+        routes: [{ name: 'RoleGate' }],
+      });
+    } catch {}
   };
 
   return (
