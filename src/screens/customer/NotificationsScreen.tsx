@@ -25,6 +25,7 @@ interface NotificationItem {
   body: string;
   image?: string | null;
   url?: string;
+  type?: string;
   isRead: boolean;
   createdAt: string;
 }
@@ -99,7 +100,9 @@ export default function NotificationsScreen() {
     handleMarkRead(item._id);
 
     const url = item.url?.toLowerCase() || '';
-    if (url.includes('order')) {
+    if (url.includes('credit') || item.type === 'credit') {
+      navigation.navigate('MyCredit');
+    } else if (url.includes('order')) {
       if (user?.role === 'store_owner') {
         navigation.navigate('StoreOwnerTabs', { screen: 'Orders' });
       } else {

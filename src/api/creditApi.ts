@@ -76,6 +76,9 @@ export const creditApi = {
   createInPersonApplication: (data: {
     storeId: string;
     customerId: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
     creditLimit: number;
     repaymentPolicy: RepaymentPolicy;
     idType: string;

@@ -20,8 +20,12 @@ import {
   AlertTriangle,
   Clock,
   Shield,
+  ShieldCheck,
   FileText,
   UserCheck,
+  User,
+  Phone,
+  Mail,
   X,
   ChevronRight,
   TrendingUp,
@@ -36,6 +40,7 @@ import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { creditApi, CreditAccount, CreditLedgerEntry, RepaymentPolicy } from '../../api/creditApi';
+import { storeApi } from '../../api/storeApi';
 
 export default function StoreCreditScreen() {
   const { store } = useStoreDashboard();
@@ -62,6 +67,9 @@ export default function StoreCreditScreen() {
   const [searchingCust, setSearchingCust] = useState(false);
   const [custSearchResults, setCustSearchResults] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [formCustName, setFormCustName] = useState('');
+  const [formCustPhone, setFormCustPhone] = useState('');
+  const [formCustEmail, setFormCustEmail] = useState('');
 
   const [formLimit, setFormLimit] = useState('5000');
   const [formPolicyType, setFormPolicyType] = useState<'weekly' | 'monthly' | 'custom_days' | 'specific_date'>('weekly');
@@ -69,12 +77,52 @@ export default function StoreCreditScreen() {
   const [formMonthlyDay, setFormMonthlyDay] = useState<string>('5');
   const [formCustomDays, setFormCustomDays] = useState<string>('15');
   const [formSpecificDate, setFormSpecificDate] = useState<string>('');
-  const [formIdType, setFormIdType] = useState<'aadhaar' | 'voter_id' | 'pan' | 'driving_license'>('aadhaar');
+  const [formIdType, setFormIdType] = useState<'aadhaar' | 'pan'>('aadhaar');
   const [formIdNumber, setFormIdNumber] = useState('');
   const [formNameOnId, setFormNameOnId] = useState('');
   const [formConsent, setFormConsent] = useState(false);
   const [formCustomerAgreed, setFormCustomerAgreed] = useState(false);
   const [submittingRegistration, setSubmittingRegistration] = useState(false);
+
+  // Cashfree Identity Verification states
+  const [verifyingId, setVerifyingId] = useState(false);
+  const [idVerified, setIdVerified] = useState(false);
+  const [idVerificationError, setIdVerificationError] = useState('');
+  const [verifiedIdData, setVerifiedIdData] = useState<any>(null);
+  const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
+  const [aadhaarRefId, setAadhaarRefId] = useState('');
+  const [aadhaarOtp, setAadhaarOtp] = useState('');
+  const [verifyingAadhaarOtp, setVerifyingAadhaarOtp] = useState(false);
+
+  // Helper to verify name match against government database (Aadhaar / PAN)
+  const isNameMatching = (enteredName: string, govtName: string): boolean => {
+    if (!enteredName || !govtName) return true;
+    const clean1 = enteredName.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    const clean2 = govtName.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    if (clean1 === clean2) return true;
+
+    const tokens1 = clean1.split(/\s+/).filter(Boolean);
+    const tokens2 = clean2.split(/\s+/).filter(Boolean);
+    if (tokens1.length === 0 || tokens2.length === 0) return false;
+
+    const usedTokens2 = new Set<number>();
+    let matchedCount = 0;
+
+    for (const t1 of tokens1) {
+      for (let j = 0; j < tokens2.length; j++) {
+        if (usedTokens2.has(j)) continue;
+        const t2 = tokens2[j];
+        if (t1 === t2 || (t1.length === 1 && t2.startsWith(t1)) || (t2.length === 1 && t1.startsWith(t2))) {
+          usedTokens2.add(j);
+          matchedCount++;
+          break;
+        }
+      }
+    }
+
+    const maxTokens = Math.max(tokens1.length, tokens2.length);
+    return matchedCount >= Math.min(tokens1.length, tokens2.length) && (matchedCount / maxTokens) >= 0.5;
+  };
 
   // Repayment form state
   const [repayAmount, setRepayAmount] = useState('');
@@ -153,7 +201,7 @@ export default function StoreCreditScreen() {
     try {
       const res = await creditApi.searchCustomers(text.trim());
       if (res.data?.success) {
-        setCustSearchResults(res.data.customers || []);
+        setCustSearchResults(res.data.data || res.data.customers || []);
       }
     } catch {
       // ignore
@@ -164,22 +212,224 @@ export default function StoreCreditScreen() {
 
   const handleSelectCustomer = (c: any) => {
     setSelectedCustomer(c);
-    setFormNameOnId(c.name || '');
+    setFormCustName(c.fullname || c.name || '');
+    setFormCustPhone(c.mobilenumber || c.phone || '');
+    setFormCustEmail(c.email || '');
+    setFormNameOnId(c.fullname || c.name || '');
     setCustSearchResults([]);
+    setIdVerified(false);
+    setVerifiedIdData(null);
+    setIdVerificationError('');
+  };
+
+  // Auto-lookup registered customer account if phone or email entered directly
+  const lookupCustomerAccount = async (val: string) => {
+    if (!val || val.trim().length < 3) return;
+    try {
+      const res = await creditApi.searchCustomers(val.trim());
+      const list = res.data?.data || res.data?.customers || [];
+      if (list.length > 0) {
+        const cleanVal = val.trim().toLowerCase();
+        const match =
+          list.find(
+            (u: any) =>
+              (u.mobilenumber && u.mobilenumber === cleanVal) ||
+              (u.phone && u.phone === cleanVal) ||
+              (u.email && u.email.toLowerCase() === cleanVal)
+          ) || list[0];
+        if (match) {
+          setSelectedCustomer(match);
+          if (!formCustName) setFormCustName(match.fullname || match.name || '');
+          if (!formCustPhone) setFormCustPhone(match.mobilenumber || match.phone || '');
+          if (!formCustEmail) setFormCustEmail(match.email || '');
+          if (!formNameOnId) setFormNameOnId(match.fullname || match.name || '');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // Cashfree SecureID identity verification
+  const handleVerifyCashfree = async () => {
+    const cleanName = formNameOnId.trim();
+    if (!cleanName) {
+      setIdVerificationError('Please enter legal name on the identity document.');
+      return;
+    }
+    setIdVerificationError('');
+
+    if (formIdType === 'aadhaar') {
+      const cleanAadhaar = formIdNumber.replace(/\D/g, '');
+      if (cleanAadhaar.length !== 12) {
+        setIdVerificationError('Please enter a valid 12-digit Aadhaar number.');
+        return;
+      }
+      setVerifyingId(true);
+      try {
+        const res = await storeApi.generateAadhaarOtp(cleanAadhaar);
+        const data = res.data;
+        if (data?.success && data?.refId) {
+          setAadhaarRefId(data.refId);
+          setAadhaarOtpSent(true);
+          setIdVerificationError('');
+        } else {
+          setIdVerificationError(data?.message || 'Failed to generate Aadhaar OTP from UIDAI.');
+        }
+      } catch (err: any) {
+        setIdVerificationError(
+          err?.response?.data?.message || 'Failed to initiate Aadhaar OTP request with UIDAI.'
+        );
+      } finally {
+        setVerifyingId(false);
+      }
+    } else if (formIdType === 'pan') {
+      const cleanPan = formIdNumber.trim().toUpperCase();
+      const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+      if (!PAN_REGEX.test(cleanPan)) {
+        setIdVerificationError('Invalid PAN format (must be 10 alphanumeric characters e.g. ABCDE1234F).');
+        return;
+      }
+      setVerifyingId(true);
+      try {
+        const res = await storeApi.verifyPan(cleanPan, cleanName);
+        const data = res.data;
+        if (data?.valid) {
+          const registeredName = data.registeredName || '';
+          if (data.belongsToUser === false || (registeredName && !isNameMatching(cleanName, registeredName))) {
+            setIdVerified(false);
+            const displayGovt = registeredName ? `"${registeredName}"` : 'the PAN card holder';
+            setIdVerificationError(`Name mismatch: Income Tax records show name as ${displayGovt}. Legal name entered ("${cleanName}") does not match.`);
+            return;
+          }
+          setIdVerified(true);
+          setVerifiedIdData(data);
+          setIdVerificationError('');
+        } else {
+          setIdVerified(false);
+          setIdVerificationError(data?.message || 'PAN verification failed with Income Tax database.');
+        }
+      } catch (err: any) {
+        setIdVerified(false);
+        setIdVerificationError(
+          err?.response?.data?.message || 'Could not verify PAN with Cashfree.'
+        );
+      } finally {
+        setVerifyingId(false);
+      }
+    }
+  };
+
+  const handleVerifyAadhaarOtp = async () => {
+    const cleanName = formNameOnId.trim();
+    if (!cleanName) {
+      setIdVerificationError('Please enter legal name on the identity document.');
+      return;
+    }
+    if (!aadhaarOtp || aadhaarOtp.length < 4) {
+      setIdVerificationError('Please enter the OTP sent to your Aadhaar-linked mobile.');
+      return;
+    }
+    setVerifyingAadhaarOtp(true);
+    setIdVerificationError('');
+    try {
+      const res = await storeApi.verifyAadhaarOtp(
+        aadhaarRefId,
+        aadhaarOtp.trim(),
+        cleanName
+      );
+      const data = res.data;
+      if (data?.valid) {
+        const nameOnAadhaar = data.nameOnAadhaar || '';
+        if (data.belongsToUser === false || (nameOnAadhaar && !isNameMatching(cleanName, nameOnAadhaar))) {
+          setIdVerified(false);
+          const displayGovt = nameOnAadhaar ? `"${nameOnAadhaar}"` : 'the Aadhaar holder';
+          setIdVerificationError(`Name mismatch: UIDAI records show name as ${displayGovt}. Legal name entered ("${cleanName}") does not match.`);
+          return;
+        }
+        setIdVerified(true);
+        setVerifiedIdData(data);
+        setIdVerificationError('');
+        setAadhaarOtpSent(false);
+        setAadhaarOtp('');
+      } else {
+        setIdVerified(false);
+        setIdVerificationError(data?.message || 'Invalid Aadhaar OTP. Please try again.');
+      }
+    } catch (err: any) {
+      setIdVerified(false);
+      setIdVerificationError(
+        err?.response?.data?.message || 'Failed to verify Aadhaar OTP with UIDAI.'
+      );
+    } finally {
+      setVerifyingAadhaarOtp(false);
+    }
   };
 
   const handleSubmitRegistration = async () => {
-    if (!selectedCustomer) {
-      Alert.alert('Required', 'Please search and select a registered customer.');
+    // 1. Mandatory validation for ALL THREE customer details
+    if (!formCustName.trim()) {
+      Alert.alert('Name Required', 'Customer Full Name is required.');
       return;
     }
+    if (!formCustPhone.trim() || formCustPhone.trim().length < 10) {
+      Alert.alert('Phone Required', 'Valid 10-digit mobile phone number is required.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formCustEmail.trim() || !emailRegex.test(formCustEmail.trim())) {
+      Alert.alert('Email Required', 'Valid customer email address is required.');
+      return;
+    }
+
+    let targetCustomer = selectedCustomer;
+    if (!targetCustomer) {
+      try {
+        const res = await creditApi.searchCustomers(formCustPhone.trim());
+        const list = res.data?.data || res.data?.customers || [];
+        if (list.length > 0) {
+          targetCustomer =
+            list.find(
+              (u: any) =>
+                u.mobilenumber === formCustPhone.trim() ||
+                u.phone === formCustPhone.trim() ||
+                u.email?.toLowerCase() === formCustEmail.trim().toLowerCase()
+            ) || list[0];
+          if (targetCustomer) setSelectedCustomer(targetCustomer);
+        }
+      } catch (err) {
+        console.warn('Auto resolve error', err);
+      }
+    }
+
+    if (!targetCustomer) {
+      Alert.alert(
+        'Customer Not Registered',
+        'No registered Remise account found for this phone or email. The customer must have a registered account on Remise.'
+      );
+      return;
+    }
+
     const limitNum = parseFloat(formLimit);
     if (isNaN(limitNum) || limitNum <= 0) {
       Alert.alert('Invalid Limit', 'Credit limit must be a positive number.');
       return;
     }
+
+    // 2. Identity Verification via Cashfree
     if (!formIdNumber.trim()) {
       Alert.alert('Identity Required', 'Please enter identity verification document number.');
+      return;
+    }
+    if (!formNameOnId.trim()) {
+      Alert.alert('Name on ID Required', 'Please enter legal name matching the identity document.');
+      return;
+    }
+    if (!idVerified) {
+      Alert.alert(
+        'Cashfree Verification Required',
+        'Please verify the customer identity document with Cashfree SecureID before granting credit.'
+      );
       return;
     }
     if (!formConsent || !formCustomerAgreed) {
@@ -199,7 +449,10 @@ export default function StoreCreditScreen() {
 
       const res = await creditApi.createInPersonApplication({
         storeId,
-        customerId: selectedCustomer._id || selectedCustomer.id,
+        customerId: targetCustomer._id || targetCustomer.id,
+        customerName: formCustName.trim(),
+        customerPhone: formCustPhone.trim(),
+        customerEmail: formCustEmail.trim().toLowerCase(),
         creditLimit: limitNum,
         repaymentPolicy: policy,
         idType: formIdType,
@@ -215,7 +468,14 @@ export default function StoreCreditScreen() {
         // reset form
         setSelectedCustomer(null);
         setCustSearchQuery('');
+        setFormCustName('');
+        setFormCustPhone('');
+        setFormCustEmail('');
         setFormIdNumber('');
+        setFormNameOnId('');
+        setIdVerified(false);
+        setVerifiedIdData(null);
+        setIdVerificationError('');
         setFormConsent(false);
         setFormCustomerAgreed(false);
         fetchAccounts();
@@ -559,43 +819,108 @@ export default function StoreCreditScreen() {
             </View>
 
             <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false}>
-              {/* Step 1: Select Registered Customer */}
-              <Text style={styles.fieldLabel}>1. Identify Registered Customer</Text>
+              {/* Step 1: Customer Details (All 3 Details Required: Name, Phone, Email) */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
+                <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>
+                  1. Customer Information *
+                </Text>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 }}>
+                  Name, Phone & Email
+                </Text>
+              </View>
+
+              {/* Quick Search */}
+              <TextInput
+                style={styles.input}
+                placeholder="Search registered customer to auto-fill..."
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={custSearchQuery}
+                onChangeText={handleSearchCustomers}
+              />
+              {searchingCust && <ActivityIndicator size="small" color={CustomerColors.teal600} />}
+              {custSearchResults.length > 0 && (
+                <View style={styles.dropdownResults}>
+                  {custSearchResults.map(c => (
+                    <TouchableOpacity
+                      key={c._id || c.id}
+                      style={styles.dropdownItem}
+                      onPress={() => handleSelectCustomer(c)}
+                    >
+                      <Text style={styles.dropdownItemName}>{c.fullname || c.name}</Text>
+                      <Text style={styles.dropdownItemPhone}>
+                        📞 {c.mobilenumber || c.phone} · ✉️ {c.email}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Three Mandatory Detail Fields */}
+              <Text style={styles.subFieldLabel}>Customer Full Name *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. John Doe"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={formCustName}
+                onChangeText={v => {
+                  setFormCustName(v);
+                  if (!formNameOnId || formNameOnId === formCustName) {
+                    setFormNameOnId(v);
+                  }
+                }}
+              />
+
+              <Text style={styles.subFieldLabel}>Mobile Number (10 digits) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 9876543210"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={formCustPhone}
+                onChangeText={v => {
+                  const clean = v.replace(/\D/g, '');
+                  setFormCustPhone(clean);
+                  if (clean.length === 10 && !selectedCustomer) {
+                    lookupCustomerAccount(clean);
+                  }
+                }}
+              />
+
+              <Text style={styles.subFieldLabel}>Email Address *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. customer@example.com"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={formCustEmail}
+                onChangeText={v => {
+                  setFormCustEmail(v);
+                  if (v.includes('@') && !selectedCustomer) {
+                    lookupCustomerAccount(v);
+                  }
+                }}
+              />
+
               {selectedCustomer ? (
                 <View style={styles.selectedCustomerBox}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.selectedCustName}>{selectedCustomer.name}</Text>
-                    <Text style={styles.selectedCustPhone}>{selectedCustomer.phone} · {selectedCustomer.email}</Text>
+                    <Text style={styles.selectedCustName}>
+                      ✓ Linked Account: {selectedCustomer.fullname || selectedCustomer.name}
+                    </Text>
+                    <Text style={styles.selectedCustPhone}>
+                      {selectedCustomer.mobilenumber || selectedCustomer.phone || formCustPhone} · {selectedCustomer.email || formCustEmail}
+                    </Text>
                   </View>
                   <TouchableOpacity onPress={() => setSelectedCustomer(null)}>
                     <Text style={styles.changeLink}>Change</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <View>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Search customer by name, phone or email..."
-                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                    value={custSearchQuery}
-                    onChangeText={handleSearchCustomers}
-                  />
-                  {searchingCust && <ActivityIndicator size="small" color={CustomerColors.teal600} />}
-                  {custSearchResults.length > 0 && (
-                    <View style={styles.dropdownResults}>
-                      {custSearchResults.map(c => (
-                        <TouchableOpacity
-                          key={c._id || c.id}
-                          style={styles.dropdownItem}
-                          onPress={() => handleSelectCustomer(c)}
-                        >
-                          <Text style={styles.dropdownItemName}>{c.name}</Text>
-                          <Text style={styles.dropdownItemPhone}>{c.phone} · {c.email}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
+                <Text style={styles.helperNotice}>
+                  ⚠ Customer must have a registered Remise account to activate credit.
+                </Text>
               )}
 
               {/* Step 2: Set Credit Limit */}
@@ -606,7 +931,7 @@ export default function StoreCreditScreen() {
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType="numeric"
                 value={formLimit}
-                onChangeText={setFormLimit}
+                onChangeText={text => setFormLimit(text.replace(/^0+(?=\d)/, ''))}
               />
 
               {/* Step 3: Repayment Policy */}
@@ -652,7 +977,7 @@ export default function StoreCreditScreen() {
                     placeholder="e.g. 5"
                     keyboardType="numeric"
                     value={formMonthlyDay}
-                    onChangeText={setFormMonthlyDay}
+                    onChangeText={text => setFormMonthlyDay(text.replace(/^0+(?=\d)/, ''))}
                   />
                 </View>
               )}
@@ -665,7 +990,7 @@ export default function StoreCreditScreen() {
                     placeholder="e.g. 15"
                     keyboardType="numeric"
                     value={formCustomDays}
-                    onChangeText={setFormCustomDays}
+                    onChangeText={text => setFormCustomDays(text.replace(/^0+(?=\d)/, ''))}
                   />
                 </View>
               )}
@@ -682,35 +1007,191 @@ export default function StoreCreditScreen() {
                 </View>
               )}
 
-              {/* Step 4: Verification (Minimum Identity, Masked, Compliant) */}
-              <Text style={styles.fieldLabel}>4. Identity Verification (In-Person)</Text>
+              {/* Step 4: Identity Verification (Cashfree SecureID) */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
+                <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>
+                  4. Identity Verification (Cashfree SecureID) *
+                </Text>
+                {idVerified ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? 'rgba(6, 78, 59, 0.4)' : '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                    <CheckCircle2 size={12} color="#059669" />
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>Cashfree Verified</Text>
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280' }}>UIDAI / ITD Check</Text>
+                )}
+              </View>
+
               <View style={styles.policyOptionGrid}>
-                {(['aadhaar', 'voter_id', 'pan', 'driving_license'] as const).map(id => (
+                {(['aadhaar', 'pan'] as const).map(id => (
                   <TouchableOpacity
                     key={id}
                     style={[styles.policyPill, formIdType === id && styles.policyPillActive]}
-                    onPress={() => setFormIdType(id)}
+                    onPress={() => {
+                      setFormIdType(id);
+                      setIdVerified(false);
+                      setVerifiedIdData(null);
+                      setIdVerificationError('');
+                      setAadhaarOtpSent(false);
+                      setAadhaarOtp('');
+                      setAadhaarRefId('');
+                    }}
                   >
-                    <Text style={[styles.policyPillText, formIdType === id && styles.policyPillTextActive]}>
-                      {id === 'aadhaar' ? 'Aadhaar' : id === 'voter_id' ? 'Voter ID' : id === 'pan' ? 'PAN' : 'DL'}
+                    <Text style={[styles.policyPillText, formIdType === id && styles.policyPillActive && styles.policyPillTextActive]}>
+                      {id === 'aadhaar' ? 'Aadhaar (UIDAI OTP)' : 'PAN Card (Income Tax)'}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+
+              <Text style={styles.subFieldLabel}>
+                {formIdType === 'aadhaar' ? 'Aadhaar Number (12 digits) *' : 'PAN Number (10 alphanumeric chars) *'}
+              </Text>
               <TextInput
                 style={styles.input}
-                placeholder="Document Number (will be masked securely)"
+                placeholder={formIdType === 'aadhaar' ? 'e.g. 123456789012' : 'e.g. ABCDE1234F'}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                keyboardType={formIdType === 'aadhaar' ? 'number-pad' : 'default'}
+                maxLength={formIdType === 'aadhaar' ? 12 : 10}
+                autoCapitalize="characters"
                 value={formIdNumber}
-                onChangeText={setFormIdNumber}
+                onChangeText={v => {
+                  setFormIdNumber(v);
+                  setIdVerified(false);
+                  setVerifiedIdData(null);
+                  setIdVerificationError('');
+                  setAadhaarOtpSent(false);
+                  setAadhaarOtp('');
+                  setAadhaarRefId('');
+                }}
               />
+
+              <Text style={styles.subFieldLabel}>Legal Name on Identity Document *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Name on Identity Document"
+                placeholder="Name exactly as on document"
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={formNameOnId}
-                onChangeText={setFormNameOnId}
+                onChangeText={v => {
+                  setFormNameOnId(v);
+                  setIdVerified(false);
+                  setVerifiedIdData(null);
+                  setIdVerificationError('');
+                }}
               />
+
+              {/* Aadhaar OTP Input Box */}
+              {formIdType === 'aadhaar' && aadhaarOtpSent && !idVerified && (
+                <View style={styles.otpBox}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={styles.otpTitle}>Enter 6-Digit Aadhaar OTP</Text>
+                    <Text style={styles.otpSubtitle}>Sent to UIDAI mobile</Text>
+                  </View>
+                  <TextInput
+                    style={styles.otpInput}
+                    placeholder="123456"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={aadhaarOtp}
+                    onChangeText={text => setAadhaarOtp(text.replace(/\D/g, ''))}
+                  />
+                  <View style={styles.otpActionRow}>
+                    <TouchableOpacity
+                      style={[styles.otpVerifyBtn, (verifyingAadhaarOtp || aadhaarOtp.length < 4) && { opacity: 0.7 }]}
+                      disabled={verifyingAadhaarOtp || aadhaarOtp.length < 4}
+                      onPress={handleVerifyAadhaarOtp}
+                    >
+                      {verifyingAadhaarOtp ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.otpVerifyBtnText}>Confirm Aadhaar OTP</Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      disabled={verifyingId}
+                      onPress={handleVerifyCashfree}
+                      style={styles.otpSecondaryBtn}
+                    >
+                      <Text style={styles.otpSecondaryBtnText}>Resend</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setAadhaarOtpSent(false);
+                        setAadhaarOtp('');
+                        setIdVerificationError('');
+                      }}
+                      style={styles.otpSecondaryBtn}
+                    >
+                      <Text style={styles.otpSecondaryBtnText}>Change</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Cashfree Verification Button */}
+              {(!aadhaarOtpSent || formIdType === 'pan' || idVerified) && (
+                <TouchableOpacity
+                  style={[
+                    styles.cashfreeVerifyBtn,
+                    idVerified && styles.cashfreeVerifyBtnSuccess,
+                    (verifyingId || !formIdNumber.trim() || !formNameOnId.trim()) && { opacity: 0.7 },
+                  ]}
+                  disabled={verifyingId || !formIdNumber.trim() || !formNameOnId.trim()}
+                  onPress={handleVerifyCashfree}
+                >
+                  {verifyingId ? (
+                    <>
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <Text style={styles.cashfreeVerifyBtnText}>
+                        {formIdType === 'aadhaar'
+                          ? 'Sending Aadhaar OTP via Cashfree...'
+                          : 'Verifying PAN with Cashfree...'}
+                      </Text>
+                    </>
+                  ) : idVerified ? (
+                    <>
+                      <CheckCircle2 size={14} color="#FFFFFF" />
+                      <Text style={styles.cashfreeVerifyBtnText}>✓ Verified via Cashfree (Tap to Re-verify)</Text>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={14} color="#FFFFFF" />
+                      <Text style={styles.cashfreeVerifyBtnText}>
+                        {formIdType === 'aadhaar'
+                          ? 'Verify Aadhaar with Cashfree (Send OTP)'
+                          : 'Verify PAN with Cashfree'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Error Box */}
+              {idVerificationError ? (
+                <View style={styles.verifyErrorBox}>
+                  <AlertCircle size={14} color="#EF4444" />
+                  <Text style={styles.verifyErrorText}>{idVerificationError}</Text>
+                </View>
+              ) : null}
+
+              {/* Verified Details Card */}
+              {idVerified && verifiedIdData ? (
+                <View style={styles.verifiedCard}>
+                  <View style={styles.verifiedTitle}>
+                    <CheckCircle2 size={14} color="#10B981" />
+                    <Text style={styles.verifiedTitleText}>Cashfree Verification Confirmed</Text>
+                  </View>
+                  {(verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar) && (
+                    <Text style={styles.verifiedDetailsText}>
+                      Govt Record Name: {verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar}
+                    </Text>
+                  )}
+                  <Text style={[styles.verifiedDetailsText, { fontSize: 10, marginTop: 2, color: isDark ? '#6EE7B7' : '#047857' }]}>
+                    Masked Token: {verifiedIdData.maskedAadhaar || (formIdType === 'pan' ? `XXXXXX${formIdNumber.slice(-4).toUpperCase()}` : `XXXX-XXXX-${formIdNumber.slice(-4)}`)} · Verified via Cashfree
+                  </Text>
+                </View>
+              ) : null}
 
               {/* Step 5: Checkboxes for Consent and Agreement */}
               <TouchableOpacity
@@ -738,8 +1219,11 @@ export default function StoreCreditScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.submitModalBtn}
-                disabled={submittingRegistration}
+                style={[
+                  styles.submitModalBtn,
+                  (!idVerified || !formCustName.trim() || !formCustPhone.trim() || !formCustEmail.trim()) && { opacity: 0.5 },
+                ]}
+                disabled={submittingRegistration || !idVerified || !formCustName.trim() || !formCustPhone.trim() || !formCustEmail.trim()}
                 onPress={handleSubmitRegistration}
               >
                 {submittingRegistration ? (
@@ -780,7 +1264,7 @@ export default function StoreCreditScreen() {
               placeholder="Amount collected"
               keyboardType="numeric"
               value={repayAmount}
-              onChangeText={setRepayAmount}
+              onChangeText={text => setRepayAmount(text.replace(/^0+(?=\d)/, ''))}
             />
 
             <Text style={styles.fieldLabel}>Notes / Reference (Optional)</Text>
@@ -826,7 +1310,7 @@ export default function StoreCreditScreen() {
               placeholder="Limit"
               keyboardType="numeric"
               value={termsLimit}
-              onChangeText={setTermsLimit}
+              onChangeText={text => setTermsLimit(text.replace(/^0+(?=\d)/, ''))}
             />
 
             <Text style={styles.fieldLabel}>Audit Reason (Mandatory)</Text>
@@ -1397,5 +1881,127 @@ const getStyles = (isDark: boolean) =>
       fontSize: 10,
       color: isDark ? '#9CA3AF' : '#6B7280',
       marginTop: 2,
+    },
+    cashfreeVerifyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: CustomerColors.teal700,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: BorderRadius.md,
+      marginVertical: 8,
+    },
+    cashfreeVerifyBtnSuccess: {
+      backgroundColor: '#059669',
+    },
+    cashfreeVerifyBtnText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: FontSizes.xs,
+    },
+    verifiedCard: {
+      backgroundColor: isDark ? 'rgba(6, 78, 59, 0.3)' : '#F0FDF4',
+      borderWidth: 1,
+      borderColor: isDark ? '#065F46' : '#BBF7D0',
+      borderRadius: BorderRadius.md,
+      padding: 10,
+      marginVertical: 6,
+    },
+    verifiedTitle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
+    verifiedTitleText: {
+      color: isDark ? '#34D399' : '#065F46',
+      fontWeight: '700',
+      fontSize: FontSizes.xs,
+    },
+    verifiedDetailsText: {
+      fontSize: 11,
+      color: isDark ? '#A7F3D0' : '#15803D',
+    },
+    verifyErrorBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(127, 29, 29, 0.3)' : '#FEF2F2',
+      borderWidth: 1,
+      borderColor: isDark ? '#991B1B' : '#FECACA',
+      borderRadius: BorderRadius.md,
+      padding: 8,
+      marginVertical: 6,
+    },
+    verifyErrorText: {
+      flex: 1,
+      color: '#EF4444',
+      fontSize: 11,
+    },
+    helperNotice: {
+      fontSize: 11,
+      color: '#D97706',
+      marginBottom: 8,
+    },
+    otpBox: {
+      backgroundColor: isDark ? 'rgba(15, 118, 110, 0.15)' : '#F0FDFA',
+      borderWidth: 1,
+      borderColor: isDark ? '#115E59' : '#99F6E4',
+      borderRadius: BorderRadius.md,
+      padding: 10,
+      marginVertical: 6,
+    },
+    otpTitle: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#5EEAD4' : '#0F766E',
+    },
+    otpSubtitle: {
+      fontSize: 10,
+      color: isDark ? '#99F6E4' : '#0D9488',
+    },
+    otpInput: {
+      backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#115E59' : '#2DD4BF',
+      borderRadius: BorderRadius.sm,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      fontSize: FontSizes.md,
+      fontWeight: '700',
+      letterSpacing: 4,
+      textAlign: 'center',
+      color: isDark ? '#F8FAFC' : '#0F172A',
+      marginVertical: 6,
+    },
+    otpActionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 4,
+    },
+    otpVerifyBtn: {
+      flex: 1,
+      backgroundColor: CustomerColors.teal700,
+      paddingVertical: 8,
+      borderRadius: BorderRadius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    otpVerifyBtnText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: FontSizes.xs,
+    },
+    otpSecondaryBtn: {
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+    },
+    otpSecondaryBtnText: {
+      color: isDark ? '#5EEAD4' : '#0F766E',
+      fontSize: 11,
+      fontWeight: '600',
     },
   });
