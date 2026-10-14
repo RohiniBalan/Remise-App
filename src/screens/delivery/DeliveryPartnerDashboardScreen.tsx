@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +44,10 @@ import {
   Map,
   Bell,
   AlertCircle,
+  QrCode,
+  Copy,
+  MessageSquare,
+  Check,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { useAuth } from '../../context/AuthContext';
@@ -187,6 +192,11 @@ export default function DeliveryPartnerDashboardScreen() {
   const [deliveryOtp, setDeliveryOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  // Delivery Payment Preference & Razorpay Link State
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrData, setQrData] = useState<{ url: string; amount: number; orderId: string } | null>(null);
+  const [prefLoading, setPrefLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -410,6 +420,59 @@ export default function DeliveryPartnerDashboardScreen() {
       );
     } finally {
       setWorking(false);
+    }
+  };
+
+  const handleSetPreference = async (pref: 'CASH' | 'ONLINE') => {
+    const active = dashboard.activeDelivery;
+    if (!active) return;
+    setPrefLoading(true);
+    try {
+      await smartOrderApi.setDeliveryPartnerPaymentPreference(active.orderId, pref);
+      showAlert(
+        'Payment Preference',
+        `Preference set to ${pref === 'CASH' ? 'Cash on Delivery' : 'Online Payment (Razorpay)'}.`,
+        'success',
+      );
+      await load();
+    } catch (err: any) {
+      showAlert(
+        'Update Failed',
+        err?.response?.data?.message || 'Failed to update payment preference',
+        'error',
+      );
+    } finally {
+      setPrefLoading(false);
+    }
+  };
+
+  const handleResendPreferencePrompt = async () => {
+    const active = dashboard.activeDelivery;
+    if (!active) return;
+    setPrefLoading(true);
+    try {
+      await smartOrderApi.resendPaymentPreferencePrompt(active.orderId);
+      showAlert('Prompt Sent', 'WhatsApp payment preference message resent to customer.', 'success');
+      await load();
+    } catch (err: any) {
+      showAlert('Send Failed', err?.response?.data?.message || 'Failed to resend WhatsApp prompt', 'error');
+    } finally {
+      setPrefLoading(false);
+    }
+  };
+
+  const handleResendPaymentLink = async () => {
+    const active = dashboard.activeDelivery;
+    if (!active) return;
+    setPrefLoading(true);
+    try {
+      await smartOrderApi.resendPaymentLinkWhatsApp(active.orderId);
+      showAlert('Link Sent', 'Payment link resent to customer via WhatsApp.', 'success');
+      await load();
+    } catch (err: any) {
+      showAlert('Send Failed', err?.response?.data?.message || 'Failed to resend payment link', 'error');
+    } finally {
+      setPrefLoading(false);
     }
   };
 
@@ -769,6 +832,140 @@ export default function DeliveryPartnerDashboardScreen() {
                     </Text>
                   </View>
                 </View>
+
+                {/* Customer Payment Preference & Razorpay Payment Link */}
+                {(active.paymentMethod === 'cod' || active.paymentPreference || active.deliveryPaymentPrompt) && (
+                  <View style={[
+                    styles.prefBox,
+                    active.paymentStatus === 'paid' ? styles.prefBoxPaid :
+                    active.paymentPreference === 'ONLINE' ? styles.prefBoxOnline :
+                    styles.prefBoxDefault
+                  ]}>
+                    <View style={styles.prefHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <MessageSquare size={15} color={active.paymentPreference === 'ONLINE' ? '#3B82F6' : active.paymentPreference === 'CASH' ? '#F59E0B' : '#FF0000'} />
+                        <Text style={styles.prefTitle}>Payment Preference</Text>
+                      </View>
+                      <View style={[
+                        styles.prefBadge,
+                        active.paymentStatus === 'paid' ? styles.prefBadgePaid :
+                        active.paymentPreference === 'ONLINE' ? styles.prefBadgeOnline :
+                        active.paymentPreference === 'CASH' ? styles.prefBadgeCash :
+                        styles.prefBadgeWaiting
+                      ]}>
+                        <Text style={[
+                          styles.prefBadgeText,
+                          active.paymentStatus === 'paid' ? styles.prefTextPaid :
+                          active.paymentPreference === 'ONLINE' ? styles.prefTextOnline :
+                          active.paymentPreference === 'CASH' ? styles.prefTextCash :
+                          styles.prefTextWaiting
+                        ]}>
+                          {active.paymentStatus === 'paid'
+                            ? 'PAID & VERIFIED'
+                            : active.paymentPreference === 'ONLINE'
+                            ? 'Online Payment'
+                            : active.paymentPreference === 'CASH'
+                            ? 'Cash on Delivery'
+                            : 'Waiting Reply'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {active.paymentStatus === 'paid' ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                        <CheckCircle2 size={14} color="#10B981" />
+                        <Text style={[styles.prefDesc, { color: '#10B981', fontWeight: 'bold' }]}>
+                          Online payment completed (Rs {Number(active.paymentLinkDetails?.amount || active.totalAmount).toLocaleString()}). Handover with OTP.
+                        </Text>
+                      </View>
+                    ) : active.paymentPreference === 'ONLINE' ? (
+                      <View style={{ marginTop: 8, gap: 8 }}>
+                        <Text style={styles.prefDesc}>Customer chose to pay online. Payment link is ready.</Text>
+                        {active.paymentLinkDetails?.shortUrl && (
+                          <View style={styles.prefLinkBox}>
+                            <Text style={styles.prefLinkText} numberOfLines={1}>
+                              {active.paymentLinkDetails.shortUrl}
+                            </Text>
+                            <TouchableOpacity
+                              style={styles.qrSmallBtn}
+                              onPress={() => {
+                                setQrData({
+                                  url: active.paymentLinkDetails.shortUrl,
+                                  amount: active.paymentLinkDetails.amount || active.totalAmount,
+                                  orderId: active.orderId,
+                                });
+                                setShowQrModal(true);
+                              }}
+                            >
+                              <QrCode size={13} color="#FFFFFF" />
+                              <Text style={styles.qrSmallBtnText}>QR</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                          <TouchableOpacity
+                            style={styles.prefActionBtn}
+                            onPress={handleResendPaymentLink}
+                            disabled={prefLoading}
+                          >
+                            <Text style={styles.prefActionBtnText}>Resend Link (WhatsApp)</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.prefSecondaryBtn}
+                            onPress={() => handleSetPreference('CASH')}
+                            disabled={prefLoading}
+                          >
+                            <Text style={styles.prefSecondaryBtnText}>Switch to Cash</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : active.paymentPreference === 'CASH' ? (
+                      <View style={{ marginTop: 8, gap: 8 }}>
+                        <Text style={styles.prefDesc}>
+                          Collect <Text style={{ color: '#FF0000', fontWeight: 'bold' }}>Rs {Number(active.totalAmount || 0).toLocaleString()}</Text> in cash upon handover.
+                        </Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                          <TouchableOpacity
+                            style={styles.prefActionBtn}
+                            onPress={() => handleSetPreference('ONLINE')}
+                            disabled={prefLoading}
+                          >
+                            <Text style={styles.prefActionBtnText}>Customer Wants Online</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={{ marginTop: 8, gap: 8 }}>
+                        <Text style={styles.prefDesc}>WhatsApp prompt sent. Customer has not chosen yet.</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                          <TouchableOpacity
+                            style={styles.prefSecondaryBtn}
+                            onPress={handleResendPreferencePrompt}
+                            disabled={prefLoading}
+                          >
+                            <Text style={styles.prefSecondaryBtnText}>Resend Prompt</Text>
+                          </TouchableOpacity>
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <TouchableOpacity
+                              style={[styles.prefPillBtn, { borderColor: '#F59E0B' }]}
+                              onPress={() => handleSetPreference('CASH')}
+                              disabled={prefLoading}
+                            >
+                              <Text style={[styles.prefPillBtnText, { color: '#F59E0B' }]}>Cash</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.prefPillBtn, { borderColor: '#3B82F6' }]}
+                              onPress={() => handleSetPreference('ONLINE')}
+                              disabled={prefLoading}
+                            >
+                              <Text style={[styles.prefPillBtnText, { color: '#3B82F6' }]}>Online</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 <View style={styles.activeActionsRow}>
                   {action && (
@@ -1310,6 +1507,51 @@ export default function DeliveryPartnerDashboardScreen() {
             </View>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* ═══════════ PAYMENT LINK QR CODE MODAL ═══════════ */}
+      <Modal visible={showQrModal && !!qrData} transparent animationType="fade">
+        <View style={styles.alertOverlay}>
+          <View style={[styles.alertCard, { maxWidth: 320, alignItems: 'center', padding: 22 }]}>
+            <TouchableOpacity
+              style={{ position: 'absolute', top: 14, right: 14, padding: 4 }}
+              onPress={() => setShowQrModal(false)}
+            >
+              <X size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+            </TouchableOpacity>
+
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(59, 130, 246, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+              <QrCode size={22} color="#3B82F6" />
+            </View>
+
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: isDark ? '#FFFFFF' : '#0F172A' }}>
+              Scan to Pay Online
+            </Text>
+            <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#64748B', textAlign: 'center', marginTop: 4 }}>
+              Customer can scan with Google Pay, PhonePe, Paytm, or any UPI app.
+            </Text>
+
+            {qrData?.url ? (
+              <View style={{ backgroundColor: '#FFFFFF', padding: 12, borderRadius: 16, marginVertical: 14 }}>
+                <Image
+                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrData.url)}` }}
+                  style={{ width: 180, height: 180 }}
+                />
+              </View>
+            ) : null}
+
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#FF0000', marginBottom: 6 }}>
+              Rs {Number(qrData?.amount || 0).toLocaleString()}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.primary, { width: '100%', marginTop: 8 }]}
+              onPress={() => setShowQrModal(false)}
+            >
+              <Text style={styles.primaryText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -2222,6 +2464,140 @@ const getStyles = (isDark: boolean) =>
       fontSize: 12,
       color: '#EF4444',
       fontWeight: '600',
+    },
+    prefBox: {
+      borderRadius: 14,
+      padding: 12,
+      borderWidth: 1,
+      marginVertical: 4,
+    },
+    prefBoxDefault: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC',
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+    },
+    prefBoxPaid: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#ECFDF5',
+      borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0',
+    },
+    prefBoxOnline: {
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : '#EFF6FF',
+      borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#BFDBFE',
+    },
+    prefHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingBottom: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+    },
+    prefTitle: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    prefBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      borderWidth: 1,
+    },
+    prefBadgePaid: {
+      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+      borderColor: 'rgba(16, 185, 129, 0.3)',
+    },
+    prefBadgeOnline: {
+      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+      borderColor: 'rgba(59, 130, 246, 0.3)',
+    },
+    prefBadgeCash: {
+      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+      borderColor: 'rgba(245, 158, 11, 0.3)',
+    },
+    prefBadgeWaiting: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#CBD5E1',
+    },
+    prefBadgeText: {
+      fontSize: 10,
+      fontWeight: '800',
+    },
+    prefTextPaid: { color: '#10B981' },
+    prefTextOnline: { color: '#3B82F6' },
+    prefTextCash: { color: '#F59E0B' },
+    prefTextWaiting: { color: isDark ? '#94A3B8' : '#64748B' },
+    prefDesc: {
+      fontSize: 11,
+      lineHeight: 16,
+      color: isDark ? '#CBD5E1' : '#475569',
+    },
+    prefLinkBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: isDark ? '#000000' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#E2E8F0',
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      gap: 6,
+    },
+    prefLinkText: {
+      flex: 1,
+      fontSize: 11,
+      color: isDark ? '#93C5FD' : '#2563EB',
+    },
+    qrSmallBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: '#3B82F6',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    qrSmallBtnText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '800',
+    },
+    prefActionBtn: {
+      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+      borderWidth: 1,
+      borderColor: 'rgba(59, 130, 246, 0.35)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 7,
+    },
+    prefActionBtnText: {
+      color: '#3B82F6',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    prefSecondaryBtn: {
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#CBD5E1',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 7,
+    },
+    prefSecondaryBtnText: {
+      color: isDark ? '#CBD5E1' : '#64748B',
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    prefPillBtn: {
+      borderWidth: 1,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    prefPillBtnText: {
+      fontSize: 11,
+      fontWeight: '800',
     },
   });
 

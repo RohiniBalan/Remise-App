@@ -184,6 +184,19 @@ export const smartOrderApi = {
   // Delivery Person / Driver: Verify Order OTP via public delivery token
   verifyDeliveryPortalOtp: (token: string, otp: string) =>
     gatewayClient.post(`/api/orders/delivery-portal/${token}/verify-otp`, { otp }),
+
+  // Delivery Payment Preference & Razorpay Payment Link
+  setDeliveryPartnerPaymentPreference: (orderId: string, preference: 'CASH' | 'ONLINE') =>
+    gatewayClient.post(`/api/orders/delivery/partner/${orderId}/payment-preference`, { preference }),
+
+  setDeliveryPortalPaymentPreference: (token: string, preference: 'CASH' | 'ONLINE') =>
+    gatewayClient.post(`/api/orders/delivery-portal/${token}/payment-preference`, { preference }),
+
+  resendPaymentPreferencePrompt: (orderId: string) =>
+    gatewayClient.post('/api/orders/resend-payment-preference', { orderId }),
+
+  resendPaymentLinkWhatsApp: (orderId: string) =>
+    gatewayClient.post('/api/orders/resend-payment-link', { orderId }),
 };
 
 
