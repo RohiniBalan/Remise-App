@@ -125,23 +125,70 @@ export default function CheckoutScreen() {
   const totalPayable = subtotal + platformFee + deliveryFee;
 
   useEffect(() => {
-    if (!primaryStoreId || !token) {
+    if (!token) {
       setCreditEligibility(null);
       return;
     }
-    creditApi
-      .checkEligibility(primaryStoreId, totalPayable, paymentMethod)
-      .then(res => {
-        if (res.data?.success) {
-          setCreditEligibility(res.data.data);
+
+    const checkCredit = async () => {
+      try {
+        if (primaryStoreId) {
+          const res = await creditApi.checkEligibility(primaryStoreId, totalPayable, paymentMethod);
+          if (res.data?.success && res.data.data?.hasAccount) {
+            setCreditEligibility(res.data.data);
+            return;
+          }
         }
-      })
-      .catch(err => {
-        const d = err.response?.data;
-        if (d) {
-          setCreditEligibility(d);
+
+        const accRes = await creditApi.getMyCreditAccounts();
+        const accounts = Array.isArray(accRes.data) ? accRes.data : Array.isArray(accRes) ? accRes : (accRes?.data?.data || []);
+        const approved = accounts.find((a: any) => a.status === 'APPROVED' && (!primaryStoreId || String(a.storeId) === String(primaryStoreId) || a.storeName?.toLowerCase() === primaryStoreName?.toLowerCase())) || accounts.find((a: any) => a.status === 'APPROVED');
+        if (approved) {
+          setCreditEligibility({
+            hasAccount: true,
+            status: approved.status,
+            storeId: approved.storeId,
+            storeName: approved.storeName,
+            creditLimit: approved.creditLimit || 0,
+            availableCredit: approved.availableCredit ?? (approved.creditLimit - (approved.reservedCreditAmount || 0)),
+            outstandingBalance: approved.outstandingBalance || 0,
+            nextDueDate: approved.nextDueDate,
+            canUseCredit: (approved.availableCredit ?? approved.creditLimit) >= totalPayable,
+            hasOutstandingDebt: (approved.outstandingBalance || 0) > 0,
+            canOrderFromStore: (approved.outstandingBalance || 0) === 0,
+          });
+        } else {
+          setCreditEligibility(null);
         }
-      });
+      } catch (err: any) {
+        try {
+          const accRes = await creditApi.getMyCreditAccounts();
+          const accounts = accRes.data?.data || [];
+          const approved = accounts.find((a: any) => a.status === 'APPROVED');
+          if (approved) {
+            setCreditEligibility({
+              hasAccount: true,
+              status: approved.status,
+              storeId: approved.storeId,
+              storeName: approved.storeName,
+              creditLimit: approved.creditLimit || 0,
+              availableCredit: approved.availableCredit ?? (approved.creditLimit - (approved.reservedCreditAmount || 0)),
+              outstandingBalance: approved.outstandingBalance || 0,
+              nextDueDate: approved.nextDueDate,
+              canUseCredit: (approved.availableCredit ?? approved.creditLimit) >= totalPayable,
+              hasOutstandingDebt: (approved.outstandingBalance || 0) > 0,
+              canOrderFromStore: (approved.outstandingBalance || 0) === 0,
+            });
+          } else {
+            setCreditEligibility(null);
+          }
+        } catch {
+          setCreditEligibility(null);
+        }
+      }
+    };
+
+    checkCredit();
   }, [primaryStoreId, totalPayable, paymentMethod, token]);
 
   const hasStoreDebt = Boolean(
@@ -217,7 +264,7 @@ export default function CheckoutScreen() {
           price: i.price,
           quantity: i.quantity,
           image: i.image ?? null,
-          storeId: (i as any).storeId || null,
+          storeId: (i as any).storeId || primaryStoreId || creditEligibility?.storeId || null,
         })),
         contactEmail,
         shippingAddress,
@@ -226,8 +273,8 @@ export default function CheckoutScreen() {
           : billingAddress,
         deliveryMethod,
         paymentMethod,
-        storeId: primaryStoreId,
-        storeName: primaryStoreName,
+        storeId: primaryStoreId || creditEligibility?.storeId || null,
+        storeName: primaryStoreName !== 'Vendor Store' ? primaryStoreName : (creditEligibility?.storeName || 'Vendor Store'),
       });
 
       const data = res.data;
@@ -378,7 +425,7 @@ export default function CheckoutScreen() {
             color={isDark ? '#5EEAD4' : CustomerColors.teal700}
           />
           <Text style={[styles.sslBadgeText, isDark && { color: '#5EEAD4' }]}>
-            256-Bit SSL
+            {t('checkout.sslBadge') || '256-Bit SSL'}
           </Text>
         </View>
       </View>
@@ -1166,7 +1213,7 @@ export default function CheckoutScreen() {
                         fontSize: FontSizes.sm,
                       }}
                     >
-                      Full Settlement Required ({creditEligibility?.storeName || primaryStoreName})
+                      {(t('checkout.settlementRequiredTitle') || 'Full Settlement Required ({store})').replace('{store}', creditEligibility?.storeName || primaryStoreName)}
                     </Text>
                     <Text
                       style={{
@@ -1176,7 +1223,7 @@ export default function CheckoutScreen() {
                         lineHeight: 18,
                       }}
                     >
-                      You have an outstanding balance with this store (₹{creditEligibility?.outstandingBalance?.toLocaleString()}). Please settle your full outstanding amount before placing another order from this store.
+                      {(t('checkout.settlementRequiredDesc') || 'You have an outstanding balance with this store (₹{balance}). Please settle your full outstanding amount before placing another order from this store.').replace('{balance}', creditEligibility?.outstandingBalance?.toLocaleString() || '0')}
                     </Text>
                   </View>
                 </View>
@@ -1304,10 +1351,10 @@ export default function CheckoutScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      Cash on Delivery (COD)
+                      {t('checkout.codTitle') || 'Cash on Delivery (COD)'}
                     </Text>
                     <View style={[styles.instantTag, { backgroundColor: '#059669' }]}>
-                      <Text style={styles.instantTagText}>CASH</Text>
+                      <Text style={styles.instantTagText}>{t('checkout.codBadge') || 'CASH'}</Text>
                     </View>
                   </View>
                   <Text
@@ -1317,8 +1364,8 @@ export default function CheckoutScreen() {
                     ]}
                   >
                     {deliveryMethod === 'delivery'
-                      ? 'Pay cash upon delivery. Confirmed after collection.'
-                      : 'Pay cash at counter upon pickup. Confirmed after collection.'}
+                      ? (t('checkout.codDescDelivery') || 'Pay cash upon delivery. Confirmed after collection.')
+                      : (t('checkout.codDescPickup') || 'Pay cash at counter upon pickup. Confirmed after collection.')}
                   </Text>
                 </View>
                 <Banknote
@@ -1385,10 +1432,10 @@ export default function CheckoutScreen() {
                         ]}
                         numberOfLines={1}
                       >
-                        Store Credit (Kadan)
+                        {t('checkout.storeCreditTitle') || 'Store Credit (Kadan)'}
                       </Text>
                       <View style={[styles.instantTag, { backgroundColor: '#7C3AED' }]}>
-                        <Text style={styles.instantTagText}>APPROVED</Text>
+                        <Text style={styles.instantTagText}>{t('checkout.approvedBadge') || 'APPROVED'}</Text>
                       </View>
                     </View>
                     <Text
@@ -1397,14 +1444,14 @@ export default function CheckoutScreen() {
                         isDark && { color: '#9CA3AF' },
                       ]}
                     >
-                      Available: ₹{(creditEligibility.availableCredit || 0).toLocaleString()} · Next Due:{' '}
+                      {t('checkout.creditTotal') || 'Total Credit'}: ₹{(creditEligibility.creditLimit || 0).toLocaleString()} · {t('checkout.creditRemaining') || 'Remaining'}: ₹{(creditEligibility.availableCredit || 0).toLocaleString()} (₹{Math.max(0, (creditEligibility.creditLimit || 0) - (creditEligibility.availableCredit || 0)).toLocaleString()} {t('checkout.creditUsed') || 'used'}) · {t('checkout.creditNextDue') || 'Next Due'}:{' '}
                       {creditEligibility.nextDueDate
                         ? new Date(creditEligibility.nextDueDate).toLocaleDateString()
-                        : 'As agreed'}
+                        : (t('checkout.creditAsAgreed') || 'As agreed')}
                     </Text>
                     {(creditEligibility.availableCredit || 0) < totalPayable && (
                       <Text style={{ color: '#EF4444', fontSize: FontSizes.xs, marginTop: 2, fontWeight: '700' }}>
-                        Total exceeds available credit limit.
+                        {t('checkout.creditExceeded') || 'Total exceeds available credit limit.'}
                       </Text>
                     )}
                   </View>
@@ -1413,37 +1460,7 @@ export default function CheckoutScreen() {
                     color={isDark ? '#A78BFA' : '#7C3AED'}
                   />
                 </TouchableOpacity>
-              ) : (
-                <View
-                  style={[
-                    styles.paymentCard,
-                    {
-                      borderStyle: 'dashed',
-                      opacity: 0.7,
-                      backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.paymentTitle,
-                        { color: isDark ? '#9CA3AF' : '#64748B' },
-                      ]}
-                    >
-                      Store Credit (Kadan) — In-Person Setup
-                    </Text>
-                    <Text
-                      style={[
-                        styles.paymentSubtitle,
-                        isDark && { color: '#9CA3AF' },
-                      ]}
-                    >
-                      Private credit is registered in person with {primaryStoreName}. Visit store to enroll.
-                    </Text>
-                  </View>
-                </View>
-              )}
+              ) : null}
 
               {/* Step 3 Action Buttons */}
               <View style={styles.stepBtnRow}>
@@ -1495,7 +1512,7 @@ export default function CheckoutScreen() {
                     >
                       <AlertTriangle size={15} color="#fff" />
                       <Text style={styles.stepActionBtnText}>
-                        Settlement Required
+                        {t('checkout.settlementRequired') || 'Settlement Required'}
                       </Text>
                     </View>
                   ) : (
@@ -1515,9 +1532,9 @@ export default function CheckoutScreen() {
                       )}
                       <Text style={styles.stepActionBtnText}>
                         {paymentMethod === 'cod'
-                          ? `Place COD Order (₹${totalPayable.toLocaleString()})`
+                          ? ((t('checkout.placeOrderCod') || 'Place COD Order (₹{amount})').replace('{amount}', totalPayable.toLocaleString()))
                           : paymentMethod === 'credit'
-                          ? `Place Credit Order (₹${totalPayable.toLocaleString()})`
+                          ? ((t('checkout.placeOrderCredit') || 'Place Credit Order (₹{amount})').replace('{amount}', totalPayable.toLocaleString()))
                           : `${t('checkout.payAmount') || 'Pay'} ₹${totalPayable.toLocaleString()}`}
                       </Text>
                     </View>

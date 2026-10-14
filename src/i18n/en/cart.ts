@@ -23,4 +23,5 @@ export const cart: TranslationSchema['cart'] = {
   removeConfirm: 'Are you sure you want to remove this item?',
   itemRemoved: 'Item removed from cart',
   moveToWishlist: 'Move to Wishlist',
+  platformFee: 'Platform Fee',
 };

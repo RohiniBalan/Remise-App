@@ -99,4 +99,5 @@ export const products: TranslationSchema['products'] = {
   reviewErrorMsg: 'समीक्षा सबमिट करने में विफल। कृपया पुनः प्रयास करें।',
   recent: 'हाल ही में',
   customer: 'ग्राहक',
+  platformFeeNote: 'प्लेटफ़ॉर्म शुल्क: {{fee}} · सेल्फ़ पिकअप: ₹0',
 };

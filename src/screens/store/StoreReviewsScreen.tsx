@@ -26,24 +26,40 @@ import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useTranslation, getStoreReviewsTranslations } from '../../i18n';
 
-const CRITERIA_LABELS: Record<string, string> = {
-  price: 'Affordable / Fair Price',
-  distance: 'Distance / Accessibility',
-  deliveryTime: 'Speed / Delivery Time',
-  stockAvailability: 'Stock / Item Availability',
-  shopRating: 'Shop Ambiance / Cleanliness',
-  sellerReliability: 'Seller Reliability',
-  serviceQuality: 'Service Quality / Behavior',
-  offers: 'Offers & Discounts',
-  repeatPreference: 'Repeat Shopping Preference',
-  returnResolution: 'Return & Issue Resolution',
-};
+const DEFAULT_CRITERIA_KEYS = [
+  'price',
+  'distance',
+  'deliveryTime',
+  'stockAvailability',
+  'shopRating',
+  'sellerReliability',
+  'serviceQuality',
+  'offers',
+  'repeatPreference',
+  'returnResolution',
+] as const;
 
 export default function StoreReviewsScreen() {
   const insets = useSafeAreaInsets();
   const { store } = useStoreDashboard();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const rt = useMemo(() => getStoreReviewsTranslations(language), [language]);
+
+  const criteriaLabels = useMemo(() => ({
+    price: rt.criteriaShort?.price || rt.criteriaDetailed?.price || 'Price',
+    distance: rt.criteriaShort?.distance || rt.criteriaDetailed?.distance || 'Distance',
+    deliveryTime: rt.criteriaShort?.deliveryTime || rt.criteriaDetailed?.deliveryTime || 'Delivery Time',
+    stockAvailability: rt.criteriaShort?.stockAvailability || rt.criteriaDetailed?.stockAvailability || 'Stock Availability',
+    shopRating: rt.criteriaShort?.shopRating || rt.criteriaDetailed?.shopRating || 'Shop Rating',
+    sellerReliability: rt.criteriaShort?.sellerReliability || rt.criteriaDetailed?.sellerReliability || 'Seller Reliability',
+    serviceQuality: rt.criteriaShort?.serviceQuality || rt.criteriaDetailed?.serviceQuality || 'Service Quality',
+    offers: rt.criteriaShort?.offers || rt.criteriaDetailed?.offers || 'Offers',
+    repeatPreference: rt.criteriaShort?.repeatPreference || rt.criteriaDetailed?.repeatPreference || 'Repeat Preference',
+    returnResolution: rt.criteriaShort?.returnResolution || rt.criteriaDetailed?.returnResolution || 'Problem Resolution',
+  }), [rt]);
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const [loading, setLoading] = useState(true);
@@ -60,8 +76,10 @@ export default function StoreReviewsScreen() {
 
       const res = await storeApi.getMyStoreReviews();
       if (res.data?.success) {
-        setReviews(res.data.data?.reviews || []);
-        setSummary(res.data.data?.summary || null);
+        const fetchedReviews = res.data.reviews || res.data.data?.reviews || [];
+        const fetchedStore = res.data.store || res.data.data?.store || res.data.data?.summary || null;
+        setReviews(fetchedReviews);
+        setSummary(fetchedStore);
       }
     } catch (err) {
       console.error('Failed to load store reviews:', err);
@@ -75,25 +93,30 @@ export default function StoreReviewsScreen() {
     fetchReviews(false);
   }, [fetchReviews]);
 
-  const totalReviews = summary?.reviewCount ?? reviews.length;
+  const totalReviews = summary?.reviewCount ?? store?.reviewCount ?? reviews.length;
   const overallAvg = summary?.overallRating ?? store?.rating ?? 0;
+  const criterionRatings = summary?.criterionRatings || summary?.criteriaAverages || store?.criterionRatings || {};
+  const distribution = summary?.distribution;
 
   // Star distribution breakdown (5 to 1)
   const starCounts = useMemo(() => {
-    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    if (distribution && Object.keys(distribution).length > 0) {
+      return distribution;
+    }
+    const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     reviews.forEach(r => {
       const rounded = Math.min(5, Math.max(1, Math.round(r.overallRating || 0))) as 1 | 2 | 3 | 4 | 5;
       counts[rounded] = (counts[rounded] || 0) + 1;
     });
     return counts;
-  }, [reviews]);
+  }, [reviews, distribution]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-          <Text style={styles.loadingText}>Loading store reviews...</Text>
+          <Text style={styles.loadingText}>{rt.loadingReviews}</Text>
         </View>
       ) : (
         <ScrollView
@@ -125,7 +148,7 @@ export default function StoreReviewsScreen() {
                   ))}
                 </View>
                 <Text style={styles.scoreCount}>
-                  {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+                  {totalReviews} {totalReviews === 1 ? rt.review : rt.reviews}
                 </Text>
               </View>
 
@@ -148,15 +171,16 @@ export default function StoreReviewsScreen() {
             </View>
 
             {/* 10 Criteria Performance Averages */}
-            {summary?.criteriaAverages && Object.keys(summary.criteriaAverages).length > 0 && (
+            {criterionRatings && Object.keys(criterionRatings).length > 0 && (
               <View style={styles.criteriaSection}>
                 <View style={styles.criteriaHeaderRow}>
                   <Sparkles size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                  <Text style={styles.criteriaSectionTitle}>10 Criteria Performance Averages</Text>
+                  <Text style={styles.criteriaSectionTitle}>{rt.tenCriteriaTitle}</Text>
                 </View>
                 <View style={styles.criteriaGrid}>
-                  {Object.entries(CRITERIA_LABELS).map(([key, label]) => {
-                    const val = summary.criteriaAverages[key] || 0;
+                  {DEFAULT_CRITERIA_KEYS.map((key) => {
+                    const label = criteriaLabels[key];
+                    const val = criterionRatings[key] || 0;
                     return (
                       <View key={key} style={styles.criterionItem}>
                         <View style={styles.criterionTop}>
@@ -167,7 +191,7 @@ export default function StoreReviewsScreen() {
                           </View>
                         </View>
                         <View style={styles.criterionTrack}>
-                          <View style={[styles.criterionFill, { width: `${(val / 5) * 100}%` }]} />
+                          <View style={[styles.criterionFill, { width: `${(Math.min(5, Number(val)) / 5) * 100}%` }]} />
                         </View>
                       </View>
                     );
@@ -179,18 +203,20 @@ export default function StoreReviewsScreen() {
 
           {/* ── Customer Reviews List ── */}
           <View style={styles.reviewsListHeader}>
-            <Text style={styles.reviewsListTitle}>Customer Reviews</Text>
+            <Text style={styles.reviewsListTitle}>
+              {rt.customerReviewsCount ? rt.customerReviewsCount.replace('{{count}}', String(totalReviews)) : rt.customerReviews}
+            </Text>
             <Text style={styles.reviewsListSubtitle}>
-              Verified fulfillment & OTP confirmed
+              {rt.verifiedFulfillmentSub}
             </Text>
           </View>
 
           {reviews.length === 0 ? (
             <View style={styles.emptyCard}>
               <MessageSquare size={36} color={isDark ? '#4B5563' : '#9CA3AF'} />
-              <Text style={styles.emptyTitle}>No reviews yet</Text>
+              <Text style={styles.emptyTitle}>{rt.noReviewsYet}</Text>
               <Text style={styles.emptySub}>
-                Customer reviews and ratings will show here once orders are picked up or delivered and OTP verified.
+                {rt.noReviewsDesc}
               </Text>
             </View>
           ) : (
@@ -206,15 +232,15 @@ export default function StoreReviewsScreen() {
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.customerName}>{item.customerName || 'Verified Customer'}</Text>
+                      <Text style={styles.customerName}>{item.customerName || rt.verifiedCustomer}</Text>
                       <View style={styles.badgesRow}>
                         <View style={styles.verifiedBadge}>
                           <ShieldCheck size={10} color="#059669" />
-                          <Text style={styles.verifiedBadgeText}>Verified Customer</Text>
+                          <Text style={styles.verifiedBadgeText}>{rt.verifiedCustomer}</Text>
                         </View>
                         <View style={styles.verifiedBadge}>
                           <PackageCheck size={10} color="#2563EB" />
-                          <Text style={[styles.verifiedBadgeText, { color: '#2563EB' }]}>OTP Verified</Text>
+                          <Text style={[styles.verifiedBadgeText, { color: '#2563EB' }]}>{rt.otpVerified}</Text>
                         </View>
                       </View>
                     </View>
@@ -253,6 +279,23 @@ export default function StoreReviewsScreen() {
                     </ScrollView>
                   ) : null}
 
+                  {/* Quick Criteria Badges Preview */}
+                  {item.criterionRatings && (
+                    <View style={styles.criteriaChipsRow}>
+                      {DEFAULT_CRITERIA_KEYS.map((k) => {
+                        const score = item.criterionRatings?.[k];
+                        if (!score) return null;
+                        const label = criteriaLabels[k];
+                        return (
+                          <View key={k} style={styles.criterionChip}>
+                            <Text style={styles.criterionChipLabel}>{label}: </Text>
+                            <Text style={styles.criterionChipScore}>{score}★</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
                   {/* Criteria Accordion */}
                   <TouchableOpacity
                     style={styles.expandRow}
@@ -260,7 +303,7 @@ export default function StoreReviewsScreen() {
                     activeOpacity={0.7}
                   >
                     <Text style={styles.expandText}>
-                      {isExpanded ? 'Hide 10 criteria breakdown' : 'View 10 criteria breakdown'}
+                      {isExpanded ? rt.hideCriteriaBreakdown : rt.viewCriteriaBreakdown}
                     </Text>
                     {isExpanded ? (
                       <ChevronDown size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
@@ -269,10 +312,12 @@ export default function StoreReviewsScreen() {
                     )}
                   </TouchableOpacity>
 
-                  {isExpanded && item.ratings && (
+                  {isExpanded && (item.criterionRatings || item.ratings) && (
                     <View style={styles.breakdownGrid}>
-                      {Object.entries(CRITERIA_LABELS).map(([k, label]) => {
-                        const score = item.ratings[k] || 0;
+                      {DEFAULT_CRITERIA_KEYS.map((k) => {
+                        const label = criteriaLabels[k];
+                        const ratingsMap = item.criterionRatings || item.ratings || {};
+                        const score = ratingsMap[k] || 0;
                         return (
                           <View key={k} style={styles.breakdownItem}>
                             <Text style={styles.breakdownLabel} numberOfLines={1}>{label}</Text>
@@ -296,7 +341,7 @@ export default function StoreReviewsScreen() {
                       }) : ''}
                     </Text>
                     {item.orderId ? (
-                      <Text style={styles.reviewOrderId}>Order #{String(item.orderId).slice(-6)}</Text>
+                      <Text style={styles.reviewOrderId}>{rt.orderNumber.replace('{{id}}', String(item.orderId).slice(-8).toUpperCase())}</Text>
                     ) : null}
                   </View>
                 </View>
@@ -596,6 +641,32 @@ const getStyles = (isDark: boolean) =>
       height: 64,
       borderRadius: BorderRadius.sm,
       backgroundColor: isDark ? '#374151' : '#F3F4F6',
+    },
+    criteriaChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 8,
+    },
+    criterionChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#111827' : '#F3F4F6',
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.sm,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : '#E5E7EB',
+    },
+    criterionChipLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: isDark ? '#9CA3AF' : '#4B5563',
+    },
+    criterionChipScore: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#D97706',
     },
     expandRow: {
       flexDirection: 'row',

@@ -10,6 +10,8 @@ export interface CartItem {
   quantity: number;
   image?: string | null;
   totalStock?: number;
+  storeId?: string;
+  storeName?: string;
 }
 
 interface CartContextValue {
@@ -101,7 +103,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const nextQty = cap ? Math.min(existing.quantity + product.quantity, cap) : existing.quantity + product.quantity;
           next = prev.map(i => (i.id === product.id ? { ...i, quantity: nextQty } : i));
         } else {
-          next = [...prev, product];
+          next = [...prev, {
+            ...product,
+            storeId: product.storeId || (product as any).store?._id || (product as any).vendorId,
+            storeName: product.storeName || (product as any).store?.name,
+          }];
         }
         persist(next);
         return next;

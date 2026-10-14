@@ -25,6 +25,7 @@ import {
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import { storeApi } from '../../api/storeApi';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, getStoreReviewModalTranslations } from '../../i18n';
 import { CustomerColors } from '../../styles/theme';
 
 export interface StoreReviewCriteria {
@@ -85,6 +86,9 @@ export default function StoreReviewModal({
   onSubmitted,
 }: StoreReviewModalProps) {
   const { isDark } = useTheme();
+  const { language, t } = useTranslation();
+  const tr = useMemo(() => getStoreReviewModalTranslations(language), [language]);
+  const criteriaList = tr.criteriaList || CRITERIA_DEFINITIONS;
 
   const [ratings, setRatings] = useState<Partial<StoreReviewCriteria>>({});
   const [reviewText, setReviewText] = useState('');
@@ -102,33 +106,76 @@ export default function StoreReviewModal({
     setIsSuccess(false);
     setCheckingEligibility(true);
 
-    storeApi
-      .checkReviewEligibility(orderId, storeId)
-      .then((res: any) => {
-        const data = res.data;
+    Promise.allSettled([
+      storeApi.checkReviewEligibility(orderId, storeId),
+      storeApi.getMyReviews(),
+    ])
+      .then(([eligibilityRes, myReviewsRes]) => {
+        let data =
+          eligibilityRes.status === 'fulfilled' ? eligibilityRes.value?.data : null;
+        const myReviews: any[] =
+          myReviewsRes.status === 'fulfilled' && myReviewsRes.value?.data?.data
+            ? myReviewsRes.value.data.data
+            : [];
+
+        // Check if customer already reviewed this store across ANY past review
+        const currentStoreName = (storeName || data?.storeName || '').trim().toLowerCase();
+        const currentStoreId = String(storeId || data?.storeId || '').trim();
+
+        const priorReview = myReviews.find((r: any) => {
+          if (!r) return false;
+          // Match by same order
+          if (r.orderId && String(r.orderId).trim() === String(orderId).trim()) return true;
+          // Match by store ID
+          if (currentStoreId && r.storeId && String(r.storeId).trim() === currentStoreId) return true;
+          // Match by store Name (e.g. "Rohinishop")
+          if (
+            currentStoreName &&
+            r.storeName &&
+            r.storeName.trim().toLowerCase() === currentStoreName
+          ) {
+            return true;
+          }
+          return false;
+        });
+
+        if (priorReview) {
+          data = {
+            ...(data || {}),
+            eligible: false,
+            alreadyReviewed: true,
+            existingReview: {
+              reviewId: priorReview._id || priorReview.reviewId,
+              overallRating: priorReview.overallRating,
+              submittedAt: priorReview.createdAt,
+            },
+            message: tr.errors.alreadyReviewed,
+          };
+        }
+
         setEligibilityData(data);
-        if (!data.eligible) {
-          if (data.alreadyReviewed) {
-            setErrorMsg('You have already submitted a review for this store on this order.');
+        if (!data?.eligible) {
+          if (data?.alreadyReviewed) {
+            setErrorMsg(tr.errors.alreadyReviewed);
           } else {
-            setErrorMsg(data.message || 'This order is not eligible for review at this time.');
+            setErrorMsg(data?.message || tr.errors.notEligible);
           }
         }
       })
       .catch((err: any) => {
         const msg =
           err.response?.data?.message ||
-          'Failed to verify review eligibility. Please ensure you are logged in.';
+          tr.errors.verifyFailed;
         setErrorMsg(msg);
       })
       .finally(() => {
         setCheckingEligibility(false);
       });
-  }, [visible, orderId, storeId]);
+  }, [visible, orderId, storeId, storeName, tr]);
 
   // Live average calculation
   const { overallScore, ratedCount } = useMemo(() => {
-    const keys = CRITERIA_DEFINITIONS.map(c => c.key);
+    const keys = criteriaList.map(c => c.key);
     let sum = 0;
     let count = 0;
     keys.forEach(k => {
@@ -139,7 +186,7 @@ export default function StoreReviewModal({
     });
     const avg = count > 0 ? Math.round((sum / count) * 10) / 10 : 0;
     return { overallScore: avg, ratedCount: count };
-  }, [ratings]);
+  }, [ratings, criteriaList]);
 
   const handleStarSelect = (key: keyof StoreReviewCriteria, star: number) => {
     setRatings(prev => ({ ...prev, [key]: star }));
@@ -148,7 +195,7 @@ export default function StoreReviewModal({
 
   const handlePickImage = async () => {
     if (selectedPhotos.length >= 5) {
-      Alert.alert('Limit Reached', 'You can upload a maximum of 5 images.');
+      Alert.alert(tr.addPhotosTitle, 'Maximum 5 images allowed.');
       return;
     }
 
@@ -177,16 +224,18 @@ export default function StoreReviewModal({
   const handleSubmit = async () => {
     setErrorMsg('');
 
-    const missingCriteria = CRITERIA_DEFINITIONS.filter(
+    if (eligibilityData?.alreadyReviewed) {
+      setErrorMsg(tr.errors.alreadyReviewed);
+      return;
+    }
+
+    const missingCriteria = criteriaList.filter(
       c => typeof ratings[c.key] !== 'number' || ratings[c.key]! < 1,
     );
 
     if (missingCriteria.length > 0) {
       setErrorMsg(
-        `Please rate all 10 criteria before submitting. Missing: ${missingCriteria
-          .slice(0, 3)
-          .map(c => c.label)
-          .join(', ')}${missingCriteria.length > 3 ? '...' : ''}`,
+        `${tr.errors.allRequiredAlert} (${10 - missingCriteria.length}/10)`,
       );
       return;
     }
@@ -224,7 +273,7 @@ export default function StoreReviewModal({
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||
-        'Failed to submit review. Please try again.';
+        tr.errors.reviewFailedDesc;
       setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
@@ -255,27 +304,34 @@ export default function StoreReviewModal({
               { borderBottomColor: isDark ? '#1F2937' : '#E5E7EB' },
             ]}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, marginRight: 8 }}>
               <View style={styles.storeAvatar}>
                 <Store size={18} color="#FFFFFF" />
               </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                    Rate Your Store
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}
+                  numberOfLines={1}
+                >
+                  {t('orders.rateYourStore')}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                  <Text style={[styles.headerSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]} numberOfLines={1}>
+                    {displayStoreName} · #{orderId.slice(-8).toUpperCase()}
                   </Text>
                   <View style={styles.verifiedPill}>
-                    <Text style={styles.verifiedPillText}>Verified</Text>
+                    <Text style={styles.verifiedPillText}>{tr.verifiedBadge}</Text>
                   </View>
                 </View>
-                <Text style={styles.headerSubtitle} numberOfLines={1}>
-                  {displayStoreName} · #{orderId.slice(-8).toUpperCase()}
-                </Text>
               </View>
             </View>
 
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
@@ -283,18 +339,69 @@ export default function StoreReviewModal({
             <View style={styles.centerContainer}>
               <ActivityIndicator size="large" color={CustomerColors.teal700} />
               <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Verifying fulfillment & OTP confirmation...
+                {tr.verifyingEligibility}
               </Text>
             </View>
           ) : isSuccess ? (
             <View style={styles.centerContainer}>
               <CheckCircle2 size={56} color="#16A34A" />
               <Text style={[styles.successTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                Review Submitted!
+                {tr.reviewSubmittedTitle}
               </Text>
               <Text style={styles.successSub}>
-                Thank you for rating {displayStoreName}. Your feedback helps our community and store partner.
+                {tr.reviewSubmittedDesc.replace('{{name}}', displayStoreName)}
               </Text>
+            </View>
+          ) : eligibilityData && !eligibilityData.eligible && eligibilityData.alreadyReviewed ? (
+            <View style={styles.centerContainer}>
+              <View style={[styles.statusIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                <CheckCircle2 size={40} color="#16A34A" />
+              </View>
+              <Text style={[styles.successTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                {tr.alreadyReviewedTitle}
+              </Text>
+              <Text style={styles.successSub}>
+                {tr.alreadyReviewedDesc}
+              </Text>
+
+              {eligibilityData.existingReview?.overallRating ? (
+                <View style={[styles.existingRatingBadge, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
+                  <Text style={[styles.existingRatingLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    {tr.yourSubmittedRating}:
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Star size={16} color="#F59E0B" fill="#F59E0B" />
+                    <Text style={[styles.existingRatingScore, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                      {Number(eligibilityData.existingReview.overallRating).toFixed(1)} / 5.0
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.fullWidthCloseBtn, { backgroundColor: CustomerColors.teal700 }]}
+                onPress={onClose}
+              >
+                <Text style={styles.fullWidthCloseBtnText}>{tr.closeBtn}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : eligibilityData && !eligibilityData.eligible ? (
+            <View style={styles.centerContainer}>
+              <View style={[styles.statusIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                <AlertCircle size={40} color="#DC2626" />
+              </View>
+              <Text style={[styles.successTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                {tr.notEligibleTitle}
+              </Text>
+              <Text style={styles.successSub}>
+                {eligibilityData.message || tr.errors.notEligible}
+              </Text>
+              <TouchableOpacity
+                style={[styles.fullWidthCloseBtn, { backgroundColor: isDark ? '#374151' : '#E5E7EB', marginTop: 20 }]}
+                onPress={onClose}
+              >
+                <Text style={[styles.fullWidthCloseBtnText, { color: isDark ? '#FFFFFF' : '#1F2937' }]}>{tr.closeBtn}</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
@@ -305,19 +412,31 @@ export default function StoreReviewModal({
                   { backgroundColor: isDark ? '#1E293B' : '#F0FDFA', borderColor: isDark ? '#334155' : '#CCFBF1' },
                 ]}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, marginRight: 8 }}>
                   <View style={styles.bigStarBadge}>
                     <Text style={styles.bigStarBadgeText}>★</Text>
                   </View>
-                  <View>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, flexWrap: 'wrap' }}>
                       <Text style={[styles.scoreNumber, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
                         {overallScore > 0 ? overallScore.toFixed(1) : '—'}
                       </Text>
-                      <Text style={styles.scoreScale}>/ 5.0 Overall</Text>
+                      <Text
+                        style={[styles.scoreScale, { color: isDark ? '#9CA3AF' : '#64748B' }]}
+                        numberOfLines={1}
+                      >
+                        {tr.overallScoreSuffix}
+                      </Text>
                     </View>
-                    <Text style={[styles.ratedCountText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                      {ratedCount === 10 ? 'All 10 criteria rated ✓' : `${ratedCount} of 10 criteria rated`}
+                    <Text
+                      style={[styles.ratedCountText, { color: isDark ? '#94A3B8' : '#64748B' }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      {ratedCount === 10
+                        ? tr.allCriteriaRated
+                        : tr.criteriaRatedCount.replace('{{count}}', String(ratedCount))}
                     </Text>
                   </View>
                 </View>
@@ -352,16 +471,17 @@ export default function StoreReviewModal({
                               : '#64748B',
                         },
                       ]}
+                      numberOfLines={1}
                     >
                       {overallScore >= 4.5
-                        ? 'Outstanding'
+                        ? tr.tiers.outstanding
                         : overallScore >= 3.5
-                        ? 'Very Good'
+                        ? tr.tiers.veryGood
                         : overallScore >= 2.5
-                        ? 'Average'
+                        ? tr.tiers.average
                         : overallScore > 0
-                        ? 'Fair'
-                        : 'Pending'}
+                        ? tr.tiers.fair
+                        : tr.tiers.pending}
                     </Text>
                   </View>
                 </View>
@@ -377,12 +497,19 @@ export default function StoreReviewModal({
 
               {/* 10 Criteria List */}
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Rating Criteria (1–5 Stars)</Text>
-                <Text style={styles.sectionSub}>All 10 required</Text>
+                <Text
+                  style={[styles.sectionTitle, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}
+                  numberOfLines={2}
+                >
+                  {tr.ratingCriteriaTitle}
+                </Text>
+                <Text style={[styles.sectionSub, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}>
+                  {tr.allRequired}
+                </Text>
               </View>
 
               <View style={styles.criteriaList}>
-                {CRITERIA_DEFINITIONS.map((crit, idx) => {
+                {criteriaList.map((crit, idx) => {
                   const currentRating = ratings[crit.key] || 0;
 
                   return (
@@ -392,7 +519,7 @@ export default function StoreReviewModal({
                         styles.criteriaCard,
                         {
                           backgroundColor: isDark ? '#1F2937' : '#F9FAFB',
-                          borderColor: currentRating > 0 ? CustomerColors.teal700 : isDark ? '#374151' : '#E5E7EB',
+                          borderColor: currentRating > 0 ? CustomerColors.teal700 : isDark ? '#334155' : '#E5E7EB',
                         },
                       ]}
                     >
@@ -401,11 +528,13 @@ export default function StoreReviewModal({
                           <Text style={[styles.critLabel, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                             {idx + 1}. {crit.label}
                           </Text>
-                          <Text style={styles.critDesc}>{crit.description}</Text>
+                          <Text style={[styles.critDesc, { color: isDark ? '#CBD5E1' : '#6B7280' }]}>
+                            {crit.description}
+                          </Text>
                         </View>
                         {currentRating > 0 ? (
                           <Text style={styles.critScoreLabel}>
-                            {RATING_LABELS[currentRating]}
+                            {tr.ratingLabels[currentRating] || RATING_LABELS[currentRating]}
                           </Text>
                         ) : null}
                       </View>
@@ -435,7 +564,9 @@ export default function StoreReviewModal({
 
               {/* Review Description */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Customer Review / Description (Optional)</Text>
+                <Text style={[styles.sectionTitle, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}>
+                  {tr.reviewTextTitle}
+                </Text>
                 <TextInput
                   style={[
                     styles.textArea,
@@ -445,7 +576,7 @@ export default function StoreReviewModal({
                       borderColor: isDark ? '#374151' : '#E5E7EB',
                     },
                   ]}
-                  placeholder="Share details about product quality, packaging, store service..."
+                  placeholder={tr.reviewPlaceholder}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   multiline
                   numberOfLines={4}
@@ -457,7 +588,9 @@ export default function StoreReviewModal({
 
               {/* Upload Photos */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Add Photos (Optional, Up to 5)</Text>
+                <Text style={[styles.sectionTitle, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}>
+                  {tr.addPhotosTitle}
+                </Text>
                 <View style={styles.photosRow}>
                   {selectedPhotos.map((photo, idx) => (
                     <View key={idx} style={styles.photoThumb}>
@@ -476,7 +609,7 @@ export default function StoreReviewModal({
                   {selectedPhotos.length < 5 && (
                     <TouchableOpacity style={styles.addPhotoBtn} onPress={handlePickImage}>
                       <Camera size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                      <Text style={styles.addPhotoText}>Add Photo</Text>
+                      <Text style={styles.addPhotoText}>{tr.addPhotoBtn}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -484,16 +617,6 @@ export default function StoreReviewModal({
 
               {/* Action Buttons */}
               <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={[styles.cancelBtn, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}
-                  onPress={onClose}
-                  disabled={isSubmitting}
-                >
-                  <Text style={[styles.cancelBtnText, { color: isDark ? '#9CA3AF' : '#4B5563' }]}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   style={[
                     styles.submitBtn,
@@ -506,10 +629,20 @@ export default function StoreReviewModal({
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Sparkles size={14} color="#FFFFFF" />
-                      <Text style={styles.submitBtnText}>Submit Store Review</Text>
+                      <Sparkles size={16} color="#FFFFFF" />
+                      <Text style={styles.submitBtnText}>{tr.submitBtn}</Text>
                     </>
                   )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.cancelBtn, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}
+                  onPress={onClose}
+                  disabled={isSubmitting}
+                >
+                  <Text style={[styles.cancelBtnText, { color: isDark ? '#9CA3AF' : '#4B5563' }]}>
+                    {tr.cancelBtn}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -603,7 +736,7 @@ const styles = StyleSheet.create({
   overallBanner: {
     borderRadius: 20,
     borderWidth: 1,
-    padding: 16,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -636,14 +769,15 @@ const styles = StyleSheet.create({
   },
   badgeCol: {
     alignItems: 'flex-end',
+    flexShrink: 0,
   },
   tierBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   tierBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   errorBox: {
@@ -666,18 +800,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: CustomerColors.teal700,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    flex: 1,
+    minWidth: 0,
   },
   sectionSub: {
     fontSize: 11,
     color: CustomerColors.teal700,
     fontWeight: '700',
+    flexShrink: 0,
   },
   criteriaList: {
     gap: 10,
@@ -698,9 +836,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   critDesc: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#6B7280',
-    marginTop: 1,
+    marginTop: 2,
+    lineHeight: 15,
   },
   critScoreLabel: {
     fontSize: 11,
@@ -756,54 +895,101 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addPhotoBtn: {
-    width: 60,
-    height: 60,
+    width: 72,
+    height: 64,
     borderRadius: 14,
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: '#9CA3AF',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
     gap: 2,
   },
   addPhotoText: {
     fontSize: 8,
     fontWeight: '700',
     color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 11,
   },
   buttonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
     gap: 10,
     marginTop: 8,
-    paddingBottom: 16,
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  cancelBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
+    paddingBottom: 24,
   },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 14,
     backgroundColor: CustomerColors.teal700,
+    width: '100%',
   },
   submitBtnDisabled: {
     opacity: 0.5,
   },
   submitBtnText: {
     color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    width: '100%',
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  statusIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  existingRatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  existingRatingLabel: {
     fontSize: 12,
+    fontWeight: '600',
+  },
+  existingRatingScore: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  fullWidthCloseBtn: {
+    paddingVertical: 13,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    marginTop: 20,
+    minWidth: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullWidthCloseBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '700',
   },
 });

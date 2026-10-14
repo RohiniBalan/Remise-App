@@ -20,7 +20,7 @@ import {
   Globe,
 } from 'lucide-react-native';
 import LanguageSelectorModal from '../components/common/LanguageSelectorModal';
-import { useTranslation } from '../i18n';
+import { useTranslation, getCreditTranslations, getStoreReviewsTranslations, getSupplierTranslations } from '../i18n';
 import {
   View,
   Text,
@@ -523,7 +523,10 @@ function DashboardGate({ children }: { children: React.ReactNode }) {
 
 export default function StoreOwnerNavigator() {
   const { isDark } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const cr = useMemo(() => getCreditTranslations(language), [language]);
+  const srt = useMemo(() => getStoreReviewsTranslations(language), [language]);
+  const supT = useMemo(() => getSupplierTranslations(language), [language]);
   const stackHeaderOptions = {
     headerShown: true,
     headerStyle: {
@@ -567,17 +570,25 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="SupplierBrands"
               component={StoreSupplierBrandsScreen}
-              options={{ headerShown: false }}
+              options={{
+                headerShown: false,
+                presentation: 'transparentModal',
+                animation: 'slide_from_bottom',
+              }}
             />
             <Stack.Screen
               name="SupplierCompare"
               component={StoreSupplierCompareScreen}
-              options={{ headerShown: false }}
+              options={{
+                headerShown: false,
+                presentation: 'transparentModal',
+                animation: 'slide_from_bottom',
+              }}
             />
             <Stack.Screen
               name="SupplierCart"
               component={StoreSupplierCartScreen}
-              options={{ ...stackHeaderOptions, title: t('store.supplierCart') || 'Supplier Cart' }}
+              options={{ ...stackHeaderOptions, title: supT.supplierCartTitle || 'Supplier Cart' }}
             />
             <Stack.Screen
               name="StoreOwnerCustomers"
@@ -587,7 +598,7 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="StoreCredit"
               component={StoreCreditScreen}
-              options={{ ...stackHeaderOptions, title: 'Store Credit (Kadan)' }}
+              options={{ ...stackHeaderOptions, title: cr.storeCreditTitle }}
             />
             <Stack.Screen
               name="StoreSettings"
@@ -597,7 +608,7 @@ export default function StoreOwnerNavigator() {
             <Stack.Screen
               name="StoreReviews"
               component={StoreReviewsScreen}
-              options={{ ...stackHeaderOptions, title: 'Store Reviews & Ratings' }}
+              options={{ ...stackHeaderOptions, title: srt.reviewsAndRatings || 'Store Reviews & Ratings' }}
             />
             <Stack.Screen
               name="NewOffer"

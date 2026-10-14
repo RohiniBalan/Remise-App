@@ -100,7 +100,9 @@ export default function NotificationsScreen() {
     handleMarkRead(item._id);
 
     const url = item.url?.toLowerCase() || '';
-    if (url.includes('credit') || item.type === 'credit') {
+    if (url.includes('store/credit') || url.includes('store-credit') || (user?.role === 'store_owner' && (url.includes('credit') || item.type === 'credit'))) {
+      navigation.navigate('StoreCredit');
+    } else if (url.includes('credit') || item.type === 'credit') {
       navigation.navigate('MyCredit');
     } else if (url.includes('order')) {
       if (user?.role === 'store_owner') {

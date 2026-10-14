@@ -25,6 +25,7 @@ import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { useTranslation, translateProductName } from '../../i18n';
 import { usePlatformFee } from '../../utils/platformFee';
 import { useDeliveryFee } from '../../utils/deliveryFee';
+import { creditApi, CreditAccount } from '../../api/creditApi';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
@@ -35,6 +36,18 @@ export default function CartScreen() {
   const { cart, removeFromCart, decreaseQuantity, addToCart, setBuyNowItem } =
     useCart();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [approvedCredit, setApprovedCredit] = useState<CreditAccount | null>(null);
+
+  React.useEffect(() => {
+    if (!token || !user) return;
+    creditApi.getMyCreditAccounts()
+      .then(res => {
+        const accounts: CreditAccount[] = Array.isArray(res) ? res : (res as any)?.data || [];
+        const appAcc = accounts.find(a => a.status === 'APPROVED' && (a.availableCredit || 0) > 0);
+        if (appAcc) setApprovedCredit(appAcc);
+      })
+      .catch(() => {});
+  }, [token, user]);
 
   React.useEffect(() => {
     navigation.setOptions({ title: t('cart.yourCart') });
@@ -118,8 +131,8 @@ export default function CartScreen() {
           <Text style={[styles.subtotalValue, isDark && { color: '#FFFFFF' }]}>₹{subtotal.toLocaleString()}</Text>
         </View>
         <View style={styles.subtotalRow}>
-          <Text style={[styles.subtotalLabel, isDark && { color: '#D1D5DB' }]}>{t('cart.platformFee') || 'Platform Fee'}</Text>
-          <Text style={[styles.subtotalValue, isDark && { color: '#FFFFFF' }]}>
+          <Text style={[styles.platformFeeLabel, isDark && { color: '#9CA3AF' }]}>{t('cart.platformFee') || 'Platform Fee'}</Text>
+          <Text style={[styles.platformFeeValue, isDark && { color: '#D1D5DB' }]}>
             {platformFee === 0 ? (t('cart.free') || 'FREE') : `₹${platformFee.toLocaleString()}`}
           </Text>
         </View>
@@ -127,6 +140,23 @@ export default function CartScreen() {
           <Text style={[styles.subtotalLabel, { fontWeight: '800' }, isDark && { color: '#FFFFFF' }]}>{t('cart.total') || 'Total Amount'}</Text>
           <Text style={[styles.subtotalValue, { fontWeight: '900', color: CustomerColors.primary }, isDark && { color: '#2DD4BF' }]}>₹{grandTotal.toLocaleString()}</Text>
         </View>
+        {approvedCredit && (
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? 'rgba(147, 51, 234, 0.15)' : '#F3E8FF',
+            borderColor: isDark ? '#7E22CE' : '#D8B4FE',
+            borderWidth: 1,
+            borderRadius: 8,
+            padding: 10,
+            marginBottom: 12,
+            gap: 8,
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#C084FC' : '#7E22CE', flex: 1 }}>
+              💳 Store Credit ({approvedCredit.storeName}): Total ₹{(approvedCredit.creditLimit || 0).toLocaleString()} · ₹{(approvedCredit.availableCredit || 0).toLocaleString()} Remaining (₹{Math.max(0, (approvedCredit.creditLimit || 0) - (approvedCredit.availableCredit || 0)).toLocaleString()} used). Choose Credit at Checkout.
+            </Text>
+          </View>
+        )}
         <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout}>
           <Text style={styles.checkoutBtnText}>{t('cart.proceedToCheckout')}</Text>
         </TouchableOpacity>
@@ -291,6 +321,16 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.lg,
     fontWeight: '800',
     color: CustomerColors.black,
+  },
+  platformFeeLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '500',
+    color: CustomerColors.textSecondary,
+  },
+  platformFeeValue: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    color: CustomerColors.textSecondary,
   },
   checkoutBtn: {
     backgroundColor: CustomerColors.primary,

@@ -99,4 +99,5 @@ export const products: TranslationSchema['products'] = {
   reviewErrorMsg: 'Failed to submit review. Please try again.',
   recent: 'Recent',
   customer: 'Customer',
+  platformFeeNote: 'Platform Fee: {{fee}} · Self Pickup: ₹0',
 };

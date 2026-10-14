@@ -60,7 +60,7 @@ export interface CreditLedgerEntry {
 
 export const creditApi = {
   checkEligibility: (storeId: string, amount: number = 0, paymentMethod: string = 'credit') =>
-    gatewayClient.get('/api/orders/credit/eligibility', {
+    gatewayClient.get('/api/orders/credit/check-eligibility', {
       params: { storeId, amount, paymentMethod },
     }),
 
@@ -68,10 +68,10 @@ export const creditApi = {
     gatewayClient.get('/api/orders/credit/my-accounts'),
 
   getMyStoreCreditAccount: (storeId: string) =>
-    gatewayClient.get(`/api/orders/credit/my-store/${storeId}`),
+    gatewayClient.get(`/api/orders/credit/store/${storeId}/my-account`),
 
   getStoreCreditAccounts: (storeId: string, params?: { status?: string; search?: string }) =>
-    gatewayClient.get(`/api/orders/credit/store/${storeId}`, { params }),
+    gatewayClient.get(`/api/orders/credit/store/${storeId}/accounts`, { params }),
 
   createInPersonApplication: (data: {
     storeId: string;
@@ -86,34 +86,34 @@ export const creditApi = {
     nameOnId: string;
     customerAgreed: boolean;
     consentGiven: boolean;
-  }) => gatewayClient.post('/api/orders/credit/store/apply', data),
+  }) => gatewayClient.post('/api/orders/credit/applications/in-person', data),
 
   approveOrRejectApplication: (
     accountId: string,
     action: 'approve' | 'reject',
     data?: { creditLimit?: number; repaymentPolicy?: RepaymentPolicy; rejectionReason?: string }
   ) =>
-    gatewayClient.patch(`/api/orders/credit/account/${accountId}/status`, { action, ...data }),
+    gatewayClient.patch(`/api/orders/credit/applications/${accountId}/decision`, { action, ...data }),
 
   updateCreditTerms: (
     accountId: string,
     data: { creditLimit: number; repaymentPolicy: RepaymentPolicy; reason: string }
-  ) => gatewayClient.patch(`/api/orders/credit/account/${accountId}/terms`, data),
+  ) => gatewayClient.patch(`/api/orders/credit/accounts/${accountId}/terms`, data),
 
   suspendOrRevokeAccount: (
     accountId: string,
     status: 'SUSPENDED' | 'REVOKED' | 'APPROVED',
     reason: string
-  ) => gatewayClient.patch(`/api/orders/credit/account/${accountId}/suspend`, { status, reason }),
+  ) => gatewayClient.patch(`/api/orders/credit/accounts/${accountId}/status`, { status, reason }),
 
   recordCashRepayment: (accountId: string, amount: number, notes: string = '', paymentMethod: string = 'cash') =>
-    gatewayClient.post(`/api/orders/credit/account/${accountId}/repay`, { amount, notes, paymentMethod }),
+    gatewayClient.post(`/api/orders/credit/accounts/${accountId}/repay-cash`, { amount, notes, paymentMethod }),
 
   getAccountLedger: (accountId: string) =>
-    gatewayClient.get(`/api/orders/credit/account/${accountId}/ledger`),
+    gatewayClient.get(`/api/orders/credit/accounts/${accountId}/ledger`),
 
   searchCustomers: (query: string) =>
-    gatewayClient.get('/api/user/search-customers', { params: { query } }),
+    gatewayClient.get('/api/user/search-customers', { params: { q: query, query } }),
 
   confirmCodCollection: (orderId: string, amount?: number, notes?: string) =>
     gatewayClient.post(`/api/orders/${orderId}/confirm-cod-collection`, { amount, notes }),

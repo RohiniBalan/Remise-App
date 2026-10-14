@@ -374,7 +374,7 @@ export default function OrdersScreen() {
       if (items.length === 0) {
         list.push({
           key: `${order._id || orderIdx}`,
-          orderId: order._id || '',
+          orderId: order.orderId || order._id || '',
           storeId: (order as any).storeId,
           storeName: (order as any).storeName,
           paymentStatus: order.paymentStatus || 'PENDING',
@@ -399,7 +399,7 @@ export default function OrdersScreen() {
         items.forEach((it, idx) => {
           list.push({
             key: `${order._id || orderIdx}-${idx}`,
-            orderId: order._id || '',
+            orderId: order.orderId || order._id || '',
             storeId: (order as any).storeId || (it as any)?.storeId,
             storeName: (order as any).storeName || (it as any)?.storeName,
             paymentStatus: order.paymentStatus || 'PENDING',
@@ -787,7 +787,7 @@ export default function OrdersScreen() {
                         fill="#F59E0B"
                       />
                       <Text style={[styles.reviewBtnText, isDark && { color: '#FCD34D' }]}>
-                        Rate Your Store
+                        {t('orders.rateYourStore')}
                       </Text>
                     </TouchableOpacity>
                   )}

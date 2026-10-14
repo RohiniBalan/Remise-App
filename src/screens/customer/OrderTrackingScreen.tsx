@@ -44,7 +44,7 @@ export default function OrderTrackingScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
   const tSupplier = useMemo(() => getSupplierTranslations(language), [language]);
   const { isDark } = useTheme();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
@@ -364,7 +364,7 @@ export default function OrderTrackingScreen() {
                 onPress={() => setReviewModalVisible(true)}
               >
                 <Star size={16} color="#FFFFFF" fill="#FFFFFF" />
-                <Text style={styles.reviewPromptBtnText}>Rate Your Store</Text>
+                <Text style={styles.reviewPromptBtnText}>{t('orders.rateYourStore')}</Text>
               </TouchableOpacity>
             </View>
           )}

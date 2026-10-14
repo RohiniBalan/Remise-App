@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Layers, Truck, Users, Settings as SettingsIcon, ChevronRight, LucideIcon, Tag, Star, CreditCard } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useTranslation } from '../../i18n';
+import { useTranslation, getCreditTranslations, getStoreReviewsTranslations } from '../../i18n';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 
 type MoreItem = {
@@ -19,22 +19,24 @@ export default function StoreMoreScreen() {
   const navigation = useNavigation<any>();
   const { store } = useStoreDashboard();
   const { isDark } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const cr = useMemo(() => getCreditTranslations(language), [language]);
+  const srt = useMemo(() => getStoreReviewsTranslations(language), [language]);
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const items: MoreItem[] = useMemo(
     () => [
       {
         key: 'reviews',
-        label: 'Reviews & Ratings',
-        subtitle: 'Customer reviews & 10 criteria breakdown',
+        label: srt.reviewsAndRatings,
+        subtitle: srt.reviewsAndRatingsSubtitle,
         icon: Star,
         route: 'StoreReviews',
       },
       {
         key: 'credit',
-        label: 'Credit (Kadan) Management',
-        subtitle: 'In-person approval, limits, repayments & ledger',
+        label: cr.creditManagement,
+        subtitle: cr.creditManagementSubtitle,
         icon: CreditCard,
         route: 'StoreCredit',
       },

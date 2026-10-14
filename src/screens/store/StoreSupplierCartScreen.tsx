@@ -38,12 +38,13 @@ import {
   BorderRadius,
 } from '../../styles/theme';
 import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
-import { useTranslation } from '../../i18n';
+import { useTranslation, getSupplierTranslations } from '../../i18n';
 
 export default function StoreSupplierCartScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const { language } = useTranslation();
+  const st = useMemo(() => getSupplierTranslations(language), [language]);
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const { store } = useStoreDashboard();
   const { user, token } = useAuth();
@@ -305,35 +306,35 @@ export default function StoreSupplierCartScreen() {
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>1</Text>
               </View>
-              <Text style={styles.sectionTitle}>Contact & Delivery</Text>
+              <Text style={styles.sectionTitle}>{st.contactAndDelivery}</Text>
             </View>
 
             <View style={styles.cardSection}>
               <View style={styles.nameRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>First Name *</Text>
+                  <Text style={styles.label}>{st.firstName} *</Text>
                   <TextInput
                     style={styles.input}
                     value={form.firstName}
                     onChangeText={v => set('firstName', v)}
-                    placeholder="First Name"
+                    placeholder={st.firstName}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Last Name</Text>
+                  <Text style={styles.label}>{st.lastName}</Text>
                   <TextInput
                     style={styles.input}
                     value={form.lastName}
                     onChangeText={v => set('lastName', v)}
-                    placeholder="Last Name"
+                    placeholder={st.lastName}
                     placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   />
                 </View>
               </View>
 
               <View style={{ marginBottom: Spacing.sm }}>
-                <Text style={styles.label}>Phone Number *</Text>
+                <Text style={styles.label}>{st.phone} *</Text>
                 <TextInput
                   style={styles.input}
                   value={form.phone}
@@ -345,7 +346,7 @@ export default function StoreSupplierCartScreen() {
               </View>
 
               <View style={{ marginBottom: Spacing.sm }}>
-                <Text style={styles.label}>Email Address</Text>
+                <Text style={styles.label}>{st.email}</Text>
                 <TextInput
                   style={styles.input}
                   value={form.contactEmail}
@@ -358,7 +359,7 @@ export default function StoreSupplierCartScreen() {
               </View>
 
               <View style={{ marginBottom: Spacing.sm }}>
-                <Text style={styles.label}>Delivery Address / Street *</Text>
+                <Text style={styles.label}>{st.address} *</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -374,7 +375,7 @@ export default function StoreSupplierCartScreen() {
 
               {/* State Dropdown */}
               <View style={{ marginBottom: Spacing.sm }}>
-                <Text style={styles.label}>State *</Text>
+                <Text style={styles.label}>{st.state} *</Text>
                 <TouchableOpacity
                   style={styles.selectInput}
                   onPress={() => setStateModalOpen(true)}
@@ -386,7 +387,7 @@ export default function StoreSupplierCartScreen() {
                     }
                     numberOfLines={1}
                   >
-                    {form.state ? translateState(form.state, language) : 'Select State'}
+                    {form.state ? translateState(form.state, language) : st.selectState}
                   </Text>
                   <ChevronDown
                     size={18}
@@ -397,7 +398,7 @@ export default function StoreSupplierCartScreen() {
 
               {/* City Dropdown */}
               <View style={{ marginBottom: Spacing.sm }}>
-                <Text style={styles.label}>City *</Text>
+                <Text style={styles.label}>{st.city} *</Text>
                 <TouchableOpacity
                   style={[
                     styles.selectInput,
@@ -406,8 +407,8 @@ export default function StoreSupplierCartScreen() {
                   onPress={() => {
                     if (!form.state) {
                       Alert.alert(
-                        'Select State',
-                        'Please select a state first to view cities.',
+                        st.selectState,
+                        st.selectStateFirst,
                       );
                       return;
                     }
@@ -423,7 +424,7 @@ export default function StoreSupplierCartScreen() {
                   >
                     {form.city
                       ? translateCity(form.city, language)
-                      : (form.state ? 'Select City' : 'Choose state first')}
+                      : (form.state ? st.selectCity : st.selectStateFirst)}
                   </Text>
                   <ChevronDown
                     size={18}
@@ -442,7 +443,7 @@ export default function StoreSupplierCartScreen() {
                     marginBottom: 4,
                   }}
                 >
-                  <Text style={styles.label}>Pin Code *</Text>
+                  <Text style={styles.label}>{st.pinCode} *</Text>
                   {isFetchingPin && (
                     <View
                       style={{
@@ -461,7 +462,7 @@ export default function StoreSupplierCartScreen() {
                           color: isDark ? '#2DD4BF' : CustomerColors.teal700,
                         }}
                       >
-                        Auto-detecting...
+                        {st.autoFilling || 'Auto-detecting...'}
                       </Text>
                     </View>
                   )}
@@ -483,7 +484,7 @@ export default function StoreSupplierCartScreen() {
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>2</Text>
               </View>
-              <Text style={styles.sectionTitle}>Delivery Method</Text>
+              <Text style={styles.sectionTitle}>{st.deliveryMethod}</Text>
             </View>
 
             <View style={styles.deliveryMethodCard}>
@@ -504,15 +505,14 @@ export default function StoreSupplierCartScreen() {
                       color={isDark ? '#2DD4BF' : CustomerColors.teal700}
                     />
                     <Text style={styles.deliveryTitle}>
-                      Home / Store Delivery
+                      {st.homeDelivery}
                     </Text>
                     <View style={styles.selectedPill}>
-                      <Text style={styles.selectedPillText}>Selected</Text>
+                      <Text style={styles.selectedPillText}>{st.selected}</Text>
                     </View>
                   </View>
                   <Text style={styles.deliverySubtitle}>
-                    Suppliers will dispatch and deliver stock packages directly
-                    to your entered address.
+                    {st.homeDeliveryDesc}
                   </Text>
                 </View>
               </View>
@@ -523,7 +523,7 @@ export default function StoreSupplierCartScreen() {
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>3</Text>
               </View>
-              <Text style={styles.sectionTitle}>Order Summary</Text>
+              <Text style={styles.sectionTitle}>{st.orderSummary}</Text>
             </View>
           </View>
         }
@@ -548,7 +548,7 @@ export default function StoreSupplierCartScreen() {
               </View>
             ))}
             <Text style={styles.supplierTotal}>
-              Subtotal: ₹{g.totalAmount.toLocaleString('en-IN')}
+              {st.subtotal}: ₹{g.totalAmount.toLocaleString('en-IN')}
             </Text>
           </View>
         )}
@@ -559,7 +559,7 @@ export default function StoreSupplierCartScreen() {
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>4</Text>
               </View>
-              <Text style={styles.sectionTitle}>Payment Method</Text>
+              <Text style={styles.sectionTitle}>{st.paymentMethod}</Text>
             </View>
 
             <View style={styles.paymentCard}>
@@ -597,11 +597,11 @@ export default function StoreSupplierCartScreen() {
                       color={isDark ? '#2DD4BF' : CustomerColors.teal700}
                     />
                     <Text style={styles.paymentTitle}>
-                      Online Payment (Razorpay)
+                      {st.onlinePaymentRazorpay}
                     </Text>
                   </View>
                   <Text style={styles.paymentSubtitle}>
-                    UPI, Credit/Debit Cards, NetBanking & Wallets
+                    {st.onlinePaymentSub}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -651,11 +651,11 @@ export default function StoreSupplierCartScreen() {
                       color={isDark ? '#34D399' : '#059669'}
                     />
                     <Text style={styles.paymentTitle}>
-                      Cash on Delivery (COD)
+                      {st.cashOnDelivery}
                     </Text>
                   </View>
                   <Text style={styles.paymentSubtitle}>
-                    Pay in cash when order is delivered by the supplier
+                    {st.codSubtitle}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -666,7 +666,7 @@ export default function StoreSupplierCartScreen() {
                   color={isDark ? '#2DD4BF' : CustomerColors.teal700}
                 />
                 <Text style={styles.securityBadgeText}>
-                  Secure checkout & direct supplier verification
+                  {st.secureCheckoutBadge}
                 </Text>
               </View>
             </View>
@@ -676,12 +676,12 @@ export default function StoreSupplierCartScreen() {
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>5</Text>
               </View>
-              <Text style={styles.sectionTitle}>Order Total</Text>
+              <Text style={styles.sectionTitle}>{st.totalAmount}</Text>
             </View>
 
             <View style={styles.totalCard}>
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Payable</Text>
+                <Text style={styles.totalLabel}>{st.totalPayable}</Text>
                 <Text style={styles.totalValue}>
                   ₹{cartTotal.toLocaleString('en-IN')}
                 </Text>
@@ -700,8 +700,8 @@ export default function StoreSupplierCartScreen() {
                 ) : (
                   <Text style={styles.placeBtnText}>
                     {paymentMethod === 'cod'
-                      ? `Place COD Order (₹${cartTotal.toLocaleString('en-IN')})`
-                      : `Pay ₹${cartTotal.toLocaleString('en-IN')} via Razorpay`}
+                      ? `${st.placeCodOrder} (₹${cartTotal.toLocaleString('en-IN')})`
+                      : `${st.payViaRazorpayBtn} (₹${cartTotal.toLocaleString('en-IN')})`}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -727,7 +727,7 @@ export default function StoreSupplierCartScreen() {
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select State</Text>
+              <Text style={styles.modalTitle}>{st.selectState}</Text>
               <TouchableOpacity onPress={() => setStateModalOpen(false)}>
                 <X
                   size={20}
@@ -743,7 +743,7 @@ export default function StoreSupplierCartScreen() {
               />
               <TextInput
                 style={styles.modalSearchInput}
-                placeholder="Search state..."
+                placeholder={st.searchState || 'Search state...'}
                 value={stateSearch}
                 onChangeText={setStateSearch}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
@@ -800,7 +800,7 @@ export default function StoreSupplierCartScreen() {
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select City</Text>
+              <Text style={styles.modalTitle}>{st.selectCity}</Text>
               <TouchableOpacity onPress={() => setCityModalOpen(false)}>
                 <X
                   size={20}
@@ -816,7 +816,7 @@ export default function StoreSupplierCartScreen() {
               />
               <TextInput
                 style={styles.modalSearchInput}
-                placeholder="Search city..."
+                placeholder={st.searchCity || 'Search city...'}
                 value={citySearch}
                 onChangeText={setCitySearch}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}

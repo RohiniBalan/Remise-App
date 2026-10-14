@@ -23,4 +23,5 @@ export const cart: TranslationSchema['cart'] = {
   removeConfirm: 'ഈ ഇനം നീക്കം ചെയ്യാൻ നിങ്ങൾ തീർച്ചയായും ആഗ്രഹിക്കുന്നുണ്ടോ?',
   itemRemoved: 'ഇനം കാർട്ടിൽ നിന്ന് നീക്കം ചെയ്തു',
   moveToWishlist: 'താൽപ്പര്യപ്പട്ടികയിലേക്ക് മാറ്റുക',
+  platformFee: 'പ്ലാറ്റ്‌ഫോം ഫീസ്',
 };

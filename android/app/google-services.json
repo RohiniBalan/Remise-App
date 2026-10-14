@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "652006110831",
-    "project_id": "remise-90ecf",
-    "storage_bucket": "remise-90ecf.firebasestorage.app"
+    "project_number": "147544305027",
+    "project_id": "remise-4b221",
+    "storage_bucket": "remise-4b221.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:652006110831:android:0d21add2812e748c09ff9a",
+        "mobilesdk_app_id": "1:147544305027:android:3e781dfc2987a298f45ab6",
         "android_client_info": {
           "package_name": "com.remiseapp"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC88dGnsmhCV5h9rx1bi4d07WHhrrmK1Cs"
+          "current_key": "AIzaSyDrBE6rP_fP-k9d3I9E7aZ20c5w4TkClbM"
         }
       ],
       "services": {

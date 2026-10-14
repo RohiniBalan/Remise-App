@@ -248,7 +248,7 @@ export default function CategoryGridScreen() {
         ListHeaderComponent={
           <View style={styles.pageHeading}>
             <View style={styles.pageHeadingRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={styles.headerTitleContainer}>
                 <TouchableOpacity
                   onPress={() => navigation.navigate('CustomerTabs', { screen: 'Home' })}
                   style={styles.backHomeBtn}
@@ -256,14 +256,22 @@ export default function CategoryGridScreen() {
                 >
                   <ArrowLeft size={22} color={isDark ? '#FFFFFF' : CustomerColors.black} />
                 </TouchableOpacity>
-                <View>
+                <View style={styles.headerTextGroup}>
                   <Text style={styles.eyebrow}>{t('common.browse')}</Text>
-                  <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}>
+                  <Text
+                    style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
                     {t('products.shopByCategory')}
                   </Text>
                 </View>
               </View>
-              <Text style={[styles.headerCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
+              <Text
+                style={[styles.headerCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}
+                numberOfLines={1}
+              >
                 {products.length === 1
                   ? t('common.productCount', { count: products.length })
                   : t('common.productsCount', { count: products.length })}
@@ -309,7 +317,10 @@ export default function CategoryGridScreen() {
                 </View>
               )}
             </View>
-            <Text style={[styles.cardName, { color: isDark ? '#FFFFFF' : CustomerColors.black }]} numberOfLines={1}>
+            <Text
+              style={[styles.cardName, { color: isDark ? '#FFFFFF' : CustomerColors.black }]}
+              numberOfLines={2}
+            >
               {translateCategory(item.name, language)}
             </Text>
             <Text style={[styles.cardCount, { color: isDark ? '#9CA3AF' : CustomerColors.textSecondary }]}>
@@ -360,7 +371,19 @@ const styles = StyleSheet.create({
   pageHeadingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  headerTextGroup: {
+    flex: 1,
+    minWidth: 0,
   },
   backHomeBtn: {
     padding: 4,
@@ -372,20 +395,22 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontWeight: '700',
     color: CustomerColors.textSecondary,
-    paddingBottom: 2,
+    flexShrink: 0,
+    textAlign: 'right',
   },
   eyebrow: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 3.5,
+    letterSpacing: 2,
     textTransform: 'uppercase',
     color: CustomerColors.primary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerTitle: {
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes.lg,
     fontWeight: '900',
     color: CustomerColors.black,
+    flexShrink: 1,
   },
   card: {
     width: '48%',
@@ -394,8 +419,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CustomerColors.border,
     backgroundColor: CustomerColors.white,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -404,7 +429,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     overflow: 'hidden',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     backgroundColor: 'rgba(15, 163, 177, 0.08)',
   },
   image: { width: '100%', height: '100%' },
@@ -419,11 +444,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: CustomerColors.black,
     textAlign: 'center',
+    lineHeight: 18,
+    minHeight: 36,
   },
   cardCount: {
     fontSize: FontSizes.xs,
     color: CustomerColors.textSecondary,
-    marginTop: 6,
+    marginTop: 4,
     textAlign: 'center',
   },
   loadingBlock: {

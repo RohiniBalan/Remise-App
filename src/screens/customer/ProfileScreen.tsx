@@ -62,7 +62,7 @@ import {
 import { mergeCategories } from '../../utils/storeCategories';
 import { storeProductApi } from '../../api/storeProductApi';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation, translateCategory, translateState, translateCity } from '../../i18n';
+import { useTranslation, translateCategory, translateState, translateCity, getCreditTranslations } from '../../i18n';
 
 type TabKey = 'overview' | 'addresses' | 'security' | 'store';
 
@@ -135,6 +135,7 @@ export default function ProfileScreen() {
   const { user, updateUser, logout } = useAuth();
   const { isDark } = useTheme();
   const { t, language } = useTranslation();
+  const cr = useMemo(() => getCreditTranslations(language), [language]);
   const { unreadCount } = useUnreadNotifications();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -738,8 +739,8 @@ export default function ProfileScreen() {
               <CreditCard size={18} color="#7C3AED" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.quickMenuTitle}>My Store Credit (Kadan)</Text>
-              <Text style={styles.quickMenuSub}>View store credit lines, due dates, & ledger</Text>
+              <Text style={styles.quickMenuTitle}>{cr.myStoreCredit}</Text>
+              <Text style={styles.quickMenuSub}>{cr.myStoreCreditSubtitle}</Text>
             </View>
             <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
           </TouchableOpacity>

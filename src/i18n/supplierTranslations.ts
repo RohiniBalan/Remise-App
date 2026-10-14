@@ -184,6 +184,26 @@ export interface SupplierTranslations {
   stepOutForDeliveryDesc: string;
   stepDelivered: string;
   stepDeliveredDesc: string;
+  brandAvailableSingle: string;
+  supplierAvailableSingle: string;
+  details: string;
+  ofTotal: string;
+  units: string;
+  addedToSupplierCart: string;
+  addedToSupplierCartDesc: string;
+  redirectingToCart: string;
+  supplierCartTitle: string;
+  contactAndDelivery: string;
+  cashOnDelivery: string;
+  orderSummary: string;
+  paymentMethod: string;
+  onlinePaymentRazorpay: string;
+  onlinePaymentSub: string;
+  codSubtitle: string;
+  secureCheckoutBadge: string;
+  totalPayable: string;
+  placeCodOrder: string;
+  payViaRazorpayBtn: string;
 }
 
 const SUPPLIER_TRANSLATIONS: Record<LanguageCode, SupplierTranslations> = {
@@ -365,6 +385,26 @@ const SUPPLIER_TRANSLATIONS: Record<LanguageCode, SupplierTranslations> = {
     stepOutForDeliveryDesc: 'On the way to your door',
     stepDelivered: 'Delivered',
     stepDeliveredDesc: 'Successfully delivered',
+    brandAvailableSingle: '1 brand available',
+    supplierAvailableSingle: '1 supplier available',
+    details: 'Details',
+    ofTotal: 'of',
+    units: 'units',
+    addedToSupplierCart: 'Added to Supplier Cart',
+    addedToSupplierCartDesc: '{{product}} from {{supplier}} has been added to your order requisition.',
+    redirectingToCart: 'Redirecting to Cart...',
+    supplierCartTitle: 'Supplier Cart',
+    contactAndDelivery: 'Contact & Delivery',
+    cashOnDelivery: 'Cash on Delivery',
+    orderSummary: 'Order Summary',
+    paymentMethod: 'Payment Method',
+    onlinePaymentRazorpay: 'Online Payment (Razorpay)',
+    onlinePaymentSub: 'UPI, Credit/Debit Cards, NetBanking & Wallets',
+    codSubtitle: 'Pay in cash when order is delivered by the supplier',
+    secureCheckoutBadge: 'Secure checkout & direct supplier verification',
+    totalPayable: 'Total Payable',
+    placeCodOrder: 'Place COD Order',
+    payViaRazorpayBtn: 'Pay via Razorpay',
   },
 
   ta: {
@@ -545,6 +585,26 @@ const SUPPLIER_TRANSLATIONS: Record<LanguageCode, SupplierTranslations> = {
     stepOutForDeliveryDesc: 'உங்கள் வாசலை நோக்கி வந்து கொண்டிருக்கிறது',
     stepDelivered: 'டெலிவரி செய்யப்பட்டது',
     stepDeliveredDesc: 'வெற்றிகரமாக டெலிவரி செய்யப்பட்டது',
+    brandAvailableSingle: '1 பிராண்ட் கிடைக்கிறது',
+    supplierAvailableSingle: '1 சப்ளையர் கிடைக்கிறார்',
+    details: 'விவரங்கள்',
+    ofTotal: '/',
+    units: 'அலகுகள்',
+    addedToSupplierCart: 'சப்ளையர் கூடையில் சேர்க்கப்பட்டது',
+    addedToSupplierCartDesc: '{{supplier}} இடமிருந்து {{product}} உங்கள் கொள்முதல் கூடையில் சேர்க்கப்பட்டது.',
+    redirectingToCart: 'கூடைக்கு அழைத்துச் செல்லப்படுகிறது...',
+    supplierCartTitle: 'சப்ளையர் கூடை',
+    contactAndDelivery: 'தொடர்பு & டெலிவரி',
+    cashOnDelivery: 'டெலிவரியின் போது பணம்',
+    orderSummary: 'ஆர்டர் சுருக்கம்',
+    paymentMethod: 'செலுத்தும் முறை',
+    onlinePaymentRazorpay: 'ஆன்லைன் கட்டணம் (Razorpay)',
+    onlinePaymentSub: 'UPI, கிரெடிட்/டெபிட் கார்டுகள், நெட்பேங்கிங் மற்றும் வாலட்கள்',
+    codSubtitle: 'சப்ளையர் சரக்குகளை விநியோகிக்கும் போது பணமாக செலுத்தவும்',
+    secureCheckoutBadge: 'பாதுகாப்பான செக்அவுட் & நேரடி சப்ளையர் சரிபார்ப்பு',
+    totalPayable: 'மொத்தம் செலுத்த வேண்டிய தொகை',
+    placeCodOrder: 'COD ஆர்டர் செய்க',
+    payViaRazorpayBtn: 'Razorpay மூலம் செலுத்தவும்',
   },
 
   te: {
@@ -725,6 +785,26 @@ const SUPPLIER_TRANSLATIONS: Record<LanguageCode, SupplierTranslations> = {
     stepOutForDeliveryDesc: 'మీ ఇంటికి చేరుకోవడానికి వస్తున్నారు',
     stepDelivered: 'డెలివరీ చేయబడింది',
     stepDeliveredDesc: 'విజయవంతంగా డెలివరీ చేయబడింది',
+    brandAvailableSingle: '1 బ్రాండ్ అందుబాటులో ఉంది',
+    supplierAvailableSingle: '1 సరఫరాదారు అందుబాటులో ఉన్నారు',
+    details: 'వివరాలు',
+    ofTotal: '/',
+    units: 'యూనిట్లు',
+    addedToSupplierCart: 'సరఫరాదారు కార్ట్‌కు జోడించబడింది',
+    addedToSupplierCartDesc: '{{supplier}} నుండి {{product}} మీ ఆర్డర్ అవసరాల జాబితాకు జోడించబడింది.',
+    redirectingToCart: 'కార్ట్‌కు మళ్ళించబడుతోంది...',
+    supplierCartTitle: 'సరఫరాదారు కార్ట్',
+    contactAndDelivery: 'సంప్రదింపు & డెలివరీ',
+    cashOnDelivery: 'క్యాష్ ఆన్ డెలివరీ',
+    orderSummary: 'ఆర్డర్ సారాంశం',
+    paymentMethod: 'చెల్లింపు విధానం',
+    onlinePaymentRazorpay: 'ఆన్‌లైన్ చెల్లింపు (Razorpay)',
+    onlinePaymentSub: 'UPI, క్రెడిట్/డెబిట్ కార్డులు, నెట్‌బ్యాంకింగ్ & వాలెట్లు',
+    codSubtitle: 'సరఫరాదారు ఆర్డర్‌ను డెలివరీ చేసినప్పుడు నగదు రూపంలో చెల్లించండి',
+    secureCheckoutBadge: 'సురక్షిత చెక్అవుట్ & ప్రత్యక్ష సరఫరాదారు ధృవీకరణ',
+    totalPayable: 'మొత్తం చెల్లించవలసినది',
+    placeCodOrder: 'COD ఆర్డర్ చేయండి',
+    payViaRazorpayBtn: 'Razorpay ద్వారా చెల్లించండి',
   },
 
   ml: {
@@ -905,6 +985,26 @@ const SUPPLIER_TRANSLATIONS: Record<LanguageCode, SupplierTranslations> = {
     stepOutForDeliveryDesc: 'നിങ്ങളുടെ വിലാസത്തിലേക്ക് വരുന്നു',
     stepDelivered: 'ഡെലിവർ ചെയ്തു',
     stepDeliveredDesc: 'വിജയകരമായി ഡെലിവർ ചെയ്തു',
+    brandAvailableSingle: '1 ബ്രാൻഡ് ലഭ്യമാണ്',
+    supplierAvailableSingle: '1 വിതരണക്കാരൻ ലഭ്യമാണ്',
+    details: 'വിശദാംശങ്ങൾ',
+    ofTotal: '/',
+    units: 'യൂണിറ്റുകൾ',
+    addedToSupplierCart: 'സപ്ലയർ കാർട്ടിലേക്ക് ചേർത്തു',
+    addedToSupplierCartDesc: '{{supplier}}ൽ നിന്നുള്ള {{product}} നിങ്ങളുടെ ഓർഡർ ലിസ്റ്റിലേക്ക് ചേർത്തു.',
+    redirectingToCart: 'കാർട്ടിലേക്ക് മാറ്റുന്നു...',
+    supplierCartTitle: 'സപ്ലയർ കാർട്ട്',
+    contactAndDelivery: 'ബന്ധപ്പെടലും ഡെലിവറിയും',
+    cashOnDelivery: 'ക്യാഷ് ഓൺ ഡെലിവറി',
+    orderSummary: 'ഓർഡർ സംഗ്രഹം',
+    paymentMethod: 'പേയ്‌മെന്റ് രീതി',
+    onlinePaymentRazorpay: 'ഓൺലൈൻ പേയ്‌മെന്റ് (Razorpay)',
+    onlinePaymentSub: 'യുപിഐ, ക്രെഡിറ്റ്/ഡെബിറ്റ് കാർഡുകൾ, നെറ്റ്ബാങ്കിംഗ് & വാലറ്റുകൾ',
+    codSubtitle: 'സപ്ലയർ ഓർഡർ ഡെലിവറി ചെയ്യുമ്പോൾ പണമായി നൽകുക',
+    secureCheckoutBadge: 'സുരക്ഷിത ചെക്ക്ഔട്ട് & നേരിട്ടുള്ള സപ്ലയർ വെരിഫിക്കേഷൻ',
+    totalPayable: 'ആകെ നൽകേണ്ട തുക',
+    placeCodOrder: 'സി‌ഒ‌ഡി ഓർഡർ നൽകുക',
+    payViaRazorpayBtn: 'Razorpay വഴി പണമടയ്ക്കുക',
   },
 
   kn: {
@@ -1085,6 +1185,26 @@ const SUPPLIER_TRANSLATIONS: Record<LanguageCode, SupplierTranslations> = {
     stepOutForDeliveryDesc: 'ನಿಮ್ಮ ವಿಳಾಸಕ್ಕೆ ಬರುತ್ತಿದ್ದಾರೆ',
     stepDelivered: 'ತಲುಪಿಸಲಾಗಿದೆ',
     stepDeliveredDesc: 'ಯಶಸ್ವಿಯಾಗಿ ತಲುಪಿಸಲಾಗಿದೆ',
+    brandAvailableSingle: '1 ಬ್ರಾಂಡ್ ಲಭ್ಯವಿದೆ',
+    supplierAvailableSingle: '1 ಪೂರೈಕೆದಾರರು ಲಭ್ಯವಿದ್ದಾರೆ',
+    details: 'ವಿವರಗಳು',
+    ofTotal: '/',
+    units: 'ಘಟಕಗಳು',
+    addedToSupplierCart: 'ಪೂರೈಕೆದಾರರ ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಲಾಗಿದೆ',
+    addedToSupplierCartDesc: '{{supplier}} ಅವರಿಂದ {{product}} ನಿಮ್ಮ ಬೇಡಿಕೆ ಪಟ್ಟಿಗೆ ಸೇರಿಸಲಾಗಿದೆ.',
+    redirectingToCart: 'ಕಾರ್ಟ್‌ಗೆ ಮರುನಿರ್ದೇಶಿಸಲಾಗುತ್ತಿದೆ...',
+    supplierCartTitle: 'ಪೂರೈಕೆದಾರರ ಕಾರ್ಟ್',
+    contactAndDelivery: 'ಸಂಪರ್ಕ & ಡೆಲಿವರಿ',
+    cashOnDelivery: 'ಕ್ಯಾಶ್ ಆನ್ ಡೆಲಿವರಿ',
+    orderSummary: 'ಆರ್ಡರ್ ಸಾರಾಂಶ',
+    paymentMethod: 'ಪಾವತಿ ವಿಧಾನ',
+    onlinePaymentRazorpay: 'ಆನ್‌ಲೈನ್ ಪಾವತಿ (Razorpay)',
+    onlinePaymentSub: 'ಯುಪಿಐ, ಕ್ರೆಡಿಟ್/ಡೆಬಿಟ್ ಕಾರ್ಡ್‌ಗಳು, ನೆಟ್‌ಬ್ಯಾಂಕಿಂಗ್ ಮತ್ತು ವಾಲೆಟ್‌ಗಳು',
+    codSubtitle: 'ಪೂರೈಕೆದಾರರು ಆರ್ಡರ್ ತಲುಪಿಸಿದಾಗ ನಗದು ಪಾವತಿಸಿ',
+    secureCheckoutBadge: 'ಸುರಕ್ಷಿತ ಚೆಕ್‌ಔಟ್ ಮತ್ತು ನೇರ ಪೂರೈಕೆದಾರರ ಪರಿಶೀಲನೆ',
+    totalPayable: 'ಒಟ್ಟು ಪಾವತಿಸಬೇಕಾದ ಮೊತ್ತ',
+    placeCodOrder: 'ಸಿ‌ಒ‌ಡಿ ಆರ್ಡರ್ ಮಾಡಿ',
+    payViaRazorpayBtn: 'Razorpay ಮೂಲಕ ಪಾವತಿಸಿ',
   },
 
   hi: {
@@ -1265,6 +1385,26 @@ const SUPPLIER_TRANSLATIONS: Record<LanguageCode, SupplierTranslations> = {
     stepOutForDeliveryDesc: 'आपके पते के रास्ते में है',
     stepDelivered: 'डिलीवर हो गया',
     stepDeliveredDesc: 'सफलतापूर्वक डिलीवर किया गया',
+    brandAvailableSingle: '1 ब्रांड उपलब्ध है',
+    supplierAvailableSingle: '1 सप्लायर उपलब्ध है',
+    details: 'विवरण',
+    ofTotal: '/',
+    units: 'इकाइयां',
+    addedToSupplierCart: 'सप्लायर कार्ट में जोड़ा गया',
+    addedToSupplierCartDesc: '{{supplier}} से {{product}} आपके ऑर्डर में जोड़ दिया गया है।',
+    redirectingToCart: 'कार्ट पर भेजा जा रहा है...',
+    supplierCartTitle: 'सप्लायर कार्ट',
+    contactAndDelivery: 'संपर्क और डिलीवरी',
+    cashOnDelivery: 'कैश ऑन डिलीवरी',
+    orderSummary: 'ऑर्डर सारांश',
+    paymentMethod: 'भुगतान का तरीका',
+    onlinePaymentRazorpay: 'ऑनलाइन भुगतान (Razorpay)',
+    onlinePaymentSub: 'UPI, क्रेडिट/डेबिट कार्ड, नेटबैंकिंग और वॉलेट',
+    codSubtitle: 'सप्लायर द्वारा ऑर्डर डिलीवर किए जाने पर नकद भुगतान करें',
+    secureCheckoutBadge: 'सुरक्षित चेकआउट और प्रत्यक्ष सप्लायर सत्यापन',
+    totalPayable: 'कुल देय राशि',
+    placeCodOrder: 'COD ऑर्डर दें',
+    payViaRazorpayBtn: 'Razorpay से भुगतान करें',
   },
 };
 

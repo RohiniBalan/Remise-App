@@ -40,6 +40,7 @@ import {
   StoreResult,
   SmartOrderCartItem,
 } from '../../api/smartOrderApi';
+import { creditApi } from '../../api/creditApi';
 import { useAuth } from '../../context/AuthContext';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import {
@@ -155,6 +156,24 @@ const COMPARE_I18N: Record<string, Record<string, string>> = {
     viewInvoice: 'View Invoice',
     downloadBill: 'Download Bill',
     done: 'Done',
+    codTitle: 'Cash on Delivery (COD)',
+    codBadge: 'Pay in Cash',
+    codDesc: 'Pay with physical cash upon order delivery or pickup.',
+    storeCreditTitle: 'Store Credit (Kadan)',
+    approvedBadge: 'APPROVED',
+    creditTotal: 'Total Credit',
+    creditRemaining: 'Remaining',
+    creditUsed: 'used',
+    creditNextDue: 'Next Due',
+    creditAsAgreed: 'As agreed',
+    creditExceeded: 'Total exceeds available credit limit.',
+    productSubtotal: 'Product Subtotal',
+    platformFee: 'Platform Fee',
+    deliveryFee: 'Delivery Fee',
+    free: 'FREE',
+    totalPayable: 'Total Payable',
+    placeOrderCredit: 'Place Order on Credit (₹{amount})',
+    placeOrderCod: 'Place Cash on Delivery Order (₹{amount})',
   },
   ta: {
     findCheapestStore: 'குறைந்த விலைக் கடையைக் கண்டறி',
@@ -211,6 +230,24 @@ const COMPARE_I18N: Record<string, Record<string, string>> = {
     viewInvoice: 'ரசீதைப் பார்',
     downloadBill: 'ரசீதைப் பதிவிறக்கு',
     done: 'முடிந்தது',
+    codTitle: 'பொருளைப் பெற்று பணம் செலுத்துதல் (COD)',
+    codBadge: 'ரொக்கமாக செலுத்துங்கள்',
+    codDesc: 'ஆர்டர் டெலிவரி அல்லது கடைக்குச் செல்லும்போது ரொக்கமாக செலுத்தவும்.',
+    storeCreditTitle: 'கடை கடன் (Store Credit)',
+    approvedBadge: 'அங்கீகரிக்கப்பட்டது',
+    creditTotal: 'மொத்த கடன்',
+    creditRemaining: 'மீதமுள்ள கடன்',
+    creditUsed: 'பயன்படுத்தப்பட்டது',
+    creditNextDue: 'அடுத்த தவணை',
+    creditAsAgreed: 'ஒப்புக்கொண்டபடி',
+    creditExceeded: 'தொகை கிடைக்கும் கடன் வரம்பை விட அதிகமாக உள்ளது.',
+    productSubtotal: 'பொருட்களின் கூடுதல்',
+    platformFee: 'தளக் கட்டணம்',
+    deliveryFee: 'டெலிவரி கட்டணம்',
+    free: 'இலவசம்',
+    totalPayable: 'செலுத்த வேண்டிய மொத்தத் தொகை',
+    placeOrderCredit: 'கடனில் ஆர்டர் செய் (₹{amount})',
+    placeOrderCod: 'ரொக்க முறையில் ஆர்டர் செய் (₹{amount})',
   },
   te: {
     findCheapestStore: 'చౌకైన దుకాణాన్ని కనుగొనండి',
@@ -267,6 +304,24 @@ const COMPARE_I18N: Record<string, Record<string, string>> = {
     viewInvoice: 'ఇన్‌వాయిస్ చూడండి',
     downloadBill: 'బిల్లు డౌన్‌లోడ్ చేయండి',
     done: 'పూర్తయింది',
+    codTitle: 'క్యాష్ ఆన్ డెలివరీ (COD)',
+    codBadge: 'డెలివరీలో నగదు చెల్లించండి',
+    codDesc: 'ఆర్డర్ డెలివరీ లేదా షాపు వద్ద నగదు రూపంలో చెల్లించండి.',
+    storeCreditTitle: 'స్టోర్ క్రెడిట్ (ఖతా)',
+    approvedBadge: 'ఆమోదించబడింది',
+    creditTotal: 'మొత్తం క్రెడిట్',
+    creditRemaining: 'మిగిలిన క్రెడిట్',
+    creditUsed: 'ఉపయోగించబడింది',
+    creditNextDue: 'తదుపరి గడువు',
+    creditAsAgreed: 'ఒప్పుకున్న ప్రకారం',
+    creditExceeded: 'ఆర్డర్ మొత్తం అందుబాటులో ఉన్న క్రెడిట్ పరిమితిని మించిపోయింది.',
+    productSubtotal: 'ఉత్పత్తుల మొత్తం',
+    platformFee: 'ప్లాట్‌ఫారమ్ రుసుము',
+    deliveryFee: 'డెಲివరీ రుసుము',
+    free: 'ఉచితం',
+    totalPayable: 'చెల్లించాల్సిన మొత్తం',
+    placeOrderCredit: 'క్రెడిట్‌పై ఆర్డర్ చేయండి (₹{amount})',
+    placeOrderCod: 'క్యాష్ ఆన్ డెలివరీ ఆర్డర్ చేయండి (₹{amount})',
   },
   kn: {
     findCheapestStore: 'ಅಗ್ಗದ ಅಂಗಡಿ ಹುಡುಕಿ',
@@ -323,6 +378,24 @@ const COMPARE_I18N: Record<string, Record<string, string>> = {
     viewInvoice: 'ಇನ್‌ವಾಯ್ಸ್ ವೀಕ್ಷಿಸಿ',
     downloadBill: 'ಬಿಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
     done: 'ಮುಗಿದಿದೆ',
+    codTitle: 'ಕ್ಯಾಶ್ ಆನ್ ಡೆಲಿವರಿ (COD)',
+    codBadge: 'ಡೆಲಿವರಿಯಲ್ಲಿ ನಗದು ಪಾವತಿಸಿ',
+    codDesc: 'ಆರ್ಡರ್ ಡೆಲಿವರಿ ಅಥವಾ ಅಂಗಡಿಯಲ್ಲಿ ನಗದು ರೂಪದಲ್ಲಿ ಪಾವತಿಸಿ.',
+    storeCreditTitle: 'ಅಂಗಡಿ ಸಾಲ (Store Credit)',
+    approvedBadge: 'ಅನುಮೋದಿಸಲಾಗಿದೆ',
+    creditTotal: 'ಒಟ್ಟು ಸಾಲ',
+    creditRemaining: 'ಉಳಿದಿರುವ ಸಾಲ',
+    creditUsed: 'ಬಳಸಲಾಗಿದೆ',
+    creditNextDue: 'ಮುಂದಿನ ಬಾಕಿ',
+    creditAsAgreed: 'ಒಪ್ಪಿಕೊಂಡಂತೆ',
+    creditExceeded: 'ಆರ್ಡರ್ ಮೊತ್ತವು ಲಭ್ಯವಿರುವ ಸಾಲದ ಮಿತಿಯನ್ನು ಮೀರಿದೆ.',
+    productSubtotal: 'ಉತ್ಪನ್ನಗಳ ಒಟ್ಟು ಮೊತ್ತ',
+    platformFee: 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಶುಲ್ಕ',
+    deliveryFee: 'ಡೆಲಿವರಿ ಶುಲ್ಕ',
+    free: 'ಉಚಿತ',
+    totalPayable: 'ಪಾವತಿಸಬೇಕಾದ ಒಟ್ಟು ಮೊತ್ತ',
+    placeOrderCredit: 'ಸಾಲದ ಮೇಲೆ ಆರ್ಡರ್ ಮಾಡಿ (₹{amount})',
+    placeOrderCod: 'ಕ್ಯಾಶ್ ಆನ್ ಡೆಲಿವರಿ ಆರ್ಡರ್ ಮಾಡಿ (₹{amount})',
   },
   ml: {
     findCheapestStore: 'വിലകുറഞ്ഞ സ്റ്റോർ കണ്ടെത്തുക',
@@ -379,6 +452,24 @@ const COMPARE_I18N: Record<string, Record<string, string>> = {
     viewInvoice: 'ഇൻവോയ്സ് കാണുക',
     downloadBill: 'ബിൽ ഡൗൺലോഡ് ചെയ്യുക',
     done: 'പൂർത്തിയായി',
+    codTitle: 'ക്യാഷ് ഓൺ ഡെലിവറി (COD)',
+    codBadge: 'ഡെലിവറിയിൽ പണം നൽകുക',
+    codDesc: 'ഓർഡർ ഡെലിവറിയിലോ കടയിലോ പണമായി നൽകുക.',
+    storeCreditTitle: 'സ്റ്റോർ ക്രെഡിറ്റ് (കടം)',
+    approvedBadge: 'അംഗീകരിച്ചു',
+    creditTotal: 'ആകെ ക്രെഡിറ്റ്',
+    creditRemaining: 'ശേഷിക്കുന്നത്',
+    creditUsed: 'ഉപയോഗിച്ചു',
+    creditNextDue: 'അടുത്ത അടവ്',
+    creditAsAgreed: 'സമ്മതിച്ചതുപോലെ',
+    creditExceeded: 'ഓർഡർ തുക ലഭ്യമായ ക്രെഡിറ്റ് പരിധി കവിയുന്നു.',
+    productSubtotal: 'ഉൽപ്പന്നങ്ങളുടെ ആകെത്തുക',
+    platformFee: 'പ്ലാറ്റ്‌ഫോം ഫീസ്',
+    deliveryFee: 'ഡെലിവറി ഫീസ്',
+    free: 'സൗജന്യം',
+    totalPayable: 'നൽകേണ്ട ആകെത്തുക',
+    placeOrderCredit: 'ക്രെഡിറ്റിൽ ഓർഡർ ചെയ്യുക (₹{amount})',
+    placeOrderCod: 'ക്യാഷ് ഓൺ ഡെലിവറി ഓർഡർ ചെയ്യുക (₹{amount})',
   },
   hi: {
     findCheapestStore: 'सबसे सस्ती दुकान खोजें',
@@ -435,6 +526,24 @@ const COMPARE_I18N: Record<string, Record<string, string>> = {
     viewInvoice: 'चालान देखें',
     downloadBill: 'बिल डाउनलोड करें',
     done: 'पूर्ण',
+    codTitle: 'कैश ऑन डिलीवरी (COD)',
+    codBadge: 'डिलीवरी पर नकद भुगतान करें',
+    codDesc: 'ऑर्डर डिलीवरी या दुकान पर नकद में भुगतान करें।',
+    storeCreditTitle: 'स्टोर क्रेडिट (उधार)',
+    approvedBadge: 'स्वीकृत',
+    creditTotal: 'कुल क्रेडिट',
+    creditRemaining: 'शेष क्रेडिट',
+    creditUsed: 'उपयोग किया गया',
+    creditNextDue: 'अगली देय तिथि',
+    creditAsAgreed: 'सहमति के अनुसार',
+    creditExceeded: 'ऑर्डर कुल उपलब्ध क्रेडिट सीमा से अधिक है।',
+    productSubtotal: 'उत्पाद उप-योग',
+    platformFee: 'प्लेटफ़ॉर्म शुल्क',
+    deliveryFee: 'डिलीवरी शुल्क',
+    free: 'मुफ़्त',
+    totalPayable: 'कुल देय राशि',
+    placeOrderCredit: 'क्रेडिट पर ऑर्डर करें (₹{amount})',
+    placeOrderCod: 'कैश ऑन डिलीवरी ऑर्डर करें (₹{amount})',
   },
 };
 
@@ -480,11 +589,50 @@ export default function CompareStoresScreen() {
   const [deliveryMethod, setDeliveryMethod] = useState<
     'pickup' | 'delivery' | null
   >(null);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod' | 'credit'>('razorpay');
+  const [creditEligibility, setCreditEligibility] = useState<any>(null);
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
   const [orderId, setOrderId] = useState('');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      setCreditEligibility(null);
+      return;
+    }
+    const storeId = chosen?.storeId || '';
+    creditApi
+      .getMyCreditAccounts()
+      .then(res => {
+        const accounts = res.data?.data || [];
+        const approved =
+          accounts.find(
+            (a: any) =>
+              a.status === 'APPROVED' &&
+              (!storeId ||
+                String(a.storeId) === String(storeId) ||
+                a.storeName?.toLowerCase() === chosen?.storeName?.toLowerCase())
+          ) || accounts.find((a: any) => a.status === 'APPROVED');
+        if (approved) {
+          setCreditEligibility({
+            hasAccount: true,
+            status: approved.status,
+            storeId: approved.storeId,
+            storeName: approved.storeName,
+            creditLimit: approved.creditLimit || 0,
+            availableCredit:
+              approved.availableCredit ??
+              (approved.creditLimit - (approved.reservedCreditAmount || 0)),
+            outstandingBalance: approved.outstandingBalance || 0,
+            nextDueDate: approved.nextDueDate,
+          });
+        } else {
+          setCreditEligibility(null);
+        }
+      })
+      .catch(() => setCreditEligibility(null));
+  }, [chosen, token]);
 
   const productSubtotal = chosen ? chosen.totalAmount : 0;
   const platformFee = usePlatformFee(productSubtotal);
@@ -766,7 +914,7 @@ export default function CompareStoresScreen() {
       if (!res.data.success)
         throw new Error(res.data.message || 'Order failed.');
 
-      if (paymentMethod === 'cod') {
+      if (paymentMethod === 'cod' || paymentMethod === 'credit') {
         const targetOrderId = res.data?.orderId || res.data?.order?._id || '';
         setOrderId(targetOrderId);
         setStep('success');
@@ -817,7 +965,12 @@ export default function CompareStoresScreen() {
       <View style={[styles.sheet, { backgroundColor: cardBg }]}>
         <View style={[styles.header, { backgroundColor: isDark ? '#1f2937' : CustomerColors.mint }]}>
           <View style={styles.headerTitleWrap}>
-            <Text style={[styles.headerTitle, { color: textPri }]} numberOfLines={1}>
+            <Text
+              style={[styles.headerTitle, { color: textPri }]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
               {txt.findCheapestStore}
             </Text>
             <Text style={[styles.headerSubtitle, { color: textSec }]} numberOfLines={1}>
@@ -895,11 +1048,16 @@ export default function CompareStoresScreen() {
                 disabled={step === 'searching'}
               >
                 {step === 'searching' ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator size="small" color="#fff" style={{ flexShrink: 0 }} />
                 ) : (
-                  <MapPin size={16} color="#fff" />
+                  <MapPin size={16} color="#fff" style={{ flexShrink: 0 }} />
                 )}
-                <Text style={styles.primaryBtnText}>
+                <Text
+                  style={styles.primaryBtnText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
                   {step === 'searching'
                     ? txt.searchingNearby
                     : txt.searchWithin.replace('{radius}', String(customRadius || radius))}
@@ -990,7 +1148,14 @@ export default function CompareStoresScreen() {
                       setStep('confirming');
                     }}
                   >
-                    <Text style={styles.selectBtnText}>{txt.selectStore}</Text>
+                    <Text
+                      style={styles.selectBtnText}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      {txt.selectStore}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -1262,34 +1427,31 @@ export default function CompareStoresScreen() {
               </TouchableOpacity>
 
               {/* Cash on Delivery (COD) Card */}
+              {/* Cash on Delivery (COD) Card */}
               <TouchableOpacity
                 style={[
                   styles.optionCard,
-                  paymentMethod === 'cod'
-                    ? {
-                        borderColor: '#059669',
-                        borderWidth: 2,
-                        backgroundColor: isDark ? '#064e3b33' : '#ECFDF5',
-                      }
-                    : {
-                        opacity: 0.75,
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                      },
+                  {
+                    backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA',
+                    borderColor: paymentMethod === 'cod' ? '#059669' : (isDark ? '#374151' : '#E2E8F0'),
+                    borderWidth: paymentMethod === 'cod' ? 2 : 1.5,
+                  },
                 ]}
                 onPress={() => setPaymentMethod('cod')}
+                activeOpacity={0.8}
               >
                 <View style={[styles.razorpayIconBox, { backgroundColor: '#059669' }]}>
                   <Banknote size={20} color="#FFFFFF" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
-                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>Cash on Delivery (COD)</Text>
+                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>{txt.codTitle || 'Cash on Delivery (COD)'}</Text>
                     <View style={[styles.instantBadge, { backgroundColor: '#059669' }]}>
-                      <Text style={styles.instantBadgeText}>Pay in Cash</Text>
+                      <Text style={styles.instantBadgeText}>{txt.codBadge || 'Pay in Cash'}</Text>
                     </View>
                   </View>
                   <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
-                    Pay with physical cash upon order delivery or pickup.
+                    {txt.codDesc || 'Pay with physical cash upon order delivery or pickup.'}
                   </Text>
                 </View>
                 <View
@@ -1310,6 +1472,68 @@ export default function CompareStoresScreen() {
                 </View>
               </TouchableOpacity>
 
+              {/* Store Credit (Kadan) Option */}
+              {creditEligibility && creditEligibility.status === 'APPROVED' && (
+                <TouchableOpacity
+                  style={[
+                    styles.optionCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA',
+                      borderColor: paymentMethod === 'credit' ? '#7C3AED' : (isDark ? '#374151' : '#E2E8F0'),
+                      borderWidth: paymentMethod === 'credit' ? 2 : 1.5,
+                    },
+                    (creditEligibility.availableCredit || 0) < totalPayable && { opacity: 0.5 },
+                  ]}
+                  onPress={() => {
+                    if ((creditEligibility.availableCredit || 0) >= totalPayable) {
+                      setPaymentMethod('credit');
+                    }
+                  }}
+                  disabled={(creditEligibility.availableCredit || 0) < totalPayable}
+                >
+                  <View style={[styles.razorpayIconBox, { backgroundColor: '#7C3AED' }]}>
+                    <FileText size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+                      <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>
+                        {txt.storeCreditTitle || 'Store Credit (Kadan)'}
+                      </Text>
+                      <View style={[styles.instantBadge, { backgroundColor: '#7C3AED' }]}>
+                        <Text style={styles.instantBadgeText}>{txt.approvedBadge || 'APPROVED'}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                      {txt.creditTotal || 'Total Credit'}: ₹{(creditEligibility.creditLimit || 0).toLocaleString()} · {txt.creditRemaining || 'Remaining'}: ₹{(creditEligibility.availableCredit || 0).toLocaleString()} (₹{Math.max(0, (creditEligibility.creditLimit || 0) - (creditEligibility.availableCredit || 0)).toLocaleString()} {txt.creditUsed || 'used'}) · {txt.creditNextDue || 'Next Due'}:{' '}
+                      {creditEligibility.nextDueDate
+                        ? new Date(creditEligibility.nextDueDate).toLocaleDateString()
+                        : (txt.creditAsAgreed || 'As agreed')}
+                    </Text>
+                    {(creditEligibility.availableCredit || 0) < totalPayable && (
+                      <Text style={{ color: '#EF4444', fontSize: FontSizes.xs, marginTop: 2, fontWeight: '700' }}>
+                        {txt.creditExceeded || 'Total exceeds available credit limit.'}
+                      </Text>
+                    )}
+                  </View>
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      borderWidth: 2,
+                      borderColor: paymentMethod === 'credit' ? '#7C3AED' : '#9CA3AF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 4,
+                    }}
+                  >
+                    {paymentMethod === 'credit' && (
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#7C3AED' }} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+
               {/* Price Breakdown Card */}
               <View
                 style={[
@@ -1319,7 +1543,7 @@ export default function CompareStoresScreen() {
               >
                 <View style={styles.priceRow}>
                   <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
-                    Product Subtotal
+                    {txt.productSubtotal || 'Product Subtotal'}
                   </Text>
                   <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>
                     ₹{productSubtotal.toLocaleString()}
@@ -1327,23 +1551,23 @@ export default function CompareStoresScreen() {
                 </View>
                 <View style={styles.priceRow}>
                   <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
-                    Platform Fee
+                    {txt.platformFee || 'Platform Fee'}
                   </Text>
                   <Text style={[styles.priceValue, isDark && { color: '#FFFFFF' }]}>
-                    {platformFee === 0 ? 'FREE' : `₹${platformFee.toLocaleString()}`}
+                    {platformFee === 0 ? (txt.free || 'FREE') : `₹${platformFee.toLocaleString()}`}
                   </Text>
                 </View>
                 <View style={styles.priceRow}>
                   <Text style={[styles.priceLabel, isDark && { color: '#9CA3AF' }]}>
-                    Delivery Fee
+                    {txt.deliveryFee || 'Delivery Fee'}
                   </Text>
                   <Text style={[styles.priceValue, deliveryFee === 0 ? { color: '#4ADE80' } : (isDark ? { color: '#FFFFFF' } : {})]}>
-                    {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toLocaleString()}`}
+                    {deliveryFee === 0 ? (txt.free || 'FREE') : `₹${deliveryFee.toLocaleString()}`}
                   </Text>
                 </View>
                 <View style={[styles.priceRow, styles.totalPriceRow, isDark && { borderTopColor: '#374151' }]}>
                   <Text style={[styles.totalPriceLabel, isDark && { color: '#FFFFFF' }]}>
-                    Total Payable
+                    {txt.totalPayable || 'Total Payable'}
                   </Text>
                   <Text style={[styles.totalPriceValue, isDark && { color: '#2DD4BF' }]}>
                     ₹{totalPayable.toLocaleString()}
@@ -1355,15 +1579,23 @@ export default function CompareStoresScreen() {
                 style={[
                   styles.primaryBtn,
                   { marginTop: Spacing.xs },
+                  paymentMethod === 'credit' && { backgroundColor: '#7C3AED' },
                   paymentMethod === 'cod' && { backgroundColor: '#059669' },
                 ]}
                 onPress={() => handlePlaceOrder()}
               >
-                {paymentMethod === 'cod' ? (
+                {paymentMethod === 'credit' ? (
+                  <>
+                    <FileText size={16} color="#fff" />
+                    <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      {(txt.placeOrderCredit || 'Place Order on Credit (₹{amount})').replace('{amount}', totalPayable.toFixed(0))}
+                    </Text>
+                  </>
+                ) : paymentMethod === 'cod' ? (
                   <>
                     <Banknote size={16} color="#fff" />
                     <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                      Place Cash on Delivery Order (₹{totalPayable.toFixed(0)})
+                      {(txt.placeOrderCod || 'Place Cash on Delivery Order (₹{amount})').replace('{amount}', totalPayable.toFixed(0))}
                     </Text>
                   </>
                 ) : (
@@ -1425,7 +1657,7 @@ export default function CompareStoresScreen() {
                 <View style={styles.billRow}>
                   <Text style={[styles.billLabel, isDark && { color: '#9CA3AF' }]}>{txt.paymentMode}</Text>
                   <Text style={[styles.billValue, { color: isDark ? '#2DD4BF' : CustomerColors.teal700 }]}>
-                    {paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : txt.onlinePayment}
+                    {paymentMethod === 'cod' ? (txt.codTitle || 'Cash on Delivery (COD)') : paymentMethod === 'credit' ? (txt.storeCreditTitle || 'Store Credit (Kadan)') : txt.onlinePayment}
                   </Text>
                 </View>
 
@@ -1586,10 +1818,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: CustomerColors.teal600,
     paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
+    minHeight: 48,
   },
   primaryBtnDisabled: { opacity: 0.5 },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+  primaryBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: FontSizes.sm,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
   secondaryBtn: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -1687,11 +1927,20 @@ const styles = StyleSheet.create({
   selectBtn: {
     backgroundColor: CustomerColors.teal600,
     paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.sm,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: Spacing.sm,
+    minHeight: 38,
   },
-  selectBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+  selectBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: FontSizes.sm,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
   chosenSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',

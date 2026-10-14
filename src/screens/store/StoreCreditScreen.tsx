@@ -11,6 +11,7 @@ import {
   Alert,
   StyleSheet,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import {
   CreditCard,
@@ -36,6 +37,7 @@ import {
   AlertCircle,
   Eye,
 } from 'lucide-react-native';
+import { useTranslation, getCreditTranslations } from '../../i18n';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
@@ -45,6 +47,8 @@ import { storeApi } from '../../api/storeApi';
 export default function StoreCreditScreen() {
   const { store } = useStoreDashboard();
   const { isDark } = useTheme();
+  const { language } = useTranslation();
+  const cr = useMemo(() => getCreditTranslations(language), [language]);
   const styles = useMemo(() => getStyles(isDark), [isDark]);
 
   const storeId = store?._id || store?.storeId || store?.id;
@@ -143,7 +147,7 @@ export default function StoreCreditScreen() {
     try {
       const res = await creditApi.getStoreCreditAccounts(storeId);
       if (res.data?.success) {
-        setAccounts(res.data.accounts || []);
+        setAccounts(res.data?.data || res.data?.accounts || []);
       }
     } catch (err) {
       console.error('Failed to load store credit accounts', err);
@@ -254,7 +258,7 @@ export default function StoreCreditScreen() {
   const handleVerifyCashfree = async () => {
     const cleanName = formNameOnId.trim();
     if (!cleanName) {
-      setIdVerificationError('Please enter legal name on the identity document.');
+      setIdVerificationError(cr.alerts.enterLegalNameMsg);
       return;
     }
     setIdVerificationError('');
@@ -262,7 +266,7 @@ export default function StoreCreditScreen() {
     if (formIdType === 'aadhaar') {
       const cleanAadhaar = formIdNumber.replace(/\D/g, '');
       if (cleanAadhaar.length !== 12) {
-        setIdVerificationError('Please enter a valid 12-digit Aadhaar number.');
+        setIdVerificationError(cr.alerts.enter12AadhaarMsg);
         return;
       }
       setVerifyingId(true);
@@ -287,7 +291,7 @@ export default function StoreCreditScreen() {
       const cleanPan = formIdNumber.trim().toUpperCase();
       const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
       if (!PAN_REGEX.test(cleanPan)) {
-        setIdVerificationError('Invalid PAN format (must be 10 alphanumeric characters e.g. ABCDE1234F).');
+        setIdVerificationError(cr.alerts.invalidPanFormatMsg);
         return;
       }
       setVerifyingId(true);
@@ -323,11 +327,11 @@ export default function StoreCreditScreen() {
   const handleVerifyAadhaarOtp = async () => {
     const cleanName = formNameOnId.trim();
     if (!cleanName) {
-      setIdVerificationError('Please enter legal name on the identity document.');
+      setIdVerificationError(cr.alerts.enterLegalNameMsg);
       return;
     }
     if (!aadhaarOtp || aadhaarOtp.length < 4) {
-      setIdVerificationError('Please enter the OTP sent to your Aadhaar-linked mobile.');
+      setIdVerificationError(cr.alerts.enterAadhaarOtpMsg);
       return;
     }
     setVerifyingAadhaarOtp(true);
@@ -369,71 +373,73 @@ export default function StoreCreditScreen() {
   const handleSubmitRegistration = async () => {
     // 1. Mandatory validation for ALL THREE customer details
     if (!formCustName.trim()) {
-      Alert.alert('Name Required', 'Customer Full Name is required.');
+      Alert.alert(cr.alerts.nameRequiredTitle, cr.alerts.nameRequiredMsg);
       return;
     }
     if (!formCustPhone.trim() || formCustPhone.trim().length < 10) {
-      Alert.alert('Phone Required', 'Valid 10-digit mobile phone number is required.');
+      Alert.alert(cr.alerts.phoneRequiredTitle, cr.alerts.phoneRequiredMsg);
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formCustEmail.trim() || !emailRegex.test(formCustEmail.trim())) {
-      Alert.alert('Email Required', 'Valid customer email address is required.');
+      Alert.alert(cr.alerts.emailRequiredTitle, cr.alerts.emailRequiredMsg);
       return;
     }
 
     let targetCustomer = selectedCustomer;
     if (!targetCustomer) {
       try {
-        const res = await creditApi.searchCustomers(formCustPhone.trim());
-        const list = res.data?.data || res.data?.customers || [];
-        if (list.length > 0) {
-          targetCustomer =
-            list.find(
-              (u: any) =>
-                u.mobilenumber === formCustPhone.trim() ||
-                u.phone === formCustPhone.trim() ||
-                u.email?.toLowerCase() === formCustEmail.trim().toLowerCase()
-            ) || list[0];
-          if (targetCustomer) setSelectedCustomer(targetCustomer);
+        if (formCustPhone.trim()) {
+          const res = await creditApi.searchCustomers(formCustPhone.trim());
+          const list = res.data?.data || res.data?.customers || [];
+          if (list.length > 0) {
+            targetCustomer =
+              list.find(
+                (u: any) =>
+                  u.mobilenumber === formCustPhone.trim() ||
+                  u.phone === formCustPhone.trim() ||
+                  u.email?.toLowerCase() === formCustEmail.trim().toLowerCase()
+              ) || list[0];
+            if (targetCustomer) setSelectedCustomer(targetCustomer);
+          }
+        }
+        if (!targetCustomer && formCustEmail.trim()) {
+          const resEmail = await creditApi.searchCustomers(formCustEmail.trim());
+          const listEmail = resEmail.data?.data || resEmail.data?.customers || [];
+          if (listEmail.length > 0) {
+            targetCustomer = listEmail[0];
+            if (targetCustomer) setSelectedCustomer(targetCustomer);
+          }
         }
       } catch (err) {
         console.warn('Auto resolve error', err);
       }
     }
 
-    if (!targetCustomer) {
-      Alert.alert(
-        'Customer Not Registered',
-        'No registered Remise account found for this phone or email. The customer must have a registered account on Remise.'
-      );
-      return;
-    }
-
     const limitNum = parseFloat(formLimit);
     if (isNaN(limitNum) || limitNum <= 0) {
-      Alert.alert('Invalid Limit', 'Credit limit must be a positive number.');
+      Alert.alert(cr.alerts.invalidLimitTitle, cr.alerts.invalidLimitMsg);
       return;
     }
 
     // 2. Identity Verification via Cashfree
     if (!formIdNumber.trim()) {
-      Alert.alert('Identity Required', 'Please enter identity verification document number.');
+      Alert.alert(cr.alerts.identityRequiredTitle, cr.alerts.identityRequiredMsg);
       return;
     }
     if (!formNameOnId.trim()) {
-      Alert.alert('Name on ID Required', 'Please enter legal name matching the identity document.');
+      Alert.alert(cr.alerts.nameOnIdRequiredTitle, cr.alerts.nameOnIdRequiredMsg);
       return;
     }
     if (!idVerified) {
       Alert.alert(
-        'Cashfree Verification Required',
-        'Please verify the customer identity document with Cashfree SecureID before granting credit.'
+        cr.alerts.cashfreeRequiredTitle,
+        cr.alerts.cashfreeRequiredMsg
       );
       return;
     }
     if (!formConsent || !formCustomerAgreed) {
-      Alert.alert('Consent Required', 'Both customer consent and agreement to terms must be confirmed.');
+      Alert.alert(cr.alerts.consentRequiredTitle, cr.alerts.consentRequiredMsg);
       return;
     }
 
@@ -449,7 +455,7 @@ export default function StoreCreditScreen() {
 
       const res = await creditApi.createInPersonApplication({
         storeId,
-        customerId: targetCustomer._id || targetCustomer.id,
+        customerId: targetCustomer?._id || targetCustomer?.id || '',
         customerName: formCustName.trim(),
         customerPhone: formCustPhone.trim(),
         customerEmail: formCustEmail.trim().toLowerCase(),
@@ -463,7 +469,7 @@ export default function StoreCreditScreen() {
       });
 
       if (res.data?.success) {
-        Alert.alert('Success', 'Credit account approved and active for this customer.');
+        Alert.alert(cr.alerts.successTitle, cr.alerts.creditApprovedMsg);
         setRegisterModalOpen(false);
         // reset form
         setSelectedCustomer(null);
@@ -480,10 +486,10 @@ export default function StoreCreditScreen() {
         setFormCustomerAgreed(false);
         fetchAccounts();
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to create credit account');
+        Alert.alert(cr.alerts.errorTitle, res.data?.message || cr.alerts.registrationFailedMsg);
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message || err.message || 'Registration failed');
+      Alert.alert(cr.alerts.errorTitle, err?.response?.data?.message || err.message || cr.alerts.registrationFailedMsg);
     } finally {
       setSubmittingRegistration(false);
     }
@@ -493,11 +499,11 @@ export default function StoreCreditScreen() {
     if (!selectedAccount) return;
     const amt = parseFloat(repayAmount);
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid repayment amount greater than 0.');
+      Alert.alert(cr.alerts.invalidAmountTitle, cr.alerts.invalidAmountMsg);
       return;
     }
     if (amt > selectedAccount.outstandingBalance) {
-      Alert.alert('Amount Exceeds Debt', `Maximum repayment allowed is ₹${selectedAccount.outstandingBalance.toLocaleString('en-IN')}`);
+      Alert.alert(cr.alerts.amountExceedsDebtTitle, cr.alerts.amountExceedsDebtMsg.replace('{{amount}}', selectedAccount.outstandingBalance.toLocaleString('en-IN')));
       return;
     }
 
@@ -511,18 +517,21 @@ export default function StoreCreditScreen() {
       );
       if (res.data?.success) {
         Alert.alert(
-          'Repayment Recorded',
-          `Payment of ₹${amt.toLocaleString('en-IN')} verified.\nReceipt: ${res.data.receiptNumber || 'CR-CASH'}\nNew Balance: ₹${res.data.outstandingBalance.toLocaleString('en-IN')}`
+          cr.alerts.repaymentRecordedTitle,
+          cr.alerts.repaymentRecordedMsg
+            .replace('{{amount}}', amt.toLocaleString('en-IN'))
+            .replace('{{receipt}}', res.data.receiptNumber || 'CR-CASH')
+            .replace('{{balance}}', res.data.outstandingBalance.toLocaleString('en-IN'))
         );
         setRepayModalOpen(false);
         setRepayAmount('');
         setRepayNotes('');
         fetchAccounts();
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to record repayment');
+        Alert.alert(cr.alerts.errorTitle, res.data?.message || cr.alerts.repaymentFailedMsg);
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message || err.message || 'Repayment failed');
+      Alert.alert(cr.alerts.errorTitle, err?.response?.data?.message || err.message || cr.alerts.repaymentFailedMsg);
     } finally {
       setSubmittingRepay(false);
     }
@@ -532,11 +541,11 @@ export default function StoreCreditScreen() {
     if (!selectedAccount) return;
     const limitNum = parseFloat(termsLimit);
     if (isNaN(limitNum) || limitNum <= 0) {
-      Alert.alert('Invalid Limit', 'Credit limit must be a positive number.');
+      Alert.alert(cr.alerts.invalidLimitTitle, cr.alerts.invalidLimitMsg);
       return;
     }
     if (!termsReason.trim()) {
-      Alert.alert('Reason Required', 'Please provide an audit reason for changing terms.');
+      Alert.alert(cr.alerts.reasonRequiredTitle, cr.alerts.reasonRequiredMsg);
       return;
     }
 
@@ -548,15 +557,15 @@ export default function StoreCreditScreen() {
         reason: termsReason.trim(),
       });
       if (res.data?.success) {
-        Alert.alert('Success', 'Credit terms updated successfully.');
+        Alert.alert(cr.alerts.successTitle, cr.alerts.termsUpdatedMsg);
         setTermsModalOpen(false);
         setTermsReason('');
         fetchAccounts();
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to update credit terms');
+        Alert.alert(cr.alerts.errorTitle, res.data?.message || cr.alerts.termsFailedMsg);
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message || err.message || 'Terms update failed');
+      Alert.alert(cr.alerts.errorTitle, err?.response?.data?.message || err.message || cr.alerts.termsFailedMsg);
     } finally {
       setSubmittingTerms(false);
     }
@@ -566,12 +575,14 @@ export default function StoreCreditScreen() {
     const isCurrentlySuspended = acc.status === 'SUSPENDED';
     const newStatus = isCurrentlySuspended ? 'APPROVED' : 'SUSPENDED';
     Alert.alert(
-      isCurrentlySuspended ? 'Reactivate Credit' : 'Suspend Credit',
-      `Are you sure you want to ${isCurrentlySuspended ? 'reactivate' : 'suspend'} credit for ${acc.customerName}?`,
+      isCurrentlySuspended ? cr.reactivateCredit : cr.suspendCredit,
+      isCurrentlySuspended
+        ? cr.alerts.reactivateConfirmMsg.replace('{{name}}', acc.customerName || cr.customer)
+        : cr.alerts.suspendConfirmMsg.replace('{{name}}', acc.customerName || cr.customer),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: cr.cancel, style: 'cancel' },
         {
-          text: 'Confirm',
+          text: cr.confirm,
           style: isCurrentlySuspended ? 'default' : 'destructive',
           onPress: async () => {
             try {
@@ -584,7 +595,7 @@ export default function StoreCreditScreen() {
                 fetchAccounts();
               }
             } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to update account status');
+              Alert.alert(cr.alerts.errorTitle, err?.response?.data?.message || cr.alerts.updateStatusFailed);
             }
           },
         },
@@ -616,7 +627,7 @@ export default function StoreCreditScreen() {
           <Search size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search customers by name, phone..."
+            placeholder={cr.searchPlaceholder}
             placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -628,61 +639,108 @@ export default function StoreCreditScreen() {
           activeOpacity={0.8}
         >
           <Plus size={18} color="#FFFFFF" />
-          <Text style={styles.addBtnText}>In-Person Credit</Text>
+          <Text style={styles.addBtnText}>{cr.inPersonCreditBtn}</Text>
         </TouchableOpacity>
       </View>
 
       {/* KPI Cards */}
-      <View style={styles.kpiRow}>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Total Outstanding</Text>
-          <Text style={[styles.kpiValue, { color: kpis.totalOutstanding > 0 ? '#DC2626' : '#10B981' }]}>
-            ₹{kpis.totalOutstanding.toLocaleString('en-IN')}
-          </Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Total Approved Limit</Text>
-          <Text style={styles.kpiValue}>₹{kpis.totalLimit.toLocaleString('en-IN')}</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Active Accounts</Text>
-          <Text style={styles.kpiValue}>{kpis.activeCount}</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Overdue</Text>
-          <Text style={[styles.kpiValue, { color: kpis.overdueCount > 0 ? '#EF4444' : '#6B7280' }]}>
-            {kpis.overdueCount}
-          </Text>
-        </View>
+      <View style={styles.kpiContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.kpiScroll}
+        >
+          <View style={styles.kpiCard}>
+            <Text style={styles.kpiLabel} numberOfLines={2}>
+              {cr.totalOutstanding}
+            </Text>
+            <Text
+              style={[
+                styles.kpiValue,
+                { color: kpis.totalOutstanding > 0 ? '#DC2626' : '#10B981' },
+              ]}
+            >
+              ₹{kpis.totalOutstanding.toLocaleString('en-IN')}
+            </Text>
+          </View>
+          <View style={styles.kpiCard}>
+            <Text style={styles.kpiLabel} numberOfLines={2}>
+              {cr.totalApprovedLimit}
+            </Text>
+            <Text style={styles.kpiValue}>
+              ₹{kpis.totalLimit.toLocaleString('en-IN')}
+            </Text>
+          </View>
+          <View style={styles.kpiCard}>
+            <Text style={styles.kpiLabel} numberOfLines={2}>
+              {cr.activeAccounts}
+            </Text>
+            <Text style={styles.kpiValue}>{kpis.activeCount}</Text>
+          </View>
+          <View style={styles.kpiCard}>
+            <Text style={styles.kpiLabel} numberOfLines={2}>
+              {cr.overdue}
+            </Text>
+            <Text
+              style={[
+                styles.kpiValue,
+                { color: kpis.overdueCount > 0 ? '#EF4444' : '#6B7280' },
+              ]}
+            >
+              {kpis.overdueCount}
+            </Text>
+          </View>
+        </ScrollView>
       </View>
 
       {/* Filter Tabs */}
-      <View style={styles.filterTabs}>
-        {(['ALL', 'APPROVED', 'DUE', 'SUSPENDED'] as const).map(f => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterTab, statusFilter === f && styles.filterTabActive]}
-            onPress={() => setStatusFilter(f)}
-          >
-            <Text style={[styles.filterTabText, statusFilter === f && styles.filterTabTextActive]}>
-              {f === 'ALL' ? 'All' : f === 'DUE' ? 'With Balance' : f === 'APPROVED' ? 'Active' : 'Suspended'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.filterTabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterTabs}
+        >
+          {(['ALL', 'APPROVED', 'DUE', 'SUSPENDED'] as const).map(f => (
+            <TouchableOpacity
+              key={f}
+              style={[
+                styles.filterTab,
+                statusFilter === f && styles.filterTabActive,
+              ]}
+              onPress={() => setStatusFilter(f)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  statusFilter === f && styles.filterTabTextActive,
+                ]}
+              >
+                {f === 'ALL'
+                  ? cr.filterAll
+                  : f === 'DUE'
+                  ? cr.filterWithBalance
+                  : f === 'APPROVED'
+                  ? cr.filterActive
+                  : cr.filterSuspended}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Accounts List */}
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={CustomerColors.teal600} />
-          <Text style={styles.loadingText}>Loading store credit accounts...</Text>
+          <Text style={styles.loadingText}>{cr.loadingStoreCredit}</Text>
         </View>
       ) : filteredAccounts.length === 0 ? (
         <View style={styles.centerContainer}>
           <CreditCard size={48} color={isDark ? '#4B5563' : '#D1D5DB'} />
-          <Text style={styles.emptyTitle}>No credit accounts found</Text>
+          <Text style={styles.emptyTitle}>{cr.noCreditAccountsFound}</Text>
           <Text style={styles.emptySub}>
-            Register an in-person customer to grant store credit (Kadan).
+            {cr.registerInPersonDesc}
           </Text>
         </View>
       ) : (
@@ -698,55 +756,67 @@ export default function StoreCreditScreen() {
               <View style={styles.accountCard}>
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.customerName}>{item.customerName || 'Customer'}</Text>
+                    <Text style={styles.customerName}>{item.customerName || cr.customer}</Text>
                     <Text style={styles.customerMeta}>
                       {item.customerPhone} {item.customerEmail ? `· ${item.customerEmail}` : ''}
                     </Text>
                   </View>
                   <View style={[styles.badge, isSuspended ? styles.badgeSuspended : styles.badgeApproved]}>
                     <Text style={[styles.badgeText, isSuspended ? styles.badgeTextSuspended : styles.badgeTextApproved]}>
-                      {item.status}
+                      {isSuspended ? cr.statusSuspended : cr.statusApproved}
                     </Text>
                   </View>
                 </View>
 
                 {/* Balances */}
-                <View style={styles.balanceGrid}>
-                  <View style={styles.balanceItem}>
-                    <Text style={styles.balanceLabel}>Credit Limit</Text>
-                    <Text style={styles.balanceValue}>₹{item.creditLimit.toLocaleString('en-IN')}</Text>
-                  </View>
-                  <View style={styles.balanceItem}>
-                    <Text style={styles.balanceLabel}>Outstanding Balance</Text>
-                    <Text style={[styles.balanceValue, hasDebt ? styles.debtText : styles.settledText]}>
-                      ₹{item.outstandingBalance.toLocaleString('en-IN')}
-                    </Text>
-                  </View>
-                  <View style={styles.balanceItem}>
-                    <Text style={styles.balanceLabel}>Available</Text>
-                    <Text style={styles.balanceValue}>
-                      ₹{Math.max(0, item.creditLimit - item.outstandingBalance).toLocaleString('en-IN')}
-                    </Text>
-                  </View>
-                </View>
+                {(() => {
+                  const itemAvailable = item.availableCredit !== undefined ? item.availableCredit : Math.max(0, item.creditLimit - (item.outstandingBalance + (item.reservedCreditAmount || 0)));
+                  const itemUsed = Math.max(0, item.creditLimit - itemAvailable);
+                  return (
+                    <View style={styles.balanceGrid}>
+                      <View style={styles.balanceItem}>
+                        <Text style={styles.balanceLabel}>{cr.creditLimit}</Text>
+                        <Text style={styles.balanceValue}>₹{item.creditLimit.toLocaleString('en-IN')}</Text>
+                      </View>
+                      <View style={styles.balanceItem}>
+                        <Text style={styles.balanceLabel}>{cr.usedCredit}</Text>
+                        <Text style={[styles.balanceValue, itemUsed > 0 && { color: '#7C3AED' }]}>
+                          ₹{itemUsed.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                      <View style={styles.balanceItem}>
+                        <Text style={styles.balanceLabel}>{cr.outstanding}</Text>
+                        <Text style={[styles.balanceValue, hasDebt ? styles.debtText : styles.settledText]}>
+                          ₹{item.outstandingBalance.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                      <View style={styles.balanceItem}>
+                        <Text style={styles.balanceLabel}>{cr.available}</Text>
+                        <Text style={[styles.balanceValue, { color: '#059669' }]}>
+                          ₹{itemAvailable.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Terms / Policy Row */}
                 <View style={styles.policyRow}>
                   <Calendar size={13} color={isDark ? '#9CA3AF' : '#6B7280'} />
                   <Text style={styles.policyText}>
-                    Policy:{' '}
+                    {cr.policyLabel}{' '}
                     {item.repaymentPolicy?.policyType === 'weekly'
-                      ? `Weekly (${item.repaymentPolicy.weeklyDay?.toUpperCase()})`
+                      ? cr.policyWeekly.replace('{{day}}', (cr.days as any)[item.repaymentPolicy.weeklyDay?.toLowerCase() || ''] || item.repaymentPolicy.weeklyDay?.toUpperCase() || '')
                       : item.repaymentPolicy?.policyType === 'monthly'
-                      ? `Monthly (Day ${item.repaymentPolicy.monthlyDayOfMonth})`
+                      ? cr.policyMonthly.replace('{{day}}', String(item.repaymentPolicy.monthlyDayOfMonth))
                       : item.repaymentPolicy?.policyType === 'custom_days'
-                      ? `Every ${item.repaymentPolicy.customDaysCount} days`
-                      : 'Specific due date'}
+                      ? cr.everyDays.replace('{{days}}', String(item.repaymentPolicy.customDaysCount))
+                      : cr.specificDueDate}
                   </Text>
                   {item.nextDueDate && (
                     <Text style={[styles.dueDateText, item.isOverdue && styles.overdueText]}>
-                      Due: {new Date(item.nextDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      {item.isOverdue ? ' (OVERDUE)' : ''}
+                      {cr.dueOn.replace('{{date}}', new Date(item.nextDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }))}
+                      {item.isOverdue ? ` ${cr.overdueText}` : ''}
                     </Text>
                   )}
                 </View>
@@ -763,7 +833,7 @@ export default function StoreCreditScreen() {
                       }}
                     >
                       <CheckCircle2 size={14} color="#FFFFFF" />
-                      <Text style={styles.repayBtnText}>Record Repayment</Text>
+                      <Text style={styles.repayBtnText}>{cr.recordRepaymentBtn}</Text>
                     </TouchableOpacity>
                   )}
 
@@ -772,7 +842,7 @@ export default function StoreCreditScreen() {
                     onPress={() => openLedgerModal(item)}
                   >
                     <FileText size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                    <Text style={styles.secondaryBtnText}>Ledger</Text>
+                    <Text style={styles.secondaryBtnText}>{cr.ledgerBtn}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -784,7 +854,7 @@ export default function StoreCreditScreen() {
                     }}
                   >
                     <TrendingUp size={14} color={isDark ? '#9CA3AF' : '#4B5563'} />
-                    <Text style={styles.secondaryBtnText}>Terms</Text>
+                    <Text style={styles.secondaryBtnText}>{cr.termsBtn}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -810,8 +880,8 @@ export default function StoreCreditScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>In-Person Credit Registration</Text>
-                <Text style={styles.modalSubtitle}>Store-specific private credit agreement</Text>
+                <Text style={styles.modalTitle}>{cr.registerModalTitle}</Text>
+                <Text style={styles.modalSubtitle}>{cr.registerModalSubtitle}</Text>
               </View>
               <TouchableOpacity onPress={() => setRegisterModalOpen(false)}>
                 <X size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
@@ -822,17 +892,17 @@ export default function StoreCreditScreen() {
               {/* Step 1: Customer Details (All 3 Details Required: Name, Phone, Email) */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
                 <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>
-                  1. Customer Information *
+                  {cr.step1CustomerInfo}
                 </Text>
                 <Text style={{ fontSize: 10, fontWeight: '700', color: CustomerColors.teal700 }}>
-                  Name, Phone & Email
+                  {cr.step1Subtitle}
                 </Text>
               </View>
 
               {/* Quick Search */}
               <TextInput
                 style={styles.input}
-                placeholder="Search registered customer to auto-fill..."
+                placeholder={cr.searchAutoFillPlaceholder}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={custSearchQuery}
                 onChangeText={handleSearchCustomers}
@@ -856,10 +926,10 @@ export default function StoreCreditScreen() {
               )}
 
               {/* Three Mandatory Detail Fields */}
-              <Text style={styles.subFieldLabel}>Customer Full Name *</Text>
+              <Text style={styles.subFieldLabel}>{cr.customerFullName}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. John Doe"
+                placeholder={cr.fullNamePlaceholder}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={formCustName}
                 onChangeText={v => {
@@ -870,10 +940,10 @@ export default function StoreCreditScreen() {
                 }}
               />
 
-              <Text style={styles.subFieldLabel}>Mobile Number (10 digits) *</Text>
+              <Text style={styles.subFieldLabel}>{cr.mobileNumberLabel}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. 9876543210"
+                placeholder={cr.mobilePlaceholder}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType="phone-pad"
                 maxLength={10}
@@ -887,10 +957,10 @@ export default function StoreCreditScreen() {
                 }}
               />
 
-              <Text style={styles.subFieldLabel}>Email Address *</Text>
+              <Text style={styles.subFieldLabel}>{cr.emailAddressLabel}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. customer@example.com"
+                placeholder={cr.emailPlaceholder}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -907,27 +977,27 @@ export default function StoreCreditScreen() {
                 <View style={styles.selectedCustomerBox}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.selectedCustName}>
-                      ✓ Linked Account: {selectedCustomer.fullname || selectedCustomer.name}
+                      {cr.linkedAccountPrefix} {selectedCustomer.fullname || selectedCustomer.name}
                     </Text>
                     <Text style={styles.selectedCustPhone}>
                       {selectedCustomer.mobilenumber || selectedCustomer.phone || formCustPhone} · {selectedCustomer.email || formCustEmail}
                     </Text>
                   </View>
                   <TouchableOpacity onPress={() => setSelectedCustomer(null)}>
-                    <Text style={styles.changeLink}>Change</Text>
+                    <Text style={styles.changeLink}>{cr.change}</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <Text style={styles.helperNotice}>
-                  ⚠ Customer must have a registered Remise account to activate credit.
+                  {cr.customerMustBeRegistered}
                 </Text>
               )}
 
               {/* Step 2: Set Credit Limit */}
-              <Text style={styles.fieldLabel}>2. Credit Limit (INR ₹)</Text>
+              <Text style={styles.fieldLabel}>{cr.step2CreditLimit}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. 5000"
+                placeholder={cr.limitPlaceholder}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType="numeric"
                 value={formLimit}
@@ -935,7 +1005,7 @@ export default function StoreCreditScreen() {
               />
 
               {/* Step 3: Repayment Policy */}
-              <Text style={styles.fieldLabel}>3. Repayment Policy</Text>
+              <Text style={styles.fieldLabel}>{cr.step3RepaymentPolicy}</Text>
               <View style={styles.policyOptionGrid}>
                 {(['weekly', 'monthly', 'custom_days', 'specific_date'] as const).map(p => (
                   <TouchableOpacity
@@ -944,7 +1014,7 @@ export default function StoreCreditScreen() {
                     onPress={() => setFormPolicyType(p)}
                   >
                     <Text style={[styles.policyPillText, formPolicyType === p && styles.policyPillTextActive]}>
-                      {p === 'weekly' ? 'Weekly' : p === 'monthly' ? 'Monthly' : p === 'custom_days' ? 'Custom Days' : 'Specific Date'}
+                      {p === 'weekly' ? cr.policyWeekly : p === 'monthly' ? cr.policyMonthly : p === 'custom_days' ? cr.policyCustomDays : cr.policySpecificDate}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -952,7 +1022,7 @@ export default function StoreCreditScreen() {
 
               {formPolicyType === 'weekly' && (
                 <View style={{ marginTop: 8 }}>
-                  <Text style={styles.subFieldLabel}>Weekly Due Day</Text>
+                  <Text style={styles.subFieldLabel}>{cr.weeklyDueDayLabel}</Text>
                   <View style={styles.daysGrid}>
                     {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(d => (
                       <TouchableOpacity
@@ -961,7 +1031,7 @@ export default function StoreCreditScreen() {
                         onPress={() => setFormWeeklyDay(d)}
                       >
                         <Text style={[styles.dayPillText, formWeeklyDay === d && styles.dayPillTextActive]}>
-                          {d.slice(0, 3).toUpperCase()}
+                          {(cr.days as any)[d.slice(0, 3)] || d.slice(0, 3).toUpperCase()}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -971,7 +1041,7 @@ export default function StoreCreditScreen() {
 
               {formPolicyType === 'monthly' && (
                 <View style={{ marginTop: 8 }}>
-                  <Text style={styles.subFieldLabel}>Due Day of Month (1 - 31)</Text>
+                  <Text style={styles.subFieldLabel}>{cr.dueDayOfMonthLabel}</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. 5"
@@ -984,7 +1054,7 @@ export default function StoreCreditScreen() {
 
               {formPolicyType === 'custom_days' && (
                 <View style={{ marginTop: 8 }}>
-                  <Text style={styles.subFieldLabel}>Repay within (Days)</Text>
+                  <Text style={styles.subFieldLabel}>{cr.repayWithinDaysLabel}</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. 15"
@@ -997,7 +1067,7 @@ export default function StoreCreditScreen() {
 
               {formPolicyType === 'specific_date' && (
                 <View style={{ marginTop: 8 }}>
-                  <Text style={styles.subFieldLabel}>Agreed Due Date (YYYY-MM-DD)</Text>
+                  <Text style={styles.subFieldLabel}>{cr.agreedDueDateLabel}</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="2026-12-31"
@@ -1010,15 +1080,15 @@ export default function StoreCreditScreen() {
               {/* Step 4: Identity Verification (Cashfree SecureID) */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
                 <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>
-                  4. Identity Verification (Cashfree SecureID) *
+                  {cr.step4IdentityVerification}
                 </Text>
                 {idVerified ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? 'rgba(6, 78, 59, 0.4)' : '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                     <CheckCircle2 size={12} color="#059669" />
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>Cashfree Verified</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>{cr.cashfreeVerifiedBadge}</Text>
                   </View>
                 ) : (
-                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280' }}>UIDAI / ITD Check</Text>
+                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280' }}>{cr.uidaiItdCheck}</Text>
                 )}
               </View>
 
@@ -1038,18 +1108,18 @@ export default function StoreCreditScreen() {
                     }}
                   >
                     <Text style={[styles.policyPillText, formIdType === id && styles.policyPillActive && styles.policyPillTextActive]}>
-                      {id === 'aadhaar' ? 'Aadhaar (UIDAI OTP)' : 'PAN Card (Income Tax)'}
+                      {id === 'aadhaar' ? cr.aadhaarOption : cr.panOption}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <Text style={styles.subFieldLabel}>
-                {formIdType === 'aadhaar' ? 'Aadhaar Number (12 digits) *' : 'PAN Number (10 alphanumeric chars) *'}
+                {formIdType === 'aadhaar' ? cr.aadhaarNumberLabel : cr.panNumberLabel}
               </Text>
               <TextInput
                 style={styles.input}
-                placeholder={formIdType === 'aadhaar' ? 'e.g. 123456789012' : 'e.g. ABCDE1234F'}
+                placeholder={formIdType === 'aadhaar' ? cr.aadhaarPlaceholder : cr.panPlaceholder}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 keyboardType={formIdType === 'aadhaar' ? 'number-pad' : 'default'}
                 maxLength={formIdType === 'aadhaar' ? 12 : 10}
@@ -1066,10 +1136,10 @@ export default function StoreCreditScreen() {
                 }}
               />
 
-              <Text style={styles.subFieldLabel}>Legal Name on Identity Document *</Text>
+              <Text style={styles.subFieldLabel}>{cr.legalNameLabel}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Name exactly as on document"
+                placeholder={cr.legalNamePlaceholder}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={formNameOnId}
                 onChangeText={v => {
@@ -1084,8 +1154,8 @@ export default function StoreCreditScreen() {
               {formIdType === 'aadhaar' && aadhaarOtpSent && !idVerified && (
                 <View style={styles.otpBox}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={styles.otpTitle}>Enter 6-Digit Aadhaar OTP</Text>
-                    <Text style={styles.otpSubtitle}>Sent to UIDAI mobile</Text>
+                    <Text style={styles.otpTitle}>{cr.enterAadhaarOtpTitle}</Text>
+                    <Text style={styles.otpSubtitle}>{cr.sentToUidaiMobile}</Text>
                   </View>
                   <TextInput
                     style={styles.otpInput}
@@ -1105,7 +1175,7 @@ export default function StoreCreditScreen() {
                       {verifyingAadhaarOtp ? (
                         <ActivityIndicator size="small" color="#FFFFFF" />
                       ) : (
-                        <Text style={styles.otpVerifyBtnText}>Confirm Aadhaar OTP</Text>
+                        <Text style={styles.otpVerifyBtnText}>{cr.confirmAadhaarOtpBtn}</Text>
                       )}
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -1113,7 +1183,7 @@ export default function StoreCreditScreen() {
                       onPress={handleVerifyCashfree}
                       style={styles.otpSecondaryBtn}
                     >
-                      <Text style={styles.otpSecondaryBtnText}>Resend</Text>
+                      <Text style={styles.otpSecondaryBtnText}>{cr.resend}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => {
@@ -1123,7 +1193,7 @@ export default function StoreCreditScreen() {
                       }}
                       style={styles.otpSecondaryBtn}
                     >
-                      <Text style={styles.otpSecondaryBtnText}>Change</Text>
+                      <Text style={styles.otpSecondaryBtnText}>{cr.change}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1145,22 +1215,22 @@ export default function StoreCreditScreen() {
                       <ActivityIndicator size="small" color="#FFFFFF" />
                       <Text style={styles.cashfreeVerifyBtnText}>
                         {formIdType === 'aadhaar'
-                          ? 'Sending Aadhaar OTP via Cashfree...'
-                          : 'Verifying PAN with Cashfree...'}
+                          ? cr.sendingAadhaarOtp
+                          : cr.verifyingPan}
                       </Text>
                     </>
                   ) : idVerified ? (
                     <>
                       <CheckCircle2 size={14} color="#FFFFFF" />
-                      <Text style={styles.cashfreeVerifyBtnText}>✓ Verified via Cashfree (Tap to Re-verify)</Text>
+                      <Text style={styles.cashfreeVerifyBtnText}>{cr.verifiedViaCashfreeTap}</Text>
                     </>
                   ) : (
                     <>
                       <ShieldCheck size={14} color="#FFFFFF" />
                       <Text style={styles.cashfreeVerifyBtnText}>
                         {formIdType === 'aadhaar'
-                          ? 'Verify Aadhaar with Cashfree (Send OTP)'
-                          : 'Verify PAN with Cashfree'}
+                          ? cr.verifyAadhaarBtn
+                          : cr.verifyPanBtn}
                       </Text>
                     </>
                   )}
@@ -1180,15 +1250,15 @@ export default function StoreCreditScreen() {
                 <View style={styles.verifiedCard}>
                   <View style={styles.verifiedTitle}>
                     <CheckCircle2 size={14} color="#10B981" />
-                    <Text style={styles.verifiedTitleText}>Cashfree Verification Confirmed</Text>
+                    <Text style={styles.verifiedTitleText}>{cr.cashfreeConfirmedTitle}</Text>
                   </View>
                   {(verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar) && (
                     <Text style={styles.verifiedDetailsText}>
-                      Govt Record Name: {verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar}
+                      {cr.govtRecordNamePrefix} {verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar}
                     </Text>
                   )}
                   <Text style={[styles.verifiedDetailsText, { fontSize: 10, marginTop: 2, color: isDark ? '#6EE7B7' : '#047857' }]}>
-                    Masked Token: {verifiedIdData.maskedAadhaar || (formIdType === 'pan' ? `XXXXXX${formIdNumber.slice(-4).toUpperCase()}` : `XXXX-XXXX-${formIdNumber.slice(-4)}`)} · Verified via Cashfree
+                    {cr.maskedTokenPrefix} {verifiedIdData.maskedAadhaar || (formIdType === 'pan' ? `XXXXXX${formIdNumber.slice(-4).toUpperCase()}` : `XXXX-XXXX-${formIdNumber.slice(-4)}`)} · {cr.verifiedViaCashfreeSuffix}
                   </Text>
                 </View>
               ) : null}
@@ -1202,7 +1272,7 @@ export default function StoreCreditScreen() {
                   {formConsent && <CheckCircle2 size={14} color="#FFFFFF" />}
                 </View>
                 <Text style={styles.checkboxLabel}>
-                  Customer has presented identity document in-person and consented to verification.
+                  {cr.consentCheckboxLabel}
                 </Text>
               </TouchableOpacity>
 
@@ -1214,7 +1284,7 @@ export default function StoreCreditScreen() {
                   {formCustomerAgreed && <CheckCircle2 size={14} color="#FFFFFF" />}
                 </View>
                 <Text style={styles.checkboxLabel}>
-                  Customer reviewed & agreed to the credit limit, repayment policy, and conditions.
+                  {cr.agreementCheckboxLabel}
                 </Text>
               </TouchableOpacity>
 
@@ -1229,7 +1299,7 @@ export default function StoreCreditScreen() {
                 {submittingRegistration ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitModalBtnText}>Approve & Activate Credit</Text>
+                  <Text style={styles.submitModalBtnText}>{cr.approveAndActivateBtn}</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -1243,8 +1313,8 @@ export default function StoreCreditScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Record Cash Repayment</Text>
-                <Text style={styles.modalSubtitle}>Customer: {selectedAccount?.customerName}</Text>
+                <Text style={styles.modalTitle}>{cr.recordRepaymentTitle}</Text>
+                <Text style={styles.modalSubtitle}>{cr.customerLabelPrefix} {selectedAccount?.customerName}</Text>
               </View>
               <TouchableOpacity onPress={() => setRepayModalOpen(false)}>
                 <X size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
@@ -1252,25 +1322,25 @@ export default function StoreCreditScreen() {
             </View>
 
             <View style={styles.debtBanner}>
-              <Text style={styles.debtBannerLabel}>Outstanding Debt:</Text>
+              <Text style={styles.debtBannerLabel}>{cr.outstandingDebtLabel}</Text>
               <Text style={styles.debtBannerVal}>
                 ₹{selectedAccount?.outstandingBalance.toLocaleString('en-IN')}
               </Text>
             </View>
 
-            <Text style={styles.fieldLabel}>Repayment Amount (INR ₹)</Text>
+            <Text style={styles.fieldLabel}>{cr.repaymentAmountLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Amount collected"
+              placeholder={cr.amountCollectedPlaceholder}
               keyboardType="numeric"
               value={repayAmount}
               onChangeText={text => setRepayAmount(text.replace(/^0+(?=\d)/, ''))}
             />
 
-            <Text style={styles.fieldLabel}>Notes / Reference (Optional)</Text>
+            <Text style={styles.fieldLabel}>{cr.notesReferenceLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Cash handed in person at counter"
+              placeholder={cr.notesPlaceholder}
               value={repayNotes}
               onChangeText={setRepayNotes}
             />
@@ -1283,7 +1353,7 @@ export default function StoreCreditScreen() {
               {submittingRepay ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitModalBtnText}>Confirm & Issue Receipt</Text>
+                <Text style={styles.submitModalBtnText}>{cr.confirmReceiptBtn}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1296,7 +1366,7 @@ export default function StoreCreditScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Modify Credit Terms</Text>
+                <Text style={styles.modalTitle}>{cr.modifyTermsTitle}</Text>
                 <Text style={styles.modalSubtitle}>{selectedAccount?.customerName}</Text>
               </View>
               <TouchableOpacity onPress={() => setTermsModalOpen(false)}>
@@ -1304,19 +1374,19 @@ export default function StoreCreditScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.fieldLabel}>New Credit Limit (INR ₹)</Text>
+            <Text style={styles.fieldLabel}>{cr.newLimitLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Limit"
+              placeholder={cr.limitShortPlaceholder}
               keyboardType="numeric"
               value={termsLimit}
               onChangeText={text => setTermsLimit(text.replace(/^0+(?=\d)/, ''))}
             />
 
-            <Text style={styles.fieldLabel}>Audit Reason (Mandatory)</Text>
+            <Text style={styles.fieldLabel}>{cr.auditReasonLabel}</Text>
             <TextInput
               style={[styles.input, { height: 80 }]}
-              placeholder="Explain why terms are being changed (e.g., customer requested increase based on punctual repayment history)"
+              placeholder={cr.auditReasonPlaceholder}
               multiline
               value={termsReason}
               onChangeText={setTermsReason}
@@ -1330,7 +1400,7 @@ export default function StoreCreditScreen() {
               {submittingTerms ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitModalBtnText}>Update Terms</Text>
+                <Text style={styles.submitModalBtnText}>{cr.updateTermsBtn}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1343,7 +1413,7 @@ export default function StoreCreditScreen() {
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Credit Ledger History</Text>
+                <Text style={styles.modalTitle}>{cr.ledgerModalTitle}</Text>
                 <Text style={styles.modalSubtitle}>{selectedAccount?.customerName}</Text>
               </View>
               <TouchableOpacity onPress={() => setLedgerModalOpen(false)}>
@@ -1355,7 +1425,7 @@ export default function StoreCreditScreen() {
               <ActivityIndicator size="large" color={CustomerColors.teal600} style={{ marginVertical: 32 }} />
             ) : ledgerEntries.length === 0 ? (
               <Text style={{ textAlign: 'center', marginVertical: 32, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-                No ledger transactions recorded yet.
+                {cr.noLedgerEntries}
               </Text>
             ) : (
               <FlatList
@@ -1364,7 +1434,7 @@ export default function StoreCreditScreen() {
                 renderItem={({ item }) => (
                   <View style={styles.ledgerItem}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.ledgerType}>{item.transactionType.replace('_', ' ')}</Text>
+                      <Text style={styles.ledgerType}>{item.transactionType === 'REPAYMENT' ? cr.repaymentType : cr.orderDebitType}</Text>
                       <Text style={styles.ledgerMeta}>
                         {new Date(item.createdAt).toLocaleString('en-IN', {
                           day: 'numeric',
@@ -1372,7 +1442,7 @@ export default function StoreCreditScreen() {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
-                        {item.receiptNumber ? ` · Ref: ${item.receiptNumber}` : ''}
+                        {item.receiptNumber ? ` · ${cr.refPrefix} ${item.receiptNumber}` : ''}
                       </Text>
                       {item.notes ? <Text style={styles.ledgerNotes}>"{item.notes}"</Text> : null}
                     </View>
@@ -1385,7 +1455,7 @@ export default function StoreCreditScreen() {
                       >
                         {item.transactionType === 'REPAYMENT' ? '-' : '+'}₹{item.amount.toLocaleString('en-IN')}
                       </Text>
-                      <Text style={styles.ledgerBal}>Bal: ₹{item.balanceAfter.toLocaleString('en-IN')}</Text>
+                      <Text style={styles.ledgerBal}>{cr.balPrefix} ₹{item.balanceAfter.toLocaleString('en-IN')}</Text>
                     </View>
                   </View>
                 )}
@@ -1419,13 +1489,14 @@ const getStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#0F172A' : '#F1F5F9',
       borderRadius: BorderRadius.md,
       paddingHorizontal: 12,
+      minHeight: 44,
       gap: 8,
     },
     searchInput: {
       flex: 1,
-      height: 40,
       color: isDark ? '#F8FAFC' : '#0F172A',
       fontSize: FontSizes.sm,
+      paddingVertical: Platform.OS === 'android' ? 6 : 8,
     },
     addBtn: {
       flexDirection: 'row',
@@ -1440,42 +1511,52 @@ const getStyles = (isDark: boolean) =>
       fontWeight: '700',
       fontSize: FontSizes.xs,
     },
-    kpiRow: {
+    kpiContainer: {
+      marginVertical: 4,
+    },
+    kpiScroll: {
+      paddingHorizontal: Spacing.md,
+      gap: 10,
       flexDirection: 'row',
-      padding: Spacing.sm,
-      gap: 8,
     },
     kpiCard: {
-      flex: 1,
+      width: 130,
+      minHeight: 80,
       backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-      padding: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
       borderRadius: BorderRadius.md,
       alignItems: 'center',
+      justifyContent: 'center',
       borderWidth: 1,
       borderColor: isDark ? '#334155' : '#E2E8F0',
     },
     kpiLabel: {
-      fontSize: 10,
+      fontSize: 11,
       color: isDark ? '#9CA3AF' : '#6B7280',
       textAlign: 'center',
       fontWeight: '600',
+      lineHeight: 15,
     },
     kpiValue: {
       fontSize: FontSizes.sm,
       fontWeight: '800',
       color: isDark ? '#F8FAFC' : '#0F172A',
-      marginTop: 2,
+      marginTop: 4,
+    },
+    filterTabsContainer: {
+      marginVertical: 6,
     },
     filterTabs: {
       flexDirection: 'row',
       paddingHorizontal: Spacing.md,
       gap: 8,
-      marginVertical: 4,
+      alignItems: 'center',
     },
     filterTab: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
       backgroundColor: isDark ? '#1E293B' : '#E2E8F0',
     },
     filterTabActive: {
@@ -1563,20 +1644,26 @@ const getStyles = (isDark: boolean) =>
       paddingTop: 10,
       borderTopWidth: 1,
       borderTopColor: isDark ? '#334155' : '#F1F5F9',
+      justifyContent: 'space-between',
+      gap: 6,
     },
     balanceItem: {
       flex: 1,
+      alignItems: 'center',
     },
     balanceLabel: {
       fontSize: 10,
       color: isDark ? '#9CA3AF' : '#6B7280',
       textTransform: 'uppercase',
+      lineHeight: 14,
+      textAlign: 'center',
     },
     balanceValue: {
       fontSize: FontSizes.sm,
       fontWeight: '700',
       color: isDark ? '#F8FAFC' : '#0F172A',
       marginTop: 2,
+      textAlign: 'center',
     },
     debtText: {
       color: '#EF4444',
@@ -1672,15 +1759,16 @@ const getStyles = (isDark: boolean) =>
     fieldLabel: {
       fontSize: FontSizes.xs,
       fontWeight: '700',
-      color: isDark ? '#E2E8F0' : '#1E293B',
+      color: isDark ? '#FFFFFF' : '#1E293B',
       marginTop: 12,
       marginBottom: 6,
       textTransform: 'uppercase',
     },
     subFieldLabel: {
       fontSize: FontSizes.xs,
-      color: isDark ? '#9CA3AF' : '#6B7280',
-      marginBottom: 4,
+      fontWeight: '600',
+      color: isDark ? '#FFFFFF' : '#1E293B',
+      marginBottom: 6,
     },
     input: {
       backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
@@ -1744,8 +1832,10 @@ const getStyles = (isDark: boolean) =>
     },
     policyPill: {
       flex: 1,
-      paddingVertical: 7,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
       alignItems: 'center',
+      justifyContent: 'center',
       borderRadius: BorderRadius.sm,
       backgroundColor: isDark ? '#0F172A' : '#F1F5F9',
       borderWidth: 1,
@@ -1758,10 +1848,12 @@ const getStyles = (isDark: boolean) =>
     policyPillText: {
       fontSize: 10,
       fontWeight: '700',
-      color: isDark ? '#9CA3AF' : '#6B7280',
+      color: isDark ? '#E2E8F0' : '#6B7280',
+      textAlign: 'center',
     },
     policyPillTextActive: {
       color: '#FFFFFF',
+      textAlign: 'center',
     },
     daysGrid: {
       flexDirection: 'row',
@@ -1770,8 +1862,10 @@ const getStyles = (isDark: boolean) =>
     },
     dayPill: {
       flex: 1,
-      paddingVertical: 6,
+      paddingVertical: 7,
+      paddingHorizontal: 2,
       alignItems: 'center',
+      justifyContent: 'center',
       borderRadius: 4,
       backgroundColor: isDark ? '#0F172A' : '#F1F5F9',
     },
@@ -1781,10 +1875,12 @@ const getStyles = (isDark: boolean) =>
     dayPillText: {
       fontSize: 9,
       fontWeight: '700',
-      color: isDark ? '#9CA3AF' : '#6B7280',
+      color: isDark ? '#E2E8F0' : '#6B7280',
+      textAlign: 'center',
     },
     dayPillTextActive: {
       color: '#FFFFFF',
+      textAlign: 'center',
     },
     checkboxRow: {
       flexDirection: 'row',

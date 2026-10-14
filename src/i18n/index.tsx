@@ -14,6 +14,8 @@ export * from '../utils/indiaLocation';
 export * from './supplierTranslations';
 export * from './deliveryTranslations';
 export * from './deliveryPartnerTranslations';
+export * from './storeReviewsTranslations';
+export * from './creditTranslations';
 
 export const translations: Record<LanguageCode, TranslationSchema> = {
   en,

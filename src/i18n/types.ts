@@ -297,6 +297,7 @@ export interface TranslationSchema {
     reviewErrorMsg: string;
     recent: string;
     customer: string;
+    platformFeeNote: string;
   };
   cart: {
     yourCart: string;
@@ -321,6 +322,7 @@ export interface TranslationSchema {
     removeConfirm: string;
     itemRemoved: string;
     moveToWishlist: string;
+    platformFee: string;
   };
   checkout: {
     checkoutTitle: string;
@@ -416,6 +418,25 @@ export interface TranslationSchema {
     validPhoneError: string;
     fillRequiredAddressError: string;
     fillRequiredBillingError: string;
+    codTitle: string;
+    codBadge: string;
+    codDescDelivery: string;
+    codDescPickup: string;
+    storeCreditTitle: string;
+    approvedBadge: string;
+    creditTotal: string;
+    creditRemaining: string;
+    creditUsed: string;
+    creditNextDue: string;
+    creditAsAgreed: string;
+    creditExceeded: string;
+    placeOrderCod: string;
+    placeOrderCredit: string;
+    settlementRequired: string;
+    settlementRequiredTitle: string;
+    settlementRequiredDesc: string;
+    platformFee: string;
+    platformFeeLabel: string;
   };
   orders: {
     myOrdersTitle: string;
@@ -451,6 +472,7 @@ export interface TranslationSchema {
     pdfInvoice: string;
     track: string;
     rateReviewProduct: string;
+    rateYourStore: string;
     eligibleUntil: string;
     refundWindowEnded: string;
     refundCompleted: string;

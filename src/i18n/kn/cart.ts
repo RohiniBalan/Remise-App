@@ -23,4 +23,5 @@ export const cart: TranslationSchema['cart'] = {
   removeConfirm: 'ಈ ವಸ್ತುವನ್ನು ಕಾರ್ಟ್‌ನಿಂದ ತೆಗೆದುಹಾಕಲು ನೀವು ಖಚಿತವಾಗಿ ಬಯಸುವಿರಾ?',
   itemRemoved: 'ವಸ್ತುವನ್ನು ಕಾರ್ಟ್‌ನಿಂದ ತೆಗೆದುಹಾಕಲಾಗಿದೆ',
   moveToWishlist: 'ಇಷ್ಟಪಟ್ಟ ಪಟ್ಟಿಗೆ ಸರಿಸಿ',
+  platformFee: 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಶುಲ್ಕ',
 };

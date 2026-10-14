@@ -64,6 +64,7 @@ import { normalizeSpecifications } from '../../utils/categoryAttributes';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { useTranslation, translateProductName, translateCategory, translateProductDescription } from '../../i18n';
 import { usePlatformFee } from '../../utils/platformFee';
+import { creditApi, CreditAccount } from '../../api/creditApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -115,8 +116,18 @@ export default function ProductDetailScreen() {
     recommend: true,
   });
   const [selectedPhotos, setSelectedPhotos] = useState<Asset[]>([]);
+  const [approvedCredit, setApprovedCredit] = useState<CreditAccount | null>(null);
 
-
+  useEffect(() => {
+    if (!token || !user) return;
+    creditApi.getMyCreditAccounts()
+      .then(res => {
+        const accounts: CreditAccount[] = Array.isArray(res) ? res : (res as any)?.data || [];
+        const appAcc = accounts.find(a => a.status === 'APPROVED' && (a.availableCredit || 0) > 0);
+        if (appAcc) setApprovedCredit(appAcc);
+      })
+      .catch(() => {});
+  }, [token, user]);
 
   useEffect(() => {
     let isMounted = true;
@@ -461,6 +472,27 @@ export default function ProductDetailScreen() {
     return () => subscription.remove();
   }, [isPreview, handleBackToProducts]);
 
+  const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
+  const displayProduct: Product | null = product
+    ? (isStoreOwner
+        ? {
+            ...product,
+            price: product.storePrice ?? product.price,
+            discountedPrice: product.storeDiscountedPrice ?? product.discountedPrice,
+          }
+        : product)
+    : null;
+
+  const currentPriceVal = displayProduct
+    ? (displayProduct.discountedPrice != null &&
+       displayProduct.discountedPrice > 0 &&
+       displayProduct.discountedPrice < displayProduct.price
+        ? displayProduct.discountedPrice
+        : displayProduct.price)
+    : 0;
+
+  const platformFee = usePlatformFee(currentPriceVal * quantity);
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -469,7 +501,7 @@ export default function ProductDetailScreen() {
     );
   }
 
-  if (!product) {
+  if (!product || !displayProduct) {
     return (
       <View style={styles.center}>
         <Text style={styles.notFoundTitle}>Product Not Found</Text>
@@ -484,23 +516,7 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const isStoreOwner = STORE_OWNER_ROLES.includes(user?.role || '');
-  const displayProduct: Product = isStoreOwner
-    ? {
-        ...product,
-        price: product.storePrice ?? product.price,
-        discountedPrice: product.storeDiscountedPrice ?? product.discountedPrice,
-      }
-    : product;
-
   const isOutOfStock = product.totalStock <= 0;
-
-  const currentPriceVal =
-    displayProduct.discountedPrice != null &&
-    displayProduct.discountedPrice > 0 &&
-    displayProduct.discountedPrice < displayProduct.price
-      ? displayProduct.discountedPrice
-      : displayProduct.price;
 
   const originalPriceVal =
     displayProduct.originalPrice && displayProduct.originalPrice > currentPriceVal
@@ -518,7 +534,6 @@ export default function ProductDetailScreen() {
 
   const pId = product._id || product.id || '';
   const isItemWishlisted = checkWishlisted(pId);
-  const platformFee = usePlatformFee(currentPriceVal * quantity);
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
@@ -535,6 +550,8 @@ export default function ProductDetailScreen() {
         quantity: 1,
         image: productImage(product) || '',
         totalStock: product.totalStock,
+        storeId: product.storeId || (product as any).store?._id || (product as any).store?.id || (product as any).vendorId,
+        storeName: (product as any).storeName || (product as any).store?.name,
       });
     }
   };
@@ -553,6 +570,8 @@ export default function ProductDetailScreen() {
       quantity,
       image: productImage(product) || '',
       totalStock: product.totalStock,
+      storeId: product.storeId || (product as any).store?._id || (product as any).store?.id || (product as any).vendorId,
+      storeName: (product as any).storeName || (product as any).store?.name,
     });
     navigation.navigate('Checkout');
   };
@@ -793,6 +812,31 @@ export default function ProductDetailScreen() {
             </View>
           </View>
 
+          {/* Approved Credit Banner */}
+          {approvedCredit && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDark ? 'rgba(147, 51, 234, 0.15)' : '#F3E8FF',
+              borderColor: isDark ? '#7E22CE' : '#D8B4FE',
+              borderWidth: 1,
+              borderRadius: 8,
+              padding: 10,
+              marginBottom: 10,
+              gap: 8,
+            }}>
+              <Zap size={16} color={isDark ? '#C084FC' : '#7E22CE'} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#C084FC' : '#7E22CE' }}>
+                  Store Credit: ₹{(approvedCredit.creditLimit || 0).toLocaleString()} Limit · ₹{(approvedCredit.availableCredit || 0).toLocaleString()} Remaining
+                </Text>
+                <Text style={{ fontSize: 10, color: isDark ? '#D8B4FE' : '#6B21A8' }}>
+                  Total: ₹{(approvedCredit.creditLimit || 0).toLocaleString()} · Used: ₹{Math.max(0, (approvedCredit.creditLimit || 0) - (approvedCredit.availableCredit || 0)).toLocaleString()} · Enrolled at {approvedCredit.storeName || 'Partner Store'}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Quantity and Wishlist Selector */}
           <View style={styles.qtyWishlistRow}>
             <View style={styles.qtySelector}>
@@ -867,7 +911,7 @@ export default function ProductDetailScreen() {
                 {t('products.estDelivery', { time: product.deliveryTime || t('products.businessDays') })} · Free delivery on ₹499+
               </Text>
               <Text style={[styles.deliveryText, { fontSize: 10, marginTop: 2, color: CustomerColors.textSecondary }]}>
-                Platform Fee: {platformFee === 0 ? 'FREE' : `₹${platformFee}`} · Self Pickup: ₹0
+                {t('products.platformFeeNote', { fee: platformFee === 0 ? (t('cart.free') || 'FREE') : `₹${platformFee}` }) || `Platform Fee: ${platformFee === 0 ? 'FREE' : `₹${platformFee}`} · Self Pickup: ₹0`}
               </Text>
             </View>
           </View>
@@ -1214,6 +1258,23 @@ export default function ProductDetailScreen() {
             {t('products.buyNow')}
           </Text>
         </TouchableOpacity>
+
+        {approvedCredit && (
+          <TouchableOpacity
+            style={[
+              styles.buyBtn,
+              { backgroundColor: '#7C3AED' },
+              isOutOfStock && styles.btnDisabled,
+            ]}
+            onPress={handleBuyNow}
+            disabled={isOutOfStock}
+          >
+            <Zap size={17} color="#FFFFFF" />
+            <Text style={styles.buyBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              Buy on Credit
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ─── WRITE REVIEW MODAL (APP) ────────────────────────────────────── */}

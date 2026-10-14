@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation, getCreditTranslations } from '../../i18n';
 import {
   CustomerColors,
   Spacing,
@@ -39,6 +40,8 @@ export default function MyCreditScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const { user, token } = useAuth();
+  const { language } = useTranslation();
+  const cr = React.useMemo(() => getCreditTranslations(language), [language]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,28 +104,39 @@ export default function MyCreditScreen() {
   );
 
   const formatPolicy = (policy: CreditAccount['repaymentPolicy']) => {
-    if (!policy) return 'Standard Terms';
+    if (!policy) return cr.standardTerms;
     switch (policy.policyType) {
       case 'weekly':
-        return `Weekly every ${
+        return cr.weeklyEvery.replace(
+          '{{day}}',
           policy.weeklyDay
-            ? policy.weeklyDay.charAt(0).toUpperCase() +
-              policy.weeklyDay.slice(1)
-            : 'Sunday'
-        }`;
+            ? (cr.days as any)[policy.weeklyDay.toLowerCase()] || policy.weeklyDay
+            : cr.days.sunday
+        );
       case 'monthly':
-        return `Monthly on day ${policy.monthlyDayOfMonth || 1}`;
+        return cr.monthlyOnDay.replace('{{day}}', String(policy.monthlyDayOfMonth || 1));
       case 'custom_days':
-        return `Within ${policy.customDaysCount || 7} days`;
+        return cr.withinDays.replace('{{days}}', String(policy.customDaysCount || 7));
       case 'specific_date':
-        return `Due by ${
+        return cr.dueOn.replace(
+          '{{date}}',
           policy.specificDueDate
             ? new Date(policy.specificDueDate).toLocaleDateString()
-            : 'Agreed date'
-        }`;
+            : cr.specificDueDate
+        );
       default:
-        return 'Custom Agreement';
+        return cr.standardTerms;
     }
+  };
+
+  const formatDueDate = (dateStr?: string | Date | null) => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'N/A';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
   };
 
   return (
@@ -155,7 +169,7 @@ export default function MyCreditScreen() {
               isDark && { color: '#FFFFFF' },
             ]}
           >
-            My Store Credit (Kadan)
+            {cr.myStoreCredit}
           </Text>
           <Text
             style={[
@@ -163,7 +177,7 @@ export default function MyCreditScreen() {
               isDark && { color: '#9CA3AF' },
             ]}
           >
-            Private credit lines & repayment ledgers
+            {cr.storeCreditSubtitle}
           </Text>
         </View>
       </View>
@@ -182,22 +196,19 @@ export default function MyCreditScreen() {
               isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
             ]}
           >
-            <Text style={styles.kpiLabel}>Outstanding Debt</Text>
+            <Text style={styles.kpiLabel} numberOfLines={1} adjustsFontSizeToFit>{cr.creditLimit}</Text>
             <Text
               style={[
                 styles.kpiValue,
-                totalOutstanding > 0
-                  ? { color: '#D97706' }
-                  : isDark
-                  ? { color: '#FFFFFF' }
-                  : { color: CustomerColors.black },
+                isDark ? { color: '#FFFFFF' } : { color: CustomerColors.black },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
             >
-              ₹{totalOutstanding.toLocaleString()}
+              ₹{totalLimit.toLocaleString()}
             </Text>
-            <Text style={styles.kpiFootnote}>
-              {totalOutstanding > 0 ? 'Full settlement required' : 'Zero debt'}
-            </Text>
+            <Text style={styles.kpiFootnote} numberOfLines={2}>{cr.totalCreditGranted}</Text>
           </View>
 
           <View
@@ -206,17 +217,41 @@ export default function MyCreditScreen() {
               isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
             ]}
           >
-            <Text style={styles.kpiLabel}>Available Credit</Text>
+            <Text style={styles.kpiLabel} numberOfLines={1} adjustsFontSizeToFit>{cr.usedCredit}</Text>
+            <Text
+              style={[
+                styles.kpiValue,
+                { color: '#7C3AED' },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              ₹{Math.max(0, totalLimit - totalAvailable).toLocaleString()}
+            </Text>
+            <Text style={styles.kpiFootnote} numberOfLines={2}>{cr.inOrders}</Text>
+          </View>
+
+          <View
+            style={[
+              styles.kpiCard,
+              isDark && { backgroundColor: '#111827', borderColor: '#1F2937' },
+            ]}
+          >
+            <Text style={styles.kpiLabel} numberOfLines={1} adjustsFontSizeToFit>{cr.available}</Text>
             <Text
               style={[
                 styles.kpiValue,
                 { color: '#059669' },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
             >
               ₹{totalAvailable.toLocaleString()}
             </Text>
-            <Text style={styles.kpiFootnote}>
-              of ₹{totalLimit.toLocaleString()} limit
+            <Text style={styles.kpiFootnote} numberOfLines={2}>
+              {cr.ofLimit.replace('{{limit}}', totalLimit.toLocaleString())}
             </Text>
           </View>
         </View>
@@ -230,7 +265,7 @@ export default function MyCreditScreen() {
                 isDark && { color: '#9CA3AF' },
               ]}
             >
-              Loading your credit accounts...
+              {cr.loadingCustomerCredit}
             </Text>
           </View>
         ) : accounts.length === 0 ? (
@@ -249,7 +284,7 @@ export default function MyCreditScreen() {
                 isDark && { color: '#FFFFFF' },
               ]}
             >
-              No Store Credit Accounts Yet
+              {cr.noCustomerCreditTitle}
             </Text>
             <Text
               style={[
@@ -257,9 +292,7 @@ export default function MyCreditScreen() {
                 isDark && { color: '#9CA3AF' },
               ]}
             >
-              Store credit (Kadan) is registered in person with local store
-              merchants. Visit any participating store to agree on a credit
-              limit and repayment policy.
+              {cr.noCustomerCreditDesc}
             </Text>
 
             <View
@@ -280,7 +313,7 @@ export default function MyCreditScreen() {
                     fontSize: FontSizes.xs,
                   }}
                 >
-                  How it works:
+                  {cr.howItWorksTitle}
                 </Text>
               </View>
               <Text
@@ -291,10 +324,9 @@ export default function MyCreditScreen() {
                   lineHeight: 18,
                 }}
               >
-                1. Visit the store in person with your Remise account.{'\n'}
-                2. Agree on credit terms (weekly, monthly, or days).{'\n'}
-                3. The store owner approves your account. Credit immediately
-                becomes usable at checkout!
+                {cr.howItWorksStep1}{'\n'}
+                {cr.howItWorksStep2}{'\n'}
+                {cr.howItWorksStep3}
               </Text>
             </View>
           </View>
@@ -318,23 +350,25 @@ export default function MyCreditScreen() {
                     <View style={styles.storeBadge}>
                       <Store size={18} color="#7C3AED" />
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, minWidth: 0, marginRight: Spacing.xs }}>
+                      <Text
+                        style={[
+                          styles.storeName,
+                          isDark && { color: '#FFFFFF' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {acc.storeName}
+                      </Text>
                       <View
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
-                          gap: Spacing.xs,
+                          gap: 6,
+                          marginTop: 3,
+                          flexWrap: 'wrap',
                         }}
                       >
-                        <Text
-                          style={[
-                            styles.storeName,
-                            isDark && { color: '#FFFFFF' },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {acc.storeName}
-                        </Text>
                         <View
                           style={[
                             styles.statusPill,
@@ -349,18 +383,18 @@ export default function MyCreditScreen() {
                               acc.status === 'SUSPENDED' && styles.textSuspended,
                             ]}
                           >
-                            {acc.status}
+                            {acc.status === 'APPROVED' ? cr.statusApproved : cr.statusSuspended}
                           </Text>
                         </View>
+                        <Text
+                          style={[
+                            styles.accountId,
+                            isDark && { color: '#6B7280' },
+                          ]}
+                        >
+                          ID: {acc._id.slice(-8).toUpperCase()}
+                        </Text>
                       </View>
-                      <Text
-                        style={[
-                          styles.accountId,
-                          isDark && { color: '#6B7280' },
-                        ]}
-                      >
-                        ID: {acc._id.slice(-8).toUpperCase()}
-                      </Text>
                     </View>
 
                     <TouchableOpacity
@@ -371,7 +405,7 @@ export default function MyCreditScreen() {
                       ]}
                     >
                       <Receipt size={14} color="#7C3AED" />
-                      <Text style={styles.ledgerBtnText}>Ledger</Text>
+                      <Text style={styles.ledgerBtnText}>{cr.ledgerBtn}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -380,11 +414,11 @@ export default function MyCreditScreen() {
                     <View style={styles.overdueBanner}>
                       <AlertTriangle size={15} color="#DC2626" />
                       <Text style={styles.overdueText}>
-                        Overdue: Due on{' '}
+                        {cr.overdueWarning}: {cr.dueOn}{' '}
                         {acc.nextDueDate
-                          ? new Date(acc.nextDueDate).toLocaleDateString()
+                          ? formatDueDate(acc.nextDueDate)
                           : 'earlier date'}
-                        . Settle in person with store.
+                        .
                       </Text>
                     </View>
                   )}
@@ -394,9 +428,7 @@ export default function MyCreditScreen() {
                     <View style={styles.debtBanner}>
                       <Lock size={14} color="#D97706" />
                       <Text style={styles.debtBannerText}>
-                        Settlement Required: New purchases at this store are
-                        blocked until ₹{acc.outstandingBalance.toLocaleString()}{' '}
-                        is settled.
+                        {cr.settlementRequired}: {cr.settlementBlockedDesc} ₹{acc.outstandingBalance.toLocaleString()}
                       </Text>
                     </View>
                   )}
@@ -409,12 +441,20 @@ export default function MyCreditScreen() {
                         isDark && { backgroundColor: '#1F2937' },
                       ]}
                     >
-                      <Text style={styles.metricLabel}>Credit Limit</Text>
+                      <Text
+                        style={[styles.metricLabel, isDark && { color: '#9CA3AF' }]}
+                        numberOfLines={2}
+                      >
+                        {cr.creditLimit}
+                      </Text>
                       <Text
                         style={[
                           styles.metricValue,
                           isDark && { color: '#FFFFFF' },
                         ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
                       >
                         ₹{(acc.creditLimit || 0).toLocaleString()}
                       </Text>
@@ -426,7 +466,37 @@ export default function MyCreditScreen() {
                         isDark && { backgroundColor: '#1F2937' },
                       ]}
                     >
-                      <Text style={styles.metricLabel}>Outstanding</Text>
+                      <Text
+                        style={[styles.metricLabel, isDark && { color: '#9CA3AF' }]}
+                        numberOfLines={2}
+                      >
+                        {cr.usedCredit}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.metricValue,
+                          { color: '#7C3AED' },
+                        ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                      >
+                        ₹{Math.max(0, (acc.creditLimit || 0) - (acc.availableCredit || 0)).toLocaleString()}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.metricBox,
+                        isDark && { backgroundColor: '#1F2937' },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.metricLabel, isDark && { color: '#9CA3AF' }]}
+                        numberOfLines={2}
+                      >
+                        {cr.outstanding}
+                      </Text>
                       <Text
                         style={[
                           styles.metricValue,
@@ -436,6 +506,9 @@ export default function MyCreditScreen() {
                             ? { color: '#FFFFFF' }
                             : { color: CustomerColors.black },
                         ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
                       >
                         ₹{(acc.outstandingBalance || 0).toLocaleString()}
                       </Text>
@@ -447,12 +520,20 @@ export default function MyCreditScreen() {
                         isDark && { backgroundColor: '#1F2937' },
                       ]}
                     >
-                      <Text style={styles.metricLabel}>Available</Text>
+                      <Text
+                        style={[styles.metricLabel, isDark && { color: '#9CA3AF' }]}
+                        numberOfLines={2}
+                      >
+                        {cr.available}
+                      </Text>
                       <Text
                         style={[
                           styles.metricValue,
                           { color: '#059669' },
                         ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
                       >
                         ₹{(acc.availableCredit || 0).toLocaleString()}
                       </Text>
@@ -464,7 +545,12 @@ export default function MyCreditScreen() {
                         isDark && { backgroundColor: '#1F2937' },
                       ]}
                     >
-                      <Text style={styles.metricLabel}>Next Due</Text>
+                      <Text
+                        style={[styles.metricLabel, isDark && { color: '#9CA3AF' }]}
+                        numberOfLines={2}
+                      >
+                        {cr.nextDue}
+                      </Text>
                       <Text
                         style={[
                           styles.metricValue,
@@ -473,12 +559,12 @@ export default function MyCreditScreen() {
                             : isDark
                             ? { color: '#FFFFFF' }
                             : { color: CustomerColors.black },
-                          { fontSize: FontSizes.xs },
                         ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
                       >
-                        {acc.nextDueDate
-                          ? new Date(acc.nextDueDate).toLocaleDateString()
-                          : 'N/A'}
+                        {formatDueDate(acc.nextDueDate)}
                       </Text>
                     </View>
                   </View>
@@ -498,7 +584,7 @@ export default function MyCreditScreen() {
                           isDark && { color: '#9CA3AF' },
                         ]}
                       >
-                        Policy: {formatPolicy(acc.repaymentPolicy)}
+                        {cr.policyLabel.replace(/:$/, '')}: {formatPolicy(acc.repaymentPolicy)}
                       </Text>
                     </View>
                     <View style={styles.footerItem}>
@@ -509,8 +595,8 @@ export default function MyCreditScreen() {
                           isDark && { color: '#9CA3AF' },
                         ]}
                       >
-                        Masked ID:{' '}
-                        {acc.identityVerification?.idNumberMasked || 'Verified'}
+                        {cr.maskedIdLabel.replace(/:$/, '')}:{' '}
+                        {acc.identityVerification?.idNumberMasked || cr.statusApproved}
                       </Text>
                     </View>
                   </View>
@@ -548,7 +634,7 @@ export default function MyCreditScreen() {
                     isDark && { color: '#FFFFFF' },
                   ]}
                 >
-                  Credit Ledger
+                  {cr.customerCreditLedgerTitle}
                 </Text>
                 <Text
                   style={[
@@ -572,13 +658,13 @@ export default function MyCreditScreen() {
                 <View style={{ padding: Spacing.xl, alignItems: 'center' }}>
                   <ActivityIndicator color="#7C3AED" size="small" />
                   <Text style={{ fontSize: FontSizes.xs, color: '#9CA3AF', marginTop: 8 }}>
-                    Loading transactions...
+                    {cr.loadingLedger}
                   </Text>
                 </View>
               ) : ledgerEntries.length === 0 ? (
                 <View style={{ padding: Spacing.xl, alignItems: 'center' }}>
                   <Text style={{ fontSize: FontSizes.xs, color: '#9CA3AF' }}>
-                    No ledger transactions recorded yet.
+                    {cr.noLedgerEntries}
                   </Text>
                 </View>
               ) : (
@@ -617,11 +703,15 @@ export default function MyCreditScreen() {
                               isDark && { color: '#FFFFFF' },
                             ]}
                           >
-                            {entry.transactionType.replace('_', ' ')}
+                            {isRepayment
+                              ? cr.repaymentType
+                              : entry.transactionType === 'PURCHASE_DEBT'
+                              ? cr.orderDebitType
+                              : entry.transactionType.replace('_', ' ')}
                           </Text>
                           {entry.receiptNumber && (
                             <Text style={styles.receiptTag}>
-                              Receipt #{entry.receiptNumber}
+                              {cr.refPrefix} #{entry.receiptNumber}
                             </Text>
                           )}
                           <Text
@@ -656,7 +746,7 @@ export default function MyCreditScreen() {
                           {entry.amount.toLocaleString()}
                         </Text>
                         <Text style={styles.txBalance}>
-                          Bal: ₹{entry.balanceAfter.toLocaleString()}
+                          {cr.balPrefix} ₹{entry.balanceAfter.toLocaleString()}
                         </Text>
                       </View>
                     </View>
@@ -880,30 +970,41 @@ const styles = StyleSheet.create({
   },
   metricsGrid: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    gap: 4,
     marginVertical: Spacing.sm,
   },
   metricBox: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: '#F8FAFC',
     borderRadius: BorderRadius.md,
-    padding: Spacing.xs + 2,
+    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   metricLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '700',
     color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 11,
   },
   metricValue: {
-    fontSize: FontSizes.xs + 1,
+    fontSize: 11,
     fontWeight: '800',
-    marginTop: 2,
+    marginTop: 3,
     color: CustomerColors.black,
+    textAlign: 'center',
   },
   cardFooter: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingTop: Spacing.xs,
+    alignItems: 'center',
+    rowGap: 6,
+    columnGap: Spacing.xs,
+    paddingTop: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
@@ -911,11 +1012,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    maxWidth: '100%',
   },
   footerText: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: '#64748B',
     fontWeight: '500',
+    flexShrink: 1,
   },
   modalOverlay: {
     flex: 1,

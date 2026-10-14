@@ -35,11 +35,13 @@ import {
   Check,
   Star,
   Banknote,
+  FileText,
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { offersApi } from '../../api/offersApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { productApi } from '../../api/productApi';
+import { creditApi } from '../../api/creditApi';
 import { GATEWAY_URL } from '../../api/endpoints';
 import {
   CustomerColors,
@@ -144,6 +146,19 @@ const NEARBY_I18N: Record<string, Record<string, string>> = {
     errCity: 'Please select your city.',
     errPinCode: 'Please enter your pin code.',
     errDelivery: 'Please select a delivery method.',
+    codTitle: 'Cash on Delivery (COD)',
+    codBadge: 'Pay in Cash',
+    codDesc: 'Pay with physical cash upon order delivery or pickup.',
+    storeCreditTitle: 'Store Credit (Kadan)',
+    approvedBadge: 'APPROVED',
+    creditTotal: 'Total Credit',
+    creditRemaining: 'Remaining',
+    creditUsed: 'used',
+    creditNextDue: 'Next Due',
+    creditAsAgreed: 'As agreed',
+    creditExceeded: 'Total exceeds available credit limit.',
+    placeOrderCredit: 'Place Order on Credit (₹{amount})',
+    placeOrderCod: 'Place Cash on Delivery Order (₹{amount})',
   },
   ta: {
     orderNow: 'ஆர்டர் செய்',
@@ -206,6 +221,19 @@ const NEARBY_I18N: Record<string, Record<string, string>> = {
     errCity: 'தயவுசெய்து நகரத்தைத் தேர்ந்தெடுக்கவும்.',
     errPinCode: 'தயவுசெய்து அஞ்சல் குறியீட்டை உள்ளிடவும்.',
     errDelivery: 'தயவுசெய்து டெலிவரி முறையைத் தேர்ந்தெடுக்கவும்.',
+    codTitle: 'பொருளைப் பெற்று பணம் செலுத்துதல் (COD)',
+    codBadge: 'ரொக்கமாக செலுத்துங்கள்',
+    codDesc: 'ஆர்டர் டெலிவரி அல்லது கடைக்குச் செல்லும்போது ரொக்கமாக செலுத்தவும்.',
+    storeCreditTitle: 'கடை கடன் (Store Credit)',
+    approvedBadge: 'அங்கீகரிக்கப்பட்டது',
+    creditTotal: 'மொத்த கடன்',
+    creditRemaining: 'மீதமுள்ள கடன்',
+    creditUsed: 'பயன்படுத்தப்பட்டது',
+    creditNextDue: 'அடுத்த தவணைத் தேதி',
+    creditAsAgreed: 'ஒப்புக்கொண்டபடி',
+    creditExceeded: 'மொத்தத் தொகை வரம்பை விட அதிகமாக உள்ளது.',
+    placeOrderCredit: 'கடனில் ஆர்டர் செய் (₹{amount})',
+    placeOrderCod: 'பொருளைப் பெற்று பணம் செலுத்து ஆர்டர் (₹{amount})',
   },
   te: {
     orderNow: 'ఆర్డర్ చేయండి',
@@ -268,6 +296,19 @@ const NEARBY_I18N: Record<string, Record<string, string>> = {
     errCity: 'దయచేసి మీ నగరాన్ని ఎంచుకోండి.',
     errPinCode: 'దయచేసి మీ పిన్ కోడ్‌ను నమోదు చేయండి.',
     errDelivery: 'దయచేసి డెలివరీ పద్ధతిని ఎంచుకోండి.',
+    codTitle: 'క్యాష్ ఆన్ డెలివరీ (COD)',
+    codBadge: 'నగదు రూపంలో చెల్లించండి',
+    codDesc: 'ఆర్డర్ డెలివరీ లేదా పికప్ సమయంలో భౌతిక నగదుతో చెల్లించండి.',
+    storeCreditTitle: 'స్టోర్ క్రెడిట్ (Kadan)',
+    approvedBadge: 'ఆమోదించబడింది',
+    creditTotal: 'మొత్తం క్రెడిట్',
+    creditRemaining: 'మిగిలినది',
+    creditUsed: 'ఉపయోగించబడింది',
+    creditNextDue: 'తదుపరి గడువు',
+    creditAsAgreed: 'అంగీకరించిన విధంగా',
+    creditExceeded: 'మొత్తం అందుబాటులో ఉన్న క్రెడిట్ పరిమితిని మించిపోయింది.',
+    placeOrderCredit: 'క్రెడిట్‌పై ఆర్డర్ చేయండి (₹{amount})',
+    placeOrderCod: 'క్యాష్ ఆన్ డెలివరీ ఆర్డర్ చేయండి (₹{amount})',
   },
   kn: {
     orderNow: 'ಆರ್ಡರ್ ಮಾಡಿ',
@@ -330,6 +371,19 @@ const NEARBY_I18N: Record<string, Record<string, string>> = {
     errCity: 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ನಗರವನ್ನು ಆಯ್ಕೆಮಾಡಿ.',
     errPinCode: 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪಿನ್ ಕೋಡ್ ನಮೂದಿಸಿ.',
     errDelivery: 'ದಯವಿಟ್ಟು ವಿತರಣಾ ವಿಧಾನವನ್ನು ಆಯ್ಕೆಮಾಡಿ.',
+    codTitle: 'ಕ್ಯಾಶ್ ಆನ್ ಡೆಲಿವರಿ (COD)',
+    codBadge: 'ನಗದು ರೂಪದಲ್ಲಿ ಪಾವತಿಸಿ',
+    codDesc: 'ಆರ್ಡರ್ ವಿತರಣೆ ಅಥವಾ ಪಿಕಪ್ ಸಮಯದಲ್ಲಿ ಭೌತಿಕ ನಗದು ಮೂಲಕ ಪಾವತಿಸಿ.',
+    storeCreditTitle: 'ಸ್ಟೋರ್ ಕ್ರೆಡಿಟ್ (ಖದನ್)',
+    approvedBadge: 'ಅನುಮೋದಿಸಲಾಗಿದೆ',
+    creditTotal: 'ಒಟ್ಟು ಕ್ರೆಡಿಟ್',
+    creditRemaining: 'ಉಳಿದಿರುವುದು',
+    creditUsed: 'ಬಳಸಲಾಗಿದೆ',
+    creditNextDue: 'ಮುಂದಿನ ಬಾಕಿ ದಿನಾಂಕ',
+    creditAsAgreed: 'ಒಪ್ಪಿಕೊಂಡಂತೆ',
+    creditExceeded: 'ಒಟ್ಟು ಲಭ್ಯವಿರುವ ಕ್ರೆಡಿಟ್ ಮಿತಿಯನ್ನು ಮೀರಿದೆ.',
+    placeOrderCredit: 'ಕ್ರೆಡಿಟ್‌ನಲ್ಲಿ ಆದೇಶ ನೀಡಿ (₹{amount})',
+    placeOrderCod: 'ಕ್ಯಾಶ್ ಆನ್ ಡೆಲಿವರಿ ಆದೇಶ ನೀಡಿ (₹{amount})',
   },
   ml: {
     orderNow: 'ഓർഡർ ചെയ്യുക',
@@ -392,6 +446,19 @@ const NEARBY_I18N: Record<string, Record<string, string>> = {
     errCity: 'ദയവായി നിങ്ങളുടെ നഗരം തിരഞ്ഞെടുക്കുക.',
     errPinCode: 'ദയവായി നിങ്ങളുടെ പിൻ കോഡ് നൽകുക.',
     errDelivery: 'ദയവായി ഡെലിവറി രീതി തിരഞ്ഞെടുക്കുക.',
+    codTitle: 'ക്യാഷ് ഓൺ ഡെലിവറി (COD)',
+    codBadge: 'പണമായി നൽകുക',
+    codDesc: 'ഓർഡർ ഡെലിവറി അല്ലെങ്കിൽ പിക്കപ്പ് ചെയ്യുമ്പോൾ പണമായി നൽകുക.',
+    storeCreditTitle: 'സ്റ്റോർ ക്രെഡിറ്റ് (കടം)',
+    approvedBadge: 'അംഗീകരിച്ചു',
+    creditTotal: 'ആകെ ക്രെഡിറ്റ്',
+    creditRemaining: 'ബാക്കി',
+    creditUsed: 'ഉപയോഗിച്ചു',
+    creditNextDue: 'അടുത്ത അടവ് തീയതി',
+    creditAsAgreed: 'സമ്മതിച്ചതുപോലെ',
+    creditExceeded: 'ആകെ തുക ലഭ്യമായ ക്രെഡിറ്റ് പരിധി കവിഞ്ഞു.',
+    placeOrderCredit: 'ക്രെഡിറ്റിൽ ഓർഡർ നൽകുക (₹{amount})',
+    placeOrderCod: 'ക്യാഷ് ഓൺ ഡെലിവറി ഓർഡർ നൽകുക (₹{amount})',
   },
   hi: {
     orderNow: 'ऑर्डर करें',
@@ -454,6 +521,19 @@ const NEARBY_I18N: Record<string, Record<string, string>> = {
     errCity: 'कृपया अपना शहर चुनें।',
     errPinCode: 'कृपया अपना पिन कोड दर्ज करें।',
     errDelivery: 'कृपया डिलीवरी विधि चुनें।',
+    codTitle: 'कैश ऑन डिलीवरी (COD)',
+    codBadge: 'नकद भुगतान करें',
+    codDesc: 'ऑर्डर डिलीवरी या पिकअप के समय नकद भुगतान करें।',
+    storeCreditTitle: 'स्टोर क्रेडिट (उधार)',
+    approvedBadge: 'स्वीकृत',
+    creditTotal: 'कुल क्रेडिट',
+    creditRemaining: 'शेष',
+    creditUsed: 'इस्तेमाल हुआ',
+    creditNextDue: 'अगली देय तिथि',
+    creditAsAgreed: 'सहमति अनुसार',
+    creditExceeded: 'कुल राशि उपलब्ध क्रेडिट सीमा से अधिक है।',
+    placeOrderCredit: 'क्रेडिट पर ऑर्डर करें (₹{amount})',
+    placeOrderCod: 'कैश ऑन डिलीवरी ऑर्डर करें (₹{amount})',
   },
 };
 
@@ -827,7 +907,8 @@ function OrderModal({
 
   const [step, setStep] = useState<Step>('details');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup' | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod' | 'credit'>('razorpay');
+  const [creditEligibility, setCreditEligibility] = useState<any>(null);
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
   const [orderId, setOrderId] = useState('');
   const [selectedStateCode, setSelectedStateCode] = useState('');
@@ -856,6 +937,44 @@ function OrderModal({
   }, [selectedStateCode]);
 
   const total = (offer.offerPrice * (parseInt(form.quantity, 10) || 1)).toFixed(0);
+
+  useEffect(() => {
+    if (!token) {
+      setCreditEligibility(null);
+      return;
+    }
+    const storeId = offer?.storeId || '';
+    creditApi
+      .getMyCreditAccounts()
+      .then(res => {
+        const accounts = res.data?.data || [];
+        const approved =
+          accounts.find(
+            (a: any) =>
+              a.status === 'APPROVED' &&
+              (!storeId ||
+                String(a.storeId) === String(storeId) ||
+                a.storeName?.toLowerCase() === offer?.storeName?.toLowerCase())
+          ) || accounts.find((a: any) => a.status === 'APPROVED');
+        if (approved) {
+          setCreditEligibility({
+            hasAccount: true,
+            status: approved.status,
+            storeId: approved.storeId,
+            storeName: approved.storeName,
+            creditLimit: approved.creditLimit || 0,
+            availableCredit:
+              approved.availableCredit ??
+              (approved.creditLimit - (approved.reservedCreditAmount || 0)),
+            outstandingBalance: approved.outstandingBalance || 0,
+            nextDueDate: approved.nextDueDate,
+          });
+        } else {
+          setCreditEligibility(null);
+        }
+      })
+      .catch(() => setCreditEligibility(null));
+  }, [offer, token]);
 
   const handleNextToDelivery = () => {
     if (!token || !user) {
@@ -997,7 +1116,7 @@ function OrderModal({
         throw new Error(res.data.message || 'Order failed.');
       }
 
-      if (paymentMethod === 'cod') {
+      if (paymentMethod === 'cod' || paymentMethod === 'credit') {
         const targetOrderId = res.data?.orderId || res.data?.order?._id || '';
         setOrderId(targetOrderId);
         setStep('success');
@@ -1416,31 +1535,29 @@ function OrderModal({
               <TouchableOpacity
                 style={[
                   styles.optionCard,
-                  paymentMethod === 'cod'
-                    ? {
-                        borderColor: '#059669',
-                        borderWidth: 2,
-                        backgroundColor: isDark ? '#064e3b33' : '#ECFDF5',
-                      }
-                    : {
-                        opacity: 0.75,
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                      },
+                  {
+                    backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA',
+                    borderColor: paymentMethod === 'cod' ? '#059669' : (isDark ? '#374151' : '#E2E8F0'),
+                    borderWidth: paymentMethod === 'cod' ? 2 : 1.5,
+                  },
                 ]}
                 onPress={() => setPaymentMethod('cod')}
+                activeOpacity={0.8}
               >
                 <View style={[styles.razorpayIconBox, { backgroundColor: '#059669' }]}>
                   <Banknote size={20} color="#FFFFFF" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
-                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>Cash on Delivery (COD)</Text>
+                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>
+                      {txt.codTitle || 'Cash on Delivery (COD)'}
+                    </Text>
                     <View style={[styles.instantBadge, { backgroundColor: '#059669' }]}>
-                      <Text style={styles.instantBadgeText}>Pay in Cash</Text>
+                      <Text style={styles.instantBadgeText}>{txt.codBadge || 'Pay in Cash'}</Text>
                     </View>
                   </View>
                   <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
-                    Pay with physical cash upon order delivery or pickup.
+                    {txt.codDesc || 'Pay with physical cash upon order delivery or pickup.'}
                   </Text>
                 </View>
                 <View
@@ -1461,20 +1578,91 @@ function OrderModal({
                 </View>
               </TouchableOpacity>
 
+              {/* Store Credit (Kadan) Option */}
+              {creditEligibility && creditEligibility.status === 'APPROVED' && (
+                <TouchableOpacity
+                  style={[
+                    styles.optionCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA',
+                      borderColor: paymentMethod === 'credit' ? '#7C3AED' : (isDark ? '#374151' : '#E2E8F0'),
+                      borderWidth: paymentMethod === 'credit' ? 2 : 1.5,
+                    },
+                    (creditEligibility.availableCredit || 0) < Number(total) && { opacity: 0.5 },
+                  ]}
+                  onPress={() => {
+                    if ((creditEligibility.availableCredit || 0) >= Number(total)) {
+                      setPaymentMethod('credit');
+                    }
+                  }}
+                  disabled={(creditEligibility.availableCredit || 0) < Number(total)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.razorpayIconBox, { backgroundColor: '#7C3AED' }]}>
+                    <FileText size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+                      <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>
+                        {txt.storeCreditTitle || 'Store Credit (Kadan)'}
+                      </Text>
+                      <View style={[styles.instantBadge, { backgroundColor: '#7C3AED' }]}>
+                        <Text style={styles.instantBadgeText}>{txt.approvedBadge || 'APPROVED'}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                      {txt.creditTotal || 'Total Credit'}: ₹{(creditEligibility.creditLimit || 0).toLocaleString()} · {txt.creditRemaining || 'Remaining'}: ₹{(creditEligibility.availableCredit || 0).toLocaleString()} (₹{Math.max(0, (creditEligibility.creditLimit || 0) - (creditEligibility.availableCredit || 0)).toLocaleString()} {txt.creditUsed || 'used'}) · {txt.creditNextDue || 'Next Due'}:{' '}
+                      {creditEligibility.nextDueDate
+                        ? new Date(creditEligibility.nextDueDate).toLocaleDateString()
+                        : (txt.creditAsAgreed || 'As agreed')}
+                    </Text>
+                    {(creditEligibility.availableCredit || 0) < Number(total) && (
+                      <Text style={{ color: '#EF4444', fontSize: FontSizes.xs, marginTop: 2, fontWeight: '700' }}>
+                        {txt.creditExceeded || 'Total exceeds available credit limit.'}
+                      </Text>
+                    )}
+                  </View>
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      borderWidth: 2,
+                      borderColor: paymentMethod === 'credit' ? '#7C3AED' : '#9CA3AF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 4,
+                    }}
+                  >
+                    {paymentMethod === 'credit' && (
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#7C3AED' }} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[
                   styles.primaryBtn,
                   { marginTop: Spacing.xs },
+                  paymentMethod === 'credit' && { backgroundColor: '#7C3AED' },
                   paymentMethod === 'cod' && { backgroundColor: '#059669' },
                 ]}
                 onPress={() => handlePlaceOrder()}
                 activeOpacity={0.85}
               >
-                {paymentMethod === 'cod' ? (
+                {paymentMethod === 'credit' ? (
+                  <>
+                    <FileText size={16} color="#fff" />
+                    <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                      {(txt.placeOrderCredit || 'Place Order on Credit (₹{amount})').replace('{amount}', total)}
+                    </Text>
+                  </>
+                ) : paymentMethod === 'cod' ? (
                   <>
                     <Banknote size={16} color="#fff" />
                     <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                      Place Cash on Delivery Order (₹{total})
+                      {(txt.placeOrderCod || 'Place Cash on Delivery Order (₹{amount})').replace('{amount}', total)}
                     </Text>
                   </>
                 ) : (

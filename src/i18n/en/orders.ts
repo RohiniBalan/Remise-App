@@ -34,6 +34,7 @@ export const orders: TranslationSchema['orders'] = {
   pdfInvoice: 'PDF',
   track: 'Track',
   rateReviewProduct: 'Rate & Review Product',
+  rateYourStore: 'Rate Your Store',
   eligibleUntil: 'Eligible until {{date}}',
   refundWindowEnded: 'Refund window ended',
   refundCompleted: 'Cancelled · Refund Completed',

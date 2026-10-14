@@ -99,4 +99,5 @@ export const products: TranslationSchema['products'] = {
   reviewErrorMsg: 'மதிப்புரையைச் சமர்ப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   recent: 'சமீபத்தியது',
   customer: 'வாடிக்கையாளர்',
+  platformFeeNote: 'தளக் கட்டணம்: {{fee}} · நேரில் பெறுதல்: ₹0',
 };

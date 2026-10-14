@@ -99,4 +99,5 @@ export const products: TranslationSchema['products'] = {
   reviewErrorMsg: 'ವಿಮರ್ಶೆ ಸಲ್ಲಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
   recent: 'ಇತ್ತೀಚಿನ',
   customer: 'ಗ್ರಾಹಕರು',
+  platformFeeNote: 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಶುಲ್ಕ: {{fee}} · ಸ್ವಯಂ ಪಿಕಪ್: ₹0',
 };

@@ -422,7 +422,7 @@ export default function SellerSettingsScreen() {
           <View style={[
             styles.routeBadge,
             store?.razorpayAccountId
-              ? store?.razorpayRouteStatus === 'active'
+              ? (store?.razorpayRouteStatus !== 'under_review' && store?.razorpayRouteStatus !== 'rejected' && store?.razorpayRouteStatus !== 'suspended')
                 ? styles.routeBadgeActive
                 : styles.routeBadgePending
               : styles.routeBadgeNone
@@ -430,13 +430,19 @@ export default function SellerSettingsScreen() {
             <Text style={[
               styles.routeBadgeText,
               store?.razorpayAccountId
-                ? store?.razorpayRouteStatus === 'active'
+                ? (store?.razorpayRouteStatus !== 'under_review' && store?.razorpayRouteStatus !== 'rejected' && store?.razorpayRouteStatus !== 'suspended')
                   ? styles.routeBadgeTextActive
                   : styles.routeBadgeTextPending
                 : styles.routeBadgeTextNone
             ]}>
               {store?.razorpayAccountId
-                ? `ROUTE: ${store?.razorpayRouteStatus?.toUpperCase() || 'CONNECTED'}`
+                ? (store?.razorpayRouteStatus === 'under_review'
+                    ? 'ROUTE: UNDER REVIEW'
+                    : store?.razorpayRouteStatus === 'rejected'
+                      ? 'ROUTE: REJECTED'
+                      : store?.razorpayRouteStatus === 'suspended'
+                        ? 'ROUTE: SUSPENDED'
+                        : 'ROUTE: ACTIVE')
                 : 'ROUTE: NOT CONNECTED'}
             </Text>
           </View>

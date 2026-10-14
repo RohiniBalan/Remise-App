@@ -599,8 +599,10 @@ export default function BulkPurchaseScreen() {
               <Text style={[styles.heroTitle, isDark && { color: '#FFFFFF' }]}>{txt.heroTitle}</Text>
               <Text style={[styles.heroSubtitle, isDark && { color: '#9CA3AF' }]}>{txt.heroSubtitle}</Text>
               <TouchableOpacity style={styles.scanBtn} onPress={handleOpenScan} disabled={scanning}>
-                {scanning ? <ActivityIndicator size="small" color="#fff" /> : <ScanLine size={15} color="#fff" />}
-                <Text style={styles.scanBtnText}>{scanning ? txt.scanning : txt.scanPaperList}</Text>
+                {scanning ? <ActivityIndicator size="small" color="#fff" style={{ flexShrink: 0 }} /> : <ScanLine size={15} color="#fff" style={{ flexShrink: 0 }} />}
+                <Text style={styles.scanBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                  {scanning ? txt.scanning : txt.scanPaperList}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -630,11 +632,11 @@ export default function BulkPurchaseScreen() {
                 onPress={handleVoiceToggle}
               >
                 {voiceParsing
-                  ? <ActivityIndicator size="small" color="#fff" />
+                  ? <ActivityIndicator size="small" color="#fff" style={{ flexShrink: 0 }} />
                   : voice.listening
-                  ? <MicOff size={15} color="#fff" />
-                  : <Mic size={15} color="#fff" />}
-                <Text style={styles.voiceBtnText}>
+                  ? <MicOff size={15} color="#fff" style={{ flexShrink: 0 }} />
+                  : <Mic size={15} color="#fff" style={{ flexShrink: 0 }} />}
+                <Text style={styles.voiceBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
                   {voiceParsing ? txt.understanding : voice.listening ? txt.stop : txt.speakYourList}
                 </Text>
               </TouchableOpacity>
@@ -791,17 +793,36 @@ const styles = StyleSheet.create({
   heroIcon: { width: 48, height: 48, borderRadius: BorderRadius.lg, backgroundColor: CustomerColors.mint, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   heroTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: CustomerColors.black },
   heroSubtitle: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, marginTop: Spacing.xs, marginBottom: Spacing.md },
-  scanBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: CustomerColors.teal600, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md },
-  scanBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs },
+  scanBtn: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+    backgroundColor: CustomerColors.teal600,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    minHeight: 40,
+  },
+  scanBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.xs, flexShrink: 1 },
   voiceBox: { backgroundColor: CustomerColors.white, borderBottomWidth: 1, borderBottomColor: CustomerColors.steelBorder, padding: Spacing.md, gap: Spacing.sm },
   voiceLangRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
   langChip: { paddingHorizontal: Spacing.md, paddingVertical: 5, borderRadius: BorderRadius.pill, backgroundColor: CustomerColors.bg, borderWidth: 1, borderColor: CustomerColors.steelBorder },
   langChipActive: { backgroundColor: CustomerColors.teal600, borderColor: CustomerColors.teal600 },
   langChipText: { fontSize: FontSizes.xs, fontWeight: '600', color: CustomerColors.textSecondary },
   langChipTextActive: { color: '#fff' },
-  voiceBtn: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: CustomerColors.teal600, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md },
+  voiceBtn: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CustomerColors.teal600,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    minHeight: 42,
+  },
   voiceBtnActive: { backgroundColor: CustomerColors.primary },
-  voiceBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm },
+  voiceBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSizes.sm, flexShrink: 1, textAlign: 'center' },
   voiceListening: { fontSize: FontSizes.xs, color: CustomerColors.teal700 },
   voiceErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   voiceErrorText: { fontSize: FontSizes.xs, color: CustomerColors.primary, flex: 1 },

@@ -151,7 +151,9 @@ export function navigateFromNotificationData(data?: Record<string, any>) {
   console.log('[FCM] Navigating from notification data:', { url, type, data });
 
   try {
-    if (url.includes('credit') || type === 'credit') {
+    if (url.includes('store/credit') || url.includes('store-credit') || (url.includes('store') && (url.includes('credit') || type === 'credit'))) {
+      navigationRef.navigate('StoreCredit');
+    } else if (url.includes('credit') || type === 'credit') {
       navigationRef.navigate('MyCredit');
     } else if (url.includes('order') || type === 'order') {
       navigationRef.navigate('Orders');

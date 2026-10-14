@@ -15,7 +15,7 @@ export interface OrderAgainstOfferPayload {
   state?: string;
   pinCode?: string;
   deliveryMethod?: 'delivery' | 'pickup';
-  paymentMethod?: 'cod' | 'online' | 'card' | 'upi' | 'qr' | 'razorpay';
+  paymentMethod?: 'cod' | 'online' | 'card' | 'upi' | 'qr' | 'razorpay' | 'credit';
   paymentStatus?: 'Pending' | 'Completed' | 'Failed';
   utrNumber?: string;
   screenshot?: string;

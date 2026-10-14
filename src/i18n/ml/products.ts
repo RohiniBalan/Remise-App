@@ -99,4 +99,5 @@ export const products: TranslationSchema['products'] = {
   reviewErrorMsg: 'അവലോകനം സമർപ്പിക്കാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കുക.',
   recent: 'സമീപകാലം',
   customer: 'ഉപഭോക്താവ്',
+  platformFeeNote: 'പ്ലാറ്റ്‌ഫോം ഫീസ്: {{fee}} · നേരിട്ട് എടുക്കൽ: ₹0',
 };

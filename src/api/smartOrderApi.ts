@@ -90,7 +90,7 @@ export const smartOrderApi = {
     storeId: string;
     storeName: string;
     deliveryMethod: 'pickup' | 'delivery';
-    paymentMethod: 'cod' | 'qr' | 'razorpay';
+    paymentMethod: 'cod' | 'qr' | 'razorpay' | 'credit';
   }) =>
     gatewayClient.post('/api/payment/initiate', {
       ...payload,

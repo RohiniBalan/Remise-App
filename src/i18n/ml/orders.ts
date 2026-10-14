@@ -34,6 +34,7 @@ export const orders: TranslationSchema['orders'] = {
   pdfInvoice: 'PDF',
   track: 'ട്രാക്ക്',
   rateReviewProduct: 'റേറ്റിംഗും അഭിപ്രായവും നൽകുക',
+  rateYourStore: 'നിങ്ങളുടെ സ്റ്റോർ റേറ്റുചെയ്യുക',
   eligibleUntil: '{{date}} വരെ സാധുവാണ്',
   refundWindowEnded: 'റീഫണ്ട് സമയം കഴിഞ്ഞു',
   refundCompleted: 'റദ്ദാക്കി · റീഫണ്ട് പൂർത്തിയായി',
