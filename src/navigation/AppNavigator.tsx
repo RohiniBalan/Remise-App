@@ -12,13 +12,11 @@ import StoreOwnerNavigator from './StoreOwnerNavigator';
 import WholesalerNavigator from './WholesalerNavigator';
 import HomeBusinessNavigator from './HomeBusinessNavigator';
 import SellerNavigator from './SellerNavigator';
-import AdminNavigator from './AdminNavigator';
 import DeliveryPartnerNavigator from './DeliveryPartnerNavigator';
 
 import LoginRegisterScreen from '../screens/auth/LoginRegisterScreen';
 import BusinessLoginScreen from '../screens/auth/BusinessLoginScreen';
 import BusinessSignupScreen from '../screens/auth/BusinessSignupScreen';
-import AdminLoginScreen from '../screens/auth/AdminLoginScreen';
 import GoogleAuthWebViewScreen from '../screens/auth/GoogleAuthWebViewScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
@@ -37,7 +35,6 @@ export type RootStackParamList = {
   LoginRegister: undefined;
   BusinessLogin: undefined;
   BusinessSignup: undefined;
-  AdminLogin: undefined;
   GoogleAuthWebView: { role?: string } | undefined;
   ForgotPassword: { role?: string; returnTo?: string } | undefined;
   ResetPassword: { token?: string; role?: string; returnTo?: string } | undefined;
@@ -80,8 +77,8 @@ function RoleGate() {
     case 'admin':
     case 'superadmin':
     case 'super_admin':
-      console.log('ROLE GATE -> ADMIN');
-      return <AdminNavigator key={navigatorKey} />;
+      console.log('ROLE GATE -> ADMIN (fallback to customer storefront)');
+      return <CustomerNavigator key={navigatorKey} />;
 
     case 'store_owner':
       console.log('ROLE GATE -> STORE OWNER');
@@ -153,8 +150,6 @@ export default function AppNavigator() {
           name="BusinessSignup"
           component={BusinessSignupScreen}
         />
-
-        <RootStack.Screen name="AdminLogin" component={AdminLoginScreen} />
 
         <RootStack.Screen
           name="GoogleAuthWebView"

@@ -9,7 +9,6 @@ import { store } from './store';
 import { delivery } from './delivery';
 import { offers } from './offers';
 import { settings } from './settings';
-import { admin } from './admin';
 import { profile } from './profile';
 import { wishlist } from './wishlist';
 import { notifications } from './notifications';
@@ -25,7 +24,6 @@ export const en: TranslationSchema = {
   delivery,
   offers,
   settings,
-  admin,
   profile,
   wishlist,
   notifications,
