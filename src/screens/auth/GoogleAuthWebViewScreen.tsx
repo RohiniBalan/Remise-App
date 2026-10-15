@@ -175,6 +175,27 @@ export default function GoogleAuthWebViewScreen() {
         const { user, token } = authData;
 
         console.log('[GoogleAuth] Authenticated user:', user);
+
+        const userRole = (user?.role ? String(user.role) : 'user').toLowerCase().trim();
+        const isBusinessRole = ['store_owner', 'whole_saler', 'wholesaler', 'home_business'].includes(userRole);
+        const isAdminRole = ['admin', 'superadmin', 'super_admin'].includes(userRole);
+
+        if (isBusinessRole) {
+          console.warn('[GoogleAuth] Business role rejected in Customer app:', userRole);
+          handledRef.current = false;
+          setProcessingAuth(false);
+          setError('This Google account is registered as a Remise Business account. Please sign in using the Remise Business app.');
+          return;
+        }
+
+        if (isAdminRole) {
+          console.warn('[GoogleAuth] Admin role rejected in Customer app:', userRole);
+          handledRef.current = false;
+          setProcessingAuth(false);
+          setError('Administrator accounts must access Remise via the Web Portal (https://remise.digital). Mobile access is not supported.');
+          return;
+        }
+
         await login(user || {}, token);
 
         console.log('[GoogleAuth] Login saved. Redirecting to RoleGate.');

@@ -72,8 +72,25 @@ export default function LoginRegisterScreen() {
     try {
       if (isLogin) {
         const res = await authApi.login(email.trim(), password);
+        const userData = res.data.data;
 
-        await login(res.data.data, res.data.data.token);
+        const userRole = (userData?.role ? String(userData.role) : 'user').toLowerCase().trim();
+        const isBusinessRole = ['store_owner', 'whole_saler', 'wholesaler', 'home_business'].includes(userRole);
+        const isAdminRole = ['admin', 'superadmin', 'super_admin'].includes(userRole);
+
+        if (isBusinessRole) {
+          setError('This account is registered as a Remise Business account. Please sign in using the Remise Business app.');
+          setSubmitting(false);
+          return;
+        }
+
+        if (isAdminRole) {
+          setError('Administrator accounts must use the Remise Web Portal (https://remise.digital). Mobile app access is not supported.');
+          setSubmitting(false);
+          return;
+        }
+
+        await login(userData, userData.token);
         setSuccessMessage('Logged in successfully!');
         setShowSuccess(true);
         setTimeout(() => {
@@ -260,7 +277,7 @@ export default function LoginRegisterScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Business Portal Link Card */}
+        {/* Delivery Partner Portal Link Card */}
         <View style={styles.businessSection}>
           <TouchableOpacity
             style={styles.deliveryCard}
@@ -273,25 +290,6 @@ export default function LoginRegisterScreen() {
               Login or register to deliver with Remise →
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.businessCard}
-            onPress={() => navigation.navigate('BusinessLogin')}
-          >
-            <Text style={styles.businessCardTitle}>
-              💼 Are you a Business or Seller?
-            </Text>
-            <Text style={styles.businessCardSubtitle}>
-              Store Owner · Wholesaler · Home Business Login →
-            </Text>
-          </TouchableOpacity>
-
-          {/* <TouchableOpacity
-            style={styles.adminLink}
-            onPress={() => navigation.navigate('AdminLogin')}
-          >
-            <Text style={styles.adminLinkText}>Admin Portal Console →</Text>
-          </TouchableOpacity> */}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -397,30 +395,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  businessCard: {
-    width: '100%',
-    backgroundColor: '#0F172A',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    alignItems: 'center',
-  },
-  businessCardTitle: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: FontSizes.sm,
-  },
-  businessCardSubtitle: {
-    color: '#94A3B8',
-    fontSize: FontSizes.xs,
-    marginTop: 2,
-  },
   deliveryCard: {
     width: '100%',
     backgroundColor: '#115E59',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     alignItems: 'center',
-    marginBottom: Spacing.sm,
   },
   deliveryCardTitle: {
     color: '#FFFFFF',
@@ -431,14 +411,6 @@ const styles = StyleSheet.create({
     color: '#CCFBF1',
     fontSize: FontSizes.xs,
     marginTop: 2,
-  },
-  adminLink: {
-    paddingVertical: Spacing.xs,
-  },
-  adminLinkText: {
-    color: CustomerColors.textSecondary,
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
