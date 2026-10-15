@@ -177,6 +177,14 @@ export const smartOrderApi = {
   confirmSelfPickupOtp: (orderId: string, otp: string) =>
     gatewayClient.post(`/api/orders/${orderId}/confirm-self-pickup`, { otp }),
 
+  // Store Owner: Generate or reuse Razorpay Payment Link / QR for COD + Self Pickup
+  createStorePickupPaymentLink: (orderId: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/store-payment-link`),
+
+  // Store Owner: Check in-store online payment status with Razorpay
+  getStorePaymentStatus: (orderId: string) =>
+    gatewayClient.get(`/api/orders/${orderId}/store-payment-status`),
+
   // Store Owner / Driver: Verify Order OTP (Self Pickup or Authenticated Delivery)
   verifyOrderOtp: (orderId: string, otp: string) =>
     gatewayClient.post(`/api/orders/${orderId}/verify-otp`, { otp }),

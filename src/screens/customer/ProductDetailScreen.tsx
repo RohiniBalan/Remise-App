@@ -903,17 +903,12 @@ export default function ProductDetailScreen() {
             )}
           </View>
 
-          {/* Delivery & Platform Fee Note */}
+          {/* Delivery Note */}
           <View style={styles.deliveryNote}>
             <Truck size={14} color={CustomerColors.teal700} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.deliveryText} numberOfLines={2}>
-                {t('products.estDelivery', { time: product.deliveryTime || t('products.businessDays') })} · Free delivery on ₹499+
-              </Text>
-              <Text style={[styles.deliveryText, { fontSize: 10, marginTop: 2, color: CustomerColors.textSecondary }]}>
-                {t('products.platformFeeNote', { fee: platformFee === 0 ? (t('cart.free') || 'FREE') : `₹${platformFee}` }) || `Platform Fee: ${platformFee === 0 ? 'FREE' : `₹${platformFee}`} · Self Pickup: ₹0`}
-              </Text>
-            </View>
+            <Text style={styles.deliveryText}>
+              {t('products.estDeliveryOneDay') || 'Est. delivery in 1 Day'}
+            </Text>
           </View>
         </View>
 

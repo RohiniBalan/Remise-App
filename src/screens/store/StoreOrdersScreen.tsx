@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Alert } from 'react-native';
-import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard, RotateCcw, CheckCircle2, Banknote } from 'lucide-react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Alert, Image } from 'react-native';
+import { Search, Store, Truck, ShoppingBag, AlertCircle, FileText, CreditCard, RotateCcw, CheckCircle2, Banknote, QrCode, RefreshCw, X } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -65,6 +65,17 @@ export default function StoreOrdersScreen() {
   const [inlineVerifyingMap, setInlineVerifyingMap] = useState<Record<string, boolean>>({});
   const [inlineErrorMap, setInlineErrorMap] = useState<Record<string, string>>({});
   const [inlineSuccessMap, setInlineSuccessMap] = useState<Record<string, string>>({});
+
+  // Store QR Payment Modal state for COD + Self Pickup
+  const [storeQrModal, setStoreQrModal] = useState<{
+    orderId: string;
+    amount: number;
+    shortUrl: string;
+    paymentStatus: string;
+    checkingStatus?: boolean;
+    statusMessage?: string;
+  } | null>(null);
+  const [loadingQrId, setLoadingQrId] = useState<string | null>(null);
 
   const handleInlinePickupDelivery = async (o: any) => {
     const orderId = o.orderId || o._id;
@@ -167,6 +178,58 @@ export default function StoreOrdersScreen() {
         },
       ]
     );
+  };
+
+  const handleShowStoreQr = async (o: any) => {
+    const oid = o.orderId || o._id;
+    setLoadingQrId(oid);
+    try {
+      const res = await smartOrderApi.createStorePickupPaymentLink(oid);
+      if (res.data?.success && res.data.paymentLink) {
+        setStoreQrModal({
+          orderId: oid,
+          amount: res.data.paymentLink.amount,
+          shortUrl: res.data.paymentLink.shortUrl,
+          paymentStatus: o.paymentStatus || 'PENDING',
+        });
+      } else {
+        setErrorModal(res.data?.message || 'Failed to generate store QR code');
+      }
+    } catch (err: any) {
+      setErrorModal(err?.response?.data?.message || err?.message || 'Failed to generate store QR code');
+    } finally {
+      setLoadingQrId(null);
+    }
+  };
+
+  const handleCheckStoreQrStatus = async () => {
+    if (!storeQrModal) return;
+    const oid = storeQrModal.orderId;
+    setStoreQrModal(prev => prev ? { ...prev, checkingStatus: true, statusMessage: undefined } : null);
+    try {
+      const res = await smartOrderApi.getStorePaymentStatus(oid);
+      if (res.data?.paymentStatus === 'SUCCESS') {
+        setStoreQrModal(prev => prev ? {
+          ...prev,
+          paymentStatus: 'SUCCESS',
+          checkingStatus: false,
+          statusMessage: 'Payment verified! Order marked as Paid.',
+        } : null);
+        refresh();
+      } else {
+        setStoreQrModal(prev => prev ? {
+          ...prev,
+          checkingStatus: false,
+          statusMessage: 'Payment is still pending. Waiting for customer.',
+        } : null);
+      }
+    } catch (err: any) {
+      setStoreQrModal(prev => prev ? {
+        ...prev,
+        checkingStatus: false,
+        statusMessage: err?.response?.data?.message || 'Failed to check status',
+      } : null);
+    }
   };
 
   const handleVerifyPickupOtp = async () => {
@@ -370,14 +433,34 @@ export default function StoreOrdersScreen() {
               {/* Action Buttons Row */}
               <View style={styles.actionButtonsRow}>
                 {o.paymentMethod === 'cod' && (o.codDetails?.status === 'pending' || (!o.codDetails?.status && o.paymentStatus !== 'SUCCESS')) && (
-                  <TouchableOpacity
-                    style={styles.codCollectBtn}
-                    disabled={updating === o._id}
-                    onPress={() => handleConfirmCod(o)}
-                  >
-                    <Banknote size={12} color="#FFFFFF" />
-                    <Text style={styles.codCollectBtnText}>Confirm Cash (₹{o.totalAmount})</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <TouchableOpacity
+                      style={styles.codCollectBtn}
+                      disabled={updating === o._id}
+                      onPress={() => handleConfirmCod(o)}
+                    >
+                      <Banknote size={12} color="#FFFFFF" />
+                      <Text style={styles.codCollectBtnText}>Confirm Cash (₹{o.totalAmount})</Text>
+                    </TouchableOpacity>
+
+                    {/* Show QR Online Payment button for Self Pickup COD orders */}
+                    {o.deliveryMethod === 'pickup' && (
+                      <TouchableOpacity
+                        style={styles.storeQrBtn}
+                        disabled={loadingQrId === (o.orderId || o._id)}
+                        onPress={() => handleShowStoreQr(o)}
+                      >
+                        {loadingQrId === (o.orderId || o._id) ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <QrCode size={12} color="#FFFFFF" />
+                            <Text style={styles.storeQrBtnText}>Show QR</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 )}
 
                 {/* Self Pickup OTP Confirmation Section — Only for eligible, not-yet-delivered Self Pickup orders */}
@@ -561,6 +644,81 @@ export default function StoreOrdersScreen() {
         </Modal>
       )}
 
+      {/* In-Store QR Payment Modal for COD + Self Pickup */}
+      {storeQrModal ? (
+        <Modal visible={!!storeQrModal} transparent animationType="fade" onRequestClose={() => setStoreQrModal(null)}>
+          <View style={styles.errorModalBackdrop}>
+            <View style={[styles.errorModalCard, { maxWidth: 320, padding: 20 }]}>
+              <TouchableOpacity
+                style={{ position: 'absolute', top: 12, right: 12, padding: 4 }}
+                onPress={() => setStoreQrModal(null)}
+              >
+                <X size={20} color={isDark ? '#94A3B8' : '#64748B'} />
+              </TouchableOpacity>
+
+              <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: isDark ? '#1e3a8a' : '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                <QrCode size={22} color="#3B82F6" />
+              </View>
+
+              <Text style={styles.errorModalTitle}>In-Store QR Payment</Text>
+              <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                Order #{storeQrModal.orderId.slice(-8).toUpperCase()}
+              </Text>
+
+              <View style={{ backgroundColor: '#FFFFFF', padding: 10, borderRadius: 16, marginVertical: 12 }}>
+                <Image
+                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(storeQrModal.shortUrl)}` }}
+                  style={{ width: 180, height: 180 }}
+                />
+              </View>
+
+              <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#2DD4BF' : CustomerColors.teal700, marginBottom: 4 }}>
+                ₹{storeQrModal.amount}
+              </Text>
+
+              <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', marginBottom: 10 }}>
+                Customer can scan with Google Pay, PhonePe, Paytm, or any UPI app.
+              </Text>
+
+              {storeQrModal.statusMessage ? (
+                <View style={{
+                  padding: 8,
+                  borderRadius: BorderRadius.sm,
+                  backgroundColor: storeQrModal.paymentStatus === 'SUCCESS' ? (isDark ? '#064e3b' : '#ECFDF5') : (isDark ? '#451a03' : '#FFFBEB'),
+                  marginBottom: 10,
+                  width: '100%',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    color: storeQrModal.paymentStatus === 'SUCCESS' ? '#059669' : '#D97706',
+                    textAlign: 'center',
+                  }}>
+                    {storeQrModal.statusMessage}
+                  </Text>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.modalPrimaryBtn, { width: '100%', paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }]}
+                disabled={storeQrModal.checkingStatus}
+                onPress={handleCheckStoreQrStatus}
+              >
+                {storeQrModal.checkingStatus ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <RefreshCw size={13} color="#FFFFFF" />
+                    <Text style={styles.modalPrimaryBtnText}>Check Payment Status</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+
       {/* Custom Error Modal */}
       {errorModal ? (
         <Modal visible={!!errorModal} transparent animationType="fade" onRequestClose={() => setErrorModal(null)}>
@@ -740,6 +898,20 @@ const getStyles = (isDark: boolean) =>
       borderRadius: BorderRadius.md,
     },
     codCollectBtnText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    storeQrBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#2563EB',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.md,
+    },
+    storeQrBtnText: {
       fontSize: 10,
       fontWeight: '700',
       color: '#FFFFFF',

@@ -568,43 +568,7 @@ export default function BlogScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* STAY UPDATED / NEWSLETTER */}
-      <View style={[styles.newsletterCard, { backgroundColor: themeColors.card, borderColor: isDark ? 'rgba(255,0,0,0.4)' : '#FCA5A5' }]}>
-        <Mail size={24} color={BRAND_RED} style={{ marginBottom: Spacing.xs }} />
-        <Text style={[styles.newsletterTitle, { color: themeColors.textPrimary }]}>{blogData.stayUpdatedTitle}</Text>
-        <Text style={[styles.newsletterSubtitle, { color: themeColors.textSecondary }]}>{blogData.newsletterSubtitle}</Text>
 
-        {subscribed ? (
-          <View style={styles.subscribedBox}>
-            <Check size={16} color="#22C55E" />
-            <Text style={styles.subscribedText}>You are subscribed to Remise updates!</Text>
-          </View>
-        ) : (
-          <View style={styles.subscribeRow}>
-            <TextInput
-              style={[styles.subscribeInput, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.textPrimary }]}
-              placeholder={blogData.emailPlaceholder || "Enter your email"}
-              placeholderTextColor={themeColors.textSecondary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={newsletterEmail}
-              onChangeText={setNewsletterEmail}
-            />
-            <TouchableOpacity
-              style={[styles.subscribeBtn, subscribing && { opacity: 0.7 }]}
-              onPress={handleSubscribe}
-              disabled={subscribing}
-              activeOpacity={0.85}
-            >
-              {subscribing ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.subscribeBtnText}>{blogData.subscribeBtn}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
 
       {/* ARTICLE READER MODAL */}
       <Modal

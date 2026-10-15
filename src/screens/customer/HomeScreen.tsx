@@ -60,7 +60,6 @@ import {
   LayoutDashboard,
 } from 'lucide-react-native';
 import HeroCarousel from '../../components/home/HeroCarousel';
-import HomeFooter from '../../components/home/HomeFooter';
 import BrandHeader from '../../components/common/BrandHeader';
 import { ProductGroup } from '../../utils/supplierGrouping';
 import { offersApi } from '../../api/offersApi';
@@ -841,7 +840,6 @@ export default function HomeScreen() {
         )}
 
         <View style={{ height: Spacing.xl }} />
-        <HomeFooter />
       </ScrollView>
 
       <AuthRequiredModal

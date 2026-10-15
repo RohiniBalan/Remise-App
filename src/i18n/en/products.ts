@@ -54,6 +54,7 @@ export const products: TranslationSchema['products'] = {
   topSeller: 'Top Seller',
   stockLabel: 'Stock:',
   estDelivery: 'Est. delivery in {{time}}',
+  estDeliveryOneDay: 'Est. delivery in 1 Day',
   businessDays: '3–7 Business Days',
   similarProductsIn: 'Similar Products in {{category}}',
   noSpecificationsAvailable: 'No specifications available.',

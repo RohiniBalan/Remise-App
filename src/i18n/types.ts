@@ -252,6 +252,7 @@ export interface TranslationSchema {
     topSeller: string;
     stockLabel: string;
     estDelivery: string;
+    estDeliveryOneDay?: string;
     businessDays: string;
     similarProductsIn: string;
     noSpecificationsAvailable: string;
