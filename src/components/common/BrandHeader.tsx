@@ -71,7 +71,7 @@ export default function BrandHeader() {
           accessibilityLabel="Toggle Theme"
         >
           {isDark ? (
-            <Sun size={18} color="#FBBF24" />
+            <Sun size={18} color={CustomerColors.primary} />
           ) : (
             <Moon size={18} color="#4B5563" />
           )}

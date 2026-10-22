@@ -64,6 +64,9 @@ export const paymentApi = {
   verify: (payload: VerifyPaymentPayload) =>
     gatewayClient.post('/api/payment/verify', payload),
 
+  initiateCodOnline: (orderId: string, deliveryToken?: string) =>
+    gatewayClient.post('/api/payment/initiate-cod-online', { orderId, token: deliveryToken }),
+
   getStatus: (orderId: string) =>
     gatewayClient.get(`/api/payment/status/${orderId}`),
 

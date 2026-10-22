@@ -382,7 +382,7 @@ export default function CategoryScreen() {
             accessibilityLabel="Toggle Theme"
           >
             {isDark ? (
-              <Sun size={18} color="#FBBF24" />
+              <Sun size={18} color={CustomerColors.primary} />
             ) : (
               <Moon size={18} color="#4B5563" />
             )}
@@ -413,6 +413,7 @@ export default function CategoryScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipRow}
+            contentContainerStyle={styles.chipRowContent}
           >
             {categories.map(cat => (
               <Chip
@@ -430,6 +431,7 @@ export default function CategoryScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipRow}
+            contentContainerStyle={styles.chipRowContent}
           >
             {brands.map(b => (
               <Chip
@@ -445,11 +447,12 @@ export default function CategoryScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipRow}
+            contentContainerStyle={styles.chipRowContent}
           >
             {PRICE_PRESETS.map(preset => (
               <Chip
                 key={preset.label}
-                label={preset.label === 'All' ? t('common.allCategories') : preset.label}
+                label={preset.label === 'All' ? (language === 'ta' ? 'அனைத்தும்' : language === 'te' ? 'అన్నీ' : language === 'kn' ? 'ಎಲ್ಲಾ' : language === 'ml' ? 'എല്ലാം' : language === 'hi' ? 'सभी' : 'All') : preset.label}
                 active={pricePreset.label === preset.label}
                 isDark={isDark}
                 onPress={() => setPricePreset(preset)}
@@ -461,6 +464,7 @@ export default function CategoryScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.chipRow}
+              contentContainerStyle={styles.chipRowContent}
             >
               {availabilities.map(a => (
                 <Chip
@@ -641,8 +645,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EAEAEA',
     backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+    width: '100%',
   },
-  chipRow: { paddingHorizontal: Spacing.md, marginBottom: Spacing.xs },
+  chipRow: {
+    marginBottom: Spacing.xs,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  chipRowContent: {
+    paddingHorizontal: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   chip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,

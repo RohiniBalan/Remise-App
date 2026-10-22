@@ -76,7 +76,7 @@ export default function CustomerHeader() {
             accessibilityLabel="Toggle Theme"
           >
             {isDark ? (
-              <Sun size={20} color="#FBBF24" />
+              <Sun size={20} color={CustomerColors.primary} />
             ) : (
               <Moon size={20} color="#4B5563" />
             )}

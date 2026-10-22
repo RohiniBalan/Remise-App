@@ -3,7 +3,7 @@ import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { extractOrderId, PAYMENT_RETURN_HOST } from '../../api/paymentApi';
-import { GoldColors } from '../../styles/theme';
+import { CustomerColors } from '../../styles/theme';
 
 // Displays PhonePe's real hosted checkout page (a phonepe.com URL returned
 // by POST /api/payment/initiate) and watches for the sentinel redirect URL
@@ -34,7 +34,7 @@ export default function PhonePeWebViewScreen() {
         startInLoadingState
         renderLoading={() => (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={GoldColors.gold} />
+            <ActivityIndicator size="large" color={CustomerColors.primary} />
           </View>
         )}
       />

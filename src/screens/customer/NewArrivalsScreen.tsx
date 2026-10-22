@@ -480,6 +480,7 @@ export default function NewArrivalsScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.chipRow}
+              contentContainerStyle={styles.chipRowContent}
             >
               {categories.map(cat => (
                 <Chip
@@ -498,6 +499,7 @@ export default function NewArrivalsScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.chipRow}
+              contentContainerStyle={styles.chipRowContent}
             >
               {brands.map(b => (
                 <Chip
@@ -515,6 +517,7 @@ export default function NewArrivalsScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipRow}
+            contentContainerStyle={styles.chipRowContent}
           >
             {PRICE_PRESET_DEFS.map(preset => (
               <Chip
@@ -532,6 +535,7 @@ export default function NewArrivalsScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.chipRow}
+              contentContainerStyle={styles.chipRowContent}
             >
               {availabilities.map(a => (
                 <Chip
@@ -549,6 +553,7 @@ export default function NewArrivalsScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipRow}
+            contentContainerStyle={styles.chipRowContent}
           >
             {SORT_KEY_LIST.map(s => (
               <Chip
@@ -724,8 +729,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EAEAEA',
     backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+    width: '100%',
   },
-  chipRow: { paddingHorizontal: Spacing.md, marginBottom: Spacing.xs },
+  chipRow: {
+    marginBottom: Spacing.xs,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  chipRowContent: {
+    paddingHorizontal: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   chip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,

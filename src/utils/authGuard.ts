@@ -29,6 +29,79 @@ export function navigateToAuthFlow(navigation: NavigationLike | undefined) {
   return false;
 }
 
+export function navigateAfterLogin(navigation: any) {
+  if (!navigation) return;
+
+  // 1. Walk up to the root navigator (RootStack) which owns RoleGate
+  let rootNav: any = navigation;
+  while (rootNav?.getParent?.()) {
+    rootNav = rootNav.getParent();
+  }
+
+  // 2. If we found a parent root navigator with RoleGate, reset it
+  if (rootNav && rootNav !== navigation) {
+    try {
+      rootNav.reset({
+        index: 0,
+        routes: [{ name: 'RoleGate' }],
+      });
+      return;
+    } catch {
+      // Fall through
+    }
+  }
+
+  // 3. Try resetting current navigator to RoleGate
+  try {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'RoleGate' }],
+    });
+    return;
+  } catch {
+    // Fall through
+  }
+
+  // 4. Try resetting current navigator to CustomerTabs -> Home
+  try {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'CustomerTabs', params: { screen: 'Home' } }],
+    });
+    return;
+  } catch {
+    // Fall through
+  }
+
+  // 5. Try navigating directly to CustomerTabs or RoleGate
+  try {
+    navigation.navigate('CustomerTabs', { screen: 'Home' });
+    return;
+  } catch {
+    // Fall through
+  }
+
+  try {
+    navigation.navigate('RoleGate');
+    return;
+  } catch {
+    // Fall through
+  }
+
+  // 6. Fallback: pop to top or goBack
+  try {
+    if (navigation.canGoBack?.()) {
+      if (typeof navigation.popToTop === 'function') {
+        navigation.popToTop();
+      } else {
+        navigation.goBack();
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
+}
+
 export function requireAuthForPurchase(params: {
   navigation: NavigationLike | undefined;
   isAuthenticated: boolean;

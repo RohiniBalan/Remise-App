@@ -48,8 +48,11 @@ import {
   Copy,
   MessageSquare,
   Check,
+  CreditCard,
+  Banknote,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
+import { paymentApi } from '../../api/paymentApi';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
@@ -446,6 +449,57 @@ export default function DeliveryPartnerDashboardScreen() {
     }
   };
 
+  const handlePayOnlineOnDevice = async (orderId: string) => {
+    setPrefLoading(true);
+    try {
+      const res = await paymentApi.initiateCodOnline(orderId);
+      const data = res.data;
+      if (data?.success && data?.razorpayOrderId) {
+        navigation.navigate('RazorpayWebView', {
+          options: data,
+          orderId: orderId,
+          returnScreen: 'DeliveryPartnerDashboard',
+          onSuccess: () => {
+            load();
+            showAlert('Payment Success', 'Online payment completed and verified via Razorpay.', 'success');
+          },
+        });
+      } else {
+        showAlert('Payment Error', data?.message || 'Failed to initiate online payment.', 'error');
+      }
+    } catch (err: any) {
+      showAlert('Payment Error', err?.response?.data?.message || err?.message || 'Failed to initiate online checkout.', 'error');
+    } finally {
+      setPrefLoading(false);
+    }
+  };
+
+  const handleConfirmCashCollection = async (orderId: string, amount: number) => {
+    Alert.alert(
+      'Confirm Cash Collection',
+      `Have you physically received Rs ${Number(amount || 0).toLocaleString()} in cash from the customer?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Cash Received',
+          style: 'default',
+          onPress: async () => {
+            setPrefLoading(true);
+            try {
+              await smartOrderApi.confirmCodCollection(orderId, amount);
+              showAlert('Cash Collected', 'Cash collection recorded successfully. Please proceed to verify OTP for delivery.', 'success');
+              await load();
+            } catch (err: any) {
+              showAlert('Error', err?.response?.data?.message || 'Failed to record cash collection.', 'error');
+            } finally {
+              setPrefLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleResendPreferencePrompt = async () => {
     const active = dashboard.activeDelivery;
     if (!active) return;
@@ -611,7 +665,7 @@ export default function DeliveryPartnerDashboardScreen() {
               onPress={toggleTheme}
               accessibilityLabel="Toggle Light/Dark Theme"
             >
-              {isDark ? <Sun size={17} color="#F59E0B" /> : <Moon size={17} color="#6366F1" />}
+              {isDark ? <Sun size={17} color={CustomerColors.primary} /> : <Moon size={17} color="#6366F1" />}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -834,138 +888,151 @@ export default function DeliveryPartnerDashboardScreen() {
                 </View>
 
                 {/* Customer Payment Preference & Razorpay Payment Link */}
-                {(active.paymentMethod === 'cod' || active.paymentPreference || active.deliveryPaymentPrompt) && (
-                  <View style={[
-                    styles.prefBox,
-                    active.paymentStatus === 'paid' ? styles.prefBoxPaid :
-                    active.paymentPreference === 'ONLINE' ? styles.prefBoxOnline :
-                    styles.prefBoxDefault
-                  ]}>
-                    <View style={styles.prefHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <MessageSquare size={15} color={active.paymentPreference === 'ONLINE' ? '#3B82F6' : active.paymentPreference === 'CASH' ? '#F59E0B' : '#FF0000'} />
-                        <Text style={styles.prefTitle}>Payment Preference</Text>
-                      </View>
-                      <View style={[
-                        styles.prefBadge,
-                        active.paymentStatus === 'paid' ? styles.prefBadgePaid :
-                        active.paymentPreference === 'ONLINE' ? styles.prefBadgeOnline :
-                        active.paymentPreference === 'CASH' ? styles.prefBadgeCash :
-                        styles.prefBadgeWaiting
-                      ]}>
-                        <Text style={[
-                          styles.prefBadgeText,
-                          active.paymentStatus === 'paid' ? styles.prefTextPaid :
-                          active.paymentPreference === 'ONLINE' ? styles.prefTextOnline :
-                          active.paymentPreference === 'CASH' ? styles.prefTextCash :
-                          styles.prefTextWaiting
-                        ]}>
-                          {active.paymentStatus === 'paid'
-                            ? 'PAID & VERIFIED'
-                            : active.paymentPreference === 'ONLINE'
-                            ? 'Online Payment'
-                            : active.paymentPreference === 'CASH'
-                            ? 'Cash on Delivery'
-                            : 'Waiting Reply'}
-                        </Text>
-                      </View>
-                    </View>
+                {(active.paymentMethod === 'cod' || active.paymentPreference || active.deliveryPaymentPrompt) && (() => {
+                  const isPaidOnline = active.paymentStatus === 'paid' || active.paymentStatus === 'SUCCESS';
+                  const isCashCollected = active.codDetails?.status === 'collected';
 
-                    {active.paymentStatus === 'paid' ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                        <CheckCircle2 size={14} color="#10B981" />
-                        <Text style={[styles.prefDesc, { color: '#10B981', fontWeight: 'bold' }]}>
-                          Online payment completed (Rs {Number(active.paymentLinkDetails?.amount || active.totalAmount).toLocaleString()}). Handover with OTP.
-                        </Text>
+                  return (
+                    <View style={[
+                      styles.prefBox,
+                      (isPaidOnline || isCashCollected) ? styles.prefBoxPaid :
+                      active.paymentPreference === 'ONLINE' ? styles.prefBoxOnline :
+                      styles.prefBoxDefault
+                    ]}>
+                      <View style={styles.prefHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <MessageSquare size={15} color={active.paymentPreference === 'ONLINE' ? '#3B82F6' : active.paymentPreference === 'CASH' ? '#F59E0B' : '#FF0000'} />
+                          <Text style={styles.prefTitle}>Payment Choice & Collection</Text>
+                        </View>
+                        <View style={[
+                          styles.prefBadge,
+                          (isPaidOnline || isCashCollected) ? styles.prefBadgePaid :
+                          active.paymentPreference === 'ONLINE' ? styles.prefBadgeOnline :
+                          active.paymentPreference === 'CASH' ? styles.prefBadgeCash :
+                          styles.prefBadgeWaiting
+                        ]}>
+                          <Text style={[
+                            styles.prefBadgeText,
+                            (isPaidOnline || isCashCollected) ? styles.prefTextPaid :
+                            active.paymentPreference === 'ONLINE' ? styles.prefTextOnline :
+                            active.paymentPreference === 'CASH' ? styles.prefTextCash :
+                            styles.prefTextWaiting
+                          ]}>
+                            {isPaidOnline
+                              ? 'PAID ONLINE (VERIFIED)'
+                              : isCashCollected
+                              ? 'CASH COLLECTED'
+                              : active.paymentPreference === 'ONLINE'
+                              ? 'Online Payment'
+                              : active.paymentPreference === 'CASH'
+                              ? 'Cash on Delivery'
+                              : 'Waiting Reply'}
+                          </Text>
+                        </View>
                       </View>
-                    ) : active.paymentPreference === 'ONLINE' ? (
-                      <View style={{ marginTop: 8, gap: 8 }}>
-                        <Text style={styles.prefDesc}>Customer chose to pay online. Payment link is ready.</Text>
-                        {active.paymentLinkDetails?.shortUrl && (
-                          <View style={styles.prefLinkBox}>
-                            <Text style={styles.prefLinkText} numberOfLines={1}>
-                              {active.paymentLinkDetails.shortUrl}
-                            </Text>
+
+                      {isPaidOnline ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                          <CheckCircle2 size={14} color="#10B981" />
+                          <Text style={[styles.prefDesc, { color: '#10B981', fontWeight: 'bold' }]}>
+                            Online payment verified (Rs {Number(active.paymentLinkDetails?.amount || active.totalAmount).toLocaleString()}). Handover with OTP.
+                          </Text>
+                        </View>
+                      ) : isCashCollected ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                          <CheckCircle2 size={14} color="#10B981" />
+                          <Text style={[styles.prefDesc, { color: '#10B981', fontWeight: 'bold' }]}>
+                            Cash collected (Rs {Number(active.totalAmount).toLocaleString()}). Handover with OTP.
+                          </Text>
+                        </View>
+                      ) : active.paymentPreference === 'ONLINE' ? (
+                        <View style={{ marginTop: 8, gap: 8 }}>
+                          <Text style={styles.prefDesc}>Customer chose to pay online. Help customer pay on device or via link:</Text>
+                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
                             <TouchableOpacity
-                              style={styles.qrSmallBtn}
-                              onPress={() => {
-                                setQrData({
-                                  url: active.paymentLinkDetails.shortUrl,
-                                  amount: active.paymentLinkDetails.amount || active.totalAmount,
-                                  orderId: active.orderId,
-                                });
-                                setShowQrModal(true);
-                              }}
+                              style={[styles.prefActionBtn, { flex: 1, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }]}
+                              onPress={() => handlePayOnlineOnDevice(active.orderId)}
+                              disabled={prefLoading}
                             >
-                              <QrCode size={13} color="#FFFFFF" />
-                              <Text style={styles.qrSmallBtnText}>QR</Text>
+                              <CreditCard size={14} color="#FFFFFF" />
+                              <Text style={[styles.prefActionBtnText, { color: '#FFFFFF' }]}>Pay Online on Device</Text>
                             </TouchableOpacity>
+                            {active.paymentLinkDetails?.shortUrl && (
+                              <TouchableOpacity
+                                style={styles.qrSmallBtn}
+                                onPress={() => {
+                                  setQrData({
+                                    url: active.paymentLinkDetails.shortUrl,
+                                    amount: active.paymentLinkDetails.amount || active.totalAmount,
+                                    orderId: active.orderId,
+                                  });
+                                  setShowQrModal(true);
+                                }}
+                              >
+                                <QrCode size={13} color="#FFFFFF" />
+                                <Text style={styles.qrSmallBtnText}>QR</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
-                        )}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                          <TouchableOpacity
-                            style={styles.prefActionBtn}
-                            onPress={handleResendPaymentLink}
-                            disabled={prefLoading}
-                          >
-                            <Text style={styles.prefActionBtnText}>Resend Link (WhatsApp)</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.prefSecondaryBtn}
-                            onPress={() => handleSetPreference('CASH')}
-                            disabled={prefLoading}
-                          >
-                            <Text style={styles.prefSecondaryBtnText}>Switch to Cash</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ) : active.paymentPreference === 'CASH' ? (
-                      <View style={{ marginTop: 8, gap: 8 }}>
-                        <Text style={styles.prefDesc}>
-                          Collect <Text style={{ color: '#FF0000', fontWeight: 'bold' }}>Rs {Number(active.totalAmount || 0).toLocaleString()}</Text> in cash upon handover.
-                        </Text>
-                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                          <TouchableOpacity
-                            style={styles.prefActionBtn}
-                            onPress={() => handleSetPreference('ONLINE')}
-                            disabled={prefLoading}
-                          >
-                            <Text style={styles.prefActionBtnText}>Customer Wants Online</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={{ marginTop: 8, gap: 8 }}>
-                        <Text style={styles.prefDesc}>WhatsApp prompt sent. Customer has not chosen yet.</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                          <TouchableOpacity
-                            style={styles.prefSecondaryBtn}
-                            onPress={handleResendPreferencePrompt}
-                            disabled={prefLoading}
-                          >
-                            <Text style={styles.prefSecondaryBtnText}>Resend Prompt</Text>
-                          </TouchableOpacity>
-                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
                             <TouchableOpacity
-                              style={[styles.prefPillBtn, { borderColor: '#F59E0B' }]}
+                              style={styles.prefSecondaryBtn}
                               onPress={() => handleSetPreference('CASH')}
                               disabled={prefLoading}
                             >
-                              <Text style={[styles.prefPillBtnText, { color: '#F59E0B' }]}>Cash</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[styles.prefPillBtn, { borderColor: '#3B82F6' }]}
-                              onPress={() => handleSetPreference('ONLINE')}
-                              disabled={prefLoading}
-                            >
-                              <Text style={[styles.prefPillBtnText, { color: '#3B82F6' }]}>Online</Text>
+                              <Text style={styles.prefSecondaryBtnText}>Switch to Cash</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
-                      </View>
-                    )}
-                  </View>
-                )}
+                      ) : active.paymentPreference === 'CASH' ? (
+                        <View style={{ marginTop: 8, gap: 8 }}>
+                          <Text style={styles.prefDesc}>
+                            Collect <Text style={{ color: '#FF0000', fontWeight: 'bold' }}>Rs {Number(active.totalAmount || 0).toLocaleString()}</Text> in cash upon handover.
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <TouchableOpacity
+                              style={[styles.prefActionBtn, { backgroundColor: '#10B981', flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }]}
+                              onPress={() => handleConfirmCashCollection(active.orderId, active.totalAmount)}
+                              disabled={prefLoading}
+                            >
+                              <Check size={14} color="#FFFFFF" />
+                              <Text style={[styles.prefActionBtnText, { color: '#FFFFFF' }]}>Confirm Cash Received</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.prefSecondaryBtn}
+                              onPress={() => handleSetPreference('ONLINE')}
+                              disabled={prefLoading}
+                            >
+                              <Text style={styles.prefSecondaryBtnText}>Switch to Online</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={{ marginTop: 8, gap: 8 }}>
+                          <Text style={styles.prefDesc}>Customer has not confirmed preference yet. Select on customer's behalf:</Text>
+                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                            <TouchableOpacity
+                              style={[styles.prefPillBtn, { borderColor: '#F59E0B', flex: 1, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }]}
+                              onPress={() => handleSetPreference('CASH')}
+                              disabled={prefLoading}
+                            >
+                              <Banknote size={14} color="#F59E0B" />
+                              <Text style={[styles.prefPillBtnText, { color: '#F59E0B', fontWeight: 'bold' }]}>Cash</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.prefPillBtn, { borderColor: '#3B82F6', flex: 1, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }]}
+                              onPress={() => handleSetPreference('ONLINE')}
+                              disabled={prefLoading}
+                            >
+                              <CreditCard size={14} color="#3B82F6" />
+                              <Text style={[styles.prefPillBtnText, { color: '#3B82F6', fontWeight: 'bold' }]}>Online</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()}
 
                 <View style={styles.activeActionsRow}>
                   {action && (

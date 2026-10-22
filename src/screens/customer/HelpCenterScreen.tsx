@@ -537,7 +537,7 @@ export default function HelpCenterScreen() {
                         style={styles.headerIconBtn}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                        {isLight ? <Moon size={19} color="#111827" /> : <Sun size={19} color="#ffffff" />}
+                        {isLight ? <Moon size={19} color="#111827" /> : <Sun size={19} color="#FF0000" />}
                     </TouchableOpacity>
                 </View>
             </View>

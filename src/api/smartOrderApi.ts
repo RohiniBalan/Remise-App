@@ -66,6 +66,10 @@ export const smartOrderApi = {
   createRefund: (payload: RefundRequest) =>
     gatewayClient.post('/api/payment/refund', payload),
 
+  // Customer: Request / Resend return package verification OTP via WhatsApp
+  requestReturnOtp: (orderId: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/return-otp`),
+
   matchCart: (
     items: SmartOrderCartItem[],
     storeIds: string[],
@@ -125,9 +129,21 @@ export const smartOrderApi = {
   generateDeliveryLink: (orderId: string, payload: { deliveryPersonName?: string; deliveryPersonPhone?: string; vehicleType?: string; vehicleNumber?: string; notes?: string }) =>
     gatewayClient.post(`/api/orders/${orderId}/delivery-link`, payload),
 
-  // Store Owner: Request Remise Delivery Network partner for an order
-  requestRemiseDelivery: (orderId: string, payload: { distanceKm?: number; deliveryFee?: number; pickupAddress?: string; dropAddress?: string; instructions?: string }) =>
+  // Store Owner: Request Shadowfax / Remise Delivery Network partner for an order
+  requestRemiseDelivery: (orderId: string, payload: { distanceKm?: number; deliveryFee?: number; pickupAddress?: string; dropAddress?: string; instructions?: string; pickupLatitude?: number; pickupLongitude?: number; dropLatitude?: number; dropLongitude?: number }) =>
     gatewayClient.post(`/api/orders/${orderId}/request-remise-delivery`, payload),
+
+  // Store Owner: Check Shadowfax serviceability
+  checkShadowfaxServiceability: (orderId: string, payload: { pickupLatitude?: number; pickupLongitude?: number; dropLatitude?: number; dropLongitude?: number }) =>
+    gatewayClient.post(`/api/orders/${orderId}/shadowfax/serviceability`, payload),
+
+  // Store Owner: Cancel Shadowfax delivery
+  cancelShadowfaxDelivery: (orderId: string, reason: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/shadowfax/cancel`, { reason }),
+
+  // Store Owner: Retry Shadowfax delivery
+  retryShadowfaxDelivery: (orderId: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/shadowfax/retry`, {}),
 
   // Store Owner: Set delivery mode (own_delivery, portal_delivery, self_arrange)
   setDeliveryMode: (orderId: string, payload: { mode: 'own_delivery' | 'portal_delivery' | 'self_arrange'; notes?: string }) =>
@@ -199,6 +215,16 @@ export const smartOrderApi = {
 
   setDeliveryPortalPaymentPreference: (token: string, preference: 'CASH' | 'ONLINE') =>
     gatewayClient.post(`/api/orders/delivery-portal/${token}/payment-preference`, { preference }),
+
+  // Common Payment Preference for Customer, Delivery Partner, and Store Owner
+  setPaymentPreference: (orderId: string, preference: 'CASH' | 'ONLINE') =>
+    gatewayClient.post(`/api/orders/${orderId}/payment-preference`, { preference }),
+
+  initiateCodOnline: (orderId: string, deliveryToken?: string) =>
+    gatewayClient.post('/api/payment/initiate-cod-online', { orderId, token: deliveryToken }),
+
+  confirmCodCollection: (orderId: string, amount?: number, notes?: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/confirm-cod-collection`, { amount, notes }),
 
   resendPaymentPreferencePrompt: (orderId: string) =>
     gatewayClient.post('/api/orders/resend-payment-preference', { orderId }),

@@ -16,6 +16,7 @@ import {
 import { authApi } from '../../api/authApi';
 import { useAuth } from '../../context/AuthContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
+import { navigateAfterLogin } from '../../utils/authGuard';
 
 const USER_AGENT =
   Platform.OS === 'android'
@@ -199,10 +200,7 @@ export default function GoogleAuthWebViewScreen() {
         await login(user || {}, token);
 
         console.log('[GoogleAuth] Login saved. Redirecting to RoleGate.');
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'RoleGate' }],
-        });
+        navigateAfterLogin(navigation);
       } catch (err) {
         console.error('[GoogleAuth] Error storing login session:', err);
         handledRef.current = false;

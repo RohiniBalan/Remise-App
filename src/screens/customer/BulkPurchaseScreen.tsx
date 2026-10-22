@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Share, Alert, ActivityIndicator, Modal, Keyboard, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, HelpCircle, AlertCircle, Camera, Image as ImageIcon, X, Lock } from 'lucide-react-native';
+import { Plus, Trash2, Check, Share2, Store, ListChecks, ScanLine, Mic, MicOff, HelpCircle, AlertCircle, Camera, Image as ImageIcon, X, Lock, Pencil } from 'lucide-react-native';
 import { scanBulkList, parseVoiceList, translateGroceryTerm } from '../../api/geminiScanApi';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
@@ -223,6 +223,7 @@ const BulkItemRow = React.memo(function BulkItemRow({
   const [name, setName] = useState(item.name || '');
   const [brand, setBrand] = useState(item.brand || '');
   const [quantity, setQuantity] = useState(item.quantity || '');
+  const nameInputRef = useRef<TextInput>(null);
 
   // Keep local state in sync when parent item updates externally (translation, voice, scan)
   useEffect(() => {
@@ -259,24 +260,37 @@ const BulkItemRow = React.memo(function BulkItemRow({
         <View style={styles.nameQtyRow}>
           {/* Left: name on top, brand below */}
           <View style={styles.nameBrandCol}>
-            <TextInput
-              style={[styles.nameInput, isDark && { color: '#F9FAFB' }]}
-              value={name}
-              onChangeText={v => {
-                setName(v);
-                onUpdate(item.id, 'name', v);
-              }}
-              onBlur={() => {
-                onCommitName(item.id, name);
-              }}
-              onSubmitEditing={() => {
-                onCommitName(item.id, name);
-              }}
-              placeholder={txt.itemNamePlaceholder}
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
+            <View style={styles.nameInputWrap}>
+              <TextInput
+                ref={nameInputRef}
+                style={[styles.nameInput, isDark && { color: '#F9FAFB' }]}
+                value={name}
+                onChangeText={v => {
+                  setName(v);
+                  onUpdate(item.id, 'name', v);
+                }}
+                onBlur={() => {
+                  onCommitName(item.id, name);
+                }}
+                onSubmitEditing={() => {
+                  onCommitName(item.id, name);
+                }}
+                placeholder={txt.itemNamePlaceholder}
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {Boolean(name && name.trim()) && (
+                <TouchableOpacity
+                  onPress={() => nameInputRef.current?.focus()}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={styles.editNameIconBtn}
+                  accessibilityLabel="Edit product name"
+                >
+                  <Pencil size={13} color={isDark ? '#5EEAD4' : CustomerColors.teal600} />
+                </TouchableOpacity>
+              )}
+            </View>
             <TextInput
               style={[styles.brandInput, isDark && { color: '#9CA3AF' }]}
               value={brand}
@@ -444,7 +458,7 @@ export default function BulkPurchaseScreen() {
           return {
             id: uid(),
             name: dict.matched && dict.englishName ? dict.englishName : it.name,
-            brand: '',
+            brand: it.brand || '',
             quantity: it.quantity || (dict.quantity || ''),
             checked: false,
           };
@@ -844,7 +858,9 @@ const styles = StyleSheet.create({
   fieldsCol: { flex: 1, gap: 4 },
   nameQtyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xs },
   nameBrandCol: { flex: 1, gap: 2 },
-  nameInput: { fontSize: FontSizes.sm, color: '#1F2937', paddingVertical: 4, minHeight: 36, width: '100%' },
+  nameInputWrap: { flexDirection: 'row', alignItems: 'center', width: '100%' },
+  nameInput: { fontSize: FontSizes.sm, color: '#1F2937', paddingVertical: 4, minHeight: 36, flex: 1 },
+  editNameIconBtn: { padding: 4, alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
   qtyInput: { width: 64, fontSize: FontSizes.sm, color: CustomerColors.teal700, fontWeight: '600', textAlign: 'right', paddingVertical: 4, minHeight: 36 },
   brandInput: { fontSize: FontSizes.xs, color: CustomerColors.textSecondary, paddingVertical: 2, minHeight: 24, width: '100%' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.md, backgroundColor: CustomerColors.bg, borderTopWidth: 1, borderTopColor: CustomerColors.steelBorder },

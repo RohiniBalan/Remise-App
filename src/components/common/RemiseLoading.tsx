@@ -9,6 +9,7 @@ interface RemiseLoadingProps {
   subMessage?: string;
   fullscreen?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  theme?: 'dark' | 'light';
 }
 
 export default function RemiseLoading({
@@ -16,8 +17,10 @@ export default function RemiseLoading({
   subMessage,
   fullscreen = false,
   size = 'md',
+  theme: themeProp,
 }: RemiseLoadingProps) {
-  const { isDark } = useTheme();
+  const { isDark: contextIsDark } = useTheme();
+  const isDark = themeProp ? themeProp === 'dark' : contextIsDark;
 
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;

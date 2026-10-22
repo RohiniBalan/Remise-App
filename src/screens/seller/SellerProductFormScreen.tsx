@@ -50,6 +50,7 @@ import {
   normalizeSpecifications,
 } from '../../utils/categoryAttributes';
 import { STOCK_UNIT_OPTIONS } from '../../utils/productForm';
+import { guessCategory, buildGeneratedImageUrl } from '../../api/geminiScanApi';
 
 type BulkTier = { minQty: string; price: string };
 
@@ -441,6 +442,37 @@ export default function SellerProductFormScreen() {
     }
   };
 
+  const [aiGeneratingImage, setAiGeneratingImage] = useState(false);
+
+  const handleGenerateAiImage = async () => {
+    const title = form.title.trim();
+    if (!title) {
+      Alert.alert(
+        'Product Title Needed',
+        'Please enter a product title first so AI can generate the exact product image.'
+      );
+      return;
+    }
+
+    const resolvedCat = (form.category || '').trim() || guessCategory(title, form.description);
+    setAiGeneratingImage(true);
+    try {
+      const aiUrl = buildGeneratedImageUrl(title, resolvedCat, Date.now() % 1000, form.description);
+      setImages(prev => [
+        {
+          id: `ai-gen-${Date.now()}`,
+          uri: aiUrl,
+          url: aiUrl,
+        },
+        ...prev,
+      ]);
+    } catch (err: any) {
+      Alert.alert('AI Image Error', err?.message || 'Could not generate image.');
+    } finally {
+      setAiGeneratingImage(false);
+    }
+  };
+
   const pickImage = async (fromCamera: boolean, autoScan: boolean = false) => {
     if (fromCamera) {
       const granted = await requestCameraPermission();
@@ -736,6 +768,20 @@ export default function SellerProductFormScreen() {
           </View>
           <View style={styles.photoActionsRow}>
             <TouchableOpacity
+              style={[styles.photoActionButton, styles.aiActionButton]}
+              onPress={handleGenerateAiImage}
+              disabled={aiGeneratingImage}
+            >
+              {aiGeneratingImage ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Sparkles size={13} color="#fff" />
+                  <Text style={styles.photoActionButtonText}>AI Image</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.photoActionButton}
               onPress={() => pickImage(true)}
             >
@@ -776,6 +822,7 @@ export default function SellerProductFormScreen() {
             style={styles.emptyPhotoBox}
             onPress={() =>
               Alert.alert(t('store.productPhotosTitle') || 'Add Product Photo', 'Choose source', [
+                { text: '✨ AI Image', onPress: handleGenerateAiImage },
                 { text: t('store.cameraBtn') || 'Camera', onPress: () => pickImage(true) },
                 { text: t('store.galleryBtn') || 'Gallery', onPress: () => pickImage(false) },
                 { text: t('common.cancel') || 'Cancel', style: 'cancel' },
@@ -827,6 +874,7 @@ export default function SellerProductFormScreen() {
               style={styles.addMoreTile}
               onPress={() =>
                 Alert.alert(t('store.addMorePhotos') || 'Add More Photos', 'Choose source', [
+                  { text: '✨ AI Image', onPress: handleGenerateAiImage },
                   { text: t('store.cameraBtn') || 'Camera', onPress: () => pickImage(true) },
                   { text: t('store.galleryBtn') || 'Gallery', onPress: () => pickImage(false) },
                   { text: t('common.cancel') || 'Cancel', style: 'cancel' },
@@ -1388,6 +1436,9 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: BorderRadius.md,
+  },
+  aiActionButton: {
+    backgroundColor: '#7C3AED',
   },
   galleryActionButton: {
     backgroundColor: isDark ? '#1F2937' : '#F0FDFA',

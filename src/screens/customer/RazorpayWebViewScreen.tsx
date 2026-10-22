@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { paymentApi } from '../../api/paymentApi';
 import { creditApi } from '../../api/creditApi';
-import { GoldColors } from '../../styles/theme';
+import { CustomerColors } from '../../styles/theme';
 import { useTranslation, getSupplierTranslations } from '../../i18n';
 
 export default function RazorpayWebViewScreen() {
@@ -186,13 +186,13 @@ export default function RazorpayWebViewScreen() {
         startInLoadingState
         renderLoading={() => (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={GoldColors.gold} />
+            <ActivityIndicator size="large" color={CustomerColors.primary} />
           </View>
         )}
       />
       {verifying && (
         <View style={styles.overlay}>
-          <ActivityIndicator size="large" color={GoldColors.gold} />
+          <ActivityIndicator size="large" color={CustomerColors.primary} />
         </View>
       )}
     </View>

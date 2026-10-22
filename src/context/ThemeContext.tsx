@@ -62,10 +62,10 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: 'light',
-  isDark: false,
-  isLight: true,
-  colors: LightThemeColors,
+  theme: 'dark',
+  isDark: true,
+  isLight: false,
+  colors: DarkThemeColors,
   toggleTheme: () => {},
   setTheme: () => {},
 });
@@ -73,18 +73,15 @@ const ThemeContext = createContext<ThemeContextType>({
 export const useTheme = () => useContext(ThemeContext);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useColorScheme();
-  const [theme, setThemeState] = useState<ThemeMode>('light');
+  const [theme, setThemeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
     storage.getTheme().then((saved) => {
       if (saved === 'dark' || saved === 'light') {
         setThemeState(saved);
-      } else if (systemScheme === 'dark') {
-        setThemeState('dark');
       }
     }).catch(() => {});
-  }, [systemScheme]);
+  }, []);
 
   const setTheme = useCallback((next: ThemeMode) => {
     setThemeState(next);

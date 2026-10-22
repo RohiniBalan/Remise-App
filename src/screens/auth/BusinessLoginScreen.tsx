@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import { normalizeAuthErrorMessage, validateLoginForm } from '../../utils/authValidation';
+import { navigateAfterLogin } from '../../utils/authGuard';
 
 export default function BusinessLoginScreen() {
   const navigation = useNavigation<any>();
@@ -54,10 +55,8 @@ export default function BusinessLoginScreen() {
       setSuccessMessage('Logged in successfully! Opening merchant portal...');
       setShowSuccess(true);
       setTimeout(() => {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'RoleGate' }],
-        });
+        setShowSuccess(false);
+        navigateAfterLogin(navigation);
       }, 1200);
     } catch (err: any) {
       setError(

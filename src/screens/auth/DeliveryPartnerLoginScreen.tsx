@@ -24,6 +24,7 @@ import {
   normalizeAuthErrorMessage,
   validateLoginForm,
 } from '../../utils/authValidation';
+import { navigateAfterLogin } from '../../utils/authGuard';
 
 export default function DeliveryPartnerLoginScreen() {
   const navigation = useNavigation<any>();
@@ -53,7 +54,8 @@ export default function DeliveryPartnerLoginScreen() {
       setSuccessMessage('Signed in successfully! Opening dashboard...');
       setShowSuccess(true);
       setTimeout(() => {
-        navigation.reset({ index: 0, routes: [{ name: 'RoleGate' }] });
+        setShowSuccess(false);
+        navigateAfterLogin(navigation);
       }, 1200);
     } catch (err: any) {
       setError(

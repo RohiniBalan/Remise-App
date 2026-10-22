@@ -31,8 +31,10 @@ import {
   ShieldCheck,
   Calendar,
   ExternalLink,
+  Banknote,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
+import { paymentApi } from '../../api/paymentApi';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -170,6 +172,55 @@ export default function OrderDetailScreen() {
   const isRefundProcessing =
     !isRefundCompleted &&
     (order?.refundStatus === 'processing' || order?.refundStatus === 'requested');
+
+  const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
+  const [prefLoading, setPrefLoading] = useState(false);
+  const [payingOnline, setPayingOnline] = useState(false);
+
+  const handleSelectPreference = async (pref: 'CASH' | 'ONLINE') => {
+    if (!orderId) return;
+    setPrefLoading(true);
+    try {
+      const res = await smartOrderApi.setPaymentPreference(orderId, pref);
+      if (res.data?.success) {
+        setOrder((prev: any) => ({
+          ...prev,
+          paymentPreference: pref,
+        }));
+      } else {
+        Alert.alert('Payment Choice', res.data?.message || 'Failed to update preference.');
+      }
+    } catch (err: any) {
+      Alert.alert('Payment Choice', err?.response?.data?.message || err?.message || 'Failed to update preference.');
+    } finally {
+      setPrefLoading(false);
+    }
+  };
+
+  const handlePayOnline = async () => {
+    if (!orderId) return;
+    setPayingOnline(true);
+    try {
+      const res = await paymentApi.initiateCodOnline(orderId);
+      const data = res.data;
+      if (data?.success && data?.razorpayOrderId) {
+        navigation.navigate('RazorpayWebView', {
+          options: data,
+          orderId: orderId,
+          returnScreen: 'OrderDetail',
+          onSuccess: () => {
+            fetchOrderDetail();
+          },
+        });
+      } else {
+        Alert.alert('Online Payment', data?.message || 'Failed to initiate online checkout.');
+      }
+    } catch (err: any) {
+      Alert.alert('Online Payment', err?.response?.data?.message || err?.message || 'Failed to initiate online checkout.');
+    } finally {
+      setPayingOnline(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -334,6 +385,154 @@ export default function OrderDetailScreen() {
               </View>
             )}
           </View>
+
+          {/* COD Payment Choice Card (Cash vs Pay Online) */}
+          {(isCod &&
+            !isCancelled &&
+            (order?.paymentPreference ||
+              order?.paymentStatus === 'SUCCESS' ||
+              order?.codDetails?.status === 'collected' ||
+              (isPickup && order?.deliveryStatus === 'Ready') ||
+              (!isPickup && order?.deliveryStatus === 'Out for Delivery'))) && (
+            <View style={styles.choiceCard}>
+              <View style={styles.choiceHeader}>
+                <View style={styles.choiceHeaderLeft}>
+                  <Text style={styles.choiceTitle}>Payment Choice (COD)</Text>
+                  <Text style={styles.choiceSubtitle}>
+                    {isPickup ? 'Store Counter Collection' : 'Home Delivery Handover'}
+                  </Text>
+                </View>
+                <View style={[
+                  styles.choiceBadge,
+                  order?.paymentStatus === 'SUCCESS' ? styles.choiceBadgePaid :
+                  order?.codDetails?.status === 'collected' ? styles.choiceBadgePaid :
+                  order?.paymentPreference === 'ONLINE' ? styles.choiceBadgeOnline :
+                  order?.paymentPreference === 'CASH' ? styles.choiceBadgeCash :
+                  styles.choiceBadgeWaiting
+                ]}>
+                  <Text style={[
+                    styles.choiceBadgeText,
+                    order?.paymentStatus === 'SUCCESS' ? styles.choiceBadgeTextPaid :
+                    order?.codDetails?.status === 'collected' ? styles.choiceBadgeTextPaid :
+                    order?.paymentPreference === 'ONLINE' ? styles.choiceBadgeTextOnline :
+                    order?.paymentPreference === 'CASH' ? styles.choiceBadgeTextCash :
+                    styles.choiceBadgeTextWaiting
+                  ]}>
+                    {order?.paymentStatus === 'SUCCESS'
+                      ? 'PAID ONLINE (VERIFIED)'
+                      : order?.codDetails?.status === 'collected'
+                      ? 'CASH COLLECTED'
+                      : order?.paymentPreference === 'ONLINE'
+                      ? 'ONLINE PAYMENT SELECTED'
+                      : order?.paymentPreference === 'CASH'
+                      ? 'CASH ON DELIVERY'
+                      : 'CHOICE PENDING'}
+                  </Text>
+                </View>
+              </View>
+
+              {order?.paymentStatus === 'SUCCESS' ? (
+                <View style={styles.choiceSuccessRow}>
+                  <CheckCircle2 size={16} color="#10B981" />
+                  <Text style={styles.choiceSuccessText}>
+                    Online payment of ₹{Number(order?.totalAmount || 0).toLocaleString()} verified via Razorpay.
+                  </Text>
+                </View>
+              ) : order?.codDetails?.status === 'collected' ? (
+                <View style={styles.choiceSuccessRow}>
+                  <CheckCircle2 size={16} color="#10B981" />
+                  <Text style={styles.choiceSuccessText}>
+                    Cash of ₹{Number(order?.totalAmount || 0).toLocaleString()} collected upon handover.
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.choiceSubText}>
+                    Total Amount Due: <Text style={{ fontWeight: '800', color: isDark ? '#FFFFFF' : '#0F172A' }}>₹{Number(order?.totalAmount || 0).toLocaleString()}</Text>
+                  </Text>
+                  <Text style={[styles.choiceSubText, { fontSize: 11, marginTop: 2, marginBottom: 12 }]}>
+                    Choose to pay in Cash upon arrival or Pay Online now via Razorpay (UPI, Card, Netbanking):
+                  </Text>
+
+                  <View style={styles.choiceBtnRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.choiceBtn,
+                        styles.choiceBtnCash,
+                        order?.paymentPreference === 'CASH' && styles.choiceBtnActiveCash,
+                        prefLoading && { opacity: 0.6 }
+                      ]}
+                      onPress={() => handleSelectPreference('CASH')}
+                      disabled={prefLoading || payingOnline}
+                    >
+                      <Banknote size={15} color={order?.paymentPreference === 'CASH' ? '#FFFFFF' : '#D97706'} />
+                      <Text style={[
+                        styles.choiceBtnText,
+                        styles.choiceBtnTextCash,
+                        order?.paymentPreference === 'CASH' && { color: '#FFFFFF' }
+                      ]}>
+                        Pay Cash
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.choiceBtn,
+                        styles.choiceBtnOnline,
+                        order?.paymentPreference === 'ONLINE' && styles.choiceBtnActiveOnline,
+                        (prefLoading || payingOnline) && { opacity: 0.6 }
+                      ]}
+                      onPress={handlePayOnline}
+                      disabled={prefLoading || payingOnline}
+                    >
+                      {payingOnline ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <CreditCard size={15} color={order?.paymentPreference === 'ONLINE' ? '#FFFFFF' : '#2563EB'} />
+                      )}
+                      <Text style={[
+                        styles.choiceBtnText,
+                        styles.choiceBtnTextOnline,
+                        order?.paymentPreference === 'ONLINE' && { color: '#FFFFFF' }
+                      ]}>
+                        Pay Online (Razorpay)
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Customer Return Verification OTP Card */}
+          {Boolean(
+            order?.returnOtp &&
+              !order?.isReturnOtpVerified
+          ) && (
+            <View style={[styles.card, { borderColor: '#F59E0B', borderWidth: 1.5, backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : '#FFFBEB' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#D97706', alignItems: 'center', justifyContent: 'center' }}>
+                  <RotateCcw size={22} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#D97706', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                    RETURN PACKAGE VERIFICATION
+                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#F3F4F6' : '#111827', marginTop: 2 }}>
+                    Please share code {order.returnOtp} with delivery agent after verifying the package.
+                  </Text>
+                  <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                    Provide this 6-digit code upon handing over your return items.
+                  </Text>
+                </View>
+                <View style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#D97706' }}>
+                  <Text style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: '900', color: '#FFFFFF', letterSpacing: 2 }}>
+                    {order.returnOtp}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Quick Action Buttons */}
           <View style={styles.actionGrid}>
@@ -1061,5 +1260,131 @@ const getStyles = (isDark: boolean) =>
       fontSize: FontSizes.xs,
       fontWeight: '700',
       color: isDark ? '#5EEAD4' : '#0F766E',
+    },
+    choiceCard: {
+      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.md,
+      marginBottom: Spacing.md,
+      borderWidth: 1.5,
+      borderColor: isDark ? '#374151' : '#E2E8F0',
+      ...Shadows.card,
+    },
+    choiceHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    choiceHeaderLeft: {
+      flex: 1,
+    },
+    choiceTitle: {
+      fontSize: FontSizes.sm,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : CustomerColors.black,
+    },
+    choiceSubtitle: {
+      fontSize: 11,
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      marginTop: 1,
+    },
+    choiceBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      borderWidth: 1,
+    },
+    choiceBadgePaid: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5',
+      borderColor: '#10B981',
+    },
+    choiceBadgeOnline: {
+      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
+      borderColor: '#3B82F6',
+    },
+    choiceBadgeCash: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+      borderColor: '#F59E0B',
+    },
+    choiceBadgeWaiting: {
+      backgroundColor: isDark ? 'rgba(148, 163, 184, 0.2)' : '#F1F5F9',
+      borderColor: '#CBD5E1',
+    },
+    choiceBadgeText: {
+      fontSize: 9,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+    },
+    choiceBadgeTextPaid: {
+      color: '#10B981',
+    },
+    choiceBadgeTextOnline: {
+      color: '#2563EB',
+    },
+    choiceBadgeTextCash: {
+      color: '#D97706',
+    },
+    choiceBadgeTextWaiting: {
+      color: isDark ? '#94A3B8' : '#64748B',
+    },
+    choiceSuccessRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 10,
+    },
+    choiceSuccessText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#10B981',
+      flex: 1,
+    },
+    choiceSubText: {
+      fontSize: 12,
+      color: isDark ? '#94A3B8' : '#64748B',
+      lineHeight: 17,
+    },
+    choiceBtnRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    choiceBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1.5,
+    },
+    choiceBtnCash: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+      borderColor: '#F59E0B',
+    },
+    choiceBtnActiveCash: {
+      backgroundColor: '#D97706',
+      borderColor: '#D97706',
+    },
+    choiceBtnOnline: {
+      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+      borderColor: '#3B82F6',
+    },
+    choiceBtnActiveOnline: {
+      backgroundColor: '#2563EB',
+      borderColor: '#2563EB',
+    },
+    choiceBtnText: {
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    choiceBtnTextCash: {
+      color: '#D97706',
+    },
+    choiceBtnTextOnline: {
+      color: '#2563EB',
     },
   });

@@ -26,6 +26,7 @@ import {
   validateLoginForm,
   validateSignupForm,
 } from '../../utils/authValidation';
+import { navigateAfterLogin } from '../../utils/authGuard';
 
 export default function LoginRegisterScreen() {
   const navigation = useNavigation<any>();
@@ -94,10 +95,8 @@ export default function LoginRegisterScreen() {
         setSuccessMessage('Logged in successfully!');
         setShowSuccess(true);
         setTimeout(() => {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'RoleGate' }],
-          });
+          setShowSuccess(false);
+          navigateAfterLogin(navigation);
         }, 1200);
       } else {
         const res = await authApi.register({
