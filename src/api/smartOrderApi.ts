@@ -194,12 +194,34 @@ export const smartOrderApi = {
     gatewayClient.post(`/api/orders/${orderId}/confirm-self-pickup`, { otp }),
 
   // Store Owner: Generate or reuse Razorpay Payment Link / QR for COD + Self Pickup
-  createStorePickupPaymentLink: (orderId: string) =>
-    gatewayClient.post(`/api/orders/${orderId}/store-payment-link`),
+  createStorePickupPaymentLink: async (orderId: string) => {
+    try {
+      return await gatewayClient.post(`/api/orders/${orderId}/store-payment-link`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '';
+      if (msg.includes('ECONNREFUSED') || msg.includes('3005') || err?.response?.status === 500) {
+        try {
+          return await gatewayClient.post('/api/payment/internal/create-pickup-payment-link', { orderId });
+        } catch (directErr) {}
+      }
+      throw err;
+    }
+  },
 
   // Store Owner: Check in-store online payment status with Razorpay
-  getStorePaymentStatus: (orderId: string) =>
-    gatewayClient.get(`/api/orders/${orderId}/store-payment-status`),
+  getStorePaymentStatus: async (orderId: string) => {
+    try {
+      return await gatewayClient.get(`/api/orders/${orderId}/store-payment-status`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '';
+      if (msg.includes('ECONNREFUSED') || msg.includes('3005') || err?.response?.status === 500) {
+        try {
+          return await gatewayClient.post('/api/payment/internal/verify-payment-link', { orderId });
+        } catch (directErr) {}
+      }
+      throw err;
+    }
+  },
 
   // Store Owner / Driver: Verify Order OTP (Self Pickup or Authenticated Delivery)
   verifyOrderOtp: (orderId: string, otp: string) =>
@@ -210,8 +232,22 @@ export const smartOrderApi = {
     gatewayClient.post(`/api/orders/delivery-portal/${token}/verify-otp`, { otp }),
 
   // Delivery Payment Preference & Razorpay Payment Link
-  setDeliveryPartnerPaymentPreference: (orderId: string, preference: 'CASH' | 'ONLINE') =>
-    gatewayClient.post(`/api/orders/delivery/partner/${orderId}/payment-preference`, { preference }),
+  setDeliveryPartnerPaymentPreference: async (orderId: string, preference: 'CASH' | 'ONLINE') => {
+    try {
+      return await gatewayClient.post(`/api/orders/delivery/partner/${orderId}/payment-preference`, { preference });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '';
+      if (preference === 'ONLINE' && (msg.includes('ECONNREFUSED') || msg.includes('3005') || err?.response?.status === 500)) {
+        try {
+          return await gatewayClient.post('/api/payment/internal/create-delivery-payment-link', { orderId });
+        } catch (directErr) {}
+      }
+      throw err;
+    }
+  },
+
+  createDeliveryPaymentLink: (orderId: string) =>
+    gatewayClient.post('/api/payment/internal/create-delivery-payment-link', { orderId }),
 
   setDeliveryPortalPaymentPreference: (token: string, preference: 'CASH' | 'ONLINE') =>
     gatewayClient.post(`/api/orders/delivery-portal/${token}/payment-preference`, { preference }),

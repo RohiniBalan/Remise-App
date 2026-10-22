@@ -23,6 +23,7 @@ import { resolveImageUrl } from '../../utils/imageUrl';
 import { requestCameraPermission } from '../../utils/permissions';
 import { sellerAiApi } from '../../api/sellerApi';
 import BulkScanUploadModal from '../../components/common/BulkScanUploadModal';
+import ImageCropModal, { CroppedImageResult } from '../../components/common/ImageCropModal';
 import { useTranslation, translateProductName, translateCategory } from '../../i18n';
 
 function getProductImage(p: any): string {
@@ -95,6 +96,17 @@ export default function SellerProductsScreen() {
   const [scanning, setScanning] = useState(false);
   const [showBulkScanModal, setShowBulkScanModal] = useState(false);
 
+  // Square crop state
+  const [cropTarget, setCropTarget] = useState<{
+    uri: string;
+    base64?: string;
+    width?: number;
+    height?: number;
+    type?: string;
+    fromCamera?: boolean;
+  } | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+
   const isWholesaler = user?.role === 'whole_saler' || user?.role === 'wholesaler';
 
   const filtered = useMemo(
@@ -103,15 +115,16 @@ export default function SellerProductsScreen() {
   );
   const productTypes = useMemo(() => groupByType(filtered), [filtered]);
 
-  const handleScanSingle = async (asset: any) => {
-    if (!asset?.uri) return;
+  const handleCropConfirm = async (cropped: CroppedImageResult) => {
+    setShowCropModal(false);
+    setCropTarget(null);
     setScanning(true);
     try {
       const fd = new FormData();
       fd.append('image', {
-        uri: asset.uri,
-        name: asset.fileName || 'product.jpg',
-        type: asset.type || 'image/jpeg',
+        uri: cropped.uri,
+        name: cropped.fileName || 'product.jpg',
+        type: cropped.type || 'image/jpeg',
       } as any);
 
       const res = await sellerAiApi.scanSingleProduct(fd);
@@ -128,12 +141,20 @@ export default function SellerProductsScreen() {
           storeDiscountedPrice: ext.storeDiscountedPrice ? String(ext.storeDiscountedPrice) : '',
           description: ext.description || '',
           brand: ext.brand || '',
-          imageUrl: ext.imageUrl || '',
+          imageUrl: cropped.uri, // 1:1 square cropped image
+          images: [cropped.uri],
           stockUnit: ext.stockUnit || ext.unit || 'Count',
           unit: ext.stockUnit || ext.unit || 'Count',
           availability: 'In Stock',
           attributes: ext.attributes || {},
           specifications: ext.specifications || [],
+          croppedAsset: {
+            uri: cropped.uri,
+            fileName: cropped.fileName,
+            type: cropped.type,
+            width: cropped.width,
+            height: cropped.height,
+          },
         },
       });
     } catch (err: any) {
@@ -143,6 +164,17 @@ export default function SellerProductsScreen() {
     } finally {
       setScanning(false);
       setScanModalType(null);
+    }
+  };
+
+  const handleRetakeCrop = () => {
+    const fromCam = cropTarget?.fromCamera;
+    setShowCropModal(false);
+    setCropTarget(null);
+    if (fromCam) {
+      handleCamera();
+    } else {
+      handleGallery();
     }
   };
 
@@ -156,11 +188,19 @@ export default function SellerProductsScreen() {
     const granted = await requestCameraPermission();
     if (!granted) return;
 
-    const res = await launchCamera({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
+    const res = await launchCamera({ mediaType: 'photo', quality: 0.9, maxWidth: 1600, maxHeight: 1600, includeBase64: true, saveToPhotos: false });
     if (res.didCancel || res.errorCode) return;
     const picked = res.assets?.[0];
-    if (picked) {
-      handleScanSingle(picked);
+    if (picked?.uri) {
+      setCropTarget({
+        uri: picked.uri,
+        base64: picked.base64,
+        width: picked.width,
+        height: picked.height,
+        type: picked.type || 'image/jpeg',
+        fromCamera: true,
+      });
+      setShowCropModal(true);
     }
   };
 
@@ -173,11 +213,19 @@ export default function SellerProductsScreen() {
       return;
     }
 
-    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
+    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.9, selectionLimit: 1, maxWidth: 1600, maxHeight: 1600, includeBase64: true });
     if (res.didCancel || res.errorCode) return;
     const picked = res.assets?.[0];
-    if (picked) {
-      handleScanSingle(picked);
+    if (picked?.uri) {
+      setCropTarget({
+        uri: picked.uri,
+        base64: picked.base64,
+        width: picked.width,
+        height: picked.height,
+        type: picked.type || 'image/jpeg',
+        fromCamera: false,
+      });
+      setShowCropModal(true);
     }
   };
 
@@ -302,6 +350,20 @@ export default function SellerProductsScreen() {
         visible={showBulkScanModal}
         onClose={() => setShowBulkScanModal(false)}
         onRefresh={refresh}
+      />
+
+      <ImageCropModal
+        visible={showCropModal}
+        imageUri={cropTarget?.uri || ''}
+        imageBase64={cropTarget?.base64}
+        imageWidth={cropTarget?.width}
+        imageHeight={cropTarget?.height}
+        onConfirm={handleCropConfirm}
+        onCancel={() => {
+          setShowCropModal(false);
+          setCropTarget(null);
+        }}
+        onRetake={handleRetakeCrop}
       />
     </View>
   );

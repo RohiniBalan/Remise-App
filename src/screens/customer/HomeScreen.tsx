@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   ToastAndroid,
   Alert,
+  AppState,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
@@ -252,65 +253,86 @@ export default function HomeScreen() {
   }, []);
 
   const fetchNearbyOffers = useCallback(async (lat?: number, lng?: number) => {
+    if (lat === undefined || lng === undefined) {
+      setNearbyOffers([]);
+      setNearbyStatus('idle');
+      return;
+    }
     setNearbyStatus('loading');
     try {
-      if (lat !== undefined && lng !== undefined) {
-        const res = await offersApi.getNearby(lat, lng, 10);
-        const data = res.data?.data || [];
-        if (data.length > 0) {
-          setNearbyOffers(data);
-          setNearbyStatus('done');
-          return;
-        }
-      }
-      // If no specific nearby data or coordinates not provided, fetch active offers
-      const activeRes = await offersApi.getActive(10);
-      const activeData = activeRes.data?.data || [];
-      setNearbyOffers(activeData);
+      const res = await offersApi.getNearby(lat, lng, 10);
+      const data = res.data?.data || [];
+      // Strictly set offers returned within radius — never fall back to global active offers
+      setNearbyOffers(data);
       setNearbyStatus('done');
-    } catch {
-      try {
-        const activeRes = await offersApi.getActive(10);
-        const activeData = activeRes.data?.data || [];
-        setNearbyOffers(activeData);
-        setNearbyStatus('done');
-      } catch {
-        setNearbyStatus('error');
-      }
+    } catch (err) {
+      console.warn('fetchNearbyOffers error:', err);
+      setNearbyOffers([]);
+      setNearbyStatus('error');
     }
   }, []);
 
   const detectLocation = useCallback(() => {
     setNearbyStatus('locating');
     Geolocation.getCurrentPosition(
-      pos => fetchNearbyOffers(pos.coords.latitude, pos.coords.longitude),
-      () => {
-        // If location is denied or unavailable, fallback to active offers seamlessly
-        fetchNearbyOffers();
+      pos => {
+        fetchNearbyOffers(pos.coords.latitude, pos.coords.longitude);
       },
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
+      err => {
+        console.warn('Location detection failed:', err);
+        setNearbyOffers([]);
+        setNearbyStatus('denied');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   }, [fetchNearbyOffers]);
 
-  useEffect(() => {
+  const checkAndDetectLocation = useCallback(() => {
     if (Platform.OS === 'android') {
       PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION).then(granted => {
         if (granted) {
           detectLocation();
         } else {
-          fetchNearbyOffers();
+          setNearbyOffers([]);
+          setNearbyStatus('idle');
         }
+      }).catch(() => {
+        setNearbyOffers([]);
+        setNearbyStatus('idle');
       });
     } else {
-      fetchNearbyOffers();
+      detectLocation();
     }
-  }, [detectLocation, fetchNearbyOffers]);
+  }, [detectLocation]);
+
+  useEffect(() => {
+    checkAndDetectLocation();
+  }, [checkAndDetectLocation]);
+
+  // Refresh on app returning to foreground (e.g. user moved or re-opened app)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        checkAndDetectLocation();
+      }
+    });
+    return () => sub.remove();
+  }, [checkAndDetectLocation]);
+
+  // Refresh when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      checkAndDetectLocation();
+    });
+    return unsubscribe;
+  }, [navigation, checkAndDetectLocation]);
 
   const handleEnableLocation = async () => {
     if (Platform.OS === 'android') {
       const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
       if (result !== PermissionsAndroid.RESULTS.GRANTED) {
-        fetchNearbyOffers();
+        setNearbyOffers([]);
+        setNearbyStatus('denied');
         return;
       }
     }

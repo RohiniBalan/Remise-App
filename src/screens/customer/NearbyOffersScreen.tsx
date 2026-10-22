@@ -14,6 +14,7 @@ import {
   Platform,
   Alert,
   Linking,
+  AppState,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
@@ -582,26 +583,19 @@ export default function NearbyOffersScreen() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const loadOffers = useCallback(async (loc?: { lat: number; lng: number } | null, r = radius) => {
+    if (!loc) {
+      setOffers([]);
+      return;
+    }
     setLoading(true);
     try {
-      if (loc) {
-        const res = await offersApi.getNearby(loc.lat, loc.lng, r);
-        const data = res.data?.data || [];
-        if (data.length > 0) {
-          setOffers(data);
-          setLoading(false);
-          return;
-        }
-      }
-      const activeRes = await offersApi.getActive(20);
-      setOffers(activeRes.data?.data || []);
-    } catch {
-      try {
-        const activeRes = await offersApi.getActive(20);
-        setOffers(activeRes.data?.data || []);
-      } catch {
-        setOffers([]);
-      }
+      const res = await offersApi.getNearby(loc.lat, loc.lng, r);
+      const data = res.data?.data || [];
+      // Strictly set offers returned within radius — never fall back to global active offers
+      setOffers(data);
+    } catch (err) {
+      console.warn('loadOffers error:', err);
+      setOffers([]);
     } finally {
       setLoading(false);
     }
@@ -614,10 +608,10 @@ export default function NearbyOffersScreen() {
     if (result !== 'granted') {
       setPermBlocked(result === 'blocked');
       setLocError(
-        'Location access denied. Showing all active offers.',
+        'Location access is required to discover offers near your current location.',
       );
       setLocLoading(false);
-      loadOffers(null);
+      setOffers([]);
       return;
     }
     setPermBlocked(false);
@@ -626,22 +620,41 @@ export default function NearbyOffersScreen() {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setLocation(loc);
         setLocLoading(false);
-        loadOffers(loc);
+        loadOffers(loc, radius);
       },
-      () => {
+      err => {
+        console.warn('Geolocation failed:', err);
         setLocError(
-          'Could not detect precise location. Showing all active offers.',
+          'Could not detect your current GPS location. Please check device location settings and try again.',
         );
         setLocLoading(false);
-        loadOffers(null);
+        setOffers([]);
       },
-      { enableHighAccuracy: true, timeout: 15000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
-  }, [loadOffers]);
+  }, [loadOffers, radius]);
 
   useEffect(() => {
     requestLocation();
   }, [requestLocation]);
+
+  // Refresh on app returning to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        requestLocation();
+      }
+    });
+    return () => sub.remove();
+  }, [requestLocation]);
+
+  // Refresh when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      requestLocation();
+    });
+    return unsubscribe;
+  }, [navigation, requestLocation]);
 
   const handleEnableLocation = () => {
     if (permBlocked) {

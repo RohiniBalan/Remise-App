@@ -530,6 +530,30 @@ export default function DeliveryPartnerDashboardScreen() {
     }
   };
 
+  const handleShowDeliveryQr = async () => {
+    const active = dashboard.activeDelivery;
+    if (!active) return;
+    setPrefLoading(true);
+    try {
+      const res = await smartOrderApi.createDeliveryPaymentLink(active.orderId);
+      if (res.data?.success && res.data.paymentLink) {
+        setQrData({
+          url: res.data.paymentLink.shortUrl,
+          amount: res.data.paymentLink.amount || active.totalAmount,
+          orderId: active.orderId,
+        });
+        setShowQrModal(true);
+        await load();
+      } else {
+        showAlert('QR Error', res.data?.message || 'Could not generate payment QR', 'error');
+      }
+    } catch (err: any) {
+      showAlert('QR Error', err?.response?.data?.message || err?.message || 'Could not generate payment QR', 'error');
+    } finally {
+      setPrefLoading(false);
+    }
+  };
+
 
   const handleReturnHome = () => {
     try {
@@ -957,7 +981,7 @@ export default function DeliveryPartnerDashboardScreen() {
                               <CreditCard size={14} color="#FFFFFF" />
                               <Text style={[styles.prefActionBtnText, { color: '#FFFFFF' }]}>Pay Online on Device</Text>
                             </TouchableOpacity>
-                            {active.paymentLinkDetails?.shortUrl && (
+                            {active.paymentLinkDetails?.shortUrl ? (
                               <TouchableOpacity
                                 style={styles.qrSmallBtn}
                                 onPress={() => {
@@ -968,6 +992,15 @@ export default function DeliveryPartnerDashboardScreen() {
                                   });
                                   setShowQrModal(true);
                                 }}
+                              >
+                                <QrCode size={13} color="#FFFFFF" />
+                                <Text style={styles.qrSmallBtnText}>QR</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                style={styles.qrSmallBtn}
+                                onPress={handleShowDeliveryQr}
+                                disabled={prefLoading}
                               >
                                 <QrCode size={13} color="#FFFFFF" />
                                 <Text style={styles.qrSmallBtnText}>QR</Text>

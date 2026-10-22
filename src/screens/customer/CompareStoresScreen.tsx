@@ -856,7 +856,7 @@ export default function CompareStoresScreen() {
         );
         setStep('radius');
       },
-      { enableHighAccuracy: true, timeout: 15000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   };
 

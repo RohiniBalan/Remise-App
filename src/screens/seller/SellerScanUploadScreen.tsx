@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
+import ImageCropModal, { CroppedImageResult } from '../../components/common/ImageCropModal';
 import { useNavigation } from '@react-navigation/native';
 import { Sparkles, Upload, RefreshCw, CheckCircle2, Trash2, Plus, AlertCircle, ImageIcon, Camera, Check, ChevronDown, X } from 'lucide-react-native';
 import { getCategories, getSubcategories, normalizeSpecifications } from '../../utils/categoryAttributes';
@@ -34,6 +35,17 @@ export default function SellerScanUploadScreen() {
   const [step, setStep] = useState<Step>('idle');
   const [errMsg, setErrMsg] = useState('');
   const [engine, setEngine] = useState('');
+
+  // Square crop state
+  const [cropTarget, setCropTarget] = useState<{
+    uri: string;
+    base64?: string;
+    width?: number;
+    height?: number;
+    type?: string;
+    fromCamera?: boolean;
+  } | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
   const [form, setForm] = useState<{
     title: string; category: string; subcategory: string; price: string; discountedPrice: string;
     storePrice: string; storeDiscountedPrice: string; description: string; aboutDescription: string;
@@ -132,15 +144,42 @@ export default function SellerScanUploadScreen() {
       if (!granted) return;
     }
     const res = fromCamera
-      ? await launchCamera({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 })
-      : await launchImageLibrary({ mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 });
+      ? await launchCamera({ mediaType: 'photo', quality: 0.9, maxWidth: 1600, maxHeight: 1600, includeBase64: true, saveToPhotos: false })
+      : await launchImageLibrary({ mediaType: 'photo', quality: 0.9, selectionLimit: 1, maxWidth: 1600, maxHeight: 1600, includeBase64: true });
     if (res.didCancel || res.errorCode) return;
     const picked = res.assets?.[0];
-    if (picked) {
-      setAsset(picked);
-      setStep('idle');
-      setErrMsg('');
+    if (picked?.uri) {
+      setCropTarget({
+        uri: picked.uri,
+        base64: picked.base64,
+        width: picked.width,
+        height: picked.height,
+        type: picked.type || 'image/jpeg',
+        fromCamera,
+      });
+      setShowCropModal(true);
     }
+  };
+
+  const handleCropConfirm = (cropped: CroppedImageResult) => {
+    setShowCropModal(false);
+    setAsset({
+      uri: cropped.uri,
+      fileName: cropped.fileName,
+      type: cropped.type,
+      width: cropped.width,
+      height: cropped.height,
+    } as Asset);
+    setCropTarget(null);
+    setStep('idle');
+    setErrMsg('');
+  };
+
+  const handleRetakeCrop = () => {
+    const fromCam = cropTarget?.fromCamera;
+    setShowCropModal(false);
+    setCropTarget(null);
+    pickImage(!!fromCam);
   };
 
   const handleScan = async () => {
@@ -234,6 +273,13 @@ export default function SellerScanUploadScreen() {
       if (form.subcategory) fd.append('subcategory', form.subcategory);
       fd.append('brand', form.brand || 'Generic');
       fd.append('description', form.description || '');
+      if (asset?.uri) {
+        fd.append('images', {
+          uri: asset.uri,
+          name: asset.fileName || 'product.jpg',
+          type: asset.type || 'image/jpeg',
+        } as any);
+      }
       fd.append('imageUrl', form.imageUrl || '');
       fd.append('images', JSON.stringify(form.imageUrl ? [form.imageUrl] : []));
       fd.append('totalStock', String(form.totalStock ? +form.totalStock : 0));
@@ -601,6 +647,20 @@ export default function SellerScanUploadScreen() {
           </View>
         </View>
       </Modal>
+
+      <ImageCropModal
+        visible={showCropModal}
+        imageUri={cropTarget?.uri || ''}
+        imageBase64={cropTarget?.base64}
+        imageWidth={cropTarget?.width}
+        imageHeight={cropTarget?.height}
+        onConfirm={handleCropConfirm}
+        onCancel={() => {
+          setShowCropModal(false);
+          setCropTarget(null);
+        }}
+        onRetake={handleRetakeCrop}
+      />
     </ScrollView>
   );
 }
