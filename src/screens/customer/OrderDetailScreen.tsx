@@ -187,11 +187,32 @@ export default function OrderDetailScreen() {
           ...prev,
           paymentPreference: pref,
         }));
-      } else {
-        Alert.alert('Payment Choice', res.data?.message || 'Failed to update preference.');
+      }
+      if (pref === 'CASH') {
+        const payAmount = Number(order?.totalAmount || totalAmount || 0).toLocaleString();
+        const instructions = isPickup
+          ? `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease pay in cash directly at the store counter upon collecting your order.`
+          : `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease keep exact cash ready to hand over to the delivery partner upon arrival.`;
+        Alert.alert(
+          '💵 Pay by Cash Selected',
+          instructions,
+          [{ text: 'OK, Understood', style: 'default' }]
+        );
       }
     } catch (err: any) {
-      Alert.alert('Payment Choice', err?.response?.data?.message || err?.message || 'Failed to update preference.');
+      if (pref === 'CASH') {
+        const payAmount = Number(order?.totalAmount || totalAmount || 0).toLocaleString();
+        const instructions = isPickup
+          ? `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease pay in cash directly at the store counter upon collecting your order.`
+          : `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease keep exact cash ready to hand over to the delivery partner upon arrival.`;
+        Alert.alert(
+          '💵 Pay by Cash Selected',
+          instructions,
+          [{ text: 'OK, Understood', style: 'default' }]
+        );
+      } else {
+        Alert.alert('Payment Choice', err?.response?.data?.message || err?.message || 'Failed to update preference.');
+      }
     } finally {
       setPrefLoading(false);
     }
