@@ -405,6 +405,38 @@ export default function CheckoutScreen() {
 
   const isFormValid = isShippingValid && isBillingValid && !hasStoreDebt;
 
+  const handleQuantityDecrease = (item: any) => {
+    const isWholesaleOrHome =
+      (item as any).ownerRole === 'whole_saler' ||
+      (item as any).ownerRole === 'wholesaler' ||
+      (item as any).ownerRole === 'home_business' ||
+      (item as any).storeType === 'whole_saler' ||
+      (item as any).storeType === 'home_business';
+    const itemMoq = isWholesaleOrHome ? Math.max(1, Number(item.moq) || 1) : 1;
+
+    if (item.quantity <= itemMoq) {
+      return;
+    }
+
+    if (buyNowItem && (buyNowItem.id === item.id || (buyNowItem as any)._id === item.id)) {
+      setBuyNowItem({ ...buyNowItem, quantity: buyNowItem.quantity - 1 });
+    } else {
+      decreaseQuantity(item.id);
+    }
+  };
+
+  const handleQuantityIncrease = (item: any) => {
+    if (buyNowItem && (buyNowItem.id === item.id || (buyNowItem as any)._id === item.id)) {
+      const cap = buyNowItem.totalStock;
+      setBuyNowItem({
+        ...buyNowItem,
+        quantity: cap ? Math.min(buyNowItem.quantity + 1, cap) : buyNowItem.quantity + 1,
+      });
+    } else {
+      addToCart(item);
+    }
+  };
+
   const handlePayment = async () => {
     if (!token || !user) {
       setShowAuthModal(true);
@@ -449,6 +481,24 @@ export default function CheckoutScreen() {
       return;
     }
 
+    const invalidMoqItem = itemsToCheckout.find(item => {
+      const isWholesaleOrHome =
+        (item as any).ownerRole === 'whole_saler' ||
+        (item as any).ownerRole === 'wholesaler' ||
+        (item as any).ownerRole === 'home_business' ||
+        (item as any).storeType === 'whole_saler' ||
+        (item as any).storeType === 'home_business';
+      const itemMoq = isWholesaleOrHome ? Math.max(1, Number(item.moq) || 1) : 1;
+      return isWholesaleOrHome && item.quantity < itemMoq;
+    });
+
+    if (invalidMoqItem) {
+      const moqVal = Math.max(1, Number(invalidMoqItem.moq) || 1);
+      const unitVal = invalidMoqItem.unit || 'Units';
+      setError(`"${invalidMoqItem.title}" requires a minimum order quantity of ${moqVal} ${unitVal}.`);
+      return;
+    }
+
     setIsProcessing(true);
     setError('');
 
@@ -470,6 +520,8 @@ export default function CheckoutScreen() {
           storeType: (i as any).storeType,
           supplierRole: (i as any).supplierRole,
           isOffer: Boolean((i as any).isOffer),
+          moq: (i as any).moq,
+          unit: (i as any).unit,
         })),
         contactEmail,
         shippingAddress,
@@ -669,77 +721,103 @@ export default function CheckoutScreen() {
             </Text>
           </View>
 
-          {itemsToCheckout.map(item => (
-            <View
-              key={item.id}
-              style={[
-                styles.lineItem,
-                isDark && { borderBottomColor: '#1F2937' },
-              ]}
-            >
-              <Image
-                source={{ uri: resolveImageUrl(item.image) }}
+          {itemsToCheckout.map(item => {
+            const isWholesaleOrHome =
+              (item as any).ownerRole === 'whole_saler' ||
+              (item as any).ownerRole === 'wholesaler' ||
+              (item as any).ownerRole === 'home_business' ||
+              (item as any).storeType === 'whole_saler' ||
+              (item as any).storeType === 'home_business';
+            const itemMoq = isWholesaleOrHome ? Math.max(1, Number(item.moq) || 1) : 1;
+            const isAtMoq = isWholesaleOrHome && item.quantity <= itemMoq;
+
+            return (
+              <View
+                key={item.id}
                 style={[
-                  styles.lineImage,
-                  isDark && { backgroundColor: '#1F2937' },
+                  styles.lineItem,
+                  isDark && { borderBottomColor: '#1F2937' },
                 ]}
-              />
-              <View style={styles.lineInfo}>
-                <Text
-                  style={[styles.lineTitle, isDark && { color: '#FFFFFF' }]}
-                  numberOfLines={2}
-                >
-                  {translateProductName(item.title, language)}
-                </Text>
-                <View style={styles.lineBottomRow}>
-                  <View
-                    style={[
-                      styles.qtyStepper,
-                      isDark && {
-                        backgroundColor: '#1F2937',
-                        borderColor: '#374151',
-                      },
-                    ]}
+              >
+                <Image
+                  source={{ uri: resolveImageUrl(item.image) }}
+                  style={[
+                    styles.lineImage,
+                    isDark && { backgroundColor: '#1F2937' },
+                  ]}
+                />
+                <View style={styles.lineInfo}>
+                  <Text
+                    style={[styles.lineTitle, isDark && { color: '#FFFFFF' }]}
+                    numberOfLines={2}
                   >
-                    <TouchableOpacity
-                      style={styles.qtyBtn}
-                      onPress={() => decreaseQuantity(item.id)}
+                    {translateProductName(item.title, language)}
+                  </Text>
+                  {isWholesaleOrHome && (
+                    <View style={styles.moqBadge}>
+                      <Text style={styles.moqBadgeText}>
+                        MOQ: {itemMoq} {item.unit || 'Units'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.lineBottomRow}>
+                    <View
+                      style={[
+                        styles.qtyStepper,
+                        isDark && {
+                          backgroundColor: '#1F2937',
+                          borderColor: '#374151',
+                        },
+                      ]}
                     >
-                      <Minus
-                        size={12}
-                        color={isDark ? '#5EEAD4' : CustomerColors.teal700}
-                      />
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.qtyBtn, isAtMoq && { opacity: 0.35 }]}
+                        onPress={() => handleQuantityDecrease(item)}
+                        disabled={isAtMoq}
+                      >
+                        <Minus
+                          size={12}
+                          color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+                        />
+                      </TouchableOpacity>
+                      <Text
+                        style={[styles.qtyValue, isDark && { color: '#FFFFFF' }]}
+                      >
+                        {item.quantity}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.qtyBtn}
+                        onPress={() => handleQuantityIncrease(item)}
+                      >
+                        <Plus
+                          size={12}
+                          color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+                        />
+                      </TouchableOpacity>
+                    </View>
                     <Text
-                      style={[styles.qtyValue, isDark && { color: '#FFFFFF' }]}
+                      style={[styles.linePrice, isDark && { color: '#2DD4BF' }]}
                     >
-                      {item.quantity}
+                      ₹{(item.price * item.quantity).toLocaleString()}
                     </Text>
                     <TouchableOpacity
-                      style={styles.qtyBtn}
-                      onPress={() => addToCart(item)}
+                      onPress={() => {
+                        if (buyNowItem && (buyNowItem.id === item.id || (buyNowItem as any)._id === item.id)) {
+                          setBuyNowItem(null);
+                          navigation.goBack();
+                        } else {
+                          removeFromCart(item.id);
+                        }
+                      }}
+                      style={{ marginLeft: Spacing.sm }}
                     >
-                      <Plus
-                        size={12}
-                        color={isDark ? '#5EEAD4' : CustomerColors.teal700}
-                      />
+                      <Trash2 size={15} color={isDark ? '#6B7280' : '#9CA3AF'} />
                     </TouchableOpacity>
                   </View>
-                  <Text
-                    style={[styles.linePrice, isDark && { color: '#2DD4BF' }]}
-                  >
-                    ₹{(item.price * item.quantity).toLocaleString()}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => removeFromCart(item.id)}
-                    style={{ marginLeft: Spacing.sm }}
-                  >
-                    <Trash2 size={15} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                  </TouchableOpacity>
                 </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
 
           <View style={styles.priceStrip}>
             <View style={styles.priceRow}>
@@ -2321,6 +2399,22 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontWeight: '700',
     color: CustomerColors.black,
+  },
+  moqBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  moqBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B45309',
   },
   lineBottomRow: {
     flexDirection: 'row',

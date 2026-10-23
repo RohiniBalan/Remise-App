@@ -247,20 +247,29 @@ export default function OrderDetailScreen() {
     order?.orderStatus === 'Delivered' ||
     (isPickup && (order?.deliveryStatus === 'Picked Up' || Boolean(order?.pickedUpAt)));
 
+  const isPaid =
+    order?.paymentStatus === 'SUCCESS' ||
+    order?.paymentStatus === 'PAID' ||
+    order?.paymentStatus === 'REFUNDED' ||
+    (order?.paymentMethod !== 'cod' &&
+      order?.paymentMethod !== 'cash' &&
+      Boolean(order?.razorpayPaymentId || order?.cashfreePaymentId));
+
+  const isRefundCompleted =
+    isPaid &&
+    (order?.paymentStatus === 'REFUNDED' ||
+      order?.refundStatus === 'refunded' ||
+      order?.refundStatus === 'processed');
+
+  const isRefundProcessing =
+    isPaid &&
+    !isRefundCompleted &&
+    (order?.refundStatus === 'processing' || order?.refundStatus === 'requested');
+
   const isCancelled =
     order?.orderStatus === 'Cancelled' ||
     order?.deliveryStatus === 'Cancelled' ||
-    order?.paymentStatus === 'REFUNDED' ||
-    order?.refundStatus === 'refunded';
-
-  const isRefundCompleted =
-    order?.paymentStatus === 'REFUNDED' ||
-    order?.refundStatus === 'refunded' ||
-    order?.refundStatus === 'processed';
-
-  const isRefundProcessing =
-    !isRefundCompleted &&
-    (order?.refundStatus === 'processing' || order?.refundStatus === 'requested');
+    isRefundCompleted;
 
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
   const [prefLoading, setPrefLoading] = useState(false);
@@ -428,6 +437,8 @@ export default function OrderDetailScreen() {
                       ? isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5'
                       : isRefundProcessing
                       ? isDark ? 'rgba(245, 158, 11, 0.2)' : '#FFFBEB'
+                      : isCancelled
+                      ? isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2'
                       : order.paymentStatus === 'SUCCESS'
                       ? isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5'
                       : isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
@@ -435,6 +446,8 @@ export default function OrderDetailScreen() {
                       ? '#10B981'
                       : isRefundProcessing
                       ? '#F59E0B'
+                      : isCancelled
+                      ? '#EF4444'
                       : order.paymentStatus === 'SUCCESS'
                       ? '#10B981'
                       : '#EF4444',
@@ -449,6 +462,8 @@ export default function OrderDetailScreen() {
                         ? '#10B981'
                         : isRefundProcessing
                         ? '#F59E0B'
+                        : isCancelled
+                        ? '#EF4444'
                         : order.paymentStatus === 'SUCCESS'
                         ? '#10B981'
                         : '#EF4444',
@@ -459,6 +474,8 @@ export default function OrderDetailScreen() {
                     ? t('orders.paymentRefunded') || 'Refunded'
                     : isRefundProcessing
                     ? t('orders.paymentRefundProcessing') || 'Refund Processing'
+                    : isCancelled
+                    ? t('orders.statusCancelled') || 'Cancelled'
                     : order.paymentStatus === 'SUCCESS'
                     ? 'Paid · ' + (t('orders.paymentSuccess') || 'SUCCESS')
                     : order.paymentStatus || 'Pending'}

@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Trash2, ShoppingBag } from 'lucide-react-native';
@@ -66,6 +67,28 @@ export default function CartScreen() {
       setShowAuthModal(true);
       return;
     }
+
+    const invalidMoqItem = cart.find(item => {
+      const isWholesaleOrHome =
+        (item as any).ownerRole === 'whole_saler' ||
+        (item as any).ownerRole === 'wholesaler' ||
+        (item as any).ownerRole === 'home_business' ||
+        (item as any).storeType === 'whole_saler' ||
+        (item as any).storeType === 'home_business';
+      const itemMoq = isWholesaleOrHome ? Math.max(1, Number(item.moq) || 1) : 1;
+      return isWholesaleOrHome && item.quantity < itemMoq;
+    });
+
+    if (invalidMoqItem) {
+      const moqVal = Math.max(1, Number(invalidMoqItem.moq) || 1);
+      const unitVal = invalidMoqItem.unit || 'Units';
+      Alert.alert(
+        'Minimum Order Quantity Required',
+        `"${invalidMoqItem.title}" requires a minimum order quantity of ${moqVal} ${unitVal}.`
+      );
+      return;
+    }
+
     setBuyNowItem(null);
     navigation.navigate('Checkout');
   };
@@ -187,6 +210,15 @@ function CartRow({
   onRemove: () => void;
 }) {
   const { language } = useTranslation();
+  const isWholesaleOrHome =
+    (item as any).ownerRole === 'whole_saler' ||
+    (item as any).ownerRole === 'wholesaler' ||
+    (item as any).ownerRole === 'home_business' ||
+    (item as any).storeType === 'whole_saler' ||
+    (item as any).storeType === 'home_business';
+  const itemMoq = isWholesaleOrHome ? Math.max(1, Number(item.moq) || 1) : 1;
+  const isAtMoq = isWholesaleOrHome && item.quantity <= itemMoq;
+
   return (
     <View style={[styles.row, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderColor: isDark ? '#1F2937' : CustomerColors.border }]}>
       <Image
@@ -198,8 +230,19 @@ function CartRow({
           {translateProductName(item.title, language)}
         </Text>
         <Text style={styles.rowPrice}>₹{item.price.toLocaleString()}</Text>
+        {isWholesaleOrHome && (
+          <View style={styles.moqBadge}>
+            <Text style={styles.moqBadgeText}>
+              MOQ: {itemMoq} {item.unit || 'Units'}
+            </Text>
+          </View>
+        )}
         <View style={[styles.qtyStepper, isDark && { borderColor: '#374151' }]}>
-          <TouchableOpacity style={styles.qtyBtn} onPress={onDecrease}>
+          <TouchableOpacity
+            style={[styles.qtyBtn, isAtMoq && { opacity: 0.35 }]}
+            onPress={onDecrease}
+            disabled={isAtMoq}
+          >
             <Text style={[styles.qtyBtnText, isDark && { color: '#9CA3AF' }]}>−</Text>
           </TouchableOpacity>
           <Text style={[styles.qtyValue, isDark && { color: '#FFFFFF' }]}>{item.quantity}</Text>
@@ -278,6 +321,20 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '700',
     color: CustomerColors.primary,
+  },
+  moqBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  moqBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B45309',
   },
   qtyStepper: {
     flexDirection: 'row',

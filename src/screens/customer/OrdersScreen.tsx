@@ -114,13 +114,24 @@ function getStatusUI(
   paymentStatus: string | undefined,
   refundStatus: string | undefined,
   t: (key: any) => string,
+  paymentMethod?: string,
 ) {
-  const isRefundCompleted =
-    status === 'Refund Completed' ||
-    status === 'REFUNDED' ||
+  const isPaid =
+    paymentStatus === 'SUCCESS' ||
+    paymentStatus === 'PAID' ||
     paymentStatus === 'REFUNDED' ||
-    refundStatus === 'refunded' ||
-    refundStatus === 'processed';
+    (paymentMethod !== 'cod' &&
+      paymentMethod !== 'cash' &&
+      paymentStatus !== 'PENDING' &&
+      paymentStatus !== 'FAILED');
+
+  const isRefundCompleted =
+    isPaid &&
+    (status === 'Refund Completed' ||
+      status === 'REFUNDED' ||
+      paymentStatus === 'REFUNDED' ||
+      refundStatus === 'refunded' ||
+      refundStatus === 'processed');
 
   if (isRefundCompleted) {
     return {
@@ -130,13 +141,13 @@ function getStatusUI(
     };
   }
 
-  if (
-    status === 'Refund Processing' ||
-    refundStatus === 'processing' ||
-    refundStatus === 'requested' ||
-    status === 'Cancelled' ||
-    deliveryStatus === 'Cancelled'
-  ) {
+  const isRefundProcessing =
+    isPaid &&
+    (status === 'Refund Processing' ||
+      refundStatus === 'processing' ||
+      refundStatus === 'requested');
+
+  if (isRefundProcessing) {
     return {
       color: '#D97706',
       text: t('orders.refundProcessing'),
@@ -443,16 +454,25 @@ export default function OrdersScreen() {
       const deliveryDate = formatLocalizedDate(deliveryDateObj, language);
       const items = order.items || [];
 
-      const isRefundCompleted =
+      const isPaid =
+        order.paymentStatus === 'SUCCESS' ||
+        order.paymentStatus === 'PAID' ||
         order.paymentStatus === 'REFUNDED' ||
-        (order as any).refundStatus === 'refunded' ||
-        (order as any).refundStatus === 'processed';
+        (order.paymentMethod !== 'cod' &&
+          order.paymentMethod !== 'cash' &&
+          Boolean((order as any).razorpayPaymentId || (order as any).cashfreePaymentId));
+
+      const isRefundCompleted =
+        isPaid &&
+        (order.paymentStatus === 'REFUNDED' ||
+          (order as any).refundStatus === 'refunded' ||
+          (order as any).refundStatus === 'processed');
       const isRefundProcessing =
+        isPaid &&
         !isRefundCompleted &&
         ((order as any).refundStatus === 'processing' ||
           (order as any).refundStatus === 'requested' ||
-          order.orderStatus === 'Cancelled' ||
-          (order as any).deliveryStatus === 'Cancelled');
+          order.orderStatus === 'Refund Processing');
 
       const derivedDisplayStatus = isRefundCompleted
         ? 'Refund Completed'
@@ -745,6 +765,7 @@ export default function OrdersScreen() {
             item.paymentStatus,
             item.refundStatus,
             t,
+            item.paymentMethod,
           );
 
           return (

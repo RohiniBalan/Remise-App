@@ -16,6 +16,8 @@ export interface CartItem {
   storeType?: string;
   supplierRole?: string;
   isOffer?: boolean;
+  moq?: number;
+  unit?: string;
 }
 
 interface CartContextValue {
@@ -99,19 +101,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = useCallback(
     (product: CartItem) => {
-      if ((product as any).ownerRole === 'whole_saler' || (product as any).ownerRole === 'wholesaler') {
-        return;
-      }
+      const isWholesaleOrHome =
+        (product as any).ownerRole === 'whole_saler' ||
+        (product as any).ownerRole === 'wholesaler' ||
+        (product as any).ownerRole === 'home_business' ||
+        (product as any).storeType === 'whole_saler' ||
+        (product as any).storeType === 'home_business';
+      const itemMoq = isWholesaleOrHome ? Math.max(1, Number((product as any).moq) || 1) : 1;
+      const productUnit = (product as any).unit || (product as any).stockUnit || 'Units';
+
       setCart(prev => {
         const existing = prev.find(i => i.id === product.id);
         let next: CartItem[];
         if (existing) {
           const cap = product.totalStock ?? existing.totalStock;
-          const nextQty = cap ? Math.min(existing.quantity + product.quantity, cap) : existing.quantity + product.quantity;
+          const qtyToAdd = product.quantity || 1;
+          const nextQty = cap ? Math.min(existing.quantity + qtyToAdd, cap) : existing.quantity + qtyToAdd;
           next = prev.map(i => (i.id === product.id ? { ...i, quantity: nextQty } : i));
         } else {
+          const initialQuantity = isWholesaleOrHome
+            ? Math.max(itemMoq, product.quantity || 1)
+            : (product.quantity || 1);
+
           next = [...prev, {
             ...product,
+            quantity: initialQuantity,
+            moq: isWholesaleOrHome ? itemMoq : 1,
+            unit: productUnit,
             storeId: product.storeId || (product as any).store?._id || (product as any).vendorId,
             storeName: product.storeName || (product as any).store?.name,
             ownerRole: (product as any).ownerRole || (product as any).sellerRole || (product as any).store?.storeType || (product as any).store?.role,
@@ -142,7 +158,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setCart(prev => {
         const next = prev
-          .map(i => (i.id === id ? { ...i, quantity: i.quantity - 1 } : i))
+          .map(i => {
+            if (i.id === id) {
+              const isWholesaleOrHome =
+                (i as any).ownerRole === 'whole_saler' ||
+                (i as any).ownerRole === 'wholesaler' ||
+                (i as any).ownerRole === 'home_business' ||
+                (i as any).storeType === 'whole_saler' ||
+                (i as any).storeType === 'home_business';
+              const itemMoq = isWholesaleOrHome ? Math.max(1, Number((i as any).moq) || 1) : 1;
+              if (isWholesaleOrHome && i.quantity <= itemMoq) {
+                return i;
+              }
+              return { ...i, quantity: i.quantity - 1 };
+            }
+            return i;
+          })
           .filter(i => i.quantity > 0);
         persist(next);
         return next;

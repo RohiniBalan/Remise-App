@@ -113,24 +113,39 @@ export default function OrderTrackingScreen() {
     return () => clearInterval(interval);
   }, [fetchTracking]);
 
-  const isRefundCompleted =
+  const isPaid =
+    order?.paymentStatus === 'SUCCESS' ||
+    order?.paymentStatus === 'PAID' ||
     order?.paymentStatus === 'REFUNDED' ||
-    (order as any)?.refundStatus === 'refunded' ||
-    (order as any)?.refundStatus === 'processed';
+    (order?.paymentMethod !== 'cod' &&
+      order?.paymentMethod !== 'cash' &&
+      Boolean((order as any)?.razorpayPaymentId || (order as any)?.cashfreePaymentId));
+
+  const isRefundCompleted =
+    isPaid &&
+    (order?.paymentStatus === 'REFUNDED' ||
+      (order as any)?.refundStatus === 'refunded' ||
+      (order as any)?.refundStatus === 'processed');
 
   const isRefundProcessing =
+    isPaid &&
     !isRefundCompleted &&
-    (order?.orderStatus === 'Cancelled' ||
-      order?.deliveryStatus === 'Cancelled' ||
-      (order as any)?.refundStatus === 'processing' ||
-      (order as any)?.refundStatus === 'requested');
+    ((order as any)?.refundStatus === 'processing' ||
+      (order as any)?.refundStatus === 'requested' ||
+      order?.orderStatus === 'Refund Processing');
 
-  const isRefundedOrCancelled = isRefundCompleted || isRefundProcessing;
+  const isCancelled =
+    order?.orderStatus === 'Cancelled' ||
+    order?.deliveryStatus === 'Cancelled';
+
+  const isRefundedOrCancelled = isRefundCompleted || isRefundProcessing || isCancelled;
 
   const currentStatus = isRefundCompleted
     ? 'Refund Completed'
     : isRefundProcessing
     ? 'Refund Processing'
+    : isCancelled
+    ? 'Cancelled'
     : order?.deliveryStatus || order?.orderStatus || 'Pending';
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
   const isPickup = (order?.deliveryMethod || '').toLowerCase() === 'pickup';
@@ -245,6 +260,7 @@ export default function OrderTrackingScreen() {
                 styles.liveBadge,
                 isRefundCompleted && { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.3)' },
                 isRefundProcessing && { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' },
+                isCancelled && !isRefundCompleted && !isRefundProcessing && { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' },
               ]}
             >
               <View
@@ -252,6 +268,7 @@ export default function OrderTrackingScreen() {
                   styles.liveDot,
                   isRefundCompleted && { backgroundColor: '#10B981' },
                   isRefundProcessing && { backgroundColor: '#F59E0B' },
+                  isCancelled && !isRefundCompleted && !isRefundProcessing && { backgroundColor: '#EF4444' },
                 ]}
               />
               <Text
@@ -259,9 +276,10 @@ export default function OrderTrackingScreen() {
                   styles.liveBadgeText,
                   isRefundCompleted && { color: '#10B981' },
                   isRefundProcessing && { color: '#D97706' },
+                  isCancelled && !isRefundCompleted && !isRefundProcessing && { color: '#EF4444' },
                 ]}
               >
-                {isRefundCompleted ? tSupplier.refunded : isRefundProcessing ? tSupplier.refunding : tSupplier.live}
+                {isRefundCompleted ? tSupplier.refunded : isRefundProcessing ? tSupplier.refunding : isCancelled ? (t('orders.statusCancelled') || 'Cancelled') : tSupplier.live}
               </Text>
             </View>
           </View>
@@ -375,14 +393,19 @@ export default function OrderTrackingScreen() {
                   {tSupplier.refundProcessingMsg.replace('{{amount}}', String(order?.totalAmount || 0))}
                 </Text>
               </View>
+            ) : isCancelled ? (
+              <View style={{ marginTop: 10, padding: 10, backgroundColor: isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2', borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}>
+                <Text style={{ fontSize: 11, color: isDark ? '#FCA5A5' : '#991B1B', lineHeight: 16, fontWeight: '500' }}>
+                  {t('orders.cancelledDesc') || 'This order was cancelled. No payment was collected.'}
+                </Text>
+              </View>
             ) : null}
           </View>
 
           {/* Payment Choice Card for Eligible COD Orders */}
           {Boolean(
             isCod &&
-              !isRefundCompleted &&
-              !isRefundProcessing
+              !isRefundedOrCancelled
           ) && (
             <View style={[
               styles.paymentChoiceCard,

@@ -393,7 +393,7 @@ export default function MyOffersScreen() {
                   {offer.discountPercent > 0 && (
                     <View style={styles.discountBadge}>
                       <Text style={styles.discountBadgeText}>
-                        {offer.discountPercent}% {t('common.offPercent') || 'OFF'}
+                        {t('common.offPercent', { percent: offer.discountPercent })?.replace('{{percent}}', String(offer.discountPercent)) || `${offer.discountPercent}% OFF`}
                       </Text>
                     </View>
                   )}

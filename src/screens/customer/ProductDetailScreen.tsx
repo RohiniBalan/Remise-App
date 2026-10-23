@@ -196,6 +196,14 @@ export default function ProductDetailScreen() {
         if (allItems.length > 0) setAllProducts(allItems);
         if (found) {
           setProduct(found);
+          const isWholesaleOrHome =
+            (found as any).ownerRole === 'whole_saler' ||
+            (found as any).ownerRole === 'wholesaler' ||
+            (found as any).ownerRole === 'home_business' ||
+            (found as any).storeType === 'whole_saler' ||
+            (found as any).storeType === 'home_business';
+          const moq = isWholesaleOrHome ? Math.max(1, Number((found as any).moq) || 1) : 1;
+          setQuantity(moq);
           setActiveImage(productImage(found));
         }
         setLoading(false);
@@ -518,6 +526,26 @@ export default function ProductDetailScreen() {
 
   const isOutOfStock = product.totalStock <= 0;
 
+  const isWholesaleOrHomeBusiness = Boolean(
+    (product as any).ownerRole === 'whole_saler' ||
+    (product as any).ownerRole === 'wholesaler' ||
+    (product as any).ownerRole === 'home_business' ||
+    (product as any).storeType === 'whole_saler' ||
+    (product as any).storeType === 'home_business'
+  );
+
+  const productMoq = isWholesaleOrHomeBusiness
+    ? Math.max(1, Number((product as any).moq) || 1)
+    : 1;
+
+  const productUnit = (product as any).unit || (product as any).stockUnit || 'Units';
+
+  const isStockLessThanMoq = Boolean(
+    isWholesaleOrHomeBusiness &&
+    product.totalStock !== undefined &&
+    product.totalStock < productMoq
+  );
+
   const originalPriceVal =
     displayProduct.originalPrice && displayProduct.originalPrice > currentPriceVal
       ? displayProduct.originalPrice
@@ -542,18 +570,37 @@ export default function ProductDetailScreen() {
       return;
     }
 
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        id: pId,
-        title: product.title,
-        price: currentPriceVal,
-        quantity: 1,
-        image: productImage(product) || '',
-        totalStock: product.totalStock,
-        storeId: product.storeId || (product as any).store?._id || (product as any).store?.id || (product as any).vendorId,
-        storeName: (product as any).storeName || (product as any).store?.name,
-      });
+    if (isWholesaleOrHomeBusiness) {
+      if (isStockLessThanMoq) {
+        Alert.alert(
+          'Insufficient Stock',
+          `Available stock (${product.totalStock}) is less than the minimum order quantity of ${productMoq} ${productUnit}.`
+        );
+        return;
+      }
+      if (quantity < productMoq) {
+        Alert.alert(
+          'Minimum Order Quantity',
+          `You must purchase at least ${productMoq} ${productUnit}.`
+        );
+        return;
+      }
     }
+
+    addToCart({
+      id: pId,
+      title: product.title,
+      price: currentPriceVal,
+      quantity,
+      image: productImage(product) || '',
+      totalStock: product.totalStock,
+      storeId: product.storeId || (product as any).store?._id || (product as any).store?.id || (product as any).vendorId,
+      storeName: (product as any).storeName || (product as any).store?.name,
+      ownerRole: (product as any).ownerRole,
+      storeType: (product as any).storeType,
+      moq: isWholesaleOrHomeBusiness ? productMoq : 1,
+      unit: productUnit,
+    });
   };
 
   const handleBuyNow = () => {
@@ -563,15 +610,36 @@ export default function ProductDetailScreen() {
       return;
     }
 
+    if (isWholesaleOrHomeBusiness) {
+      if (isStockLessThanMoq) {
+        Alert.alert(
+          'Insufficient Stock',
+          `Available stock (${product.totalStock}) is less than the minimum order quantity of ${productMoq} ${productUnit}.`
+        );
+        return;
+      }
+      if (quantity < productMoq) {
+        Alert.alert(
+          'Minimum Order Quantity',
+          `You must purchase at least ${productMoq} ${productUnit}.`
+        );
+        return;
+      }
+    }
+
     setBuyNowItem({
       id: pId,
       title: product.title,
       price: currentPriceVal,
-      quantity,
+      quantity: Math.max(productMoq, quantity),
       image: productImage(product) || '',
       totalStock: product.totalStock,
       storeId: product.storeId || (product as any).store?._id || (product as any).store?.id || (product as any).vendorId,
       storeName: (product as any).storeName || (product as any).store?.name,
+      ownerRole: (product as any).ownerRole,
+      storeType: (product as any).storeType,
+      moq: isWholesaleOrHomeBusiness ? productMoq : 1,
+      unit: productUnit,
     });
     navigation.navigate('Checkout');
   };
@@ -837,23 +905,52 @@ export default function ProductDetailScreen() {
             </View>
           )}
 
+          {/* Minimum Order Quantity (MOQ) Notice for Wholesalers and Home Businesses */}
+          {isWholesaleOrHomeBusiness && (
+            <View
+              style={[
+                styles.moqBanner,
+                isStockLessThanMoq && styles.moqBannerError,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.moqBannerTitle,
+                  isStockLessThanMoq && styles.moqBannerTitleError,
+                ]}
+              >
+                Minimum Order Quantity: {productMoq} {productUnit}
+              </Text>
+              <Text
+                style={[
+                  styles.moqBannerSubtitle,
+                  isStockLessThanMoq && styles.moqBannerSubtitleError,
+                ]}
+              >
+                {isStockLessThanMoq
+                  ? `Available stock (${product.totalStock ?? 0}) is less than the minimum order quantity of ${productMoq} ${productUnit}.`
+                  : `Customers must purchase at least ${productMoq} ${productUnit} to place an order for this product.`}
+              </Text>
+            </View>
+          )}
+
           {/* Quantity and Wishlist Selector */}
           <View style={styles.qtyWishlistRow}>
             <View style={styles.qtySelector}>
               <TouchableOpacity
-                onPress={() => setQuantity(Math.max(1, quantity - 1))}
-                disabled={isOutOfStock || quantity <= 1}
-                style={styles.qtyBtn}
+                onPress={() => setQuantity(Math.max(productMoq, quantity - 1))}
+                disabled={isOutOfStock || isStockLessThanMoq || quantity <= productMoq}
+                style={[styles.qtyBtn, (isOutOfStock || isStockLessThanMoq || quantity <= productMoq) && styles.qtyBtnDisabled]}
               >
                 <Text style={styles.qtyBtnText}>−</Text>
               </TouchableOpacity>
-              <Text style={styles.qtyText}>{isOutOfStock ? 0 : quantity}</Text>
+              <Text style={styles.qtyText}>{isOutOfStock || isStockLessThanMoq ? 0 : quantity}</Text>
               <TouchableOpacity
                 onPress={() =>
                   setQuantity(Math.min(product.totalStock || 99, quantity + 1))
                 }
-                disabled={isOutOfStock || quantity >= (product.totalStock || 99)}
-                style={styles.qtyBtn}
+                disabled={isOutOfStock || isStockLessThanMoq || quantity >= (product.totalStock || 99)}
+                style={[styles.qtyBtn, (isOutOfStock || isStockLessThanMoq || quantity >= (product.totalStock || 99)) && styles.qtyBtnDisabled]}
               >
                 <Text style={styles.qtyBtnText}>+</Text>
               </TouchableOpacity>
@@ -1233,20 +1330,20 @@ export default function ProductDetailScreen() {
       {/* Bottom Sticky Action Bar */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.cartBtn, isOutOfStock && styles.btnDisabled]}
+          style={[styles.cartBtn, (isOutOfStock || isStockLessThanMoq) && styles.btnDisabled]}
           onPress={handleAddToCart}
-          disabled={isOutOfStock}
+          disabled={isOutOfStock || isStockLessThanMoq}
         >
           <ShoppingCart size={17} color={CustomerColors.teal700} />
           <Text style={styles.cartBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-            {t('products.addToCart')}
+            {isStockLessThanMoq ? 'Below MOQ Stock' : t('products.addToCart')}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.buyBtn, isOutOfStock && styles.btnDisabled]}
+          style={[styles.buyBtn, (isOutOfStock || isStockLessThanMoq) && styles.btnDisabled]}
           onPress={handleBuyNow}
-          disabled={isOutOfStock}
+          disabled={isOutOfStock || isStockLessThanMoq}
         >
           <Zap size={17} color="#FFFFFF" />
           <Text style={styles.buyBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
@@ -1259,10 +1356,10 @@ export default function ProductDetailScreen() {
             style={[
               styles.buyBtn,
               { backgroundColor: '#7C3AED' },
-              isOutOfStock && styles.btnDisabled,
+              (isOutOfStock || isStockLessThanMoq) && styles.btnDisabled,
             ]}
             onPress={handleBuyNow}
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || isStockLessThanMoq}
           >
             <Zap size={17} color="#FFFFFF" />
             <Text style={styles.buyBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
@@ -1738,6 +1835,34 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
     },
     offerTitle: { fontSize: FontSizes.xs, fontWeight: '700', color: CustomerColors.teal700 },
     offerSubtitle: { fontSize: 10, color: isDark ? '#99F6E4' : '#0F766E' },
+    moqBanner: {
+      backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FEF3C7',
+      borderColor: isDark ? '#D97706' : '#F59E0B',
+      borderWidth: 1,
+      borderRadius: BorderRadius.md,
+      padding: Spacing.sm,
+      marginBottom: Spacing.sm,
+    },
+    moqBannerError: {
+      backgroundColor: isDark ? 'rgba(220, 38, 38, 0.15)' : '#FEE2E2',
+      borderColor: isDark ? '#EF4444' : '#DC2626',
+    },
+    moqBannerTitle: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#FBBF24' : '#B45309',
+      marginBottom: 2,
+    },
+    moqBannerTitleError: {
+      color: isDark ? '#F87171' : '#B91C1C',
+    },
+    moqBannerSubtitle: {
+      fontSize: 11,
+      color: isDark ? '#FDE68A' : '#92400E',
+    },
+    moqBannerSubtitleError: {
+      color: isDark ? '#FCA5A5' : '#7F1D1D',
+    },
     qtyWishlistRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.sm },
     qtySelector: {
       flexDirection: 'row',
@@ -1749,6 +1874,7 @@ const getStyles = (isDark: boolean, colors: ThemeColors) =>
       overflow: 'hidden',
     },
     qtyBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+    qtyBtnDisabled: { opacity: 0.35 },
     qtyBtnText: { color: colors.textPrimary, fontSize: FontSizes.base, fontWeight: '800' },
     qtyText: {
       color: CustomerColors.primary,
