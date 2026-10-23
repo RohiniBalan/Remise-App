@@ -99,7 +99,7 @@ export default function SuppliersScreen() {
   const [search, setSearch] = useState('');
   const [customCategories, setCustomCategories] = useState<{ _id: string; name: string }[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery'>('delivery');
   const [error, setError] = useState('');
   const [placedMsg, setPlacedMsg] = useState('');
   const [myOrders, setMyOrders] = useState<any[]>([]);
@@ -802,34 +802,6 @@ export default function SuppliersScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Store Pickup */}
-                <TouchableOpacity
-                  style={[
-                    styles.deliveryOptionBtn,
-                    deliveryMethod === 'pickup' && styles.deliveryOptionBtnActive,
-                  ]}
-                  onPress={() => setDeliveryMethod('pickup')}
-                  activeOpacity={0.8}
-                >
-                  <Store
-                    size={16}
-                    color={
-                      deliveryMethod === 'pickup'
-                        ? '#fff'
-                        : isDark
-                        ? '#2DD4BF'
-                        : CustomerColors.teal700
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.deliveryOptionBtnText,
-                      deliveryMethod === 'pickup' && styles.deliveryOptionBtnTextActive,
-                    ]}
-                  >
-                    {tSupplier.selfPickup}
-                  </Text>
-                </TouchableOpacity>
               </View>
             </View>
 

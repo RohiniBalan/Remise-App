@@ -31,6 +31,7 @@ import {
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { creditApi } from '../../api/creditApi';
+import { storeApi } from '../../api/storeApi';
 import {
   paymentApi,
   PAYMENT_RETURN_SENTINEL,
@@ -115,6 +116,39 @@ export default function CheckoutScreen() {
   const primaryStoreName = useMemo(() => {
     return ((itemsToCheckout as any[]).find(i => i.storeName)?.storeName as string) || 'Vendor Store';
   }, [itemsToCheckout]);
+
+  const [storeDetails, setStoreDetails] = useState<any>(null);
+
+  useEffect(() => {
+    if (primaryStoreId) {
+      storeApi.getById(primaryStoreId).then(res => {
+        if (res.data?.data) setStoreDetails(res.data.data);
+      }).catch(() => {});
+    }
+  }, [primaryStoreId]);
+
+  const isStockOrder = useMemo(() => {
+    if (user?.role !== 'store_owner') return false;
+    const sType = storeDetails?.storeType || storeDetails?.role;
+    if (sType && ['whole_saler', 'wholesaler', 'home_business'].includes(sType)) {
+      return true;
+    }
+    return (itemsToCheckout as any[]).some(
+      (item: any) =>
+        ['whole_saler', 'wholesaler', 'home_business'].includes(item.supplierRole) ||
+        ['whole_saler', 'wholesaler', 'home_business'].includes(item.storeType) ||
+        item.moq !== undefined
+    );
+  }, [user?.role, storeDetails, itemsToCheckout]);
+
+  useEffect(() => {
+    if (isStockOrder) {
+      setDeliveryMethod('delivery');
+      if (paymentMethod !== 'razorpay') {
+        setPaymentMethod('razorpay');
+      }
+    }
+  }, [isStockOrder, paymentMethod]);
 
   const subtotal = useMemo(
     () => itemsToCheckout.reduce((sum, i) => sum + i.price * i.quantity, 0),
@@ -271,8 +305,10 @@ export default function CheckoutScreen() {
         billingAddress: billingSameAsShipping
           ? shippingAddress
           : billingAddress,
-        deliveryMethod,
-        paymentMethod,
+        deliveryMethod: isStockOrder ? 'delivery' : deliveryMethod,
+        paymentMethod: isStockOrder ? 'razorpay' : paymentMethod,
+        buyerRole: user?.role || 'user',
+        supplierRole: storeDetails?.storeType || storeDetails?.role || (isStockOrder ? 'whole_saler' : 'store_owner'),
         storeId: primaryStoreId || creditEligibility?.storeId || null,
         storeName: primaryStoreName !== 'Vendor Store' ? primaryStoreName : (creditEligibility?.storeName || 'Vendor Store'),
       });
@@ -938,43 +974,45 @@ export default function CheckoutScreen() {
                     </Text>
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.deliveryMethodOption,
-                    deliveryMethod === 'pickup' &&
-                      styles.deliveryMethodOptionActive,
-                    isDark && { borderColor: '#374151' },
-                    deliveryMethod === 'pickup' &&
-                      isDark && {
-                        borderColor: '#0D9488',
-                        backgroundColor: 'rgba(15, 163, 177, 0.12)',
-                      },
-                  ]}
-                  onPress={() => setDeliveryMethod('pickup')}
-                >
-                  <Store
-                    size={17}
-                    color={isDark ? '#5EEAD4' : CustomerColors.teal700}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.deliveryMethodTitle,
-                        isDark && { color: '#FFFFFF' },
-                      ]}
-                    >
-                      {t('checkout.selfPickup') || 'Self Pickup'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.deliveryMethodSubtitle,
-                        isDark && { color: '#9CA3AF' },
-                      ]}
-                    >
-                      {t('checkout.selfPickupSubtitle') || 'Collect from the selected store'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                {!isStockOrder && (
+                  <TouchableOpacity
+                    style={[
+                      styles.deliveryMethodOption,
+                      deliveryMethod === 'pickup' &&
+                        styles.deliveryMethodOptionActive,
+                      isDark && { borderColor: '#374151' },
+                      deliveryMethod === 'pickup' &&
+                        isDark && {
+                          borderColor: '#0D9488',
+                          backgroundColor: 'rgba(15, 163, 177, 0.12)',
+                        },
+                    ]}
+                    onPress={() => setDeliveryMethod('pickup')}
+                  >
+                    <Store
+                      size={17}
+                      color={isDark ? '#5EEAD4' : CustomerColors.teal700}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.deliveryMethodTitle,
+                          isDark && { color: '#FFFFFF' },
+                        ]}
+                      >
+                        {t('checkout.selfPickup') || 'Self Pickup'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.deliveryMethodSubtitle,
+                          isDark && { color: '#9CA3AF' },
+                        ]}
+                      >
+                        {t('checkout.selfPickupSubtitle') || 'Collect from the selected store'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -1301,7 +1339,8 @@ export default function CheckoutScreen() {
               </TouchableOpacity>
 
               {/* 2. Cash on Delivery (COD) Option */}
-              <TouchableOpacity
+              {!isStockOrder && (
+                <TouchableOpacity
                 style={[
                   styles.paymentCard,
                   isDark && {
@@ -1374,8 +1413,10 @@ export default function CheckoutScreen() {
                 />
               </TouchableOpacity>
 
+              )}
+
               {/* 3. Store Credit (Kadan) Option */}
-              {creditEligibility?.hasAccount && creditEligibility?.status === 'APPROVED' ? (
+              {!isStockOrder && creditEligibility?.hasAccount && creditEligibility?.status === 'APPROVED' ? (
                 <TouchableOpacity
                   style={[
                     styles.paymentCard,

@@ -39,6 +39,8 @@ export interface InitiatePaymentPayload {
   paymentMethod: 'razorpay' | 'cod' | 'phonepe' | 'qr' | 'credit';
   storeId?: string | null;
   storeName?: string;
+  buyerRole?: string;
+  supplierRole?: string;
 }
 
 export interface VerifyPaymentPayload {

@@ -9,14 +9,73 @@ import {
   View,
 } from 'react-native';
 import {
+  Banknote,
+  MapPin,
+  Store,
+  X,
+} from 'lucide-react-native';
+import {
   CustomerColors,
   BorderRadius,
   FontSizes,
   Spacing,
 } from '../../styles/theme';
 
+export function isCashPaidOrder(order: any): boolean {
+  if (!order) return false;
+
+  const paymentStatus = (order.paymentStatus || '').toUpperCase().trim();
+  if (paymentStatus !== 'SUCCESS' && paymentStatus !== 'PAID') {
+    return false;
+  }
+
+  const hasOnlinePaymentIdentifiers = Boolean(
+    order.razorpayPaymentId ||
+    order.razorpayOrderId ||
+    order.cashfreeOrderId ||
+    order.paymentId ||
+    order.onlineTransactionId ||
+    (order.paymentLinkDetails && order.paymentLinkDetails.status === 'paid')
+  );
+  if (hasOnlinePaymentIdentifiers) {
+    return false;
+  }
+
+  const method = (order.paymentMethod || '').toLowerCase().trim();
+  const onlineMethods = [
+    'razorpay',
+    'qr',
+    'phonepe',
+    'cashfree',
+    'online',
+    'card',
+    'upi',
+    'netbanking',
+    'wallet',
+  ];
+  if (onlineMethods.includes(method)) {
+    return false;
+  }
+
+  const isCodOrCash = method === 'cod' || method === 'cash' || method === 'cash on delivery';
+  if (!isCodOrCash) {
+    return false;
+  }
+
+  const codStatus = (order.codDetails?.status || '').toLowerCase().trim();
+  const hasCashCollectedFields =
+    codStatus === 'collected' ||
+    Boolean(order.codDetails?.collectedAt) ||
+    order.codDetails?.isCollected === true ||
+    Number(order.codDetails?.collectedAmount) > 0 ||
+    order.paymentPreference === 'CASH';
+
+  return hasCashCollectedFields;
+}
+
 interface RefundModalProps {
   visible: boolean;
+  order?: any;
   totalAmount: number;
   isSubmitting: boolean;
   error: string;
@@ -26,6 +85,7 @@ interface RefundModalProps {
 
 export default function RefundModal({
   visible,
+  order,
   totalAmount,
   isSubmitting,
   error,
@@ -41,6 +101,96 @@ export default function RefundModal({
       : numericAmount > totalAmount
       ? `The refund cannot exceed the available balance of Rs ${totalAmount.toLocaleString()}.`
       : '';
+
+  const isCashPaid = isCashPaidOrder(order);
+
+  if (isCashPaid) {
+    const storeName = order?.store?.name || order?.storeName || 'the store where you purchased it';
+    const storeAddress = order?.store?.address || order?.storeAddress || '';
+    const orderDisplayId = order?.orderId || order?._id ? `#${(order?.orderId || order?._id).slice(-8)}` : '';
+
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.cashDialog}>
+            {/* Header */}
+            <View style={styles.cashHeader}>
+              <View style={styles.cashIconWrap}>
+                <Store size={22} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cashTitle}>Store Return & Refund</Text>
+                {orderDisplayId ? (
+                  <Text style={styles.cashOrderSub}>Order {orderDisplayId}</Text>
+                ) : null}
+              </View>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.closeBtn}
+              >
+                <X size={18} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Cash Instruction Notice Box */}
+            <View style={styles.cashNoticeBox}>
+              <View style={styles.cashNoticeRow}>
+                <Banknote size={20} color="#D97706" style={{ marginTop: 2 }} />
+                <Text style={styles.cashNoticeText}>
+                  You paid for this order by cash. To return the product and receive your refund, please visit the store where you purchased it. Bring the product with you so the store can process your return and refund.
+                </Text>
+              </View>
+            </View>
+
+            {/* Store Information */}
+            {(storeName || storeAddress) ? (
+              <View style={styles.storeCard}>
+                <View style={styles.storeRow}>
+                  <Store size={14} color={CustomerColors.primary} />
+                  <Text style={styles.storeNameText} numberOfLines={1}>
+                    Store: {storeName}
+                  </Text>
+                </View>
+                {storeAddress ? (
+                  <View style={[styles.storeRow, { marginTop: 4 }]}>
+                    <MapPin size={14} color={CustomerColors.textSecondary} />
+                    <Text style={styles.storeAddressText} numberOfLines={2}>
+                      {storeAddress}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* Payment Summary */}
+            <View style={styles.paymentSummaryRow}>
+              <Text style={styles.summaryLabel}>Payment Mode</Text>
+              <Text style={styles.summaryValueBold}>Cash on Delivery (Paid)</Text>
+            </View>
+            <View style={[styles.paymentSummaryRow, { marginTop: 6 }]}>
+              <Text style={styles.summaryLabel}>Amount Paid</Text>
+              <Text style={styles.summaryAmount}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+            </View>
+
+            {/* Dismiss Button */}
+            <TouchableOpacity
+              style={styles.cashDismissButton}
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.cashDismissText}>OK, Understood</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -195,4 +345,119 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   disabledButton: { opacity: 0.5 },
+  cashDialog: {
+    backgroundColor: CustomerColors.white,
+    borderRadius: BorderRadius.lg || 16,
+    padding: Spacing.lg,
+  },
+  cashHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    paddingBottom: Spacing.md,
+  },
+  cashIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cashTitle: {
+    color: CustomerColors.black,
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+  },
+  cashOrderSub: {
+    color: CustomerColors.textSecondary,
+    fontSize: FontSizes.xs,
+    fontFamily: 'monospace',
+    marginTop: 2,
+  },
+  closeBtn: {
+    padding: Spacing.xs,
+  },
+  cashNoticeBox: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  cashNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  cashNoticeText: {
+    flex: 1,
+    color: '#78350F',
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  storeCard: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm + 4,
+    marginTop: Spacing.md,
+  },
+  storeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  storeNameText: {
+    flex: 1,
+    fontSize: FontSizes.xs + 1,
+    fontWeight: '700',
+    color: CustomerColors.black,
+  },
+  storeAddressText: {
+    flex: 1,
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
+    lineHeight: 16,
+  },
+  paymentSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+  },
+  summaryLabel: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
+  },
+  summaryValueBold: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: CustomerColors.black,
+  },
+  summaryAmount: {
+    fontSize: FontSizes.md,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  cashDismissButton: {
+    backgroundColor: CustomerColors.primary,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  cashDismissText: {
+    color: CustomerColors.white,
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+  },
 });
+

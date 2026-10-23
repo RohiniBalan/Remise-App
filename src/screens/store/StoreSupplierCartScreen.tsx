@@ -49,8 +49,8 @@ export default function StoreSupplierCartScreen() {
   const { store } = useStoreDashboard();
   const { user, token } = useAuth();
   const { cart, cartTotal, clearCart } = useSupplierCart();
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay'>('razorpay');
   const [placing, setPlacing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
 
   const [form, setForm] = useState({
     firstName:
@@ -217,7 +217,9 @@ export default function StoreSupplierCartScreen() {
         shippingAddress,
         billingAddress: shippingAddress,
         deliveryMethod: 'delivery',
-        paymentMethod,
+        paymentMethod: 'razorpay',
+        buyerRole: 'store_owner',
+        supplierRole: (orderGroups[0] as any)?.supplierRole || 'whole_saler',
       });
 
       const data = res.data;
@@ -226,14 +228,6 @@ export default function StoreSupplierCartScreen() {
 
       // 2. Concurrently record wholesale order in wholesale microservice
       orderApi.placeWholesaleOrders(orderGroups, form).catch(() => {});
-
-      if (paymentMethod === 'cod') {
-        clearCart();
-        setPlacing(false);
-        Alert.alert('Success', 'Cash on Delivery stock order placed successfully!');
-        navigation.navigate('StoreOwnerTabs', { screen: 'StoreOwnerOrders' });
-        return;
-      }
 
       if (data?.success && (data.razorpayOrderId || data.orderId)) {
         const options = {
@@ -606,60 +600,6 @@ export default function StoreSupplierCartScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* Cash on Delivery (COD) */}
-              <TouchableOpacity
-                style={[
-                  styles.paymentMethodRow,
-                  {
-                    paddingVertical: Spacing.xs,
-                    borderTopWidth: 1,
-                    borderTopColor: isDark ? '#1F2937' : '#F3F4F6',
-                    marginTop: Spacing.xs,
-                    paddingTop: Spacing.sm,
-                  },
-                ]}
-                onPress={() => setPaymentMethod('cod')}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.paymentRadioActive,
-                    paymentMethod === 'cod'
-                      ? { borderColor: '#059669' }
-                      : { borderColor: isDark ? '#4B5563' : '#D1D5DB' },
-                  ]}
-                >
-                  {paymentMethod === 'cod' && (
-                    <View
-                      style={[
-                        styles.paymentRadioInner,
-                        { backgroundColor: '#059669' },
-                      ]}
-                    />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <Banknote
-                      size={18}
-                      color={isDark ? '#34D399' : '#059669'}
-                    />
-                    <Text style={styles.paymentTitle}>
-                      {st.cashOnDelivery}
-                    </Text>
-                  </View>
-                  <Text style={styles.paymentSubtitle}>
-                    {st.codSubtitle}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
               <View style={styles.securityBadge}>
                 <ShieldCheck
                   size={14}
@@ -687,10 +627,7 @@ export default function StoreSupplierCartScreen() {
                 </Text>
               </View>
               <TouchableOpacity
-                style={[
-                  styles.placeBtn,
-                  paymentMethod === 'cod' && { backgroundColor: '#059669' },
-                ]}
+                style={styles.placeBtn}
                 onPress={handlePlaceOrder}
                 disabled={placing || orderGroups.length === 0}
                 activeOpacity={0.85}
@@ -699,9 +636,7 @@ export default function StoreSupplierCartScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.placeBtnText}>
-                    {paymentMethod === 'cod'
-                      ? `${st.placeCodOrder} (₹${cartTotal.toLocaleString('en-IN')})`
-                      : `${st.payViaRazorpayBtn} (₹${cartTotal.toLocaleString('en-IN')})`}
+                    {`${st.payViaRazorpayBtn} (₹${cartTotal.toLocaleString('en-IN')})`}
                   </Text>
                 )}
               </TouchableOpacity>

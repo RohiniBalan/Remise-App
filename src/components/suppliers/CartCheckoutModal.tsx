@@ -100,7 +100,7 @@ export default function CartCheckoutModal({
     [cartLines],
   );
   const [step, setStep] = useState<Step>('contact');
-  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>(initialDeliveryMethod);
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery'>('delivery');
   const platformFee = usePlatformFee(totalAmount);
   const { deliveryFee } = useDeliveryFee(totalAmount, deliveryMethod);
   const totalPayable = totalAmount + platformFee + deliveryFee;
@@ -130,7 +130,7 @@ export default function CartCheckoutModal({
   useEffect(() => {
     if (visible) {
       setStep('contact');
-      setDeliveryMethod(initialDeliveryMethod);
+      setDeliveryMethod('delivery');
       setGroupIndex(0);
       setErrorMsg('');
       if (prefill) {
@@ -267,8 +267,10 @@ export default function CartCheckoutModal({
         contactEmail: form.contactEmail || user?.email || '',
         shippingAddress: addressData,
         billingAddress: addressData,
-        deliveryMethod: deliveryMethod,
+        deliveryMethod: 'delivery',
         paymentMethod: 'razorpay',
+        buyerRole: 'store_owner',
+        supplierRole: (chosen as any)?.supplierRole || 'whole_saler',
       });
 
       const data = res.data;
@@ -700,83 +702,6 @@ export default function CartCheckoutModal({
                   )}
                 </TouchableOpacity>
 
-                {/* Option 2: Store / Self Pickup */}
-                <TouchableOpacity
-                  style={[
-                    styles.methodOptionCard,
-                    isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
-                    deliveryMethod === 'pickup' && [
-                      styles.methodOptionCardActive,
-                      isDark && { backgroundColor: '#0f2f2c', borderColor: CustomerColors.teal600 },
-                    ],
-                  ]}
-                  onPress={() => setDeliveryMethod('pickup')}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.methodOptionHeader}>
-                    <View
-                      style={[
-                        styles.radioCircle,
-                        deliveryMethod === 'pickup' && styles.radioCircleActive,
-                        isDark && { borderColor: deliveryMethod === 'pickup' ? CustomerColors.teal600 : '#4B5563' },
-                      ]}
-                    >
-                      {deliveryMethod === 'pickup' && <View style={styles.radioDot} />}
-                    </View>
-
-                    <View
-                      style={[
-                        styles.methodIconBox,
-                        isDark && { backgroundColor: '#111827' },
-                        deliveryMethod === 'pickup' && { backgroundColor: CustomerColors.teal600 },
-                      ]}
-                    >
-                      <Store
-                        size={20}
-                        color={deliveryMethod === 'pickup' ? '#fff' : (isDark ? '#2DD4BF' : CustomerColors.teal700)}
-                      />
-                    </View>
-
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={styles.methodTitleRow}>
-                        <Text
-                          style={[
-                            styles.methodOptionTitle,
-                            isDark && { color: '#FFFFFF' },
-                            deliveryMethod === 'pickup' && { color: isDark ? '#2DD4BF' : CustomerColors.teal700 },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {tSupplier.selfPickup}
-                        </Text>
-                        {deliveryMethod === 'pickup' && (
-                          <View style={styles.selectedBadge}>
-                            <Text style={styles.selectedBadgeText}>{tSupplier.selected}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[styles.methodOptionDesc, isDark && { color: '#9CA3AF' }]}>
-                        {tSupplier.selfPickupDesc}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {deliveryMethod === 'pickup' && (
-                    <View
-                      style={[
-                        styles.addressPreviewBox,
-                        isDark && { backgroundColor: '#111827', borderColor: '#374151' },
-                      ]}
-                    >
-                      <Text style={[styles.addressPreviewLabel, isDark && { color: '#2DD4BF' }]}>
-                        {tSupplier.pickupFrom}
-                      </Text>
-                      <Text style={[styles.addressPreviewText, isDark && { color: '#D1D5DB' }]}>
-                        {chosen.storeName}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
 
                 {/* Step Action Buttons */}
                 <View style={{ gap: Spacing.sm, marginTop: Spacing.xs }}>

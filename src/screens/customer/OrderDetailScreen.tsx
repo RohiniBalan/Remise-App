@@ -10,6 +10,7 @@ import {
   Image,
   Linking,
   Alert,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -32,6 +33,7 @@ import {
   Calendar,
   ExternalLink,
   Banknote,
+  X,
 } from 'lucide-react-native';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import { paymentApi } from '../../api/paymentApi';
@@ -69,6 +71,7 @@ export default function OrderDetailScreen() {
   const [selectedRefund, setSelectedRefund] = useState<{
     orderId: string;
     totalAmount: number;
+    order?: any;
   } | null>(null);
   const [selectedReviewOrder, setSelectedReviewOrder] = useState<any | null>(null);
   const [refundError, setRefundError] = useState('');
@@ -175,6 +178,7 @@ export default function OrderDetailScreen() {
 
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
   const [prefLoading, setPrefLoading] = useState(false);
+  const [cashModalInfo, setCashModalInfo] = useState<{ amount: string; isPickup: boolean } | null>(null);
   const [payingOnline, setPayingOnline] = useState(false);
 
   const handleSelectPreference = async (pref: 'CASH' | 'ONLINE') => {
@@ -190,26 +194,12 @@ export default function OrderDetailScreen() {
       }
       if (pref === 'CASH') {
         const payAmount = Number(order?.totalAmount || totalAmount || 0).toLocaleString();
-        const instructions = isPickup
-          ? `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease pay in cash directly at the store counter upon collecting your order.`
-          : `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease keep exact cash ready to hand over to the delivery partner upon arrival.`;
-        Alert.alert(
-          '💵 Pay by Cash Selected',
-          instructions,
-          [{ text: 'OK, Understood', style: 'default' }]
-        );
+        setCashModalInfo({ amount: payAmount, isPickup: Boolean(isPickup) });
       }
     } catch (err: any) {
       if (pref === 'CASH') {
         const payAmount = Number(order?.totalAmount || totalAmount || 0).toLocaleString();
-        const instructions = isPickup
-          ? `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease pay in cash directly at the store counter upon collecting your order.`
-          : `You have chosen to Pay by Cash.\n\nTotal Due: ₹${payAmount}\n\nPlease keep exact cash ready to hand over to the delivery partner upon arrival.`;
-        Alert.alert(
-          '💵 Pay by Cash Selected',
-          instructions,
-          [{ text: 'OK, Understood', style: 'default' }]
-        );
+        setCashModalInfo({ amount: payAmount, isPickup: Boolean(isPickup) });
       } else {
         Alert.alert('Payment Choice', err?.response?.data?.message || err?.message || 'Failed to update preference.');
       }
@@ -624,6 +614,7 @@ export default function OrderDetailScreen() {
                   setSelectedRefund({
                     orderId: order.orderId || order._id,
                     totalAmount,
+                    order,
                   });
                 }}
               >
@@ -863,6 +854,7 @@ export default function OrderDetailScreen() {
       {Boolean(selectedRefund) && (
         <RefundModal
           visible={Boolean(selectedRefund)}
+          order={selectedRefund?.order || order}
           totalAmount={selectedRefund!.totalAmount}
           isSubmitting={isRefunding}
           error={refundError}
@@ -887,6 +879,78 @@ export default function OrderDetailScreen() {
             fetchOrderDetail(true);
           }}
         />
+      )}
+      {cashModalInfo && (
+        <Modal
+          visible={!!cashModalInfo}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCashModalInfo(null)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{
+              width: '100%',
+              maxWidth: 330,
+              backgroundColor: isDark ? '#111827' : '#FFFFFF',
+              borderRadius: 20,
+              padding: 22,
+              alignItems: 'center',
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? '#1F2937' : 'transparent',
+            }}>
+              <TouchableOpacity
+                style={{ position: 'absolute', top: 14, right: 14, padding: 4, zIndex: 1 }}
+                onPress={() => setCashModalInfo(null)}
+              >
+                <X size={18} color={isDark ? '#94A3B8' : '#64748B'} />
+              </TouchableOpacity>
+
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: isDark ? '#451a03' : '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+                <Banknote size={28} color="#D97706" />
+              </View>
+
+              <Text style={{ fontSize: 16, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
+                Pay by Cash Selected
+              </Text>
+
+              <View style={{
+                width: '100%',
+                backgroundColor: isDark ? '#451a0322' : '#FFFBEB',
+                borderWidth: 1,
+                borderColor: isDark ? '#78350f' : '#FDE68A',
+                borderRadius: 12,
+                padding: 14,
+                alignItems: 'center',
+                marginVertical: 12,
+              }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 2 }}>
+                  Total Due
+                </Text>
+                <Text style={{ fontSize: 26, fontWeight: '900', color: isDark ? '#FBBF24' : '#D97706' }}>
+                  ₹{cashModalInfo.amount}
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#D1D5DB' : '#374151', textAlign: 'center', marginTop: 6, lineHeight: 16 }}>
+                  {cashModalInfo.isPickup
+                    ? 'Please pay in cash directly at the store counter upon collecting your order.'
+                    : 'Please keep exact cash ready to hand over to the delivery partner upon arrival.'}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={{
+                  width: '100%',
+                  backgroundColor: '#D97706',
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                }}
+                onPress={() => setCashModalInfo(null)}
+              >
+                <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>OK, Understood</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );

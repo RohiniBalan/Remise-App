@@ -30,7 +30,7 @@ import { orderApi, OrderData } from '../../api/orderApi';
 import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import { isValidPlacedOrder } from '../../utils/orderValidation';
-import RefundModal from '../../components/common/RefundModal';
+import RefundModal, { isCashPaidOrder } from '../../components/common/RefundModal';
 import StoreReviewModal from '../../components/common/StoreReviewModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
@@ -80,6 +80,7 @@ interface DisplayItem {
   totalAmount: number;
   platformFee?: number;
   refundWindowEndAt?: string;
+  order?: any;
 }
 
 const formatLocalizedDate = (date: Date | string, lang: string) => {
@@ -216,6 +217,7 @@ export default function OrdersScreen() {
   const [selectedRefund, setSelectedRefund] = useState<{
     orderId: string;
     totalAmount: number;
+    order?: any;
   } | null>(null);
   const [selectedReviewItem, setSelectedReviewItem] = useState<DisplayItem | null>(null);
   const [isRefunding, setIsRefunding] = useState(false);
@@ -394,6 +396,7 @@ export default function OrdersScreen() {
           totalAmount: order.totalAmount,
           platformFee: (order as any).platformFee,
           refundWindowEndAt: (order as any).refundWindowEndAt,
+          order,
         });
       } else {
         items.forEach((it, idx) => {
@@ -419,6 +422,7 @@ export default function OrdersScreen() {
             totalAmount: order.totalAmount,
             platformFee: (order as any).platformFee,
             refundWindowEndAt: (order as any).refundWindowEndAt,
+            order,
           });
         });
       }
@@ -742,7 +746,7 @@ export default function OrdersScreen() {
                   )}
 
                   {item.paymentStatus === 'SUCCESS' &&
-                    item.paymentMethod?.toLowerCase() === 'razorpay' && (
+                    (item.paymentMethod?.toLowerCase() === 'razorpay' || isCashPaidOrder(item.order || item)) && (
                       <>
                         {(!item.refundWindowEndAt || new Date() < new Date(item.refundWindowEndAt)) ? (
                           <TouchableOpacity
@@ -752,6 +756,7 @@ export default function OrdersScreen() {
                               setSelectedRefund({
                                 orderId: item.orderId,
                                 totalAmount: item.totalAmount,
+                                order: item.order || item,
                               });
                             }}
                           >
@@ -808,6 +813,7 @@ export default function OrdersScreen() {
       {selectedRefund ? (
         <RefundModal
           visible={!!selectedRefund}
+          order={selectedRefund.order}
           totalAmount={selectedRefund.totalAmount}
           isSubmitting={isRefunding}
           error={refundError}

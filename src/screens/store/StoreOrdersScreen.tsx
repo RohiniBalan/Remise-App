@@ -111,6 +111,7 @@ export default function StoreOrdersScreen() {
   }, [search, filter]);
 
   const [errorModal, setErrorModal] = useState<string | null>(null);
+  const [cashConfirmModalOrder, setCashConfirmModalOrder] = useState<any>(null);
 
   const counts: Record<string, number> = { all: orders.length };
   ORDER_STATUSES.forEach(s => { counts[s] = orders.filter(o => o.status === s).length; });
@@ -152,32 +153,26 @@ export default function StoreOrdersScreen() {
   };
 
   const handleConfirmCod = (o: any) => {
-    Alert.alert(
-      'Confirm Cash Collection',
-      `Have you collected cash of ₹${o.totalAmount} for order #${(o.orderId || o._id).slice(-6).toUpperCase()}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm Collected',
-          style: 'default',
-          onPress: async () => {
-            setUpdating(o._id);
-            try {
-              const res = await creditApi.confirmCodCollection(o.orderId || o._id);
-              if (res.data?.success) {
-                refresh();
-              } else {
-                setErrorModal(res.data?.message || 'Failed to confirm COD collection.');
-              }
-            } catch (err: any) {
-              setErrorModal(err?.response?.data?.message || 'Failed to confirm COD collection.');
-            } finally {
-              setUpdating(null);
-            }
-          },
-        },
-      ]
-    );
+    setCashConfirmModalOrder(o);
+  };
+
+  const executeConfirmCash = async () => {
+    if (!cashConfirmModalOrder) return;
+    const o = cashConfirmModalOrder;
+    setUpdating(o._id);
+    try {
+      const res = await creditApi.confirmCodCollection(o.orderId || o._id);
+      if (res.data?.success) {
+        setCashConfirmModalOrder(null);
+        refresh();
+      } else {
+        setErrorModal(res.data?.message || 'Failed to confirm COD collection.');
+      }
+    } catch (err: any) {
+      setErrorModal(err?.response?.data?.message || 'Failed to confirm COD collection.');
+    } finally {
+      setUpdating(null);
+    }
   };
 
   const handleShowStoreQr = async (o: any) => {
@@ -643,6 +638,100 @@ export default function StoreOrdersScreen() {
           </View>
         </Modal>
       )}
+
+      {/* Cash Collection Confirmation Modal */}
+      {cashConfirmModalOrder ? (
+        <Modal
+          visible={!!cashConfirmModalOrder}
+          transparent
+          animationType="fade"
+          onRequestClose={() => updating !== cashConfirmModalOrder._id && setCashConfirmModalOrder(null)}
+        >
+          <View style={styles.errorModalBackdrop}>
+            <View style={[styles.errorModalCard, { maxWidth: 330, padding: 22 }]}>
+              <TouchableOpacity
+                style={{ position: 'absolute', top: 14, right: 14, padding: 4, zIndex: 1 }}
+                disabled={updating === cashConfirmModalOrder._id}
+                onPress={() => setCashConfirmModalOrder(null)}
+              >
+                <X size={18} color={isDark ? '#94A3B8' : '#64748B'} />
+              </TouchableOpacity>
+
+              <View style={[styles.errorModalIconWrap, { backgroundColor: isDark ? '#064e3b' : '#D1FAE5', width: 56, height: 56, borderRadius: 28, marginBottom: 8 }]}>
+                <Banknote size={28} color="#059669" />
+              </View>
+
+              <Text style={styles.errorModalTitle}>Confirm Cash Collection</Text>
+
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: BorderRadius.pill,
+                marginVertical: 6,
+              }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#9CA3AF' : '#4B5563', fontFamily: 'monospace' }}>
+                  Order #{(cashConfirmModalOrder.orderId || cashConfirmModalOrder._id).slice(-6).toUpperCase()}
+                </Text>
+              </View>
+
+              <View style={{
+                width: '100%',
+                backgroundColor: isDark ? '#064e3b22' : '#ECFDF5',
+                borderWidth: 1,
+                borderColor: isDark ? '#065f46' : '#A7F3D0',
+                borderRadius: BorderRadius.md,
+                padding: 12,
+                alignItems: 'center',
+                marginVertical: 8,
+              }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#9CA3AF' : '#4B5563', marginBottom: 2 }}>
+                  Amount to Collect
+                </Text>
+                <Text style={{ fontSize: 24, fontWeight: '900', color: isDark ? '#34D399' : '#059669' }}>
+                  ₹{cashConfirmModalOrder.totalAmount}
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#D1D5DB' : '#374151', textAlign: 'center', marginTop: 4, lineHeight: 16 }}>
+                  Have you collected cash of ₹{cashConfirmModalOrder.totalAmount} for this order?
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', marginBottom: 14 }}>
+                Confirming will mark this order payment status as Paid (Cash Collected).
+              </Text>
+
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalSecondaryBtn, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}
+                  disabled={updating === cashConfirmModalOrder._id}
+                  onPress={() => setCashConfirmModalOrder(null)}
+                >
+                  <Text style={[styles.modalSecondaryBtnText, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalPrimaryBtn, { backgroundColor: '#059669' }, updating === cashConfirmModalOrder._id && { opacity: 0.7 }]}
+                  disabled={updating === cashConfirmModalOrder._id}
+                  onPress={executeConfirmCash}
+                >
+                  {updating === cashConfirmModalOrder._id ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <CheckCircle2 size={13} color="#FFFFFF" />
+                      <Text style={styles.modalPrimaryBtnText}>Confirm Collected</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
 
       {/* In-Store QR Payment Modal for COD + Self Pickup */}
       {storeQrModal ? (

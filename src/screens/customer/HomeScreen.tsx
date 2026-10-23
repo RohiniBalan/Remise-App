@@ -580,9 +580,9 @@ export default function HomeScreen() {
           )}
 
           {nearbyStatus === 'done' && nearbyOffers.length === 0 && (
-            <View style={styles.nearbyEmpty}>
+            <View style={[styles.nearbyEmpty, isDark && { backgroundColor: colors?.card || '#111827', borderColor: colors?.border || '#1F2937' }]}>
               <Text style={styles.emptyEmoji}>🔍</Text>
-              <Text style={styles.locationPromptTitle}>No offers found nearby</Text>
+              <Text style={[styles.locationPromptTitle, isDark && { color: colors?.textPrimary || '#FFFFFF' }]}>No offers found nearby</Text>
               <TouchableOpacity style={styles.enableLocationBtn} onPress={() => navigation.navigate('Nearby')}>
                 <Text style={styles.enableLocationBtnText}>Explore All Offers</Text>
               </TouchableOpacity>
