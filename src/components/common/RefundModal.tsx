@@ -9,7 +9,9 @@ import {
   View,
 } from 'react-native';
 import {
+  AlertCircle,
   Banknote,
+  Clock,
   MapPin,
   Store,
   X,
@@ -73,6 +75,51 @@ export function isCashPaidOrder(order: any): boolean {
   return hasCashCollectedFields;
 }
 
+export function isRefundPeriodExpired(order: any, error?: string): boolean {
+  if (error && typeof error === 'string') {
+    const errLower = error.toLowerCase();
+    if (
+      errLower.includes('refund period for this order has expired') ||
+      errLower.includes('refund_window_expired') ||
+      errLower.includes('refund window ended')
+    ) {
+      return true;
+    }
+  }
+
+  if (!order) return false;
+
+  const paymentStatus = (order.paymentStatus || '').toUpperCase().trim();
+  if (paymentStatus !== 'SUCCESS' && paymentStatus !== 'PAID' && paymentStatus !== 'REFUNDED') {
+    return false;
+  }
+
+  if (paymentStatus === 'REFUNDED' || order.refundStatus === 'refunded') {
+    return false;
+  }
+
+  const now = Date.now();
+
+  if (order.refundWindowEndAt) {
+    const expiry = new Date(order.refundWindowEndAt).getTime();
+    if (!isNaN(expiry) && now >= expiry) {
+      return true;
+    }
+  }
+
+  if (order.paymentCapturedAt) {
+    const captured = new Date(order.paymentCapturedAt).getTime();
+    if (!isNaN(captured)) {
+      const expiry = captured + 5 * 24 * 60 * 60 * 1000;
+      if (now >= expiry) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 interface RefundModalProps {
   visible: boolean;
   order?: any;
@@ -102,7 +149,104 @@ export default function RefundModal({
       ? `The refund cannot exceed the available balance of Rs ${totalAmount.toLocaleString()}.`
       : '';
 
+  const isExpired = isRefundPeriodExpired(order, error);
   const isCashPaid = isCashPaidOrder(order);
+
+  if (isExpired) {
+    const storeName = order?.store?.name || order?.storeName || 'the store where you purchased the products';
+    const storeAddress = order?.store?.address || order?.storeAddress || '';
+    const orderDisplayId = order?.orderId || order?._id ? `#${(order?.orderId || order?._id).slice(-8)}` : '';
+
+    const expiredMessage = isCashPaid
+      ? 'The refund period for this order has expired. You paid for this order by cash. If you wish to cancel or return the order and request your refund, please visit the store where you purchased the products with your item. The store can assist you with the return and cash refund process, subject to its applicable policy.'
+      : 'The refund period for this order has expired. If you wish to cancel or return the order and receive your money back, please visit the store where you purchased the products. The store can assist you with the return and refund process, subject to its applicable policy.';
+
+    const paymentLabel = isCashPaid
+      ? 'Cash on Delivery (Paid)'
+      : (order?.paymentMethod ? `${order.paymentMethod.toUpperCase()} (Online)` : 'Online Payment');
+
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.cashDialog}>
+            {/* Header */}
+            <View style={styles.cashHeader}>
+              <View style={[styles.cashIconWrap, { backgroundColor: 'rgba(217, 119, 6, 0.1)' }]}>
+                <Clock size={22} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cashTitle}>Refund Period Expired</Text>
+                {orderDisplayId ? (
+                  <Text style={styles.cashOrderSub}>Order {orderDisplayId}</Text>
+                ) : null}
+              </View>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.closeBtn}
+              >
+                <X size={18} color={CustomerColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Expired Notice Box */}
+            <View style={styles.cashNoticeBox}>
+              <View style={styles.cashNoticeRow}>
+                <AlertCircle size={20} color="#D97706" style={{ marginTop: 2 }} />
+                <Text style={styles.cashNoticeText}>
+                  {expiredMessage}
+                </Text>
+              </View>
+            </View>
+
+            {/* Store Information */}
+            {(storeName || storeAddress) ? (
+              <View style={styles.storeCard}>
+                <View style={styles.storeRow}>
+                  <Store size={14} color={CustomerColors.primary} />
+                  <Text style={styles.storeNameText} numberOfLines={1}>
+                    Store: {storeName}
+                  </Text>
+                </View>
+                {storeAddress ? (
+                  <View style={[styles.storeRow, { marginTop: 4 }]}>
+                    <MapPin size={14} color={CustomerColors.textSecondary} />
+                    <Text style={styles.storeAddressText} numberOfLines={2}>
+                      {storeAddress}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* Payment Summary */}
+            <View style={styles.paymentSummaryRow}>
+              <Text style={styles.summaryLabel}>Payment Mode</Text>
+              <Text style={styles.summaryValueBold}>{paymentLabel}</Text>
+            </View>
+            <View style={[styles.paymentSummaryRow, { marginTop: 6 }]}>
+              <Text style={styles.summaryLabel}>Amount Paid</Text>
+              <Text style={styles.summaryAmount}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+            </View>
+
+            {/* Dismiss Button */}
+            <TouchableOpacity
+              style={styles.cashDismissButton}
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.cashDismissText}>OK, Understood</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   if (isCashPaid) {
     const storeName = order?.store?.name || order?.storeName || 'the store where you purchased it';

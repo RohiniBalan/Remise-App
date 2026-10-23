@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -27,9 +28,13 @@ import {
   Banknote,
   AlertTriangle,
   FileText,
+  Edit2,
+  MapPin,
+  X,
 } from 'lucide-react-native';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { authApi } from '../../api/authApi';
 import { creditApi } from '../../api/creditApi';
 import { storeApi } from '../../api/storeApi';
 import {
@@ -54,6 +59,21 @@ import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { usePlatformFee } from '../../utils/platformFee';
 import { useDeliveryFee } from '../../utils/deliveryFee';
 
+export interface SavedAddress {
+  id: string;
+  label?: string;
+  fullName: string;
+  phone: string;
+  street: string;
+  address?: string;
+  apartment?: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  country?: string;
+  isDefault?: boolean;
+}
+
 const emptyAddress = (): AddressData => ({
   country: 'India',
   firstName: '',
@@ -70,7 +90,7 @@ export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
   const { language, t } = useTranslation();
   const { isDark } = useTheme();
-  const { user, token } = useAuth();
+  const { user, token, updateUser } = useAuth();
   const {
     cart,
     buyNowItem,
@@ -108,6 +128,123 @@ export default function CheckoutScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [isEditingAddress, setIsEditingAddress] = useState<boolean>(false);
+  const [isAddingNewAddress, setIsAddingNewAddress] = useState<boolean>(false);
+  const [showAddressPickerModal, setShowAddressPickerModal] = useState<boolean>(false);
+  const [saveToProfile, setSaveToProfile] = useState<boolean>(true);
+  const [isSavingAddress, setIsSavingAddress] = useState<boolean>(false);
+
+  const populateFromSavedAddress = (addr: SavedAddress) => {
+    const parts = (addr.fullName || '').trim().split(' ');
+    const fName = parts[0] || '';
+    const lName = parts.slice(1).join(' ') || '';
+    setShippingAddress({
+      country: addr.country || 'India',
+      firstName: fName,
+      lastName: lName,
+      phone: addr.phone || '',
+      address: addr.street || addr.address || '',
+      apartment: addr.apartment || '',
+      city: addr.city || '',
+      state: addr.state || 'Tamil Nadu',
+      pinCode: addr.pinCode || '',
+    });
+    setSelectedAddressId(addr.id);
+  };
+
+  const saveAddressToProfile = async (addressToSave: AddressData, addressId?: string) => {
+    if (!token) return;
+    try {
+      setIsSavingAddress(true);
+      const nextId = addressId || (selectedAddressId && !isAddingNewAddress ? selectedAddressId : `addr_${Date.now()}`);
+      const fullName = `${addressToSave.firstName} ${addressToSave.lastName}`.trim();
+      const newAddressEntry: SavedAddress = {
+        id: nextId,
+        label: 'Home',
+        fullName,
+        phone: addressToSave.phone.replace(/\D/g, ''),
+        street: addressToSave.address.trim(),
+        address: addressToSave.address.trim(),
+        apartment: (addressToSave.apartment || '').trim(),
+        city: addressToSave.city.trim(),
+        state: addressToSave.state.trim(),
+        pinCode: addressToSave.pinCode.trim(),
+        country: addressToSave.country || 'India',
+        isDefault: true,
+      };
+
+      const existingIndex = savedAddresses.findIndex(a => a.id === nextId);
+      let updatedAddresses: SavedAddress[] = [];
+      if (existingIndex >= 0) {
+        updatedAddresses = savedAddresses.map((a, idx) =>
+          idx === existingIndex ? { ...newAddressEntry, isDefault: true } : { ...a, isDefault: false }
+        );
+      } else {
+        updatedAddresses = [
+          newAddressEntry,
+          ...savedAddresses.map(a => ({ ...a, isDefault: false })),
+        ];
+      }
+
+      setSavedAddresses(updatedAddresses);
+      setSelectedAddressId(newAddressEntry.id);
+
+      await authApi.updateProfile({ addresses: updatedAddresses });
+      if (updateUser) {
+        await updateUser({
+          profileData: {
+            ...(user?.profileData || {}),
+            addresses: updatedAddresses,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to persist address to profile on mobile:', err);
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
+  useEffect(() => {
+    const list = Array.isArray((user?.profileData as any)?.addresses)
+      ? (user!.profileData as any).addresses
+      : [];
+    if (list.length > 0) {
+      setSavedAddresses(list);
+      const defaultAddr = list.find((a: SavedAddress) => a.isDefault) || list[0];
+      populateFromSavedAddress(defaultAddr);
+      setIsEditingAddress(false);
+    } else {
+      setIsEditingAddress(true);
+    }
+
+    if (token) {
+      authApi.getProfile()
+        .then(res => {
+          const freshUser = res.data?.data;
+          if (freshUser) {
+            const freshAddresses: SavedAddress[] = Array.isArray(freshUser.profileData?.addresses)
+              ? freshUser.profileData.addresses
+              : [];
+            setSavedAddresses(freshAddresses);
+            if (freshAddresses.length > 0) {
+              const chosen = freshAddresses.find((a: SavedAddress) => a.isDefault) || freshAddresses[0];
+              populateFromSavedAddress(chosen);
+              setIsEditingAddress(false);
+            } else if (list.length === 0) {
+              setIsEditingAddress(true);
+            }
+            if (updateUser) {
+              updateUser(freshUser);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user?._id, token]);
+
   const itemsToCheckout = buyNowItem ? [buyNowItem] : cart;
   const primaryStoreId = useMemo(() => {
     return (itemsToCheckout as any[]).find(i => i.storeId)?.storeId || null;
@@ -141,14 +278,27 @@ export default function CheckoutScreen() {
     );
   }, [user?.role, storeDetails, itemsToCheckout]);
 
+  const isHomeBusinessOrder = useMemo(() => {
+    const sType = storeDetails?.storeType || storeDetails?.role;
+    if (sType === 'home_business') {
+      return true;
+    }
+    return (itemsToCheckout as any[]).some(
+      (item: any) =>
+        item.ownerRole === 'home_business' ||
+        item.supplierRole === 'home_business' ||
+        item.storeType === 'home_business'
+    );
+  }, [storeDetails, itemsToCheckout]);
+
   useEffect(() => {
-    if (isStockOrder) {
+    if (isStockOrder || isHomeBusinessOrder) {
       setDeliveryMethod('delivery');
       if (paymentMethod !== 'razorpay') {
         setPaymentMethod('razorpay');
       }
     }
-  }, [isStockOrder, paymentMethod]);
+  }, [isStockOrder, isHomeBusinessOrder, paymentMethod]);
 
   const subtotal = useMemo(
     () => itemsToCheckout.reduce((sum, i) => sum + i.price * i.quantity, 0),
@@ -236,14 +386,16 @@ export default function CheckoutScreen() {
   const isPhoneValid = (phone: string) => /^\d{10}$/.test((phone || '').trim());
 
   const isShippingValid =
-    isEmailValid(contactEmail) &&
-    shippingAddress.firstName.trim() !== '' &&
-    shippingAddress.address.trim() !== '' &&
-    shippingAddress.city.trim() !== '' &&
-    shippingAddress.pinCode.trim() !== '' &&
-    isPhoneValid(shippingAddress.phone);
+    deliveryMethod === 'pickup' ||
+    (isEmailValid(contactEmail) &&
+      shippingAddress.firstName.trim() !== '' &&
+      shippingAddress.address.trim() !== '' &&
+      shippingAddress.city.trim() !== '' &&
+      shippingAddress.pinCode.trim() !== '' &&
+      isPhoneValid(shippingAddress.phone));
 
   const isBillingValid =
+    deliveryMethod === 'pickup' ||
     billingSameAsShipping ||
     (billingAddress.firstName.trim() !== '' &&
       billingAddress.address.trim() !== '' &&
@@ -265,13 +417,28 @@ export default function CheckoutScreen() {
       return;
     }
 
-    if (!isPhoneValid(shippingAddress.phone)) {
-      setError('Please enter a valid 10-digit phone number for shipping.');
-      setCurrentStep(2);
-      return;
+    if (deliveryMethod === 'delivery') {
+      if (!isPhoneValid(shippingAddress.phone)) {
+        setError('Please enter a valid 10-digit phone number for shipping.');
+        setCurrentStep(2);
+        return;
+      }
+
+      if (!isShippingValid) {
+        setError('Please fill in all mandatory delivery address fields.');
+        setCurrentStep(2);
+        return;
+      }
+
+      if (isEditingAddress && saveToProfile) {
+        await saveAddressToProfile(
+          shippingAddress,
+          isAddingNewAddress ? undefined : selectedAddressId || undefined,
+        );
+      }
     }
 
-    if (!billingSameAsShipping && !isPhoneValid(billingAddress.phone)) {
+    if (deliveryMethod === 'delivery' && !billingSameAsShipping && !isPhoneValid(billingAddress.phone)) {
       setError('Please enter a valid 10-digit phone number for billing.');
       setCurrentStep(2);
       return;
@@ -299,16 +466,20 @@ export default function CheckoutScreen() {
           quantity: i.quantity,
           image: i.image ?? null,
           storeId: (i as any).storeId || primaryStoreId || creditEligibility?.storeId || null,
+          ownerRole: (i as any).ownerRole,
+          storeType: (i as any).storeType,
+          supplierRole: (i as any).supplierRole,
+          isOffer: Boolean((i as any).isOffer),
         })),
         contactEmail,
         shippingAddress,
         billingAddress: billingSameAsShipping
           ? shippingAddress
           : billingAddress,
-        deliveryMethod: isStockOrder ? 'delivery' : deliveryMethod,
-        paymentMethod: isStockOrder ? 'razorpay' : paymentMethod,
+        deliveryMethod: (isStockOrder || isHomeBusinessOrder) ? 'delivery' : deliveryMethod,
+        paymentMethod: (isStockOrder || isHomeBusinessOrder) ? 'razorpay' : paymentMethod,
         buyerRole: user?.role || 'user',
-        supplierRole: storeDetails?.storeType || storeDetails?.role || (isStockOrder ? 'whole_saler' : 'store_owner'),
+        supplierRole: storeDetails?.storeType || storeDetails?.role || (isHomeBusinessOrder ? 'home_business' : (isStockOrder ? 'whole_saler' : 'store_owner')),
         storeId: primaryStoreId || creditEligibility?.storeId || null,
         storeName: primaryStoreName !== 'Vendor Store' ? primaryStoreName : (creditEligibility?.storeName || 'Vendor Store'),
       });
@@ -915,12 +1086,241 @@ export default function CheckoutScreen() {
               </View>
             </View>
 
-            <AddressFormFields
-              data={shippingAddress}
-              onChange={(field, v) =>
-                setShippingAddress(prev => ({ ...prev, [field]: v }))
-              }
-            />
+            {/* Saved Address Card OR Edit/Add Form */}
+            {savedAddresses.length > 0 && !isEditingAddress ? (
+              <View
+                style={[
+                  styles.savedAddressCard,
+                  isDark && styles.savedAddressCardDark,
+                ]}
+              >
+                <View style={styles.savedAddressHeader}>
+                  <View style={styles.savedAddressBadgeRow}>
+                    <View
+                      style={[
+                        styles.savedAddressLabelBadge,
+                        isDark && { backgroundColor: '#134E4A' },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.savedAddressLabelBadgeText,
+                          isDark && { color: '#5EEAD4' },
+                        ]}
+                      >
+                        {savedAddresses.find(a => a.id === selectedAddressId)?.label || 'Address'}
+                      </Text>
+                    </View>
+                    {savedAddresses.find(a => a.id === selectedAddressId)?.isDefault && (
+                      <View
+                        style={[
+                          styles.savedAddressDefaultBadge,
+                          isDark && { backgroundColor: '#78350F' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.savedAddressDefaultBadgeText,
+                            isDark && { color: '#FDE68A' },
+                          ]}
+                        >
+                          Default
+                        </Text>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <CheckCircle size={13} color="#0D9488" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#0D9488' }}>
+                        Saved
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.savedAddressActions}>
+                    <TouchableOpacity
+                      style={[
+                        styles.savedAddressActionBtn,
+                        isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                      ]}
+                      onPress={() => {
+                        setIsAddingNewAddress(false);
+                        setIsEditingAddress(true);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Edit2 size={12} color={isDark ? '#5EEAD4' : '#0F766E'} />
+                      <Text
+                        style={[
+                          styles.savedAddressActionBtnText,
+                          isDark && { color: '#5EEAD4' },
+                        ]}
+                      >
+                        Edit
+                      </Text>
+                    </TouchableOpacity>
+
+                    {savedAddresses.length > 1 && (
+                      <TouchableOpacity
+                        style={[
+                          styles.savedAddressActionBtn,
+                          isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                        ]}
+                        onPress={() => setShowAddressPickerModal(true)}
+                        activeOpacity={0.7}
+                      >
+                        <MapPin size={12} color={isDark ? '#5EEAD4' : '#0F766E'} />
+                        <Text
+                          style={[
+                            styles.savedAddressActionBtnText,
+                            isDark && { color: '#5EEAD4' },
+                          ]}
+                        >
+                          Change
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      style={[
+                        styles.savedAddressActionBtn,
+                        { borderColor: '#0D9488' },
+                        isDark && { backgroundColor: '#1F2937' },
+                      ]}
+                      onPress={() => {
+                        setIsAddingNewAddress(true);
+                        setIsEditingAddress(true);
+                        setSelectedAddressId(null);
+                        setSaveToProfile(true);
+                        const parts = (user?.fullname || user?.name || '').split(' ');
+                        setShippingAddress({
+                          country: 'India',
+                          firstName: parts[0] || '',
+                          lastName: parts.slice(1).join(' ') || '',
+                          phone: user?.mobilenumber || '',
+                          address: '',
+                          apartment: '',
+                          city: '',
+                          state: 'Tamil Nadu',
+                          pinCode: '',
+                        });
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Plus size={12} color="#0D9488" />
+                      <Text style={[styles.savedAddressActionBtnText, { color: '#0D9488' }]}>
+                        Add New
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text
+                  style={[
+                    styles.savedAddressName,
+                    isDark && { color: '#FFFFFF' },
+                  ]}
+                >
+                  {shippingAddress.firstName} {shippingAddress.lastName}
+                </Text>
+                <Text
+                  style={[
+                    styles.savedAddressPhone,
+                    isDark && { color: '#9CA3AF' },
+                  ]}
+                >
+                  📞 {shippingAddress.phone}
+                </Text>
+                <Text
+                  style={[
+                    styles.savedAddressStreet,
+                    isDark && { color: '#E5E7EB' },
+                  ]}
+                >
+                  {shippingAddress.address}{shippingAddress.apartment ? `, ${shippingAddress.apartment}` : ''}
+                </Text>
+                <Text
+                  style={[
+                    styles.savedAddressPhone,
+                    { marginTop: 2 },
+                    isDark && { color: '#9CA3AF' },
+                  ]}
+                >
+                  {shippingAddress.city}, {shippingAddress.state} - {shippingAddress.pinCode}
+                </Text>
+              </View>
+            ) : (
+              <View>
+                {savedAddresses.length > 0 && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: Spacing.sm,
+                      paddingBottom: 6,
+                      borderBottomWidth: 1,
+                      borderBottomColor: isDark ? '#1F2937' : '#F1F5F9',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color: isDark ? '#5EEAD4' : CustomerColors.teal600,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {isAddingNewAddress ? '+ Add New Delivery Address' : 'Edit Delivery Address'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const current = savedAddresses.find(a => a.id === selectedAddressId) || savedAddresses[0];
+                        populateFromSavedAddress(current);
+                        setIsEditingAddress(false);
+                        setIsAddingNewAddress(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#9CA3AF' : '#64748B' }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <AddressFormFields
+                  data={shippingAddress}
+                  onChange={(field, v) =>
+                    setShippingAddress(prev => ({ ...prev, [field]: v }))
+                  }
+                />
+
+                <TouchableOpacity
+                  style={styles.saveCheckboxRow}
+                  onPress={() => setSaveToProfile(prev => !prev)}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.saveCheckbox,
+                      saveToProfile && styles.saveCheckboxActive,
+                      isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                      saveToProfile && isDark && { backgroundColor: '#0D9488', borderColor: '#0D9488' },
+                    ]}
+                  >
+                    {saveToProfile && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
+                  </View>
+                  <Text
+                    style={[
+                      styles.saveCheckboxLabel,
+                      isDark && { color: '#D1D5DB' },
+                    ]}
+                  >
+                    Save this delivery address to my profile for future orders
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View
               style={[
@@ -974,7 +1374,7 @@ export default function CheckoutScreen() {
                     </Text>
                   </View>
                 </TouchableOpacity>
-                {!isStockOrder && (
+                {!isStockOrder && !isHomeBusinessOrder && (
                   <TouchableOpacity
                     style={[
                       styles.deliveryMethodOption,
@@ -1012,6 +1412,13 @@ export default function CheckoutScreen() {
                       </Text>
                     </View>
                   </TouchableOpacity>
+                )}
+                {isHomeBusinessOrder && (
+                  <View style={{ marginTop: Spacing.xs, padding: Spacing.sm, backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA', borderRadius: 8, borderWidth: 1, borderColor: isDark ? 'rgba(13, 148, 136, 0.3)' : '#CCFBF1' }}>
+                    <Text style={{ fontSize: 12, color: isDark ? '#5EEAD4' : '#0F766E', fontWeight: '500' }}>
+                      ℹ️ Orders from home businesses support only Home Delivery. Self Pickup is not available.
+                    </Text>
+                  </View>
                 )}
               </View>
             </View>
@@ -1099,18 +1506,29 @@ export default function CheckoutScreen() {
 
               <TouchableOpacity
                 style={[styles.stepActionBtn, { flex: 1 }]}
-                onPress={() => {
-                  if (!isShippingValid) {
-                    if (!isPhoneValid(shippingAddress.phone)) {
-                      setError(t('checkout.validPhoneError') || 'Please enter a valid 10-digit phone number.');
-                    } else {
-                      setError(
-                        t('checkout.fillRequiredAddressError') || 'Please fill in all required delivery address fields.',
-                      );
+                disabled={isSavingAddress}
+                onPress={async () => {
+                  if (deliveryMethod === 'delivery') {
+                    if (!isShippingValid) {
+                      if (!isPhoneValid(shippingAddress.phone)) {
+                        setError(t('checkout.validPhoneError') || 'Please enter a valid 10-digit phone number.');
+                      } else {
+                        setError(
+                          t('checkout.fillRequiredAddressError') || 'Please fill in all required delivery address fields.',
+                        );
+                      }
+                      return;
                     }
-                    return;
+                    if (isEditingAddress && saveToProfile) {
+                      await saveAddressToProfile(
+                        shippingAddress,
+                        isAddingNewAddress ? undefined : selectedAddressId || undefined,
+                      );
+                      setIsEditingAddress(false);
+                      setIsAddingNewAddress(false);
+                    }
                   }
-                  if (!billingSameAsShipping && !isBillingValid) {
+                  if (deliveryMethod === 'delivery' && !billingSameAsShipping && !isBillingValid) {
                     setError(
                       t('checkout.fillRequiredBillingError') || 'Please fill in all required billing address fields.',
                     );
@@ -1339,7 +1757,7 @@ export default function CheckoutScreen() {
               </TouchableOpacity>
 
               {/* 2. Cash on Delivery (COD) Option */}
-              {!isStockOrder && (
+              {!isStockOrder && !isHomeBusinessOrder && (
                 <TouchableOpacity
                 style={[
                   styles.paymentCard,
@@ -1416,7 +1834,7 @@ export default function CheckoutScreen() {
               )}
 
               {/* 3. Store Credit (Kadan) Option */}
-              {!isStockOrder && creditEligibility?.hasAccount && creditEligibility?.status === 'APPROVED' ? (
+              {!isStockOrder && !isHomeBusinessOrder && creditEligibility?.hasAccount && creditEligibility?.status === 'APPROVED' ? (
                 <TouchableOpacity
                   style={[
                     styles.paymentCard,
@@ -1502,6 +1920,20 @@ export default function CheckoutScreen() {
                   />
                 </TouchableOpacity>
               ) : null}
+
+              {isHomeBusinessOrder && (
+                <View style={{ padding: Spacing.md, backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA', borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(13, 148, 136, 0.3)' : '#CCFBF1', flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm }}>
+                  <ShieldCheck size={20} color={isDark ? '#5EEAD4' : '#0D9488'} style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FFFFFF' : '#0F766E' }}>
+                      Home Business Checkout Policy
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#134E4A', marginTop: 2 }}>
+                      Products and offers from home businesses are eligible exclusively for Online Payment and Home Delivery. Cash on Delivery is unavailable.
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {/* Step 3 Action Buttons */}
               <View style={styles.stepBtnRow}>
@@ -1594,6 +2026,122 @@ export default function CheckoutScreen() {
         subtitle={t('checkout.loginToPlaceOrderSubtitle') || 'Please sign in or register to place your order.'}
         onLogin={() => navigateToAuthFlow(navigation)}
       />
+
+      {/* Address Picker Modal */}
+      <Modal
+        visible={showAddressPickerModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddressPickerModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowAddressPickerModal(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={[
+              styles.modalContent,
+              isDark && { backgroundColor: '#111827' },
+            ]}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: Spacing.md,
+                paddingBottom: Spacing.xs,
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? '#1F2937' : '#E2E8F0',
+              }}
+            >
+              <Text
+                style={[
+                  styles.cardTitle,
+                  isDark && { color: '#FFFFFF' },
+                ]}
+              >
+                Choose Delivery Address
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAddressPickerModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={20} color={isDark ? '#9CA3AF' : '#64748B'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 350 }}>
+              {savedAddresses.map(addr => {
+                const isSelected = addr.id === selectedAddressId;
+                return (
+                  <TouchableOpacity
+                    key={addr.id}
+                    style={[
+                      styles.savedAddressCard,
+                      isSelected && { borderColor: '#0D9488', borderWidth: 2 },
+                      isDark && styles.savedAddressCardDark,
+                    ]}
+                    onPress={() => {
+                      populateFromSavedAddress(addr);
+                      setShowAddressPickerModal(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[styles.savedAddressLabelBadgeText, { fontSize: 11 }]}>
+                        {addr.label || 'Home'}
+                      </Text>
+                      {isSelected && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Check size={14} color="#0D9488" strokeWidth={3} />
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: '#0D9488' }}>Selected</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.savedAddressName, { marginTop: 4 }, isDark && { color: '#FFF' }]}>
+                      {addr.fullName} · {addr.phone}
+                    </Text>
+                    <Text style={[styles.savedAddressStreet, isDark && { color: '#D1D5DB' }]}>
+                      {addr.street || addr.address}, {addr.city}, {addr.state} - {addr.pinCode}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[
+                styles.stepActionBtn,
+                { marginTop: Spacing.md, backgroundColor: '#0D9488' },
+              ]}
+              onPress={() => {
+                setShowAddressPickerModal(false);
+                setIsAddingNewAddress(true);
+                setIsEditingAddress(true);
+                setSelectedAddressId(null);
+                setSaveToProfile(true);
+                const parts = (user?.fullname || user?.name || '').split(' ');
+                setShippingAddress({
+                  country: 'India',
+                  firstName: parts[0] || '',
+                  lastName: parts.slice(1).join(' ') || '',
+                  phone: user?.mobilenumber || '',
+                  address: '',
+                  apartment: '',
+                  city: '',
+                  state: 'Tamil Nadu',
+                  pinCode: '',
+                });
+              }}
+            >
+              <Text style={styles.stepActionBtnText}>+ Add New Address</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -2170,5 +2718,127 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: CustomerColors.textSecondary,
     marginTop: 2,
+  },
+  savedAddressCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: '#99F6E4',
+    backgroundColor: '#F0FDFA',
+    marginBottom: Spacing.sm,
+  },
+  savedAddressCardDark: {
+    borderColor: '#115E59',
+    backgroundColor: 'rgba(15, 118, 110, 0.15)',
+  },
+  savedAddressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  savedAddressBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  savedAddressLabelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: '#CCFBF1',
+  },
+  savedAddressLabelBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0F766E',
+    textTransform: 'uppercase',
+  },
+  savedAddressDefaultBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: '#FEF3C7',
+  },
+  savedAddressDefaultBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  savedAddressActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  savedAddressActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+  },
+  savedAddressActionBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F766E',
+  },
+  savedAddressName: {
+    fontSize: FontSizes.sm,
+    fontWeight: '800',
+    color: CustomerColors.black,
+  },
+  savedAddressPhone: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.textSecondary,
+    marginTop: 2,
+  },
+  savedAddressStreet: {
+    fontSize: FontSizes.xs,
+    color: CustomerColors.black,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  saveCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: Spacing.sm,
+    paddingVertical: 4,
+  },
+  saveCheckbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  saveCheckboxActive: {
+    backgroundColor: CustomerColors.teal600,
+    borderColor: CustomerColors.teal600,
+  },
+  saveCheckboxLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: CustomerColors.black,
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    maxHeight: '80%',
   },
 });

@@ -691,27 +691,35 @@ export default function ProfileScreen() {
 
         {/* ── Quick Actions / Shortcuts (matches web UserAvatarMenu) ── */}
         <View style={styles.quickMenuCard}>
-          <TouchableOpacity
-            style={styles.quickMenuItem}
-            onPress={() => navigation.navigate('MyOffers')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#431407' : '#FFF7ED' }]}>
-              <Tag size={18} color="#EA580C" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.quickMenuTitle}>{t('profile.quickOffersTitle')}</Text>
-                <View style={[styles.privateOfferBadge, isDark && { backgroundColor: '#78350F' }]}>
-                  <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>{t('offers.privateOffers') || 'Private Deals'}</Text>
+          {!(
+            user?.role === 'whole_saler' ||
+            user?.role === 'wholesaler' ||
+            user?.role === 'home_business'
+          ) && (
+            <>
+              <TouchableOpacity
+                style={styles.quickMenuItem}
+                onPress={() => navigation.navigate('MyOffers')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.quickMenuIcon, { backgroundColor: isDark ? '#431407' : '#FFF7ED' }]}>
+                  <Tag size={18} color="#EA580C" />
                 </View>
-              </View>
-              <Text style={styles.quickMenuSub}>{t('profile.quickOffersSub')}</Text>
-            </View>
-            <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-          </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.quickMenuTitle}>{t('profile.quickOffersTitle')}</Text>
+                    <View style={[styles.privateOfferBadge, isDark && { backgroundColor: '#78350F' }]}>
+                      <Text style={[styles.privateOfferBadgeText, isDark && { color: '#FDE68A' }]}>{t('offers.privateOffers') || 'Private Deals'}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.quickMenuSub}>{t('profile.quickOffersSub')}</Text>
+                </View>
+                <ChevronRight size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
+              </TouchableOpacity>
 
-          <View style={styles.quickMenuDivider} />
+              <View style={styles.quickMenuDivider} />
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.quickMenuItem}

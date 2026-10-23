@@ -12,6 +12,10 @@ export interface CartItem {
   totalStock?: number;
   storeId?: string;
   storeName?: string;
+  ownerRole?: string;
+  storeType?: string;
+  supplierRole?: string;
+  isOffer?: boolean;
 }
 
 interface CartContextValue {
@@ -95,6 +99,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = useCallback(
     (product: CartItem) => {
+      if ((product as any).ownerRole === 'whole_saler' || (product as any).ownerRole === 'wholesaler') {
+        return;
+      }
       setCart(prev => {
         const existing = prev.find(i => i.id === product.id);
         let next: CartItem[];
@@ -107,6 +114,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             ...product,
             storeId: product.storeId || (product as any).store?._id || (product as any).vendorId,
             storeName: product.storeName || (product as any).store?.name,
+            ownerRole: (product as any).ownerRole || (product as any).sellerRole || (product as any).store?.storeType || (product as any).store?.role,
+            storeType: (product as any).storeType || (product as any).store?.storeType,
+            supplierRole: (product as any).supplierRole,
+            isOffer: Boolean((product as any).isOffer),
           }];
         }
         persist(next);

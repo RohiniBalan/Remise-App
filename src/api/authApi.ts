@@ -61,6 +61,9 @@ export const authApi = {
   changePassword: (currentPassword: string, newPassword: string) =>
     gatewayClient.post('/api/auth/change-password', { currentPassword, newPassword }),
 
+  getProfile: () =>
+    gatewayClient.get('/api/auth/profile'),
+
   updateProfile: (payload: Record<string, unknown>) =>
     gatewayClient.put('/api/auth/profile', payload),
 

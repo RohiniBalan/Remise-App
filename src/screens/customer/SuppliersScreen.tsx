@@ -117,6 +117,7 @@ export default function SuppliersScreen() {
   const [selectedRefund, setSelectedRefund] = useState<{
     orderId: string;
     totalAmount: number;
+    order?: any;
   } | null>(null);
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundError, setRefundError] = useState('');
@@ -705,6 +706,7 @@ export default function SuppliersScreen() {
                             setSelectedRefund({
                               orderId: o.orderId || o._id,
                               totalAmount: o.totalAmount,
+                              order: o,
                             });
                           }}
                         >
@@ -912,6 +914,7 @@ export default function SuppliersScreen() {
 
       <RefundModal
         visible={Boolean(selectedRefund)}
+        order={selectedRefund?.order}
         totalAmount={selectedRefund?.totalAmount || 0}
         isSubmitting={isRefunding}
         error={refundError}

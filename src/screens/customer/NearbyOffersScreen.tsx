@@ -921,6 +921,22 @@ function OrderModal({
   const [step, setStep] = useState<Step>('details');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup' | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod' | 'credit'>('razorpay');
+
+  const isHomeBusinessOffer = useMemo(() => {
+    return (
+      (offer as any)?.ownerRole === 'home_business' ||
+      (offer as any)?.storeType === 'home_business'
+    );
+  }, [offer]);
+
+  useEffect(() => {
+    if (isHomeBusinessOffer) {
+      setDeliveryMethod('delivery');
+      if (paymentMethod !== 'razorpay') {
+        setPaymentMethod('razorpay');
+      }
+    }
+  }, [isHomeBusinessOffer, paymentMethod]);
   const [creditEligibility, setCreditEligibility] = useState<any>(null);
   const [selectedSubMethod, setSelectedSubMethod] = useState<'upi' | 'card' | 'netbanking' | 'wallet'>('upi');
   const [orderId, setOrderId] = useState('');
@@ -1075,6 +1091,8 @@ function OrderModal({
           quantity: qty,
           storeId: offer.storeId,
           storeName: offer.storeName,
+          ownerRole: (offer as any)?.ownerRole,
+          storeType: (offer as any)?.storeType,
           image: offer.image?.startsWith('http')
             ? offer.image
             : offer.image
@@ -1087,6 +1105,9 @@ function OrderModal({
         form.contactEmail?.trim() ||
         user?.email?.trim() ||
         `${(form.phone || 'customer').replace(/\D/g, '') || 'customer'}@remise.digital`;
+
+      const effectiveDeliveryMethod = isHomeBusinessOffer ? 'delivery' : deliveryMethod;
+      const effectivePaymentMethod = isHomeBusinessOffer ? 'razorpay' : paymentMethod;
 
       const res = await smartOrderApi.placeOrder({
         amount: totalAmount,
@@ -1104,8 +1125,8 @@ function OrderModal({
         userId: user?._id || null,
         storeId: offer.storeId,
         storeName: offer.storeName,
-        deliveryMethod,
-        paymentMethod,
+        deliveryMethod: effectiveDeliveryMethod,
+        paymentMethod: effectivePaymentMethod,
       });
 
       // Also sync offers-service order
@@ -1118,9 +1139,9 @@ function OrderModal({
           city: form.city,
           state: form.state,
           pinCode: form.pinCode,
-          deliveryMethod,
-          paymentMethod,
-          paymentStatus: paymentMethod === 'cod' ? 'Pending' : 'Pending',
+          deliveryMethod: effectiveDeliveryMethod,
+          paymentMethod: effectivePaymentMethod,
+          paymentStatus: effectivePaymentMethod === 'cod' ? 'Pending' : 'Pending',
           quantity: qty,
         })
         .catch(() => {});
@@ -1415,30 +1436,32 @@ function OrderModal({
 
               <View style={{ gap: Spacing.sm }}>
                 {/* Self Pickup */}
-                <TouchableOpacity
-                  style={[
-                    styles.methodCardLarge,
-                    isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
-                    deliveryMethod === 'pickup' && [styles.methodCardLargeActive, isDark && { backgroundColor: '#0f2f2c', borderColor: CustomerColors.teal600 }],
-                  ]}
-                  onPress={() => {
-                    setDeliveryMethod('pickup');
-                    setError('');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.methodIconLargeWrap, isDark && { backgroundColor: '#111827' }, deliveryMethod === 'pickup' && styles.methodIconLargeWrapActive]}>
-                    <Store size={22} color={deliveryMethod === 'pickup' ? '#fff' : (isDark ? '#2DD4BF' : CustomerColors.teal700)} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.methodLargeTitle, isDark && { color: '#FFFFFF' }, deliveryMethod === 'pickup' && [styles.methodLargeTitleActive, isDark && { color: '#2DD4BF' }]]}>
-                      {txt.selfPickup}
-                    </Text>
-                    <Text style={[styles.methodLargeSubtitle, isDark && { color: '#9CA3AF' }]}>
-                      {txt.selfPickupDesc.replace('{store}', offer.storeName)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                {!isHomeBusinessOffer && (
+                  <TouchableOpacity
+                    style={[
+                      styles.methodCardLarge,
+                      isDark && { backgroundColor: '#1F2937', borderColor: '#374151' },
+                      deliveryMethod === 'pickup' && [styles.methodCardLargeActive, isDark && { backgroundColor: '#0f2f2c', borderColor: CustomerColors.teal600 }],
+                    ]}
+                    onPress={() => {
+                      setDeliveryMethod('pickup');
+                      setError('');
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.methodIconLargeWrap, isDark && { backgroundColor: '#111827' }, deliveryMethod === 'pickup' && styles.methodIconLargeWrapActive]}>
+                      <Store size={22} color={deliveryMethod === 'pickup' ? '#fff' : (isDark ? '#2DD4BF' : CustomerColors.teal700)} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.methodLargeTitle, isDark && { color: '#FFFFFF' }, deliveryMethod === 'pickup' && [styles.methodLargeTitleActive, isDark && { color: '#2DD4BF' }]]}>
+                        {txt.selfPickup}
+                      </Text>
+                      <Text style={[styles.methodLargeSubtitle, isDark && { color: '#9CA3AF' }]}>
+                        {txt.selfPickupDesc.replace('{store}', offer.storeName)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
 
                 {/* Home Delivery */}
                 <TouchableOpacity
@@ -1465,6 +1488,14 @@ function OrderModal({
                     </Text>
                   </View>
                 </TouchableOpacity>
+
+                {isHomeBusinessOffer && (
+                  <View style={{ backgroundColor: isDark ? 'rgba(15, 118, 110, 0.2)' : '#F0FDFA', borderColor: isDark ? '#115E59' : '#99F6E4', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm, marginTop: Spacing.xs }}>
+                    <Text style={{ fontSize: 12, color: isDark ? '#2DD4BF' : '#0F766E', fontWeight: '600' }}>
+                      ℹ️ Home Business Policy: Only Home Delivery is available for this offer.
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.buttonRow}>
@@ -1545,54 +1576,56 @@ function OrderModal({
               </TouchableOpacity>
 
               {/* Cash on Delivery (COD) Card */}
-              <TouchableOpacity
-                style={[
-                  styles.optionCard,
-                  {
-                    backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA',
-                    borderColor: paymentMethod === 'cod' ? '#059669' : (isDark ? '#374151' : '#E2E8F0'),
-                    borderWidth: paymentMethod === 'cod' ? 2 : 1.5,
-                  },
-                ]}
-                onPress={() => setPaymentMethod('cod')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.razorpayIconBox, { backgroundColor: '#059669' }]}>
-                  <Banknote size={20} color="#FFFFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
-                    <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>
-                      {txt.codTitle || 'Cash on Delivery (COD)'}
-                    </Text>
-                    <View style={[styles.instantBadge, { backgroundColor: '#059669' }]}>
-                      <Text style={styles.instantBadgeText}>{txt.codBadge || 'Pay in Cash'}</Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
-                    {txt.codDesc || 'Pay with physical cash upon order delivery or pickup.'}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    borderWidth: 2,
-                    borderColor: paymentMethod === 'cod' ? '#059669' : '#9CA3AF',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginTop: 4,
-                  }}
+              {!isHomeBusinessOffer && (
+                <TouchableOpacity
+                  style={[
+                    styles.optionCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA',
+                      borderColor: paymentMethod === 'cod' ? '#059669' : (isDark ? '#374151' : '#E2E8F0'),
+                      borderWidth: paymentMethod === 'cod' ? 2 : 1.5,
+                    },
+                  ]}
+                  onPress={() => setPaymentMethod('cod')}
+                  activeOpacity={0.8}
                 >
-                  {paymentMethod === 'cod' && (
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#059669' }} />
-                  )}
-                </View>
-              </TouchableOpacity>
+                  <View style={[styles.razorpayIconBox, { backgroundColor: '#059669' }]}>
+                    <Banknote size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' }}>
+                      <Text style={[styles.optionTitle, isDark && { color: '#FFFFFF' }]}>
+                        {txt.codTitle || 'Cash on Delivery (COD)'}
+                      </Text>
+                      <View style={[styles.instantBadge, { backgroundColor: '#059669' }]}>
+                        <Text style={styles.instantBadgeText}>{txt.codBadge || 'Pay in Cash'}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.optionDesc, isDark && { color: '#9CA3AF' }]}>
+                      {txt.codDesc || 'Pay with physical cash upon order delivery or pickup.'}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      borderWidth: 2,
+                      borderColor: paymentMethod === 'cod' ? '#059669' : '#9CA3AF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 4,
+                    }}
+                  >
+                    {paymentMethod === 'cod' && (
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#059669' }} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {/* Store Credit (Kadan) Option */}
-              {creditEligibility && creditEligibility.status === 'APPROVED' && (
+              {!isHomeBusinessOffer && creditEligibility && creditEligibility.status === 'APPROVED' && (
                 <TouchableOpacity
                   style={[
                     styles.optionCard,
@@ -1652,6 +1685,14 @@ function OrderModal({
                     )}
                   </View>
                 </TouchableOpacity>
+              )}
+
+              {isHomeBusinessOffer && (
+                <View style={{ backgroundColor: isDark ? 'rgba(15, 118, 110, 0.2)' : '#F0FDFA', borderColor: isDark ? '#115E59' : '#99F6E4', borderWidth: 1, borderRadius: BorderRadius.lg, padding: Spacing.sm, marginTop: Spacing.xs }}>
+                  <Text style={{ fontSize: 12, color: isDark ? '#2DD4BF' : '#0F766E', fontWeight: '600' }}>
+                    ℹ️ Home Business Policy: Only Online Payment is supported for this offer. Cash on Delivery is unavailable.
+                  </Text>
+                </View>
               )}
 
               <TouchableOpacity

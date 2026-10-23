@@ -48,6 +48,11 @@ import {
 } from '../../styles/theme';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import RefundModal from '../../components/common/RefundModal';
+import {
+  CodCancelConfirmModal,
+  DeliveryNotPendingModal,
+  isPendingCodOrder,
+} from '../../components/common/CancelOrderModals';
 import StoreReviewModal from '../../components/common/StoreReviewModal';
 import { useTranslation, translateProductName } from '../../i18n';
 
@@ -77,6 +82,13 @@ export default function OrderDetailScreen() {
   const [refundError, setRefundError] = useState('');
   const [refundNotice, setRefundNotice] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
+
+  // Cancellation states
+  const [ineligibleModalMessage, setIneligibleModalMessage] = useState<string | null>(null);
+  const [showCodConfirmModal, setShowCodConfirmModal] = useState(false);
+  const [isCheckingCancelStatus, setIsCheckingCancelStatus] = useState(false);
+  const [isCancellingCod, setIsCancellingCod] = useState(false);
+  const [codCancelError, setCodCancelError] = useState('');
 
   const fetchOrderDetail = useCallback(async (isBackground = false) => {
     if (!orderId) return;
@@ -140,6 +152,80 @@ export default function OrderDetailScreen() {
       );
     } finally {
       setIsRefunding(false);
+    }
+  };
+
+  const handleCancelOrderClick = async () => {
+    if (!order) return;
+    const targetOrderId = order.orderId || order._id || orderId;
+    setIsCheckingCancelStatus(true);
+    setRefundError('');
+    setCodCancelError('');
+    try {
+      let latestOrder: any = order;
+      try {
+        const res = await smartOrderApi.getOrderDetails(targetOrderId);
+        if (res.data?.success && res.data.data) {
+          latestOrder = res.data.data;
+          setOrder(latestOrder);
+        }
+      } catch (err) {
+        // Fallback to order in state
+      }
+
+      if (latestOrder.orderStatus === 'Cancelled' || latestOrder.deliveryStatus === 'Cancelled') {
+        setIneligibleModalMessage('This order has already been cancelled.');
+        return;
+      }
+
+      const currentDeliveryStatus = (latestOrder.deliveryStatus || 'Pending').trim();
+      if (currentDeliveryStatus.toLowerCase() !== 'pending') {
+        setIneligibleModalMessage(
+          `This order can no longer be cancelled because its delivery status is "${currentDeliveryStatus}". Cancellation is only available while the delivery status is Pending.`
+        );
+        return;
+      }
+
+      if (isPendingCodOrder(latestOrder)) {
+        setShowCodConfirmModal(true);
+      } else {
+        setSelectedRefund({
+          orderId: latestOrder.orderId || latestOrder._id,
+          totalAmount,
+          order: latestOrder,
+        });
+      }
+    } finally {
+      setIsCheckingCancelStatus(false);
+    }
+  };
+
+  const handleConfirmCodCancel = async () => {
+    if (!order) return;
+    const targetOrderId = order.orderId || order._id || orderId;
+    setIsCancellingCod(true);
+    setCodCancelError('');
+    try {
+      const res = await smartOrderApi.cancelOrder(targetOrderId, 'Customer requested cancellation');
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Failed to cancel order');
+      }
+
+      setOrder((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              orderStatus: 'Cancelled',
+              deliveryStatus: 'Cancelled',
+            }
+          : prev
+      );
+      setShowCodConfirmModal(false);
+      Alert.alert('Order Cancelled', 'Your order has been cancelled successfully.');
+    } catch (err: any) {
+      setCodCancelError(err.response?.data?.message || err.message || 'Failed to cancel order');
+    } finally {
+      setIsCancellingCod(false);
     }
   };
 
@@ -607,24 +693,41 @@ export default function OrderDetailScreen() {
 
             {/* Cancel / Refund */}
             {!isCancelled && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnCancel]}
-                onPress={() => {
-                  setRefundError('');
-                  setSelectedRefund({
-                    orderId: order.orderId || order._id,
-                    totalAmount,
-                    order,
-                  });
-                }}
-              >
-                <RotateCcw size={14} color={isDark ? '#FDBA74' : '#C2410C'} />
-                <Text style={styles.actionBtnCancelText}>
-                  {isDelivered
-                    ? t('orders.returnRefund') || 'Return / Refund'
-                    : t('orders.cancelOrder') || 'Cancel Order'}
-                </Text>
-              </TouchableOpacity>
+              <>
+                {isDelivered ? (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionBtnCancel]}
+                    onPress={() => {
+                      setRefundError('');
+                      setSelectedRefund({
+                        orderId: order.orderId || order._id,
+                        totalAmount,
+                        order,
+                      });
+                    }}
+                  >
+                    <RotateCcw size={14} color={isDark ? '#FDBA74' : '#C2410C'} />
+                    <Text style={styles.actionBtnCancelText}>
+                      {t('orders.returnRefund') || 'Return / Refund'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionBtnCancel]}
+                    onPress={handleCancelOrderClick}
+                    disabled={isCheckingCancelStatus}
+                  >
+                    {isCheckingCancelStatus ? (
+                      <ActivityIndicator size="small" color={isDark ? '#FDBA74' : '#C2410C'} />
+                    ) : (
+                      <RotateCcw size={14} color={isDark ? '#FDBA74' : '#C2410C'} />
+                    )}
+                    <Text style={styles.actionBtnCancelText}>
+                      {t('orders.cancelOrder') || 'Cancel Order'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
 
@@ -865,6 +968,30 @@ export default function OrderDetailScreen() {
           onSubmit={handleRefundSubmit}
         />
       )}
+
+      {/* COD Cancel Confirmation Modal */}
+      <CodCancelConfirmModal
+        visible={showCodConfirmModal}
+        order={order}
+        isCancelling={isCancellingCod}
+        error={codCancelError}
+        onClose={() => {
+          if (!isCancellingCod) {
+            setShowCodConfirmModal(false);
+            setCodCancelError('');
+          }
+        }}
+        onConfirm={handleConfirmCodCancel}
+        isDark={isDark}
+      />
+
+      {/* Ineligible Delivery Status Modal */}
+      <DeliveryNotPendingModal
+        visible={Boolean(ineligibleModalMessage)}
+        message={ineligibleModalMessage || ''}
+        onClose={() => setIneligibleModalMessage(null)}
+        isDark={isDark}
+      />
 
       {/* Store Review Modal */}
       {Boolean(selectedReviewOrder) && (

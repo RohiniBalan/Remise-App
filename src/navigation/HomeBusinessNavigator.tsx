@@ -57,7 +57,6 @@ import NotificationScreen from '../screens/customer/NotificationsScreen';
 import AccountSettingsScreen from '../screens/customer/SettingsScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
 import OrdersScreen from '../screens/customer/OrdersScreen';
-import MyOffersScreen from '../screens/customer/MyOffersScreen';
 import WishlistScreen from '../screens/customer/WishlistScreen';
 import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
 import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
@@ -107,7 +106,6 @@ export type HomeBusinessStackParamList = {
   Settings:
     | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
     | undefined;
-  MyOffers: undefined;
   Wishlist: undefined;
   AccountSettings:
     | { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' }
@@ -204,10 +202,6 @@ function HomeBusinessUserMenu() {
               <TouchableOpacity style={styles.menuItem} onPress={() => go('Orders')}>
                 <ShoppingBag size={15} color="#9CA3AF" />
                 <Text style={styles.menuItemText}>{t('common.myOrders') || 'My Orders'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem} onPress={() => go('MyOffers')}>
-                <Tag size={15} color="#9CA3AF" />
-                <Text style={styles.menuItemText}>{t('offers.myOffers') || 'My Offers'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
@@ -477,11 +471,6 @@ export default function HomeBusinessNavigator() {
             name="Settings"
             component={AccountSettingsScreen}
             options={{ headerShown: true, title: t('settings.settingsTitle') || 'Settings' }}
-          />
-          <Stack.Screen
-            name="MyOffers"
-            component={MyOffersScreen}
-            options={{ headerShown: true, title: t('common.myOffers') || 'My Offers' }}
           />
           <Stack.Screen
             name="Wishlist"

@@ -66,6 +66,9 @@ export const smartOrderApi = {
   createRefund: (payload: RefundRequest) =>
     gatewayClient.post('/api/payment/refund', payload),
 
+  cancelOrder: (orderId: string, reason?: string) =>
+    gatewayClient.post(`/api/orders/${orderId}/cancel`, { reason }),
+
   // Customer: Request / Resend return package verification OTP via WhatsApp
   requestReturnOtp: (orderId: string) =>
     gatewayClient.post(`/api/orders/${orderId}/return-otp`),

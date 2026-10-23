@@ -32,7 +32,6 @@ import OrdersScreen from '../screens/customer/OrdersScreen';
 import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
 import OrderTrackingScreen from '../screens/customer/OrderTrackingScreen';
 import ProductDetailScreen from '../screens/customer/ProductDetailScreen';
-import MyOffersScreen from '../screens/customer/MyOffersScreen';
 import WishlistScreen from '../screens/customer/WishlistScreen';
 import StoreDeliveriesScreen from '../screens/store/StoreDeliveriesScreen';
 import StoreOrderTrackingScreen from '../screens/store/StoreOrderTrackingScreen';
@@ -67,7 +66,6 @@ export type SellerStackParamList = {
   OrderDetail: { orderId: string };
   OrderTracking: { orderId: string };
   Settings: { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' } | undefined;
-  MyOffers: undefined;
   Wishlist: undefined;
   AccountSettings: { initialTab?: 'account' | 'preferences' | 'security' | 'notifications' } | undefined;
   ProductDetail: { productId: string };
@@ -149,10 +147,6 @@ function SellerUserMenu() {
               <TouchableOpacity style={styles.menuItem} onPress={() => go('Orders')}>
                 <ShoppingBag size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
                 <Text style={styles.menuItemText}>{t('common.myOrders') || 'My Orders'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem} onPress={() => go('MyOffers')}>
-                <Tag size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
-                <Text style={styles.menuItemText}>{t('offers.myOffers') || 'My Offers'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => go('SellerTabs')}>
                 <Store size={15} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
@@ -281,7 +275,6 @@ export default function SellerNavigator() {
           <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Settings" component={AccountSettingsScreen} options={{ headerShown: true, title: t('settings.settingsTitle') || 'Settings' }} />
-          <Stack.Screen name="MyOffers" component={MyOffersScreen} options={{ headerShown: true, title: t('common.myOffers') || 'My Offers' }} />
           <Stack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: true, title: t('common.myWishlist') || 'My Wishlist' }} />
           <Stack.Screen name="Notifications" component={NotificationScreen} options={{ headerShown: true, title: t('notifications.notificationsTitle') || 'Notifications' }} />
           <Stack.Screen name="AccountSettings" component={AccountSettingsScreen} options={{ headerShown: true, title: t('settings.settingsTitle') || 'Settings' }} />

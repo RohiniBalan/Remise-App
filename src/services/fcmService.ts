@@ -155,7 +155,7 @@ export function navigateFromNotificationData(data?: Record<string, any>) {
       navigationRef.navigate('StoreCredit');
     } else if (url.includes('credit') || type === 'credit') {
       navigationRef.navigate('MyCredit');
-    } else if (url.includes('order') || type === 'order') {
+    } else if (url.includes('order') || type === 'order' || type === 'order_cancelled' || type === 'return_refund_requested') {
       navigationRef.navigate('Orders');
     } else if (url.includes('delivery') || type === 'delivery_request') {
       navigationRef.navigate('DeliveryPartnerDashboard', {

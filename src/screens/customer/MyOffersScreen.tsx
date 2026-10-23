@@ -265,8 +265,13 @@ function FormField({ label, cardBg, borderColor, textPri, textSec, ...rest }: Fo
 export default function MyOffersScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { t, language } = useTranslation();
+
+  const role = (user?.role ? String(user.role) : '').toLowerCase().trim();
+  const isBlockedRole =
+    role === 'whole_saler' || role === 'wholesaler' || role === 'home_business';
+
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -280,7 +285,7 @@ export default function MyOffersScreen() {
   const bg = isDark ? '#0b0f19' : CustomerColors.bg;
 
   const load = useCallback(async () => {
-    if (!token) {
+    if (!token || isBlockedRole) {
       setLoading(false);
       return;
     }
@@ -293,7 +298,7 @@ export default function MyOffersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, isBlockedRole]);
 
   useEffect(() => {
     load();
@@ -303,6 +308,24 @@ export default function MyOffersScreen() {
     setRefreshing(true);
     load();
   };
+
+  if (isBlockedRole) {
+    return (
+      <View style={[styles.container, styles.centerBox, { backgroundColor: bg, padding: Spacing.xl }]}>
+        <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🚫</Text>
+        <Text style={[styles.emptyTitle, { color: textPri }]}>Access Restricted</Text>
+        <Text style={[styles.emptySubtitle, { color: textSec, textAlign: 'center', marginTop: Spacing.xs, maxWidth: 300 }]}>
+          The My Offers page is not available for {role === 'home_business' ? 'Home Business' : 'Wholesaler'} accounts.
+        </Text>
+        <TouchableOpacity
+          style={[styles.orderNowBtn, { marginTop: Spacing.lg, paddingHorizontal: Spacing.xl, alignSelf: 'center' }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.orderNowText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>

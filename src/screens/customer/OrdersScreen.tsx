@@ -31,6 +31,11 @@ import { smartOrderApi } from '../../api/smartOrderApi';
 import InvoiceModal from '../../components/common/InvoiceModal';
 import { isValidPlacedOrder } from '../../utils/orderValidation';
 import RefundModal, { isCashPaidOrder } from '../../components/common/RefundModal';
+import {
+  CodCancelConfirmModal,
+  DeliveryNotPendingModal,
+  isPendingCodOrder,
+} from '../../components/common/CancelOrderModals';
 import StoreReviewModal from '../../components/common/StoreReviewModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
@@ -223,6 +228,13 @@ export default function OrdersScreen() {
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundError, setRefundError] = useState('');
 
+  // Cancellation states
+  const [ineligibleModalMessage, setIneligibleModalMessage] = useState<string | null>(null);
+  const [confirmCodCancelOrder, setConfirmCodCancelOrder] = useState<any | null>(null);
+  const [isCancellingCod, setIsCancellingCod] = useState(false);
+  const [codCancelError, setCodCancelError] = useState('');
+  const [checkingOrderId, setCheckingOrderId] = useState<string | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       if (!user) {
@@ -343,6 +355,81 @@ export default function OrdersScreen() {
       );
     } finally {
       setIsRefunding(false);
+    }
+  };
+
+  const handleCancelOrderClick = async (item: DisplayItem) => {
+    const orderId = item.orderId;
+    setCheckingOrderId(orderId);
+    setRefundError('');
+    setCodCancelError('');
+    try {
+      let latestOrder: any = item.order || item;
+      try {
+        const res = await smartOrderApi.getOrderDetails(orderId);
+        if (res.data?.success && res.data.data) {
+          latestOrder = res.data.data;
+        }
+      } catch (err) {
+        // Fallback to order in memory
+      }
+
+      if (latestOrder.orderStatus === 'Cancelled' || latestOrder.deliveryStatus === 'Cancelled') {
+        setIneligibleModalMessage('This order has already been cancelled.');
+        return;
+      }
+
+      const currentDeliveryStatus = (latestOrder.deliveryStatus || 'Pending').trim();
+      if (currentDeliveryStatus.toLowerCase() !== 'pending') {
+        setIneligibleModalMessage(
+          `This order can no longer be cancelled because its delivery status is "${currentDeliveryStatus}". Cancellation is only available while the delivery status is Pending.`
+        );
+        return;
+      }
+
+      if (isPendingCodOrder(latestOrder)) {
+        setConfirmCodCancelOrder(latestOrder);
+      } else {
+        setSelectedRefund({
+          orderId: latestOrder.orderId || latestOrder._id,
+          totalAmount: Number(latestOrder.totalAmount || item.totalAmount),
+          order: latestOrder,
+        });
+      }
+    } finally {
+      setCheckingOrderId(null);
+    }
+  };
+
+  const handleConfirmCodCancel = async () => {
+    if (!confirmCodCancelOrder) return;
+    const orderId = confirmCodCancelOrder.orderId || confirmCodCancelOrder._id;
+    setIsCancellingCod(true);
+    setCodCancelError('');
+    try {
+      const res = await smartOrderApi.cancelOrder(orderId, 'Customer requested cancellation');
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Failed to cancel order');
+      }
+
+      setOrders(prev =>
+        prev.map(order =>
+          (order.orderId || order._id) === orderId
+            ? {
+                ...order,
+                orderStatus: 'Cancelled',
+                deliveryStatus: 'Cancelled',
+                status: 'Cancelled',
+              }
+            : order
+        )
+      );
+      setConfirmCodCancelOrder(null);
+      Alert.alert('Order Cancelled', 'Your order has been cancelled successfully.');
+    } catch (err: any) {
+      setCodCancelError(err.response?.data?.message || err.message || 'Failed to cancel order');
+    } finally {
+      setIsCancellingCod(false);
     }
   };
 
@@ -745,30 +832,48 @@ export default function OrdersScreen() {
                     </View>
                   )}
 
-                  {item.paymentStatus === 'SUCCESS' &&
+                  {/* Return / Refund for Delivered Orders */}
+                  {(item.displayStatus === 'Delivered' || item.deliveryStatus === 'Delivered') &&
+                    item.paymentStatus === 'SUCCESS' &&
                     (item.paymentMethod?.toLowerCase() === 'razorpay' || isCashPaidOrder(item.order || item)) && (
-                      <>
-                        {(!item.refundWindowEndAt || new Date() < new Date(item.refundWindowEndAt)) ? (
-                          <TouchableOpacity
-                            style={[styles.refundBtn, isDark && { backgroundColor: 'rgba(194, 65, 12, 0.2)', borderColor: '#C2410C' }]}
-                            onPress={() => {
-                              setRefundError('');
-                              setSelectedRefund({
-                                orderId: item.orderId,
-                                totalAmount: item.totalAmount,
-                                order: item.order || item,
-                              });
-                            }}
-                          >
-                            <RotateCcw size={13} color={isDark ? '#FDBA74' : '#C2410C'} />
-                            <Text style={[styles.refundBtnText, isDark && { color: '#FDBA74' }]}>
-                              {item.displayStatus === 'Delivered' || item.deliveryStatus === 'Delivered'
-                                ? t('orders.returnRefund')
-                                : t('orders.cancelOrder')}
-                            </Text>
-                          </TouchableOpacity>
-                        ) : null}
-                      </>
+                      <TouchableOpacity
+                        style={[styles.refundBtn, isDark && { backgroundColor: 'rgba(194, 65, 12, 0.2)', borderColor: '#C2410C' }]}
+                        onPress={() => {
+                          setRefundError('');
+                          setSelectedRefund({
+                            orderId: item.orderId,
+                            totalAmount: item.totalAmount,
+                            order: item.order || item,
+                          });
+                        }}
+                      >
+                        <RotateCcw size={13} color={isDark ? '#FDBA74' : '#C2410C'} />
+                        <Text style={[styles.refundBtnText, isDark && { color: '#FDBA74' }]}>
+                          {t('orders.returnRefund')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                  {/* Cancel Order for Non-Delivered Active Orders */}
+                  {item.displayStatus !== 'Delivered' &&
+                    item.deliveryStatus !== 'Delivered' &&
+                    item.displayStatus !== 'Cancelled' &&
+                    item.deliveryStatus !== 'Cancelled' &&
+                    item.paymentStatus !== 'REFUNDED' && (
+                      <TouchableOpacity
+                        style={[styles.refundBtn, isDark && { backgroundColor: 'rgba(194, 65, 12, 0.2)', borderColor: '#C2410C' }]}
+                        onPress={() => handleCancelOrderClick(item)}
+                        disabled={checkingOrderId === item.orderId}
+                      >
+                        {checkingOrderId === item.orderId ? (
+                          <ActivityIndicator size="small" color={isDark ? '#FDBA74' : '#C2410C'} />
+                        ) : (
+                          <RotateCcw size={13} color={isDark ? '#FDBA74' : '#C2410C'} />
+                        )}
+                        <Text style={[styles.refundBtnText, isDark && { color: '#FDBA74' }]}>
+                          {t('orders.cancelOrder')}
+                        </Text>
+                      </TouchableOpacity>
                     )}
 
                   {/* RATE YOUR STORE (Available strictly post-fulfillment & verified OTP) */}
@@ -823,6 +928,28 @@ export default function OrdersScreen() {
           onSubmit={handleRefund}
         />
       ) : null}
+
+      <CodCancelConfirmModal
+        visible={!!confirmCodCancelOrder}
+        order={confirmCodCancelOrder}
+        isCancelling={isCancellingCod}
+        error={codCancelError}
+        onClose={() => {
+          if (!isCancellingCod) {
+            setConfirmCodCancelOrder(null);
+            setCodCancelError('');
+          }
+        }}
+        onConfirm={handleConfirmCodCancel}
+        isDark={isDark}
+      />
+
+      <DeliveryNotPendingModal
+        visible={Boolean(ineligibleModalMessage)}
+        message={ineligibleModalMessage || ''}
+        onClose={() => setIneligibleModalMessage(null)}
+        isDark={isDark}
+      />
 
       {selectedReviewItem ? (
         <StoreReviewModal
