@@ -302,7 +302,7 @@ export default function StoreProductsScreen() {
           return (
             <View style={styles.card}>
               <View style={styles.imageWrap}>
-                {pt.image ? <Image source={{ uri: resolveImageUrl(pt.image) }} style={styles.image} /> : <Package size={28} color={isDark ? '#4B5563' : '#E5E7EB'} />}
+                {pt.image ? <Image source={{ uri: resolveImageUrl(pt.image) }} style={styles.image} resizeMode="cover" /> : <Package size={28} color={isDark ? '#4B5563' : '#E5E7EB'} />}
               </View>
               <View style={styles.cardBody}>
                 <Text style={styles.category}>{pt.category ? translateCategory(pt.category, language) : '—'}</Text>
@@ -437,7 +437,7 @@ const getStyles = (isDark: boolean) =>
       overflow: 'hidden',
       marginBottom: Spacing.sm,
     },
-    imageWrap: { aspectRatio: 1, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', padding: Spacing.sm, alignItems: 'center', justifyContent: 'center' },
+    imageWrap: { width: '100%', aspectRatio: 1, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
     image: { width: '100%', height: '100%' },
     discountBadge: { position: 'absolute', top: 6, left: 6, backgroundColor: CustomerColors.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     discountBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },

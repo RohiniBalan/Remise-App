@@ -292,7 +292,7 @@ export default function SellerProductsScreen() {
               activeOpacity={0.85}
             >
               <View style={styles.cardImageWrap}>
-                {img ? <Image source={{ uri: img }} style={styles.cardImage} /> : <Package size={30} color={isDark ? '#4B5563' : '#E5E7EB'} />}
+                {img ? <Image source={{ uri: img }} style={styles.cardImage} resizeMode="cover" /> : <Package size={30} color={isDark ? '#4B5563' : '#E5E7EB'} />}
               </View>
               <View style={{ padding: Spacing.sm }}>
                 <Text style={styles.cardCategory} numberOfLines={1}>{pt.category ? translateCategory(pt.category, language) : '—'}</Text>
@@ -431,7 +431,7 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     ...Shadows.card,
   },
-  cardImageWrap: { aspectRatio: 1, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
+  cardImageWrap: { width: '100%', aspectRatio: 1, backgroundColor: isDark ? '#1F2937' : '#F5F5F5', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   cardImage: { width: '100%', height: '100%' },
   cardCategory: { fontSize: 10, color: isDark ? '#9CA3AF' : '#9CA3AF', marginBottom: 2 },
   cardTitle: { fontSize: FontSizes.sm, fontWeight: '700', color: isDark ? '#FFFFFF' : CustomerColors.black },

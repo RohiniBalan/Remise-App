@@ -24,6 +24,7 @@ import {
   Download,
   MapPin,
   Truck,
+  Compass,
 } from 'lucide-react-native';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
@@ -64,7 +65,7 @@ export default function StoreSuppliersScreen() {
   const { isDark } = useTheme();
   const { t, language } = useTranslation();
   const styles = useMemo(() => getStyles(isDark), [isDark]);
-  const { store, categories } = useStoreDashboard();
+  const { store, categories, products } = useStoreDashboard();
   const { cartCount, cartTotal } = useSupplierCart();
 
   const [view, setView] = useState<'browse' | 'orders'>(
@@ -77,6 +78,9 @@ export default function StoreSuppliersScreen() {
   const [supplierType, setSupplierType] = useState<
     'whole_saler' | 'home_business'
   >('whole_saler');
+  const [mode, setMode] = useState<'my_categories' | 'explore'>('my_categories');
+  const [hasStoreCategories, setHasStoreCategories] = useState<boolean | null>(null);
+  const [allDiscoveryCategories, setAllDiscoveryCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [search, setSearch] = useState('');
   const [groups, setGroups] = useState<any[]>([]);
@@ -94,19 +98,55 @@ export default function StoreSuppliersScreen() {
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundError, setRefundError] = useState('');
 
+  const storeCatalogCategories = useMemo(() => {
+    return Array.from(
+      new Set(
+        (products || [])
+          .map((p: any) => p.category?.trim())
+          .filter(Boolean),
+      ),
+    ) as string[];
+  }, [products]);
+
   const loadGroups = useCallback(async () => {
-    if (!categoryFilter) {
-      setGroups([]);
-      return;
-    }
     setLoading(true);
     setError('');
     try {
-      const res = await productApi.getGroupedSuppliers(supplierType, {
+      const isExplore = mode === 'explore';
+      const params: Record<string, string | number | undefined> = {
         search: search || undefined,
-        category: categoryFilter,
-      });
+        storeId: store?._id,
+        mode: isExplore ? 'explore' : 'default',
+      };
+
+      if (categoryFilter) {
+        params.category = categoryFilter;
+      }
+
+      if (storeCatalogCategories.length > 0) {
+        if (isExplore) {
+          params.excludeCategories = storeCatalogCategories.join(',');
+        } else {
+          params.categories = storeCatalogCategories.join(',');
+        }
+      }
+
+      const res = await productApi.getGroupedSuppliers(supplierType, params);
       const data = res.data.data || [];
+
+      if (res.data.hasStoreCategories !== undefined) {
+        setHasStoreCategories(res.data.hasStoreCategories);
+      } else {
+        setHasStoreCategories(storeCatalogCategories.length > 0);
+      }
+
+      if (isExplore) {
+        const foundCats = Array.from(
+          new Set(data.map((g: any) => g.category).filter(Boolean)),
+        ) as string[];
+        setAllDiscoveryCategories(prev => Array.from(new Set([...prev, ...foundCats])));
+      }
+
       const storeIds = Array.from(
         new Set(
           data.flatMap((g: any) =>
@@ -141,7 +181,7 @@ export default function StoreSuppliersScreen() {
     } finally {
       setLoading(false);
     }
-  }, [supplierType, search, categoryFilter]);
+  }, [supplierType, search, categoryFilter, mode, store?._id, storeCatalogCategories]);
 
   const loadMyOrders = useCallback(async () => {
     if (!store?.ownerId) return;
@@ -196,18 +236,35 @@ export default function StoreSuppliersScreen() {
     if (view === 'orders') loadMyOrders();
   }, [view, loadMyOrders]);
 
-  const supplierCategories = Array.from(
-    new Set(
-      [
-        ...mergeCategories(categories || []).map(c => c.name),
-        ...groups.map(g => g.category),
-      ].filter(Boolean),
-    ),
-  );
-  const categoryOptions = supplierCategories.map(category => ({
-    key: category,
-    label: translateCategory(category, language),
-  }));
+  const exploreCategories = useMemo(() => {
+    return Array.from(
+      new Set(
+        [
+          ...allDiscoveryCategories,
+          ...mergeCategories(categories || []).map(c => c.name),
+        ].filter(
+          (cat: string) =>
+            !storeCatalogCategories.some(
+              (sc: string) => sc.toLowerCase() === (cat || '').toLowerCase(),
+            ),
+        ),
+      ),
+    ).filter(Boolean) as string[];
+  }, [allDiscoveryCategories, categories, storeCatalogCategories]);
+
+  const activeCategoryList = mode === 'explore' ? exploreCategories : storeCatalogCategories;
+
+  const categoryOptions = useMemo(() => [
+    {
+      key: '',
+      label: mode === 'explore' ? 'All Other Categories' : 'All My Categories',
+    },
+    ...activeCategoryList.map((category: string) => ({
+      key: category,
+      label: translateCategory(category, language),
+    })),
+  ], [activeCategoryList, language, mode]);
+
   const titleGroups: TitleGroup[] = groupByTitle(groups);
 
   const gridData: any[] =
@@ -260,6 +317,7 @@ export default function StoreSuppliersScreen() {
 
       {view === 'browse' ? (
         <>
+          {/* Supplier Type Selection: Wholesalers vs Home Business */}
           <View style={styles.filterRow}>
             <TouchableOpacity
               style={[
@@ -301,20 +359,74 @@ export default function StoreSuppliersScreen() {
             </TouchableOpacity>
           </View>
 
-          <View
-            style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}
-          >
-            <SelectField
-              label={t.store.categoryLabel || 'Category'}
-              value={categoryFilter}
-              placeholder={t.store.selectCategoryOption}
-              options={categoryOptions}
-              onSelect={key => setCategoryFilter(key)}
-              isDark={isDark}
-              styles={styles}
-            />
+          {/* Discovery Mode Selection: My Store Categories vs Explore Other Products */}
+          <View style={styles.modeToggleRow}>
+            <TouchableOpacity
+              style={[
+                styles.modeBtn,
+                mode === 'my_categories' && styles.modeBtnActive,
+              ]}
+              onPress={() => {
+                setMode('my_categories');
+                setCategoryFilter('');
+              }}
+              activeOpacity={0.8}
+            >
+              <Package
+                size={14}
+                color={
+                  mode === 'my_categories'
+                    ? '#FFFFFF'
+                    : isDark
+                    ? '#9CA3AF'
+                    : CustomerColors.textSecondary
+                }
+              />
+              <Text
+                style={[
+                  styles.modeBtnText,
+                  mode === 'my_categories' && styles.modeBtnTextActive,
+                ]}
+                numberOfLines={1}
+              >
+                My Categories {storeCatalogCategories.length > 0 ? `(${storeCatalogCategories.length})` : ''}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeBtn,
+                mode === 'explore' && styles.modeBtnActive,
+              ]}
+              onPress={() => {
+                setMode('explore');
+                setCategoryFilter('');
+              }}
+              activeOpacity={0.8}
+            >
+              <Compass
+                size={14}
+                color={
+                  mode === 'explore'
+                    ? '#FFFFFF'
+                    : isDark
+                    ? '#9CA3AF'
+                    : CustomerColors.textSecondary
+                }
+              />
+              <Text
+                style={[
+                  styles.modeBtnText,
+                  mode === 'explore' && styles.modeBtnTextActive,
+                ]}
+                numberOfLines={1}
+              >
+                Explore Other
+              </Text>
+            </TouchableOpacity>
           </View>
 
+          {/* Search Box */}
           <View style={styles.searchBox}>
             <Search size={14} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             <TextInput
@@ -322,10 +434,53 @@ export default function StoreSuppliersScreen() {
               value={search}
               onChangeText={setSearch}
               onSubmitEditing={loadGroups}
-              placeholder={t.store.searchProductsStockPlaceholder}
+              placeholder={
+                mode === 'explore'
+                  ? 'Search across other categories...'
+                  : t.store.searchProductsStockPlaceholder
+              }
               placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
+              returnKeyType="search"
             />
           </View>
+
+          {/* Optional Category Sub-Filter (shown only when multiple categories exist) */}
+          {activeCategoryList.length > 1 && (
+            <View
+              style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}
+            >
+              <SelectField
+                label={mode === 'explore' ? 'Filter Other Categories' : 'Filter My Categories'}
+                value={categoryFilter}
+                placeholder={mode === 'explore' ? 'All Other Categories' : 'All My Categories'}
+                options={categoryOptions}
+                onSelect={key => setCategoryFilter(key)}
+                isDark={isDark}
+                styles={styles}
+              />
+            </View>
+          )}
+
+          {/* Explore Mode Informative Banner */}
+          {mode === 'explore' && (
+            <View style={styles.exploreBanner}>
+              <View style={styles.exploreBannerLeft}>
+                <Compass size={15} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
+                <Text style={styles.exploreBannerText}>
+                  Showing products outside your store catalog.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setMode('my_categories');
+                  setCategoryFilter('');
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.exploreBannerLink}>My Categories &rarr;</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {loading ? (
             <ActivityIndicator
@@ -342,18 +497,53 @@ export default function StoreSuppliersScreen() {
               contentContainerStyle={styles.list}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Package size={36} color={isDark ? '#374151' : '#E5E7EB'} />
+                  {mode === 'explore' ? (
+                    <Compass size={36} color={isDark ? '#374151' : '#E5E7EB'} />
+                  ) : (
+                    <Package size={36} color={isDark ? '#374151' : '#E5E7EB'} />
+                  )}
                   <Text style={styles.emptyText}>
-                    {categoryFilter
-                      ? t.store.noProductsInCategoryMsg
-                      : t.store.selectCategoryToViewMsg}
+                    {search
+                      ? 'No supplier products found matching your search.'
+                      : mode === 'my_categories'
+                      ? hasStoreCategories === false
+                        ? "You haven't added any products to your store catalog yet.\nProducts from suppliers matching your store's categories will appear here automatically."
+                        : "No supplier products currently available matching your store's categories."
+                      : 'No supplier products found in other categories.'}
                   </Text>
+                  {mode === 'my_categories' && (
+                    <TouchableOpacity
+                      style={styles.emptyActionBtn}
+                      onPress={() => {
+                        setMode('explore');
+                        setCategoryFilter('');
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Compass size={14} color="#FFFFFF" />
+                      <Text style={styles.emptyActionBtnText}>Explore Other Products</Text>
+                    </TouchableOpacity>
+                  )}
+                  {mode === 'explore' && (
+                    <TouchableOpacity
+                      style={styles.emptyActionBtn}
+                      onPress={() => {
+                        setMode('my_categories');
+                        setCategoryFilter('');
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Package size={14} color="#FFFFFF" />
+                      <Text style={styles.emptyActionBtnText}>Back to My Store Categories</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               }
               renderItem={({ item: tg }) => {
                 if (tg.__filler)
                   return <View style={[styles.card, styles.cardFiller]} />;
                 const img = resolveImageUrl(tg.image) || '';
+                const itemCategory = tg.brands?.[0]?.category;
                 return (
                   <View style={styles.card}>
                     <View style={styles.imageWrap}>
@@ -364,6 +554,13 @@ export default function StoreSuppliersScreen() {
                       )}
                     </View>
                     <View style={styles.cardBody}>
+                      {mode === 'explore' && itemCategory ? (
+                        <View style={styles.categoryBadge}>
+                          <Text style={styles.categoryBadgeText} numberOfLines={1}>
+                            ✨ {translateCategory(itemCategory, language)}
+                          </Text>
+                        </View>
+                      ) : null}
                       <Text style={styles.title} numberOfLines={2}>
                         {translateProductName(tg.title, language, tg.brands?.[0])}
                       </Text>
@@ -723,6 +920,103 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
     textAlign: 'center',
   },
   typeBtnTextActive: { color: '#fff' },
+  modeToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: isDark ? '#1F2937' : '#F1F5F9',
+    borderRadius: BorderRadius.md,
+    padding: 3,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: isDark ? '#374151' : '#E2E8F0',
+  },
+  modeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: BorderRadius.sm,
+  },
+  modeBtnActive: {
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  modeBtnText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+  },
+  modeBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  exploreBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: isDark ? '#042f2e' : '#F0FDFA',
+    borderWidth: 1,
+    borderColor: isDark ? '#115e59' : '#99F6E4',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  exploreBannerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exploreBannerText: {
+    flex: 1,
+    fontSize: 11,
+    color: isDark ? '#5EEAD4' : '#0F766E',
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  exploreBannerLink: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+    textDecorationLine: 'underline',
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: isDark ? '#134e4a' : '#CCFBF1',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  categoryBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: isDark ? '#2DD4BF' : '#0F766E',
+  },
+  emptyActionBtn: {
+    marginTop: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: isDark ? '#0f766e' : CustomerColors.teal600,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.md,
+  },
+  emptyActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: FontSizes.xs,
+  },
   chipScroll: { marginBottom: Spacing.sm },
   catChip: {
     paddingHorizontal: Spacing.md,
@@ -788,7 +1082,9 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   cardFiller: { backgroundColor: 'transparent', borderWidth: 0 },
   imageWrap: {
-    aspectRatio: 4 / 3,
+    width: '100%',
+    aspectRatio: 1,
+    overflow: 'hidden',
     backgroundColor: isDark ? '#1F2937' : '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',

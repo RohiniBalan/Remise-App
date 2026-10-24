@@ -1205,7 +1205,8 @@ const getStyles = (isDark: boolean) =>
     },
     productImageWrap: {
       width: '100%',
-      aspectRatio: 4 / 3,
+      aspectRatio: 1,
+      overflow: 'hidden',
       backgroundColor: isDark ? '#1F2937' : CustomerColors.bg,
     },
     productImage: { width: '100%', height: '100%' },

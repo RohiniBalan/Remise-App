@@ -140,7 +140,7 @@ export default function ProductCard({ product, isWished, onPress, onToggleWishli
 
 const styles = StyleSheet.create({
   card: { flex: 1, backgroundColor: CustomerColors.white, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: CustomerColors.border, overflow: 'hidden', ...Shadows.card, justifyContent: 'space-between' },
-  imageWrap: { aspectRatio: 1.15, backgroundColor: '#F9F9F9' },
+  imageWrap: { width: '100%', aspectRatio: 1, backgroundColor: '#F9F9F9', overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   imageDimmed: { opacity: 0.5 },
   badgeContainer: { position: 'absolute', top: 8, left: 8, zIndex: 2, flexDirection: 'row', alignItems: 'center', gap: 4 },
