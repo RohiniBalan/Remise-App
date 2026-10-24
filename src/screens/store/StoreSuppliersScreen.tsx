@@ -99,14 +99,19 @@ export default function StoreSuppliersScreen() {
   const [refundError, setRefundError] = useState('');
 
   const storeCatalogCategories = useMemo(() => {
-    return Array.from(
-      new Set(
-        (products || [])
-          .map((p: any) => p.category?.trim())
-          .filter(Boolean),
-      ),
-    ) as string[];
-  }, [products]);
+    const fromProducts = (products || [])
+      .map((p: any) => p.category?.trim())
+      .filter(Boolean) as string[];
+    // Also honour the category chosen in Store Settings (ignore the default "Other")
+    const storeCat = (store?.category || '').trim();
+    const fromStore =
+      storeCat && storeCat.toLowerCase() !== 'other' ? [storeCat] : [];
+    const merged: string[] = [];
+    [...fromStore, ...fromProducts].forEach(c => {
+      if (!merged.some(m => m.toLowerCase() === c.toLowerCase())) merged.push(c);
+    });
+    return merged;
+  }, [products, store?.category]);
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
