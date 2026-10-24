@@ -11,6 +11,7 @@ import { creditApi } from '../../api/creditApi';
 import { CustomerColors, Spacing, FontSizes, BorderRadius } from '../../styles/theme';
 import PaginationControl from '../../components/common/PaginationControl';
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
+import MaskedCallButton from '../../components/common/MaskedCallButton';
 import { useTranslation, translateProductName } from '../../i18n';
 
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Ready', 'Out for Delivery', 'Delivered', 'Cancelled'];
@@ -352,7 +353,6 @@ export default function StoreOrdersScreen() {
             </View>
             <Text style={styles.orderCustomer}>
               {o.customerName}
-              {o.customerPhone ? ` · ${o.customerPhone}` : ''}
               {(o.customerId || o.userId || o.userID) ? ` · Customer ID: ${o.customerId || o.userId || o.userID}` : ''}
             </Text>
             <Text style={styles.orderAddress} numberOfLines={1}>{o.deliveryAddress}</Text>
@@ -562,6 +562,12 @@ export default function StoreOrdersScreen() {
                       </Text>
                     </TouchableOpacity>
                   )}
+
+                <MaskedCallButton
+                  orderId={o.orderId || o._id}
+                  label="Call Customer"
+                  color="#059669"
+                />
 
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusBadgeText}>{translateStatus(o.deliveryStatus || o.status)}</Text>

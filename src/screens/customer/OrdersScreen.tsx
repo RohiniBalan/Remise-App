@@ -37,6 +37,7 @@ import {
   isPendingCodOrder,
 } from '../../components/common/CancelOrderModals';
 import StoreReviewModal from '../../components/common/StoreReviewModal';
+import MaskedCallButton from '../../components/common/MaskedCallButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandHeader from '../../components/common/BrandHeader';
 import { useTheme } from '../../context/ThemeContext';
@@ -818,6 +819,20 @@ export default function OrdersScreen() {
                     <MapPin size={11} color={isDark ? '#93C5FD' : '#2563EB'} />
                     <Text style={[styles.trackBtnText, isDark && { color: '#93C5FD' }]}>{t('orders.track')}</Text>
                   </TouchableOpacity>
+
+                  {Boolean(item.storeId || (item.order as any)?.storeId) && (
+                    <MaskedCallButton
+                      orderId={item.orderId}
+                      label="Call Store"
+                      color={isDark ? '#34D399' : '#059669'}
+                      style={{
+                        backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.08)',
+                        paddingHorizontal: 8,
+                        paddingVertical: 5,
+                        borderRadius: 6,
+                      }}
+                    />
+                  )}
 
                   {(item.paymentStatus === 'SUCCESS' ||
                     item.paymentMethod === 'cod' ||

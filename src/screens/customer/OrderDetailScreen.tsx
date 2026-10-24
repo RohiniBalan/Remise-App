@@ -54,6 +54,7 @@ import {
   isPendingCodOrder,
 } from '../../components/common/CancelOrderModals';
 import StoreReviewModal from '../../components/common/StoreReviewModal';
+import MaskedCallButton from '../../components/common/MaskedCallButton';
 import { useTranslation, translateProductName } from '../../i18n';
 
 export default function OrderDetailScreen() {
@@ -661,6 +662,14 @@ export default function OrderDetailScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Masked Call Store */}
+            <MaskedCallButton
+              orderId={order.orderId || order._id}
+              label={t('orders.callStore') || 'Call Store'}
+              color={isDark ? '#34D399' : '#059669'}
+              style={[styles.actionBtn, { borderColor: isDark ? '#059669' : '#10B981', borderWidth: 1 }]}
+            />
+
             {/* View Bill */}
             {(order.paymentStatus === 'SUCCESS' ||
               order.paymentMethod === 'cod' ||
@@ -942,12 +951,14 @@ export default function OrderDetailScreen() {
               {Boolean(order.store.address) && (
                 <Text style={styles.storeAddress}>{order.store.address}</Text>
               )}
-              {Boolean(order.store.phone) && (
-                <View style={styles.phoneRow}>
-                  <Phone size={13} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
-                  <Text style={styles.phoneText}>{order.store.phone}</Text>
-                </View>
-              )}
+              <View style={{ marginTop: 10 }}>
+                <MaskedCallButton
+                  orderId={order.orderId || order._id}
+                  label="Call Store Securely"
+                  color={isDark ? '#34D399' : '#059669'}
+                  style={{ alignSelf: 'flex-start' }}
+                />
+              </View>
             </View>
           )}
 

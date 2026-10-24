@@ -30,6 +30,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import DeliveryFlowModal from '../../components/store/DeliveryFlowModal';
 import PaginationControl from '../../components/common/PaginationControl';
+import MaskedCallButton from '../../components/common/MaskedCallButton';
 import { useTranslation, translateProductName } from '../../i18n';
 
 export default function StoreDeliveriesScreen() {
@@ -394,15 +395,12 @@ export default function StoreDeliveriesScreen() {
                     <User size={14} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
                     <Text style={styles.sectionTitle} numberOfLines={1}>{t.store.toWhomTitle}</Text>
                   </View>
-                  {o.customerPhone ? (
-                    <TouchableOpacity
-                      style={styles.callSmallBtn}
-                      onPress={() => handleCall(o.customerPhone)}
-                    >
-                      <Phone size={11} color="#0D9488" />
-                      <Text style={styles.callSmallBtnText}>{t.store.callBtn}</Text>
-                    </TouchableOpacity>
-                  ) : null}
+                  <MaskedCallButton
+                    orderId={o.orderId || o._id}
+                    label={t.store.callBtn || 'Call'}
+                    color="#0D9488"
+                    style={styles.callSmallBtn}
+                  />
                 </View>
 
                 <Text style={styles.personName} numberOfLines={1}>{o.customerName || 'Customer'}</Text>

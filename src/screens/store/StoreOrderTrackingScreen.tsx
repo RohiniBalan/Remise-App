@@ -37,6 +37,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { useTranslation, translateProductName, useDeliveryTranslations } from '../../i18n';
+import MaskedCallButton from '../../components/common/MaskedCallButton';
 
 export default function StoreOrderTrackingScreen() {
   const insets = useSafeAreaInsets();
@@ -342,15 +343,12 @@ export default function StoreOrderTrackingScreen() {
             </Text>
 
             <View style={styles.customerActionsRow}>
-              {order.customerPhone ? (
-                <TouchableOpacity
-                  style={styles.customerCallBtn}
-                  onPress={() => handleCall(order.customerPhone)}
-                >
-                  <Phone size={12} color={isDark ? '#2DD4BF' : CustomerColors.teal700} />
-                  <Text style={styles.customerCallBtnText}>{tDeliv.callCustomer} {order.customerPhone}</Text>
-                </TouchableOpacity>
-              ) : null}
+              <MaskedCallButton
+                orderId={order.orderId || order._id}
+                label={tDeliv.callCustomer || 'Call Customer'}
+                color={isDark ? '#2DD4BF' : CustomerColors.teal700}
+                style={styles.customerCallBtn}
+              />
 
               {order.deliveryAddress?.fullAddress ? (
                 <TouchableOpacity
