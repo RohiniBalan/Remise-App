@@ -609,8 +609,10 @@ export default function BulkPurchaseScreen() {
         ListHeaderComponent={
           <View>
             <View style={[styles.hero, { backgroundColor: isDark ? '#111827' : CustomerColors.white, borderBottomColor: isDark ? '#1F2937' : CustomerColors.steelBorder }]}>
-              <View style={[styles.heroIcon, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}><ListChecks size={24} color={isDark ? '#5EEAD4' : CustomerColors.teal600} /></View>
-              <Text style={[styles.heroTitle, isDark && { color: '#FFFFFF' }]}>{txt.heroTitle}</Text>
+              <View style={styles.heroTitleRow}>
+                <View style={[styles.heroIcon, isDark && { backgroundColor: 'rgba(15, 163, 177, 0.2)' }]}><ListChecks size={24} color={isDark ? '#5EEAD4' : CustomerColors.teal600} /></View>
+                <Text style={[styles.heroTitle, isDark && { color: '#FFFFFF' }]}>{txt.heroTitle}</Text>
+              </View>
               <Text style={[styles.heroSubtitle, isDark && { color: '#9CA3AF' }]}>{txt.heroSubtitle}</Text>
               <TouchableOpacity style={styles.scanBtn} onPress={handleOpenScan} disabled={scanning}>
                 {scanning ? <ActivityIndicator size="small" color="#fff" style={{ flexShrink: 0 }} /> : <ScanLine size={15} color="#fff" style={{ flexShrink: 0 }} />}
@@ -804,8 +806,9 @@ export default function BulkPurchaseScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CustomerColors.bg },
   hero: { backgroundColor: CustomerColors.white, borderBottomWidth: 1, borderBottomColor: CustomerColors.steelBorder, padding: Spacing.lg, alignItems: 'flex-start' },
-  heroIcon: { width: 48, height: 48, borderRadius: BorderRadius.lg, backgroundColor: CustomerColors.mint, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  heroTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: CustomerColors.black },
+  heroTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs, width: '100%' },
+  heroIcon: { width: 44, height: 44, borderRadius: BorderRadius.lg, backgroundColor: CustomerColors.mint, alignItems: 'center', justifyContent: 'center' },
+  heroTitle: { fontSize: FontSizes.lg, fontWeight: '800', color: CustomerColors.black, flex: 1 },
   heroSubtitle: { fontSize: FontSizes.sm, color: CustomerColors.textSecondary, marginTop: Spacing.xs, marginBottom: Spacing.md },
   scanBtn: {
     flexDirection: 'row',

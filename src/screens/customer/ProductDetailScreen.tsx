@@ -119,15 +119,45 @@ export default function ProductDetailScreen() {
   const [approvedCredit, setApprovedCredit] = useState<CreditAccount | null>(null);
 
   useEffect(() => {
-    if (!token || !user) return;
+    if (!token || !user || !product) {
+      setApprovedCredit(null);
+      return;
+    }
+
+    // Home Business products must NEVER support Credit
+    const isHomeBusiness =
+      product.ownerRole === 'home_business' ||
+      product.storeType === 'home_business' ||
+      (product as any).supplierRole === 'home_business';
+    if (isHomeBusiness) {
+      setApprovedCredit(null);
+      return;
+    }
+
+    const pStoreId = product.storeId ? String(product.storeId) : '';
+    if (!pStoreId) {
+      setApprovedCredit(null);
+      return;
+    }
+
     creditApi.getMyCreditAccounts()
       .then(res => {
         const accounts: CreditAccount[] = Array.isArray(res) ? res : (res as any)?.data || [];
-        const appAcc = accounts.find(a => a.status === 'APPROVED' && (a.availableCredit || 0) > 0);
-        if (appAcc) setApprovedCredit(appAcc);
+        const appAcc = accounts.find(
+          a =>
+            a.status === 'APPROVED' &&
+            String(a.storeId) === pStoreId &&
+            !(a.outstandingBalance > 0) &&
+            (a.availableCredit || 0) > 0
+        );
+        if (appAcc) {
+          setApprovedCredit(appAcc);
+        } else {
+          setApprovedCredit(null);
+        }
       })
-      .catch(() => {});
-  }, [token, user]);
+      .catch(() => setApprovedCredit(null));
+  }, [token, user, product]);
 
   useEffect(() => {
     let isMounted = true;

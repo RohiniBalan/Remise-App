@@ -35,19 +35,13 @@ import { offersApi } from '../../api/offersApi';
 import { GATEWAY_URL } from '../../api/endpoints';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useAuth } from '../../context/AuthContext';
 import { useOptionalStoreDashboard } from '../../context/StoreDashboardContext';
 import { useOptionalSellerDashboard } from '../../context/SellerDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
 import { mergeCategories } from '../../utils/storeCategories';
 import { useTranslation, translateCategory } from '../../i18n';
-
-async function requestLocationPermission(): Promise<boolean> {
-  if (Platform.OS !== 'android') return true;
-  const granted = await PermissionsAndroid.request(
-    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-  );
-  return granted === PermissionsAndroid.RESULTS.GRANTED;
-}
+import { requestLocationPermission, getCurrentCoordinates } from '../../utils/permissions';
 
 const DEFAULT_CATEGORIES = [
   'General',
@@ -65,6 +59,7 @@ const DEFAULT_CATEGORIES = [
 export default function NewOfferScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const { t, language } = useTranslation();
   const storeDash = useOptionalStoreDashboard();
   const sellerDash = useOptionalSellerDashboard();
@@ -183,24 +178,23 @@ export default function NewOfferScreen() {
 
   const detectGPS = async () => {
     setDetecting(true);
-    const ok = await requestLocationPermission();
-    if (!ok) {
+    const perm = await requestLocationPermission();
+    if (perm !== 'granted') {
       setDetecting(false);
-      setError('Could not detect GPS location. Enter coordinates manually.');
+      setError('Could not detect location. Enter coordinates manually.');
       return;
     }
-    Geolocation.getCurrentPosition(
-      pos => {
-        setLatitude(String(pos.coords.latitude));
-        setLongitude(String(pos.coords.longitude));
+    getCurrentCoordinates(
+      coords => {
+        setLatitude(String(coords.latitude));
+        setLongitude(String(coords.longitude));
         setLocSource('gps');
         setDetecting(false);
       },
       () => {
-        setError('Could not detect GPS location. Enter coordinates manually.');
+        setError('Could not detect location. Enter coordinates manually.');
         setDetecting(false);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
   };
 
@@ -324,6 +318,24 @@ export default function NewOfferScreen() {
       if (targetCustomerId) {
         fd.append('targetCustomerId', targetCustomerId);
         fd.append('targetCustomerName', targetCustomerName || '');
+      } else {
+        const effectiveRole = user?.role === 'wholesaler' ? 'whole_saler' : (user?.role || currentStore?.storeType || 'store');
+        const isWholesaler = effectiveRole === 'whole_saler' || currentStore?.storeType === 'whole_saler' || currentStore?.storeType === 'wholesaler';
+        const isHomeBusiness = effectiveRole === 'home_business' || currentStore?.storeType === 'home_business';
+
+        if (isWholesaler) {
+          fd.append('targetRoles', JSON.stringify(['store_owner']));
+          fd.append('ownerRole', 'whole_saler');
+          fd.append('storeType', 'whole_saler');
+        } else if (isHomeBusiness) {
+          fd.append('targetRoles', JSON.stringify(['store_owner', 'user']));
+          fd.append('ownerRole', 'home_business');
+          fd.append('storeType', 'home_business');
+        } else {
+          fd.append('targetRoles', JSON.stringify(['user']));
+          fd.append('ownerRole', 'store_owner');
+          fd.append('storeType', 'store');
+        }
       }
 
       if (isEditing) {

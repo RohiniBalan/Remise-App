@@ -302,8 +302,7 @@ export default function StoreCreditScreen() {
           const registeredName = data.registeredName || '';
           if (data.belongsToUser === false || (registeredName && !isNameMatching(cleanName, registeredName))) {
             setIdVerified(false);
-            const displayGovt = registeredName ? `"${registeredName}"` : 'the PAN card holder';
-            setIdVerificationError(`Name mismatch: Income Tax records show name as ${displayGovt}. Legal name entered ("${cleanName}") does not match.`);
+            setIdVerificationError('Name mismatch: The entered legal name does not match Income Tax PAN records. Please enter your legal name exactly as it appears on your PAN card.');
             return;
           }
           setIdVerified(true);
@@ -352,7 +351,11 @@ export default function StoreCreditScreen() {
           return;
         }
         setIdVerified(true);
-        setVerifiedIdData(data);
+        setVerifiedIdData({
+          ...data,
+          nameOnAadhaar: data.nameOnAadhaar || cleanName,
+          registeredName: data.registeredName || data.nameOnAadhaar || cleanName,
+        });
         setIdVerificationError('');
         setAadhaarOtpSent(false);
         setAadhaarOtp('');
@@ -643,13 +646,9 @@ export default function StoreCreditScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* KPI Cards */}
+      {/* KPI Cards (2x2 Grid) */}
       <View style={styles.kpiContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.kpiScroll}
-        >
+        <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiLabel} numberOfLines={2}>
               {cr.totalOutstanding}
@@ -690,7 +689,7 @@ export default function StoreCreditScreen() {
               {kpis.overdueCount}
             </Text>
           </View>
-        </ScrollView>
+        </View>
       </View>
 
       {/* Filter Tabs */}
@@ -1078,17 +1077,22 @@ export default function StoreCreditScreen() {
               )}
 
               {/* Step 4: Identity Verification (Cashfree SecureID) */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
-                <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>
-                  {cr.step4IdentityVerification}
-                </Text>
-                {idVerified ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? 'rgba(6, 78, 59, 0.4)' : '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                    <CheckCircle2 size={12} color="#059669" />
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>{cr.cashfreeVerifiedBadge}</Text>
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280' }}>{cr.uidaiItdCheck}</Text>
+              <View style={{ marginTop: 14, marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0, flexShrink: 1 }]}>
+                    {cr.step4IdentityVerification}
+                  </Text>
+                  {idVerified && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? 'rgba(6, 78, 59, 0.4)' : '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                      <CheckCircle2 size={12} color="#059669" />
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>{cr.cashfreeVerifiedBadge}</Text>
+                    </View>
+                  )}
+                </View>
+                {!idVerified && (
+                  <Text style={{ fontSize: 11, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 2 }}>
+                    {cr.uidaiItdCheck}
+                  </Text>
                 )}
               </View>
 
@@ -1252,9 +1256,9 @@ export default function StoreCreditScreen() {
                     <CheckCircle2 size={14} color="#10B981" />
                     <Text style={styles.verifiedTitleText}>{cr.cashfreeConfirmedTitle}</Text>
                   </View>
-                  {(verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar) && (
+                  {(verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar || formNameOnId) && (
                     <Text style={styles.verifiedDetailsText}>
-                      {cr.govtRecordNamePrefix} {verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar}
+                      {cr.govtRecordNamePrefix} {verifiedIdData.registeredName || verifiedIdData.nameOnAadhaar || formNameOnId}
                     </Text>
                   )}
                   <Text style={[styles.verifiedDetailsText, { fontSize: 10, marginTop: 2, color: isDark ? '#6EE7B7' : '#047857' }]}>
@@ -1512,16 +1516,18 @@ const getStyles = (isDark: boolean) =>
       fontSize: FontSizes.xs,
     },
     kpiContainer: {
+      paddingHorizontal: Spacing.md,
       marginVertical: 4,
     },
-    kpiScroll: {
-      paddingHorizontal: Spacing.md,
-      gap: 10,
+    kpiGrid: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
     },
     kpiCard: {
-      width: 130,
-      minHeight: 80,
+      flexBasis: '48%',
+      flexGrow: 1,
+      minHeight: 74,
       backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
       paddingVertical: 10,
       paddingHorizontal: 8,

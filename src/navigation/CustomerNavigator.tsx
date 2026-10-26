@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigatorScreenParams } from '@react-navigation/native';
 import {
   Home,
   LayoutGrid,
@@ -68,9 +68,14 @@ import { isDeliveryPartnerUser, navigateToDeliveryDashboard } from '../utils/del
 import { isAdminUser, navigateToAdminDashboard } from '../utils/adminHelper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+export type CategoriesStackParamList = {
+  CategoryGrid: undefined;
+  CategoryProducts: { category?: string } | undefined;
+};
+
 export type CustomerTabParamList = {
   Home: undefined;
-  Categories: undefined;
+  Categories: NavigatorScreenParams<CategoriesStackParamList> | undefined;
   BulkPurchase: undefined;
   Suppliers: undefined;
   Nearby: undefined;
@@ -86,11 +91,6 @@ export type HomeStackParamList = {
   NewArrivals: undefined;
   Suppliers: undefined;
   DeliveryPartnerDashboard: undefined;
-};
-
-export type CategoriesStackParamList = {
-  CategoryGrid: undefined;
-  CategoryProducts: { category?: string } | undefined;
 };
 
 export type CustomerStackParamList = {
@@ -257,6 +257,12 @@ function CustomerTabs() {
             <LayoutGrid color={color} size={20} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e: any) => {
+            e.preventDefault();
+            navigation.navigate('Categories', { screen: 'CategoryGrid' });
+          },
+        })}
       />
       <Tab.Screen
         name="BulkPurchase"

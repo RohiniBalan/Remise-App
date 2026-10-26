@@ -186,6 +186,10 @@ export default function SitemapScreen({ navigation }: any) {
             navigation.navigate('CustomerTabs', { screen: 'Home', params: { screen: route } });
             return;
         }
+        if (route === 'Categories') {
+            navigation.navigate('CustomerTabs', { screen: 'Categories', params: { screen: 'CategoryGrid' } });
+            return;
+        }
         const tabRoutes = ['Home', 'Categories', 'BulkPurchase', 'Suppliers', 'Nearby', 'Orders', 'Wishlist', 'Cart', 'Profile'];
         if (tabRoutes.includes(route)) {
             navigation.navigate('CustomerTabs', { screen: route });

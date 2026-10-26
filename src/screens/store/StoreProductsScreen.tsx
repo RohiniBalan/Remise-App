@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, Image, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { Search, Plus, Edit2, Trash2, Package, ScanLine, ListChecks, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { useStoreDashboard } from '../../context/StoreDashboardContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -198,17 +198,34 @@ export default function StoreProductsScreen() {
     });
     const asset = res.assets?.[0];
     if (asset?.uri) {
-      setCropTarget({
-        uri: asset.uri,
-        base64: asset.base64,
-        width: asset.width,
-        height: asset.height,
-        type: asset.type || 'image/jpeg',
-        fromCamera: true,
-      });
-      setShowCropModal(true);
+      handleDirectScan(asset);
     } else if (res.errorMessage) {
       Alert.alert('Camera unavailable', res.errorMessage);
+    }
+  };
+
+  const handleDirectScan = async (asset: Asset) => {
+    setScanning(true);
+    try {
+      const scanBase64 = asset.base64 || '';
+      const extracted = await scanProductImage(scanBase64, asset.type || 'image/jpeg');
+      navigation.navigate('ProductForm', {
+        scanned: {
+          title: extracted.productName,
+          description: extracted.description,
+          price: String(extracted.price || ''),
+          discountedPrice: String(extracted.discountedPrice || ''),
+          category: extracted.category,
+          brand: extracted.brand,
+          imageUrl: asset.uri,
+          images: [asset.uri],
+          croppedAsset: asset,
+        },
+      });
+    } catch (err: any) {
+      Alert.alert('Scan failed', err?.message || 'Could not read product details from that photo. Try Add Product to enter them manually.');
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -229,15 +246,7 @@ export default function StoreProductsScreen() {
     });
     const asset = res.assets?.[0];
     if (asset?.uri) {
-      setCropTarget({
-        uri: asset.uri,
-        base64: asset.base64,
-        width: asset.width,
-        height: asset.height,
-        type: asset.type || 'image/jpeg',
-        fromCamera: false,
-      });
-      setShowCropModal(true);
+      handleDirectScan(asset);
     }
   };
 

@@ -31,6 +31,9 @@ export interface BestSellerItem {
   soldCount?: number;
   badge?: string;
   totalStock?: number;
+  storeId?: string;
+  ownerRole?: string;
+  storeType?: string;
   raw?: any;
 }
 
@@ -110,6 +113,9 @@ export function mapProduct(p: any): BestSellerItem {
     soldCount: p.soldCount,
     badge: 'Best Seller',
     totalStock: p.totalStock,
+    storeId: p.storeId,
+    ownerRole: p.ownerRole,
+    storeType: p.storeType,
     raw: p,
   };
 }
@@ -283,9 +289,29 @@ export async function fetchNewArrivals(forceRefresh = false): Promise<Product[]>
     cachedNewArrivals = result;
     newArrivalsCacheTime = Date.now();
     return result;
-  } catch (err) {
-    console.error('Failed to fetch new arrivals:', err);
-    if (cachedNewArrivals) return cachedNewArrivals;
+  } catch (err: any) {
+    if (cachedNewArrivals && cachedNewArrivals.length > 0) {
+      return cachedNewArrivals;
+    }
+    // Fallback to legacy product service if gateway is rate-limited (429) or unreachable
+    try {
+      const fallbackRes = await productApi.getAll({ limit: 50 });
+      const fallbackData = fallbackRes.data;
+      const fallbackRaw: Product[] = Array.isArray(fallbackData)
+        ? fallbackData
+        : fallbackData?.products || fallbackData?.data || [];
+      const fallbackProducts = fallbackRaw.filter(
+        (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+      );
+      if (fallbackProducts.length > 0) {
+        cachedNewArrivals = fallbackProducts;
+        newArrivalsCacheTime = Date.now();
+        return fallbackProducts;
+      }
+    } catch (_) {}
+
+    // Non-fatal warning instead of console.error to avoid React Native RedBox in dev mode
+    console.warn('Failed to fetch new arrivals (status: ' + (err?.response?.status || err?.message || 'unknown') + ')');
     return [];
   }
 }

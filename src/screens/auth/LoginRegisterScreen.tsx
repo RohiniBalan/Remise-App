@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react-native';
 import { authApi } from '../../api/authApi';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   CustomerColors,
   Spacing,
@@ -31,6 +32,10 @@ import { navigateAfterLogin } from '../../utils/authGuard';
 export default function LoginRegisterScreen() {
   const navigation = useNavigation<any>();
   const { login } = useAuth();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => getStyles(isDark), [isDark]);
+  const placeholderColor = isDark ? '#9CA3AF' : CustomerColors.textSecondary;
+  const eyeColor = isDark ? '#9CA3AF' : CustomerColors.textSecondary;
 
   const [isLogin, setIsLogin] = useState(true);
   const [fullname, setFullname] = useState('');
@@ -163,7 +168,7 @@ export default function LoginRegisterScreen() {
                 setFieldErrors(prev => ({ ...prev, fullname: '' }));
               }}
               placeholder="Your name"
-              placeholderTextColor={CustomerColors.textSecondary}
+              placeholderTextColor={placeholderColor}
             />
             {fieldErrors.fullname ? (
               <Text style={styles.fieldError}>{fieldErrors.fullname}</Text>
@@ -177,7 +182,7 @@ export default function LoginRegisterScreen() {
                 setFieldErrors(prev => ({ ...prev, mobilenumber: '' }));
               }}
               placeholder="10-digit mobile number"
-              placeholderTextColor={CustomerColors.textSecondary}
+              placeholderTextColor={placeholderColor}
               keyboardType="phone-pad"
               maxLength={10}
             />
@@ -196,7 +201,7 @@ export default function LoginRegisterScreen() {
             setFieldErrors(prev => ({ ...prev, email: '' }));
           }}
           placeholder="you@example.com"
-          placeholderTextColor={CustomerColors.textSecondary}
+          placeholderTextColor={placeholderColor}
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -214,7 +219,7 @@ export default function LoginRegisterScreen() {
               setFieldErrors(prev => ({ ...prev, password: '' }));
             }}
             placeholder="••••••••"
-            placeholderTextColor={CustomerColors.textSecondary}
+            placeholderTextColor={placeholderColor}
             secureTextEntry={!showPassword}
           />
           <TouchableOpacity
@@ -223,9 +228,9 @@ export default function LoginRegisterScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             {showPassword ? (
-              <EyeOff size={18} color={CustomerColors.textSecondary} />
+              <EyeOff size={18} color={eyeColor} />
             ) : (
-              <Eye size={18} color={CustomerColors.textSecondary} />
+              <Eye size={18} color={eyeColor} />
             )}
           </TouchableOpacity>
         </View>
@@ -295,163 +300,164 @@ export default function LoginRegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: CustomerColors.bg },
-  container: { flexGrow: 1, padding: Spacing.xl, justifyContent: 'center' },
-  brand: {
-    fontSize: FontSizes.xxl,
-    fontWeight: '800',
-    color: CustomerColors.primary,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  heading: {
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-    color: CustomerColors.black,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  error: {
-    color: CustomerColors.danger,
-    backgroundColor: CustomerColors.dangerBg,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    fontSize: FontSizes.sm,
-  },
-  fieldError: {
-    color: CustomerColors.danger,
-    fontSize: FontSizes.xs,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
-  },
-  label: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: CustomerColors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  input: {
-    backgroundColor: CustomerColors.white,
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontSize: FontSizes.base,
-    color: CustomerColors.black,
-  },
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
-  passwordInput: { flex: 1, paddingRight: Spacing.xxl },
-  eyeBtn: { position: 'absolute', right: Spacing.md },
-  submitButton: {
-    backgroundColor: CustomerColors.primary,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-  },
-  forgotLink: { alignItems: 'flex-end', marginTop: Spacing.sm },
-  forgotLinkText: {
-    color: CustomerColors.teal700,
-    fontWeight: '600',
-    fontSize: FontSizes.sm,
-  },
-  submitButtonText: {
-    color: CustomerColors.white,
-    fontWeight: '700',
-    fontSize: FontSizes.base,
-  },
-  googleButton: {
-    borderWidth: 1,
-    borderColor: CustomerColors.steelBorder,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.md,
-    backgroundColor: CustomerColors.white,
-  },
-  googleButtonText: {
-    color: CustomerColors.black,
-    fontWeight: '600',
-    fontSize: FontSizes.base,
-  },
-  toggleLink: { marginTop: Spacing.lg, alignItems: 'center' },
-  toggleLinkText: {
-    color: CustomerColors.textSecondary,
-    fontSize: FontSizes.sm,
-  },
-  toggleLinkAccent: { color: CustomerColors.teal700, fontWeight: '700' },
-  businessSection: {
-    marginTop: Spacing.xl,
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: CustomerColors.border,
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  deliveryCard: {
-    width: '100%',
-    backgroundColor: '#115E59',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    alignItems: 'center',
-  },
-  deliveryCardTitle: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: FontSizes.sm,
-  },
-  deliveryCardSubtitle: {
-    color: '#CCFBF1',
-    fontSize: FontSizes.xs,
-    marginTop: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  modalCard: {
-    backgroundColor: '#18181B',
-    borderRadius: 24,
-    padding: 28,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    width: '100%',
-    maxWidth: 320,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalIconWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'rgba(255, 0, 0, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    color: '#94A3B8',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg },
+    container: { flexGrow: 1, padding: Spacing.xl, justifyContent: 'center' },
+    brand: {
+      fontSize: FontSizes.xxl,
+      fontWeight: '800',
+      color: CustomerColors.primary,
+      textAlign: 'center',
+      marginBottom: Spacing.sm,
+    },
+    heading: {
+      fontSize: FontSizes.md,
+      fontWeight: '600',
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      textAlign: 'center',
+      marginBottom: Spacing.lg,
+    },
+    error: {
+      color: isDark ? '#FCA5A5' : CustomerColors.danger,
+      backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : CustomerColors.dangerBg,
+      padding: Spacing.md,
+      borderRadius: BorderRadius.md,
+      marginBottom: Spacing.md,
+      fontSize: FontSizes.sm,
+    },
+    fieldError: {
+      color: isDark ? '#F87171' : CustomerColors.danger,
+      fontSize: FontSizes.xs,
+      marginTop: Spacing.xs,
+      marginBottom: Spacing.sm,
+    },
+    label: {
+      fontSize: FontSizes.xs,
+      fontWeight: '700',
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: Spacing.xs,
+      marginTop: Spacing.sm,
+    },
+    input: {
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      fontSize: FontSizes.base,
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+    },
+    passwordRow: { flexDirection: 'row', alignItems: 'center' },
+    passwordInput: { flex: 1, paddingRight: Spacing.xxl },
+    eyeBtn: { position: 'absolute', right: Spacing.md },
+    submitButton: {
+      backgroundColor: CustomerColors.primary,
+      borderRadius: BorderRadius.md,
+      paddingVertical: Spacing.md,
+      alignItems: 'center',
+      marginTop: Spacing.lg,
+    },
+    forgotLink: { alignItems: 'flex-end', marginTop: Spacing.sm },
+    forgotLinkText: {
+      color: isDark ? '#2DD4BF' : CustomerColors.teal700,
+      fontWeight: '600',
+      fontSize: FontSizes.sm,
+    },
+    submitButtonText: {
+      color: CustomerColors.white,
+      fontWeight: '700',
+      fontSize: FontSizes.base,
+    },
+    googleButton: {
+      borderWidth: 1,
+      borderColor: isDark ? '#374151' : CustomerColors.steelBorder,
+      borderRadius: BorderRadius.md,
+      paddingVertical: Spacing.md,
+      alignItems: 'center',
+      marginTop: Spacing.md,
+      backgroundColor: isDark ? '#111827' : CustomerColors.white,
+    },
+    googleButtonText: {
+      color: isDark ? '#F9FAFB' : CustomerColors.black,
+      fontWeight: '600',
+      fontSize: FontSizes.base,
+    },
+    toggleLink: { marginTop: Spacing.lg, alignItems: 'center' },
+    toggleLinkText: {
+      color: isDark ? '#9CA3AF' : CustomerColors.textSecondary,
+      fontSize: FontSizes.sm,
+    },
+    toggleLinkAccent: { color: isDark ? '#2DD4BF' : CustomerColors.teal700, fontWeight: '700' },
+    businessSection: {
+      marginTop: Spacing.xl,
+      paddingTop: Spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#1F2937' : CustomerColors.border,
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    deliveryCard: {
+      width: '100%',
+      backgroundColor: isDark ? '#134E4A' : '#115E59',
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.md,
+      alignItems: 'center',
+    },
+    deliveryCardTitle: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: FontSizes.sm,
+    },
+    deliveryCardSubtitle: {
+      color: '#CCFBF1',
+      fontSize: FontSizes.xs,
+      marginTop: 2,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.xl,
+    },
+    modalCard: {
+      backgroundColor: isDark ? '#18181B' : '#FFFFFF',
+      borderRadius: 24,
+      padding: 28,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#27272A' : '#E5E7EB',
+      width: '100%',
+      maxWidth: 320,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.5,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    modalIconWrap: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: 'rgba(255, 0, 0, 0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      color: isDark ? '#FFFFFF' : '#111827',
+      fontSize: 22,
+      fontWeight: '800',
+      marginBottom: 8,
+    },
+    modalSubtitle: {
+      color: isDark ? '#94A3B8' : '#6B7280',
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+  });

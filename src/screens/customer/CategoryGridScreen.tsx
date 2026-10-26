@@ -72,14 +72,17 @@ function normalizeCategory(raw: any): NormalizedCategory | null {
   };
 }
 
+let cachedCategoryCards: NormalizedCategory[] | null = null;
+let cachedGridProducts: Product[] | null = null;
+
 export default function CategoryGridScreen() {
   const navigation = useNavigation<any>();
   const { isDark } = useTheme();
   const { t, language } = useTranslation();
 
-  const [loading, setLoading] = useState(true);
-  const [categoryCards, setCategoryCards] = useState<NormalizedCategory[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(!cachedCategoryCards);
+  const [categoryCards, setCategoryCards] = useState<NormalizedCategory[]>(() => cachedCategoryCards || []);
+  const [products, setProducts] = useState<Product[]>(() => cachedGridProducts || []);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -106,6 +109,9 @@ export default function CategoryGridScreen() {
       const prodArr = rawProdArr.filter(
         (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
       );
+      if (prodArr.length > 0) {
+        cachedGridProducts = prodArr;
+      }
       setProducts(prodArr);
 
       if (prodResult.status !== 'fulfilled' && __DEV__) {
@@ -137,7 +143,11 @@ export default function CategoryGridScreen() {
         );
       }
 
-      setCategoryCards(Array.from(byName.values()));
+      const cards = Array.from(byName.values());
+      if (cards.length > 0) {
+        cachedCategoryCards = cards;
+      }
+      setCategoryCards(cards);
       setLoading(false);
     });
 

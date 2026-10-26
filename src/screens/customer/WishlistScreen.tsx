@@ -40,6 +40,9 @@ export default function WishlistScreen({ navigation }: any) {
       quantity: 1,
       image: item.image,
       totalStock: item.totalStock,
+      storeId: item.storeId,
+      ownerRole: item.ownerRole,
+      storeType: item.storeType,
     });
   };
 

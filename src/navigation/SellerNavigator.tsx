@@ -287,7 +287,7 @@ export default function SellerNavigator() {
 
 const getStyles = (isDark: boolean) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#0a0f1d' : CustomerColors.bg, padding: 32, gap: 8 },
-  noStoreTitle: { fontSize: 18, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black, marginTop: 8 },
+  noStoreTitle: { fontSize: 18, fontWeight: '700', color: isDark ? '#F9FAFB' : CustomerColors.black, textAlign: 'center', marginTop: 8 },
   noStoreSubtitle: { fontSize: 13, color: isDark ? '#9CA3AF' : CustomerColors.textSecondary, textAlign: 'center' },
   headerTitleWrap: { alignItems: 'center' },
   headerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },

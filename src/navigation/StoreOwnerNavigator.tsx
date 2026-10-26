@@ -731,6 +731,7 @@ const getStyles = (isDark: boolean) =>
       fontSize: 18,
       fontWeight: '700',
       color: isDark ? '#F9FAFB' : CustomerColors.black,
+      textAlign: 'center',
       marginTop: 8,
     },
     noStoreSubtitle: {

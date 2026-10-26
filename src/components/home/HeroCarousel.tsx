@@ -253,7 +253,7 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
             if (onShopNow) {
               onShopNow();
             } else {
-              navigation.navigate('Categories');
+              navigation.navigate('Categories', { screen: 'CategoryGrid' });
             }
           }}
           activeOpacity={0.88}
@@ -266,7 +266,7 @@ export default function HeroCarousel({ onShopNow }: HeroCarouselProps) {
 
         <TouchableOpacity
           style={[styles.secondaryBtn, isDark && styles.secondaryBtnDark]}
-          onPress={() => navigation.navigate('Categories')}
+          onPress={() => navigation.navigate('Categories', { screen: 'CategoryGrid' })}
           activeOpacity={0.85}
         >
           <Text style={[styles.secondaryBtnText, isDark && styles.secondaryBtnTextDark]} numberOfLines={2}>

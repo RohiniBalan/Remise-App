@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Search, Plus, ScanLine, ListChecks, Package, Camera, ImageIcon, X } from 'lucide-react-native';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useSellerDashboard } from '../../context/SellerDashboardContext';
 import { CustomerColors, Spacing, FontSizes, BorderRadius, Shadows } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -192,15 +192,51 @@ export default function SellerProductsScreen() {
     if (res.didCancel || res.errorCode) return;
     const picked = res.assets?.[0];
     if (picked?.uri) {
-      setCropTarget({
-        uri: picked.uri,
-        base64: picked.base64,
-        width: picked.width,
-        height: picked.height,
-        type: picked.type || 'image/jpeg',
-        fromCamera: true,
+      handleDirectScan(picked);
+    }
+  };
+
+  const handleDirectScan = async (asset: Asset) => {
+    setScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', {
+        uri: asset.uri,
+        name: asset.fileName || 'product.jpg',
+        type: asset.type || 'image/jpeg',
+      } as any);
+
+      const res = await sellerAiApi.scanSingleProduct(fd);
+      if (!res.data.success) throw new Error(res.data.message || 'Scan failed.');
+      const ext = res.data.extracted;
+      navigation.navigate('SellerProductForm', {
+        initialValues: {
+          title: ext.productName || '',
+          category: ext.category || '',
+          subcategory: ext.subcategory || '',
+          price: ext.price ? String(ext.price) : '',
+          discountedPrice: ext.discountedPrice ? String(ext.discountedPrice) : '',
+          storePrice: ext.storePrice ? String(ext.storePrice) : '',
+          storeDiscountedPrice: ext.storeDiscountedPrice ? String(ext.storeDiscountedPrice) : '',
+          description: ext.description || '',
+          brand: ext.brand || '',
+          imageUrl: asset.uri,
+          images: [asset.uri],
+          stockUnit: ext.stockUnit || ext.unit || 'Count',
+          unit: ext.stockUnit || ext.unit || 'Count',
+          availability: 'In Stock',
+          attributes: ext.attributes || {},
+          specifications: ext.specifications || [],
+          croppedAsset: asset,
+        },
       });
-      setShowCropModal(true);
+    } catch (err: any) {
+      Alert.alert('Scan Failed', err?.message || 'Could not detect product details from that image. Opening form to enter manually.', [
+        { text: 'OK', onPress: () => navigation.navigate('SellerProductForm', {}) },
+      ]);
+    } finally {
+      setScanning(false);
+      setScanModalType(null);
     }
   };
 
@@ -217,15 +253,7 @@ export default function SellerProductsScreen() {
     if (res.didCancel || res.errorCode) return;
     const picked = res.assets?.[0];
     if (picked?.uri) {
-      setCropTarget({
-        uri: picked.uri,
-        base64: picked.base64,
-        width: picked.width,
-        height: picked.height,
-        type: picked.type || 'image/jpeg',
-        fromCamera: false,
-      });
-      setShowCropModal(true);
+      handleDirectScan(picked);
     }
   };
 

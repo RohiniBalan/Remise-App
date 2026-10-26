@@ -9,6 +9,8 @@ import {
 } from '../services/fcmService';
 import InAppNotificationBanner, { BannerData } from '../components/common/InAppNotificationBanner';
 
+import { isOfferNotificationAllowed } from '../utils/notificationFilter';
+
 interface NotificationContextType {
   unreadCount: number;
   refetch: () => Promise<void>;
@@ -26,7 +28,7 @@ const NotificationContext = createContext<NotificationContextType>({
 });
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [bannerData, setBannerData] = useState<BannerData | null>(null);
 
@@ -37,14 +39,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
     try {
       const res = await notificationApi.getAll();
-      const count = typeof res.data?.unreadCount === 'number'
-        ? res.data.unreadCount
-        : (res.data?.data ?? res.data?.notifications ?? []).filter((n: any) => !n.isRead).length;
-      setUnreadCount(count ?? 0);
+      const raw = res.data?.data ?? res.data?.notifications ?? [];
+      const allowedUnread = raw.filter((n: any) => !n.isRead && isOfferNotificationAllowed(n, user?.role));
+      setUnreadCount(allowedUnread.length);
     } catch {
       // silent — best effort polling
     }
-  }, [token]);
+  }, [token, user?.role]);
 
   useEffect(() => {
     fetchUnread();
@@ -61,7 +62,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Listen for foreground notifications to display banner & increment unread counter
     setForegroundBannerListener((payload) => {
-      setBannerData(payload);
+      if (isOfferNotificationAllowed(payload, user?.role)) {
+        setBannerData(payload);
+      }
     });
 
     const cleanupListeners = setupFCMListeners(() => {

@@ -179,6 +179,9 @@ export default function BestSellersScreen() {
                 quantity: 1,
                 image: productImage(item),
                 totalStock: item.totalStock,
+                storeId: item.storeId,
+                ownerRole: (item as any).ownerRole,
+                storeType: (item as any).storeType,
               });
               showToast('Added to cart ✓');
             }}
@@ -194,6 +197,9 @@ export default function BestSellersScreen() {
                 quantity: 1,
                 image: productImage(item),
                 totalStock: item.totalStock,
+                storeId: item.storeId,
+                ownerRole: (item as any).ownerRole,
+                storeType: (item as any).storeType,
               });
               navigation.navigate('Checkout');
             }}

@@ -149,15 +149,9 @@ export default function SellerScanUploadScreen() {
     if (res.didCancel || res.errorCode) return;
     const picked = res.assets?.[0];
     if (picked?.uri) {
-      setCropTarget({
-        uri: picked.uri,
-        base64: picked.base64,
-        width: picked.width,
-        height: picked.height,
-        type: picked.type || 'image/jpeg',
-        fromCamera,
-      });
-      setShowCropModal(true);
+      setAsset(picked);
+      setStep('idle');
+      setErrMsg('');
     }
   };
 

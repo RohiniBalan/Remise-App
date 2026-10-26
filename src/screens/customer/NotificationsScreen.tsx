@@ -18,6 +18,7 @@ import { resolveImageUrl } from '../../utils/imageUrl';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../i18n';
+import { isOfferNotificationAllowed } from '../../utils/notificationFilter';
 
 interface NotificationItem {
   _id: string;
@@ -50,8 +51,8 @@ export default function NotificationsScreen() {
     try {
       const res = await notificationApi.getAll();
       const raw: NotificationItem[] = res.data.data ?? res.data.notifications ?? [];
-      // Only display unread / unseen notifications in the card list
-      const unreadOnly = raw.filter(n => !n.isRead);
+      // Only display unread / unseen notifications in the card list that are allowed for the user's role
+      const unreadOnly = raw.filter(n => !n.isRead && isOfferNotificationAllowed(n, user?.role));
       setItems(unreadOnly);
     } catch (err: any) {
       console.log(
@@ -63,7 +64,7 @@ export default function NotificationsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     load();

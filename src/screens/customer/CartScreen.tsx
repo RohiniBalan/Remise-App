@@ -40,15 +40,47 @@ export default function CartScreen() {
   const [approvedCredit, setApprovedCredit] = useState<CreditAccount | null>(null);
 
   React.useEffect(() => {
-    if (!token || !user) return;
+    if (!token || !user || !cart.length) {
+      setApprovedCredit(null);
+      return;
+    }
+
+    // Home business products never support credit
+    const hasHomeBusiness = cart.some(
+      (i: any) =>
+        i.ownerRole === 'home_business' ||
+        i.storeType === 'home_business' ||
+        i.supplierRole === 'home_business'
+    );
+    if (hasHomeBusiness) {
+      setApprovedCredit(null);
+      return;
+    }
+
+    // Mixed-store carts cannot use store-specific credit
+    const storeIds = Array.from(new Set(cart.map((i: any) => i.storeId).filter(Boolean)));
+    if (storeIds.length !== 1) {
+      setApprovedCredit(null);
+      return;
+    }
+
+    const singleStoreId = String(storeIds[0]);
+
     creditApi.getMyCreditAccounts()
       .then(res => {
         const accounts: CreditAccount[] = Array.isArray(res) ? res : (res as any)?.data || [];
-        const appAcc = accounts.find(a => a.status === 'APPROVED' && (a.availableCredit || 0) > 0);
+        const appAcc = accounts.find(
+          a =>
+            a.status === 'APPROVED' &&
+            String(a.storeId) === singleStoreId &&
+            !(a.outstandingBalance > 0) &&
+            (a.availableCredit || 0) > 0
+        );
         if (appAcc) setApprovedCredit(appAcc);
+        else setApprovedCredit(null);
       })
-      .catch(() => {});
-  }, [token, user]);
+      .catch(() => setApprovedCredit(null));
+  }, [token, user, cart]);
 
   React.useEffect(() => {
     navigation.setOptions({ title: t('cart.yourCart') });

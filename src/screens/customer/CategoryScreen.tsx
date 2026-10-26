@@ -9,9 +9,8 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useRoute, RouteProp } from '@react-navigation/native';
-import { Filter, X, Search, ArrowLeft, Sun, Moon } from 'lucide-react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { Filter, X, Search, Sun, Moon } from 'lucide-react-native';
 import { productApi, Product, productId, productImage } from '../../api/productApi';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -112,11 +111,13 @@ export default function CategoryScreen() {
       setLoadingMore(true);
     }
 
+    let params: Record<string, any> = {};
+
     try {
       const cat = catOverride !== undefined ? catOverride : activeCategory;
       const q = searchOverride !== undefined ? searchOverride : searchQuery;
 
-      const params: Record<string, any> = {
+      params = {
         limit: 20,
         page: pageNum,
         excludeOwnerRole: 'whole_saler,wholesaler',
@@ -156,7 +157,25 @@ export default function CategoryScreen() {
       }
       setPage(pageNum);
     } catch {
-      if (isInitial) setProducts([]);
+      if (isInitial) {
+        try {
+          const fallbackRes = await productApi.getAll(params);
+          const fallbackData = fallbackRes.data;
+          const fallbackRaw = Array.isArray(fallbackData?.data)
+            ? fallbackData.data
+            : Array.isArray(fallbackData)
+            ? fallbackData
+            : fallbackData?.products || [];
+          const fallbackFiltered = fallbackRaw.filter(
+            (p: any) => p.ownerRole !== 'whole_saler' && p.ownerRole !== 'wholesaler',
+          );
+          setProducts(fallbackFiltered);
+          setTotalCount(fallbackFiltered.length);
+          setHasNextPage(false);
+        } catch {
+          setProducts([]);
+        }
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -311,6 +330,9 @@ export default function CategoryScreen() {
       quantity: 1,
       image: productImage(p) || '',
       totalStock: p.totalStock,
+      storeId: p.storeId,
+      ownerRole: (p as any).ownerRole,
+      storeType: (p as any).storeType,
     });
   };
 
@@ -328,6 +350,9 @@ export default function CategoryScreen() {
       quantity: 1,
       image: productImage(p) || '',
       totalStock: p.totalStock,
+      storeId: p.storeId,
+      ownerRole: (p as any).ownerRole,
+      storeType: (p as any).storeType,
     });
     navigation.navigate('Checkout');
   };
@@ -345,19 +370,6 @@ export default function CategoryScreen() {
       {/* Search & Top Bar */}
       <View style={[styles.searchBarContainer, { backgroundColor: isDark ? '#0f172a' : '#FFFFFF', borderBottomColor: isDark ? '#1e293b' : '#F1F5F9' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity
-            onPress={() => {
-              if (navigation.canGoBack()) {
-                navigation.goBack();
-              } else {
-                navigation.navigate('CustomerTabs', { screen: 'Categories' });
-              }
-            }}
-            style={styles.backHomeBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <ArrowLeft size={20} color={isDark ? '#FFFFFF' : CustomerColors.black} />
-          </TouchableOpacity>
           <View style={[styles.searchBar, { flex: 1, backgroundColor: isDark ? '#1e293b' : '#F3F4F6', borderColor: isDark ? '#374151' : '#E5E7EB' }]}>
             <Search size={16} color={isDark ? '#9CA3AF' : CustomerColors.textSecondary} />
             <TextInput
@@ -593,11 +605,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-  },
-  backHomeBtn: {
-    padding: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   themeToggleBtn: {
     padding: 8,

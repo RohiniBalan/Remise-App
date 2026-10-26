@@ -39,7 +39,7 @@ const Y_AXIS_LABEL_WIDTH = 44;
 const CATEGORY_LABEL_WIDTH = 70;
 
 const CHART_WIDTH = SCREEN_WIDTH - OUTER_PADDING - Y_AXIS_LABEL_WIDTH;
-const HBAR_CHART_WIDTH = SCREEN_WIDTH - OUTER_PADDING - CATEGORY_LABEL_WIDTH;
+const HBAR_CHART_WIDTH = SCREEN_WIDTH - OUTER_PADDING - CATEGORY_LABEL_WIDTH - 16;
 
 const PIE_COLORS = [
   '#0d9488',
@@ -229,11 +229,16 @@ export default function StoreAnalyticsScreen() {
 
   const brandBarData = useMemo(
     () =>
-      (analytics?.brandWise || []).map(b => ({
-        value: b.revenue,
-        label: b.brand === 'Unknown' ? (t('store.unknown') || 'Unknown') : b.brand,
-      })),
-    [analytics, t],
+      (analytics?.brandWise || []).map(b => {
+        const rawLabel = b.brand === 'Unknown' ? (t('store.unknown') || 'Unknown') : b.brand;
+        const label = rawLabel.length > 11 ? `${rawLabel.slice(0, 10)}…` : rawLabel;
+        return {
+          value: b.revenue,
+          label,
+          labelTextStyle: { fontSize: 9, color: isDark ? '#FFFFFF' : CustomerColors.black },
+        };
+      }),
+    [analytics, isDark, t],
   );
 
   const monthBarData = useMemo(
@@ -455,7 +460,10 @@ export default function StoreAnalyticsScreen() {
                 xAxisLabelTextStyle={{ fontSize: 9, color: isDark ? '#FFFFFF' : CustomerColors.black }}
                 rulesColor={isDark ? '#1F2937' : '#E5E7EB'}
                 yAxisLabelWidth={CATEGORY_LABEL_WIDTH}
-                initialSpacing={8}
+                xAxisLabelsVerticalShift={36}
+                shiftX={24}
+                labelsDistanceFromXaxis={24}
+                initialSpacing={12}
                 spacing={20}
                 barWidth={22}
               />

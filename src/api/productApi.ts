@@ -56,6 +56,9 @@ export interface Product {
   attributes?: Record<string, any>;
   moq?: number;
   storeId?: string;
+  ownerRole?: string;
+  storeType?: string;
+  ownerId?: string;
 }
 
 export interface ProductReview {

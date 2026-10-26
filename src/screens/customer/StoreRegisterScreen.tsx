@@ -52,6 +52,7 @@ import {
 } from '../../styles/theme';
 import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
 import { useTranslation } from '../../i18n';
+import { requestLocationPermission, getCurrentCoordinates } from '../../utils/permissions';
 
 const CATEGORIES = [
   'Food & Beverages',
@@ -74,13 +75,6 @@ const isValidLatLng = (lat: number, lng: number) =>
   lng >= -180 &&
   lng <= 180;
 
-async function requestLocationPermission(): Promise<boolean> {
-  if (Platform.OS !== 'android') return true;
-  const granted = await PermissionsAndroid.request(
-    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-  );
-  return granted === PermissionsAndroid.RESULTS.GRANTED;
-}
 
 const STEPS = [
   { id: 1, title: 'Basic Info', icon: Store },
@@ -295,9 +289,8 @@ export default function StoreRegisterScreen() {
       if (data?.valid) {
         if (data.belongsToUser === false) {
           setPanVerified(false);
-          const registeredName = data.registeredName ? `"${data.registeredName}"` : 'the PAN card holder';
-          setPanError(`Name mismatch: PAN records show the name as ${registeredName}. Please enter your legal name exactly as it appears on your PAN card.`);
-          setFieldErrors(prev => ({ ...prev, panName: `Name does not match PAN card (${registeredName})` }));
+          setPanError('Name mismatch: The entered name does not match PAN records. Please enter your legal name exactly as it appears on your PAN card.');
+          setFieldErrors(prev => ({ ...prev, panName: 'Name does not match PAN card' }));
           return;
         }
         setPanVerified(true);
@@ -386,7 +379,10 @@ export default function StoreRegisterScreen() {
           return;
         }
         setAadhaarVerified(true);
-        setAadhaarData(data);
+        setAadhaarData({
+          ...data,
+          nameOnAadhaar: data.nameOnAadhaar || cleanAadhaarName || form.aadhaarName,
+        });
         setAadhaarError('');
         setShowAadhaarOtpModal(false);
         setFieldErrors(prev => {
@@ -435,7 +431,10 @@ export default function StoreRegisterScreen() {
           return;
         }
         setAadhaarVerified(true);
-        setAadhaarData(data);
+        setAadhaarData({
+          ...data,
+          nameOnAadhaar: data.nameOnAadhaar || cleanAadhaarName || form.aadhaarName,
+        });
         setAadhaarError('');
         setFieldErrors(prev => {
           const next = { ...prev };
@@ -643,16 +642,16 @@ export default function StoreRegisterScreen() {
   const detectLocation = async () => {
     setDetecting(true);
     setError('');
-    const granted = await requestLocationPermission();
-    if (!granted) {
+    const perm = await requestLocationPermission();
+    if (perm !== 'granted') {
       setDetecting(false);
-      setError('Location permission is required to detect GPS coordinates.');
+      setError('Location permission is required to detect coordinates.');
       return;
     }
-    Geolocation.getCurrentPosition(
-      pos => {
+    getCurrentCoordinates(
+      coords => {
         setDetecting(false);
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude } = coords;
         if (!isValidLatLng(latitude, longitude)) {
           setError(
             `Detected location looks invalid (lat: ${latitude}, lng: ${longitude}). Please enter your coordinates manually.`,
@@ -670,10 +669,9 @@ export default function StoreRegisterScreen() {
       () => {
         setDetecting(false);
         setError(
-          'Could not detect GPS location. Please enter coordinates manually.',
+          'Could not detect location. Please check device location settings or enter coordinates manually.',
         );
       },
-      { enableHighAccuracy: true, timeout: 15000 },
     );
   };
 
@@ -888,7 +886,7 @@ export default function StoreRegisterScreen() {
         },
         aadhaar: {
           verified: aadhaarVerified,
-          nameOnAadhaar: aadhaarData?.nameOnAadhaar || '',
+          nameOnAadhaar: aadhaarData?.nameOnAadhaar || form.aadhaarName.trim() || '',
           matchScore: aadhaarData?.matchScore || 0,
         },
         gstin: {
@@ -1367,10 +1365,10 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                     gstinVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
                   ]}
                 >
-                  <View style={styles.rowBetween}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
+                  <View style={[styles.rowBetween, { alignItems: 'flex-start', gap: 8 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                       <Building2 size={16} color={gstinVerified ? '#047857' : (isDark ? '#38bdf8' : '#0284c7')} />
-                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>GSTIN Number *</Text>
+                      <Text style={[styles.fieldLabel, { marginBottom: 0, flex: 1 }, isDark && { color: '#e2e8f0' }]}>GSTIN Number *</Text>
                     </View>
                     {gstinVerified ? (
                       <View style={styles.verifiedBadge}>
@@ -1454,10 +1452,12 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                     panVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
                   ]}
                 >
-                  <View style={styles.rowBetween}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
+                  <View style={[styles.rowBetween, { alignItems: 'flex-start', gap: 8 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                       <FileText size={16} color={panVerified ? '#047857' : (isDark ? '#94a3b8' : '#475569')} />
-                      <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>Permanent Account Number (PAN) *</Text>
+                      <Text style={[styles.fieldLabel, { marginBottom: 0, flex: 1 }, isDark && { color: '#e2e8f0' }]}>
+                        Permanent Account Number (PAN) *
+                      </Text>
                     </View>
                     {panVerified ? (
                       <View style={styles.verifiedBadge}>
@@ -1575,10 +1575,10 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                   aadhaarVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
                 ]}
               >
-                <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
+                <View style={[styles.rowBetween, { alignItems: 'flex-start', gap: 8 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                     <Fingerprint size={16} color={aadhaarVerified ? '#047857' : (isDark ? '#38bdf8' : '#0284c7')} />
-                    <Text style={[styles.fieldLabel, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>
+                    <Text style={[styles.fieldLabel, { marginBottom: 0, flex: 1 }, isDark && { color: '#e2e8f0' }]}>
                       Aadhaar Number (UIDAI OKYC)
                     </Text>
                   </View>
@@ -1587,11 +1587,7 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                       <BadgeCheck size={13} color="#047857" />
                       <Text style={styles.verifiedBadgeText}>Aadhaar Verified</Text>
                     </View>
-                  ) : (
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: isDark ? '#94a3b8' : '#64748b' }}>
-                      UIDAI e-KYC
-                    </Text>
-                  )}
+                  ) : null}
                 </View>
 
                 {/* Name as on Aadhaar Card */}
@@ -1744,7 +1740,7 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                   <View style={[styles.verifiedDetailBox, isDark && { backgroundColor: 'rgba(6, 78, 59, 0.25)', borderColor: '#065f46' }]}>
                     <Text style={[styles.verifiedDetailText, isDark && { color: '#6ee7b7' }]}>
                       <Text style={{ fontWeight: '700' }}>Aadhaar Holder: </Text>
-                      {aadhaarData.nameOnAadhaar}
+                      {aadhaarData.nameOnAadhaar || form.aadhaarName || form.name || (user as any)?.fullname || ''}
                     </Text>
                     {aadhaarData.belongsToUser && (
                       <Text style={[styles.verifiedMatchText, isDark && { color: '#34d399' }]}>
@@ -2136,13 +2132,13 @@ Registered at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }
                   bankVerified && (isDark ? { backgroundColor: 'rgba(6, 78, 59, 0.3)', borderColor: '#059669' } : styles.verifyCardSuccess),
                 ]}
               >
-                <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 }}>
+                <View style={[styles.rowBetween, { alignItems: 'flex-start', gap: 8 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                     <BadgeCheck
                       size={16}
                       color={bankVerified ? '#047857' : '#0d9488'}
                     />
-                    <Text style={[styles.fieldLabel, { marginBottom: 0, flexShrink: 1 }, isDark && { color: '#e2e8f0' }]} numberOfLines={1}>
+                    <Text style={[styles.fieldLabel, { marginBottom: 0, flex: 1 }, isDark && { color: '#e2e8f0' }]}>
                       Cashfree Bank Verification
                     </Text>
                   </View>
@@ -3057,6 +3053,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
     marginTop: Spacing.md,
+    overflow: 'hidden',
   },
   razorpayCardTitle: {
     fontSize: FontSizes.sm,
@@ -3084,20 +3081,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
     marginTop: Spacing.sm,
+    overflow: 'hidden',
   },
   razorpayFooterLabel: {
     fontSize: 11,
     color: '#64748b',
+    flexShrink: 0,
   },
   razorpayFooterValue: {
     fontSize: 11,
     fontWeight: '700',
     color: '#0d9488',
+    flexShrink: 1,
   },
 
   // Nav Buttons

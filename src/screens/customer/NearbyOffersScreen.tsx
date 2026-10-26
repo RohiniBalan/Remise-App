@@ -62,6 +62,7 @@ import {
 import { indianStates, getCities, translateState, translateCity } from '../../utils/indiaLocation';
 import AuthRequiredModal from '../../components/common/AuthRequiredModal';
 import { useTranslation, translateProductName } from '../../i18n';
+import { requestLocationPermission, getCurrentCoordinates } from '../../utils/permissions';
 
 export interface Offer {
   _id: string;
@@ -538,27 +539,6 @@ const NEARBY_I18N: Record<string, Record<string, string>> = {
   },
 };
 
-async function requestLocationPermission(): Promise<
-  'granted' | 'denied' | 'blocked'
-> {
-  if (Platform.OS !== 'android') return 'granted';
-  try {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      {
-        title: 'Location Permission',
-        message: 'Remise needs your location to show nearby offers.',
-        buttonPositive: 'OK',
-        buttonNegative: 'Deny',
-      },
-    );
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) return 'granted';
-    if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) return 'blocked';
-    return 'denied';
-  } catch {
-    return 'denied';
-  }
-}
 
 const resolveImage = (img?: string) => {
   return resolveImageUrl(img) || 'https://via.placeholder.com/300x200?text=Offer';
@@ -615,9 +595,9 @@ export default function NearbyOffersScreen() {
       return;
     }
     setPermBlocked(false);
-    Geolocation.getCurrentPosition(
-      pos => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    getCurrentCoordinates(
+      coords => {
+        const loc = { lat: coords.latitude, lng: coords.longitude };
         setLocation(loc);
         setLocLoading(false);
         loadOffers(loc, radius);
@@ -625,12 +605,11 @@ export default function NearbyOffersScreen() {
       err => {
         console.warn('Geolocation failed:', err);
         setLocError(
-          'Could not detect your current GPS location. Please check device location settings and try again.',
+          'Could not detect your current location. Please check device location settings and try again.',
         );
         setLocLoading(false);
         setOffers([]);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   }, [loadOffers, radius]);
 
@@ -972,19 +951,22 @@ function OrderModal({
       setCreditEligibility(null);
       return;
     }
-    const storeId = offer?.storeId || '';
+    const isHomeBusiness = (offer as any)?.ownerRole === 'home_business' || (offer as any)?.storeType === 'home_business';
+    const storeId = offer?.storeId ? String(offer.storeId) : '';
+    if (isHomeBusiness || !storeId) {
+      setCreditEligibility(null);
+      return;
+    }
     creditApi
       .getMyCreditAccounts()
       .then(res => {
         const accounts = res.data?.data || [];
-        const approved =
-          accounts.find(
-            (a: any) =>
-              a.status === 'APPROVED' &&
-              (!storeId ||
-                String(a.storeId) === String(storeId) ||
-                a.storeName?.toLowerCase() === offer?.storeName?.toLowerCase())
-          ) || accounts.find((a: any) => a.status === 'APPROVED');
+        const approved = accounts.find(
+          (a: any) =>
+            a.status === 'APPROVED' &&
+            String(a.storeId) === storeId &&
+            !(a.outstandingBalance > 0)
+        );
         if (approved) {
           setCreditEligibility({
             hasAccount: true,

@@ -247,7 +247,7 @@ export default function NewArrivalsScreen() {
 
       // Fallback: If gateway returned empty array on initial load, try homeSectionsApi
       if (filteredArr.length === 0 && isInitial) {
-        const fallbackItems = await fetchNewArrivals(true);
+        const fallbackItems = await fetchNewArrivals(false);
         if (fallbackItems && fallbackItems.length > 0) {
           filteredArr = fallbackItems;
           total = fallbackItems.length;
@@ -270,7 +270,7 @@ export default function NewArrivalsScreen() {
     } catch {
       if (isInitial) {
         try {
-          const fallbackItems = await fetchNewArrivals(true);
+          const fallbackItems = await fetchNewArrivals(false);
           if (fallbackItems && fallbackItems.length > 0) {
             setAllProducts(fallbackItems);
             setTotalCount(fallbackItems.length);
@@ -397,6 +397,9 @@ export default function NewArrivalsScreen() {
       quantity: 1,
       image: productImage(p) || '',
       totalStock: p.totalStock,
+      storeId: p.storeId,
+      ownerRole: (p as any).ownerRole,
+      storeType: (p as any).storeType,
     });
     showToast(txt.addedToCart);
   };
@@ -414,6 +417,9 @@ export default function NewArrivalsScreen() {
       quantity: 1,
       image: productImage(p) || '',
       totalStock: p.totalStock,
+      storeId: p.storeId,
+      ownerRole: (p as any).ownerRole,
+      storeType: (p as any).storeType,
     });
     navigation.navigate('Checkout');
   };

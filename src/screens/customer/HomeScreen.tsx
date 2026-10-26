@@ -15,9 +15,14 @@ import {
   ToastAndroid,
   Alert,
   AppState,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Geolocation from '@react-native-community/geolocation';
+import {
+  checkLocationPermission,
+  requestLocationPermission,
+  getCurrentCoordinates,
+} from '../../utils/permissions';
 import {
   Truck,
   ShieldCheck,
@@ -274,32 +279,31 @@ export default function HomeScreen() {
 
   const detectLocation = useCallback(() => {
     setNearbyStatus('locating');
-    Geolocation.getCurrentPosition(
-      pos => {
-        fetchNearbyOffers(pos.coords.latitude, pos.coords.longitude);
+    getCurrentCoordinates(
+      coords => {
+        fetchNearbyOffers(coords.latitude, coords.longitude);
       },
       err => {
         console.warn('Location detection failed:', err);
         setNearbyOffers([]);
-        setNearbyStatus('denied');
+        if (err?.code === 1) {
+          setNearbyStatus('denied');
+        } else {
+          setNearbyStatus('error');
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   }, [fetchNearbyOffers]);
 
-  const checkAndDetectLocation = useCallback(() => {
+  const checkAndDetectLocation = useCallback(async () => {
     if (Platform.OS === 'android') {
-      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION).then(granted => {
-        if (granted) {
-          detectLocation();
-        } else {
-          setNearbyOffers([]);
-          setNearbyStatus('idle');
-        }
-      }).catch(() => {
+      const granted = await checkLocationPermission();
+      if (granted) {
+        detectLocation();
+      } else {
         setNearbyOffers([]);
         setNearbyStatus('idle');
-      });
+      }
     } else {
       detectLocation();
     }
@@ -329,8 +333,14 @@ export default function HomeScreen() {
 
   const handleEnableLocation = async () => {
     if (Platform.OS === 'android') {
-      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
-      if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+      const result = await requestLocationPermission();
+      if (result === 'blocked') {
+        Linking.openSettings();
+        setNearbyOffers([]);
+        setNearbyStatus('denied');
+        return;
+      }
+      if (result !== 'granted') {
         setNearbyOffers([]);
         setNearbyStatus('denied');
         return;
@@ -488,7 +498,13 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={deal.title}
                 style={[styles.dealCard, isDark && { backgroundColor: '#1e293b', borderColor: '#374151' }]}
-                onPress={() => navigation.navigate(deal.route)}
+                onPress={() => {
+                  if (deal.route === 'Categories') {
+                    navigation.navigate('Categories', { screen: 'CategoryGrid' });
+                  } else {
+                    navigation.navigate(deal.route);
+                  }
+                }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.dealIconBox, { backgroundColor: deal.color }]}>
@@ -562,11 +578,17 @@ export default function HomeScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.locationPromptTitle}>Location access denied</Text>
-                <Text style={styles.locationPromptSubtitle}>Enable location in settings to see nearby offers.</Text>
+                <Text style={styles.locationPromptSubtitle}>Enable location to see nearby offers.</Text>
               </View>
-              <TouchableOpacity style={styles.browseAllBtn} onPress={() => navigation.navigate('Nearby')}>
-                <Text style={styles.browseAllBtnText}>Browse All</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                <TouchableOpacity style={styles.enableLocationBtn} onPress={handleEnableLocation}>
+                  <MapPin size={13} color="#fff" />
+                  <Text style={styles.enableLocationBtnText}>Enable</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.browseAllBtn} onPress={() => navigation.navigate('Nearby')}>
+                  <Text style={styles.browseAllBtnText}>Browse</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -634,7 +656,7 @@ export default function HomeScreen() {
         <View onLayout={e => setCategorySectionY(e.nativeEvent.layout.y)}>
           <Section
             title={t('products.shopByCategory')}
-            onViewAll={() => navigation.navigate('Categories')}
+            onViewAll={() => navigation.navigate('Categories', { screen: 'CategoryGrid' })}
             showViewAll={categories.filter(cat => cat.count > 0).length > 3}
           >
             <FlatList
@@ -745,6 +767,9 @@ export default function HomeScreen() {
                           quantity: 1,
                           image: item.img,
                           totalStock: item.totalStock ?? 999,
+                          storeId: item.storeId || item.raw?.storeId,
+                          ownerRole: item.ownerRole || item.raw?.ownerRole,
+                          storeType: item.storeType || item.raw?.storeType,
                         });
                         if (Platform.OS === 'android') {
                           ToastAndroid.show('Added to cart ✓', ToastAndroid.SHORT);
@@ -842,6 +867,9 @@ export default function HomeScreen() {
                             quantity: 1,
                             image: img,
                             totalStock: item.totalStock ?? 999,
+                            storeId: item.storeId || (item as any).storeId,
+                            ownerRole: item.ownerRole || (item as any).ownerRole,
+                            storeType: item.storeType || (item as any).storeType,
                           });
                           if (Platform.OS === 'android') {
                             ToastAndroid.show('Added to cart ✓', ToastAndroid.SHORT);

@@ -63,6 +63,7 @@ import { lookupTanglishDictionary } from '../../utils/tanglishTranslator';
 import { translateGroceryTerm } from '../../api/geminiScanApi';
 import { usePlatformFee } from '../../utils/platformFee';
 import { useDeliveryFee } from '../../utils/deliveryFee';
+import { requestLocationPermission, getCurrentCoordinates } from '../../utils/permissions';
 
 
 // Ported from client/app/(root)/bulk-purchase/CompareModal.tsx — same step
@@ -92,13 +93,6 @@ interface AddressForm {
   pinCode: string;
 }
 
-async function requestLocationPermission(): Promise<boolean> {
-  if (Platform.OS !== 'android') return true;
-  const granted = await PermissionsAndroid.request(
-    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-  );
-  return granted === PermissionsAndroid.RESULTS.GRANTED;
-}
 
 const COMPARE_I18N: Record<string, Record<string, string>> = {
   en: {
@@ -601,19 +595,22 @@ export default function CompareStoresScreen() {
       setCreditEligibility(null);
       return;
     }
-    const storeId = chosen?.storeId || '';
+    const isHomeBusiness = (chosen as any)?.ownerRole === 'home_business' || (chosen as any)?.storeType === 'home_business';
+    const storeId = chosen?.storeId ? String(chosen.storeId) : '';
+    if (isHomeBusiness || !storeId) {
+      setCreditEligibility(null);
+      return;
+    }
     creditApi
       .getMyCreditAccounts()
       .then(res => {
         const accounts = res.data?.data || [];
-        const approved =
-          accounts.find(
-            (a: any) =>
-              a.status === 'APPROVED' &&
-              (!storeId ||
-                String(a.storeId) === String(storeId) ||
-                a.storeName?.toLowerCase() === chosen?.storeName?.toLowerCase())
-          ) || accounts.find((a: any) => a.status === 'APPROVED');
+        const approved = accounts.find(
+          (a: any) =>
+            a.status === 'APPROVED' &&
+            String(a.storeId) === storeId &&
+            !(a.outstandingBalance > 0)
+        );
         if (approved) {
           setCreditEligibility({
             hasAccount: true,
@@ -716,8 +713,8 @@ export default function CompareStoresScreen() {
     setStep('searching');
     setErrorMsg('');
 
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) {
+    const perm = await requestLocationPermission();
+    if (perm !== 'granted') {
       console.log('[NearbySearch] location permission denied', {
         at: new Date().toISOString(),
         userId: user?._id,
@@ -729,16 +726,16 @@ export default function CompareStoresScreen() {
       return;
     }
 
-    Geolocation.getCurrentPosition(
-      async pos => {
-        const { latitude, longitude, accuracy } = pos.coords;
+    getCurrentCoordinates(
+      async coords => {
+        const { latitude, longitude, accuracy } = coords;
         const requestMeta = {
           at: new Date().toISOString(),
           userId: user?._id ?? null,
           latitude,
           longitude,
           gpsAccuracyMeters: accuracy,
-          gpsFixTimestamp: new Date(pos.timestamp).toISOString(),
+          gpsFixTimestamp: new Date().toISOString(),
           radiusKm: effectiveRadius,
         };
         console.log(
@@ -846,17 +843,16 @@ export default function CompareStoresScreen() {
         }
       },
       err => {
-        console.log('[NearbySearch] Geolocation.getCurrentPosition failed', {
+        console.log('[NearbySearch] getCurrentCoordinates failed', {
           at: new Date().toISOString(),
           userId: user?._id,
           error: err,
         });
         setErrorMsg(
-          'Location access denied. Enable location to compare nearby stores.',
+          'Could not detect your current location. Please verify location is enabled in your device settings.',
         );
         setStep('radius');
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   };
 

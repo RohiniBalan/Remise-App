@@ -507,16 +507,16 @@ export default function SellerProductFormScreen() {
     if (res.didCancel || res.errorCode) return;
     const asset = res.assets?.[0];
     if (asset?.uri) {
-      setCropTarget({
+      const newImageItem: ProductImageItem = {
+        id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         uri: asset.uri,
-        base64: asset.base64,
-        width: asset.width,
-        height: asset.height,
-        type: asset.type || 'image/jpeg',
-        fromCamera,
-        autoScan,
-      });
-      setShowCropModal(true);
+        asset,
+      };
+      setImages(prev => [newImageItem, ...prev]);
+
+      if (autoScan) {
+        handleAiAutoFill(asset);
+      }
     }
   };
 

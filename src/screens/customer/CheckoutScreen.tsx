@@ -37,6 +37,7 @@ import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/authApi';
 import { creditApi } from '../../api/creditApi';
 import { storeApi } from '../../api/storeApi';
+import { gatewayClient } from '../../api/client';
 import {
   paymentApi,
   PAYMENT_RETURN_SENTINEL,
@@ -255,6 +256,18 @@ export default function CheckoutScreen() {
   }, [itemsToCheckout]);
 
   const [storeDetails, setStoreDetails] = useState<any>(null);
+  const [resolvedProductRoles, setResolvedProductRoles] = useState<Record<string, { ownerRole?: string; storeId?: string; storeType?: string }>>({});
+
+  const itemStoreIds = useMemo(() => {
+    const ids = new Set<string>();
+    (itemsToCheckout as any[]).forEach(i => {
+      const sId = i.storeId || resolvedProductRoles[i.id || i._id]?.storeId;
+      if (sId) ids.add(String(sId));
+    });
+    return Array.from(ids);
+  }, [itemsToCheckout, resolvedProductRoles]);
+
+  const isMixedStoreCart = itemStoreIds.length > 1;
 
   useEffect(() => {
     if (primaryStoreId) {
@@ -263,6 +276,35 @@ export default function CheckoutScreen() {
       }).catch(() => {});
     }
   }, [primaryStoreId]);
+
+  // Fallback: If any item in itemsToCheckout lacks ownerRole or storeId, resolve from product API
+  useEffect(() => {
+    (itemsToCheckout as any[]).forEach((it: any) => {
+      const pId = it.id || it._id;
+      if (pId && (!it.ownerRole || !it.storeId || !it.storeType)) {
+        gatewayClient.get(`/api/products/${pId}`)
+          .then((res: any) => {
+            const pData = res.data?.data || res.data;
+            if (pData) {
+              setResolvedProductRoles(prev => ({
+                ...prev,
+                [pId]: {
+                  ownerRole: pData.ownerRole,
+                  storeId: pData.storeId,
+                  storeType: pData.storeType,
+                },
+              }));
+              if (pData.storeId && !primaryStoreId) {
+                storeApi.getById(pData.storeId).then((sRes: any) => {
+                  if (sRes.data?.data) setStoreDetails(sRes.data.data);
+                }).catch(() => {});
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    });
+  }, [itemsToCheckout, primaryStoreId]);
 
   const isStockOrder = useMemo(() => {
     if (user?.role !== 'store_owner') return false;
@@ -284,12 +326,14 @@ export default function CheckoutScreen() {
       return true;
     }
     return (itemsToCheckout as any[]).some(
-      (item: any) =>
-        item.ownerRole === 'home_business' ||
-        item.supplierRole === 'home_business' ||
-        item.storeType === 'home_business'
+      (item: any) => {
+        const pId = item.id || item._id;
+        const resolved = resolvedProductRoles[pId];
+        const role = item.ownerRole || item.supplierRole || item.storeType || resolved?.ownerRole || resolved?.storeType;
+        return role === 'home_business';
+      }
     );
-  }, [storeDetails, itemsToCheckout]);
+  }, [storeDetails, itemsToCheckout, resolvedProductRoles]);
 
   useEffect(() => {
     if (isStockOrder || isHomeBusinessOrder) {
@@ -309,71 +353,98 @@ export default function CheckoutScreen() {
   const totalPayable = subtotal + platformFee + deliveryFee;
 
   useEffect(() => {
-    if (!token) {
+    if (!token || isStockOrder || isHomeBusinessOrder || isMixedStoreCart || !primaryStoreId) {
       setCreditEligibility(null);
+      if (paymentMethod === 'credit') {
+        setPaymentMethod('razorpay');
+      }
       return;
     }
 
     const checkCredit = async () => {
       try {
-        if (primaryStoreId) {
-          const res = await creditApi.checkEligibility(primaryStoreId, totalPayable, paymentMethod);
-          if (res.data?.success && res.data.data?.hasAccount) {
-            setCreditEligibility(res.data.data);
-            return;
+        const storeToQuery = String(primaryStoreId);
+        const res = await creditApi.checkEligibility(storeToQuery, totalPayable, paymentMethod);
+        if (res.data?.success && res.data.data?.hasAccount && String(res.data.data.storeId) === storeToQuery) {
+          setCreditEligibility(res.data.data);
+          if (!res.data.data.canUseCredit && paymentMethod === 'credit') {
+            setPaymentMethod('razorpay');
           }
+          return;
         }
 
         const accRes = await creditApi.getMyCreditAccounts();
         const accounts = Array.isArray(accRes.data) ? accRes.data : Array.isArray(accRes) ? accRes : (accRes?.data?.data || []);
-        const approved = accounts.find((a: any) => a.status === 'APPROVED' && (!primaryStoreId || String(a.storeId) === String(primaryStoreId) || a.storeName?.toLowerCase() === primaryStoreName?.toLowerCase())) || accounts.find((a: any) => a.status === 'APPROVED');
+        // Strict matching ONLY for this specific store
+        const approved = accounts.find((a: any) => a.status === 'APPROVED' && String(a.storeId) === storeToQuery);
         if (approved) {
+          const avail = approved.availableCredit ?? (approved.creditLimit - (approved.reservedCreditAmount || 0));
+          const canUse = avail >= totalPayable && !(approved.outstandingBalance > 0);
           setCreditEligibility({
             hasAccount: true,
             status: approved.status,
             storeId: approved.storeId,
             storeName: approved.storeName,
             creditLimit: approved.creditLimit || 0,
-            availableCredit: approved.availableCredit ?? (approved.creditLimit - (approved.reservedCreditAmount || 0)),
+            availableCredit: avail,
             outstandingBalance: approved.outstandingBalance || 0,
             nextDueDate: approved.nextDueDate,
-            canUseCredit: (approved.availableCredit ?? approved.creditLimit) >= totalPayable,
+            canUseCredit: canUse,
             hasOutstandingDebt: (approved.outstandingBalance || 0) > 0,
             canOrderFromStore: (approved.outstandingBalance || 0) === 0,
           });
+          if (!canUse && paymentMethod === 'credit') {
+            setPaymentMethod('razorpay');
+          }
         } else {
           setCreditEligibility(null);
+          if (paymentMethod === 'credit') {
+            setPaymentMethod('razorpay');
+          }
         }
       } catch (err: any) {
         try {
+          const storeToQuery = String(primaryStoreId);
           const accRes = await creditApi.getMyCreditAccounts();
-          const accounts = accRes.data?.data || [];
-          const approved = accounts.find((a: any) => a.status === 'APPROVED');
+          const accounts = Array.isArray(accRes.data) ? accRes.data : Array.isArray(accRes) ? accRes : (accRes?.data?.data || []);
+          // Strict matching ONLY for this specific store
+          const approved = accounts.find((a: any) => a.status === 'APPROVED' && String(a.storeId) === storeToQuery);
           if (approved) {
+            const avail = approved.availableCredit ?? (approved.creditLimit - (approved.reservedCreditAmount || 0));
+            const canUse = avail >= totalPayable && !(approved.outstandingBalance > 0);
             setCreditEligibility({
               hasAccount: true,
               status: approved.status,
               storeId: approved.storeId,
               storeName: approved.storeName,
               creditLimit: approved.creditLimit || 0,
-              availableCredit: approved.availableCredit ?? (approved.creditLimit - (approved.reservedCreditAmount || 0)),
+              availableCredit: avail,
               outstandingBalance: approved.outstandingBalance || 0,
               nextDueDate: approved.nextDueDate,
-              canUseCredit: (approved.availableCredit ?? approved.creditLimit) >= totalPayable,
+              canUseCredit: canUse,
               hasOutstandingDebt: (approved.outstandingBalance || 0) > 0,
               canOrderFromStore: (approved.outstandingBalance || 0) === 0,
             });
+            if (!canUse && paymentMethod === 'credit') {
+              setPaymentMethod('razorpay');
+            }
           } else {
             setCreditEligibility(null);
+            if (paymentMethod === 'credit') {
+              setPaymentMethod('razorpay');
+            }
           }
         } catch {
           setCreditEligibility(null);
+          if (paymentMethod === 'credit') {
+            setPaymentMethod('razorpay');
+          }
         }
       }
     };
 
     checkCredit();
-  }, [primaryStoreId, totalPayable, paymentMethod, token]);
+  }, [primaryStoreId, totalPayable, paymentMethod, token, isStockOrder, isHomeBusinessOrder, isMixedStoreCart]);
 
   const hasStoreDebt = Boolean(
     creditEligibility &&
@@ -598,7 +669,10 @@ export default function CheckoutScreen() {
           <TouchableOpacity
             style={styles.emptyBtn}
             onPress={() =>
-              navigation.navigate('CustomerTabs', { screen: 'Categories' })
+              navigation.navigate('CustomerTabs', {
+                screen: 'Categories',
+                params: { screen: 'CategoryGrid' },
+              })
             }
           >
             <Text style={styles.emptyBtnText}>
@@ -1999,8 +2073,22 @@ export default function CheckoutScreen() {
                 </TouchableOpacity>
               ) : null}
 
+              {isMixedStoreCart && (
+                <View style={{ marginTop: Spacing.xs, padding: Spacing.md, backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : '#F0F9FF', borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.3)' : '#BAE6FD', flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm }}>
+                  <ShieldCheck size={20} color={isDark ? '#38BDF8' : '#0284C7'} style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FFFFFF' : '#0369A1' }}>
+                      Multi-Store Cart Policy
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#075985', marginTop: 2 }}>
+                      Your order contains products from multiple different stores. Store Credit is store-specific and cannot finance purchases across multiple stores in a single order. Please use Online Payment or Cash on Delivery.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               {isHomeBusinessOrder && (
-                <View style={{ padding: Spacing.md, backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA', borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(13, 148, 136, 0.3)' : '#CCFBF1', flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm }}>
+                <View style={{ marginTop: Spacing.xs, padding: Spacing.md, backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA', borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(13, 148, 136, 0.3)' : '#CCFBF1', flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm }}>
                   <ShieldCheck size={20} color={isDark ? '#5EEAD4' : '#0D9488'} style={{ marginTop: 2 }} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FFFFFF' : '#0F766E' }}>
@@ -2489,6 +2577,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     backgroundColor: '#FFFFFF',
+    marginBottom: Spacing.sm,
   },
   paymentCardActive: {
     borderColor: CustomerColors.teal600,

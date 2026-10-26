@@ -16,6 +16,9 @@ export interface WishlistItem {
   category?: string;
   totalStock?: number;
   translations?: Record<string, string>;
+  storeId?: string;
+  ownerRole?: string;
+  storeType?: string;
 }
 
 export interface WishlistContextType {
@@ -119,6 +122,9 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
           category: product.category,
           totalStock: product.totalStock,
           translations: product.translations,
+          storeId: product.storeId || product.store?._id,
+          ownerRole: product.ownerRole,
+          storeType: product.storeType,
         },
       ];
     });

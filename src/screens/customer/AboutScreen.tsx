@@ -160,7 +160,7 @@ export default function AboutScreen({ navigation }: any) {
     if (route === 'Home') {
       navigation.navigate('CustomerTabs', { screen: 'Home' });
     } else if (route === 'Categories' || route === 'CategoryAll') {
-      navigation.navigate('CustomerTabs', { screen: 'Categories' });
+      navigation.navigate('CustomerTabs', { screen: 'Categories', params: { screen: 'CategoryGrid' } });
     } else if (route === 'LoginRegister' || route === 'Signup') {
       navigation.navigate('LoginRegister');
     } else {
